@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financial Dashboard — Tricia Goh</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#11201a; --paper:#f4f1e8; --card:#fffdf6;
+    --moss:#2f5d3a; --moss-lt:#4a8055; --sand:#d8cfb4;
+    --rust:#b5482e; --gold:#c08a2e; --sky:#3d6b8e;
+    --line:#dcd4bd; --muted:#7d7560;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 80px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 26px}
+  header{
+    border-bottom:2px solid var(--ink);
+    padding:30px 0 20px;margin-bottom:8px;
+  }
+  .kicker{
+    font-family:'SF Mono',ui-monospace,Menlo,monospace;
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--rust);font-weight:600;
+  }
+  h1{font-size:42px;font-weight:600;letter-spacing:-.02em;line-height:1.05;margin:6px 0 4px}
+  .sub{color:var(--muted);font-size:15px;font-style:italic}
+  .asof{font-family:'SF Mono',ui-monospace,monospace;font-size:11px;color:var(--muted);margin-top:8px}
+
+  /* tabs */
+  nav{display:flex;gap:2px;margin:22px 0 26px;flex-wrap:wrap}
+  .tab{
+    font-family:'SF Mono',ui-monospace,monospace;font-size:12px;
+    letter-spacing:.05em;padding:9px 16px;border:1.5px solid var(--ink);
+    background:transparent;cursor:pointer;color:var(--ink);
+    text-transform:uppercase;transition:.15s;
+  }
+  .tab:hover{background:var(--sand)}
+  .tab.on{background:var(--ink);color:var(--paper)}
+
+  .panel{display:none}
+  .panel.on{display:block;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* stat cards */
+  .grid{display:grid;gap:14px}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:860px){.g4,.g3,.g2{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.g4,.g3,.g2{grid-template-columns:1fr}}
+
+  .stat{
+    background:var(--card);border:1.5px solid var(--line);
+    padding:18px 18px 16px;position:relative;
+  }
+  .stat .lbl{
+    font-family:'SF Mono',ui-monospace,monospace;font-size:10px;
+    letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+  }
+  .stat .val{font-size:30px;font-weight:600;letter-spacing:-.02em;margin-top:7px}
+  .stat .note{font-size:12.5px;color:var(--muted);margin-top:4px;font-style:italic}
+  .stat.accent{background:var(--moss);border-color:var(--moss)}
+  .stat.accent .lbl,.stat.accent .note{color:#cde0cf}
+  .stat.accent .val{color:#fff}
+  .stat.warn{background:#fbf0ec;border-color:var(--rust)}
+  .stat.warn .val{color:var(--rust)}
+  .pos{color:var(--moss)}.neg{color:var(--rust)}
+
+  h2{
+    font-size:13px;font-family:'SF Mono',ui-monospace,monospace;
+    letter-spacing:.15em;text-transform:uppercase;
+    margin:34px 0 14px;padding-bottom:7px;border-bottom:1px solid var(--line);
+    color:var(--moss);
+  }
+  h2:first-child{margin-top:8px}
+
+  .card{
+    background:var(--card);border:1.5px solid var(--line);
+    padding:20px;margin-bottom:16px;
+  }
+  .chartbox{position:relative;height:340px}
+  .chartbox.tall{height:400px}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{
+    font-family:'SF Mono',ui-monospace,monospace;font-size:10px;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+    text-align:right;padding:8px 9px;border-bottom:1.5px solid var(--ink);
+  }
+  th:first-child{text-align:left}
+  td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line)}
+  td:first-child{text-align:left}
+  tbody tr:hover{background:#faf7ec}
+  .num{font-family:'SF Mono',ui-monospace,monospace;font-size:12.5px}
+  .tag{
+    font-family:'SF Mono',ui-monospace,monospace;font-size:9.5px;
+    padding:2px 7px;border:1px solid currentColor;letter-spacing:.05em;
+    text-transform:uppercase;display:inline-block;
+  }
+  .t-end{color:var(--rust)}
+  .t-live{color:var(--moss)}
+  .t-soon{color:var(--gold)}
+
+  /* editable inputs */
+  .editrow{
+    display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto;
+    gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);
+  }
+  .editrow.head{
+    font-family:'SF Mono',ui-monospace,monospace;font-size:10px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    border-bottom:1.5px solid var(--ink);padding-bottom:8px;
+  }
+  input,select{
+    font-family:'SF Mono',ui-monospace,monospace;font-size:12.5px;
+    padding:6px 8px;border:1.5px solid var(--line);background:#fff;
+    color:var(--ink);width:100%;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--moss)}
+  .editrow input[type=text]{font-family:inherit;font-size:13.5px}
+  .btn{
+    font-family:'SF Mono',ui-monospace,monospace;font-size:11px;
+    letter-spacing:.06em;text-transform:uppercase;padding:8px 14px;
+    border:1.5px solid var(--ink);background:var(--ink);color:var(--paper);
+    cursor:pointer;transition:.15s;
+  }
+  .btn:hover{background:var(--moss);border-color:var(--moss)}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .btn.ghost:hover{background:var(--sand);color:var(--ink)}
+  .btn.sm{padding:5px 10px;font-size:10px}
+  .btn.del{border-color:var(--rust);background:transparent;color:var(--rust)}
+  .btn.del:hover{background:var(--rust);color:#fff}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 0;font-size:12px}
+  .legend span{display:flex;align-items:center;gap:6px;color:var(--muted)}
+  .dot{width:11px;height:11px;border-radius:2px;display:inline-block}
+
+  .callout{
+    border-left:3px solid var(--gold);background:#fbf6e8;
+    padding:13px 16px;font-size:13.5px;margin:14px 0;line-height:1.55;
+  }
+  .callout.urgent{border-color:var(--rust);background:#fbf0ec}
+  .callout b{font-weight:600}
+  .callout .ico{
+    font-family:'SF Mono',monospace;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--rust);display:block;margin-bottom:4px;
+  }
+  .callout.tip .ico{color:var(--gold)}
+
+  .ctrl{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .ctrl label{font-size:12.5px;display:flex;align-items:center;gap:7px;color:var(--muted)}
+  .ctrl input[type=number]{width:90px}
+  .ctrl input[type=checkbox]{width:auto;cursor:pointer}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.split{grid-template-columns:1fr}}
+
+  .minirow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .minirow:last-child{border-bottom:none}
+  .minirow .k{color:var(--muted)}
+  .minirow .v{font-family:'SF Mono',monospace;font-size:12.5px}
+  .minirow.tot{border-top:1.5px solid var(--ink);font-weight:600;margin-top:4px;padding-top:8px}
+
+  footer{
+    margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--muted);font-style:italic;line-height:1.6;
+  }
+  .pillrow{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 0}
+  .pill{
+    font-family:'SF Mono',monospace;font-size:10px;padding:3px 9px;
+    background:var(--sand);color:var(--ink);letter-spacing:.04em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Personal Finance · Singapore</div>
+  <h1>Financial Dashboard</h1>
+  <div class="sub">Goh Pei Shan Tricia — job transition, debt paydown &amp; CPF outlook</div>
+  <div class="asof">As of 21 May 2026 · Eye-Share → ThoughtWorks · all figures SGD</div>
+</header>
+
+<nav id="nav">
+  <button class="tab on" data-p="now">5-Month View</button>
+  <button class="tab" data-p="year">5-Year Projection</button>
+  <button class="tab" data-p="wealth">Wealth &amp; Budget</button>
+  <button class="tab" data-p="goals">Savings Goals</button>
+  <button class="tab" data-p="bto">BTO Planner</button>
+  <button class="tab" data-p="cpf">CPF Outlook</button>
+  <button class="tab" data-p="debt">Debts &amp; Loans</button>
+  <button class="tab" data-p="edit">Edit Inputs</button>
+</nav>
+
+<!-- ============ 5 MONTH ============ -->
+<section class="panel on" id="now">
+  <div class="grid g4">
+    <div class="stat accent">
+      <div class="lbl">Monthly cash income — from Aug</div>
+      <div class="val" id="s-income">$5,365</div>
+      <div class="note">ThoughtWorks base $6,500 − CPF + $165 allowance</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Fixed obligations / mo</div>
+      <div class="val" id="s-fixed">$1,900</div>
+      <div class="note">Fatty + household + Manulife base</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Loan + insurance load now</div>
+      <div class="val" id="s-load">$995</div>
+      <div class="note">Drops sharply from Jul &amp; Nov</div>
+    </div>
+    <div class="stat warn">
+      <div class="lbl">Hard deadline — clear BT</div>
+      <div class="val">7 Jul</div>
+      <div class="note">$622.58 balance transfer at 0%</div>
+    </div>
+  </div>
+
+  <div class="callout urgent">
+    <span class="ico">Transition window</span>
+    <b>Jun &amp; Jul are the tight months.</b> Eye-Share's final pay (~$2,302) lands ~25 Jun, then there's a gap until ThoughtWorks' first paycheck ~15 Jul (only ~$1,950: nine pro-rated days + $350 setup). The Woman's World balance transfer <b>must be fully cleared before 7 Jul</b> or the remaining balance flips to 27.8%. Reserve <b>$159.13</b> from savings for the BT top-up and keep <b>$327.99</b> aside for MariBank's Jun loan bill due ~21 Jul.
+  </div>
+
+  <h2>Month-by-month cashflow · Jun – Oct 2026</h2>
+  <div class="card">
+    <div class="chartbox"><canvas id="c-5m"></canvas></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--moss)"></i>Cash income</span>
+      <span><i class="dot" style="background:var(--sand)"></i>Fixed obligations</span>
+      <span><i class="dot" style="background:var(--gold)"></i>Loans + insurance</span>
+      <span><i class="dot" style="background:var(--rust)"></i>Net position</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <table id="t-5m">
+      <thead><tr>
+        <th>Month</th><th>Cash in</th><th>Fixed</th><th>Loans+Ins</th>
+        <th>Variable spend</th><th>Net</th><th>Running cash</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Where the money goes — stable month (from Aug)</div>
+      <div id="breakdown"></div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Loan load step-down</div>
+      <div class="minirow"><span class="k">Now (May–Jun)</span><span class="v">$831.56 / mo</span></div>
+      <div class="minirow"><span class="k">From Jul — PPP001 + Mari1 end</span><span class="v pos">$436.96 / mo</span></div>
+      <div class="minirow"><span class="k">From Nov — IL12M + Mari2 end</span><span class="v pos">$171.43 / mo</span></div>
+      <div class="minirow"><span class="k">From Apr 2027 — PPP004 ends</span><span class="v pos">$87.30 / mo</span></div>
+      <div class="minirow tot"><span class="k">From Oct 2027 — debt-free</span><span class="v pos">$0.00 / mo</span></div>
+      <div class="callout tip" style="margin-bottom:0">
+        <span class="ico">Tip</span>
+        Every loan that ends frees cash with no effort. By Aug your surplus is roughly <b>$2,300/mo</b> — direct the first few months at rebuilding an emergency buffer of 3–6 months' expenses (~$11k–$22k).
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 YEAR ============ -->
+<section class="panel" id="year">
+  <div class="ctrl">
+    <label>Salary growth / yr
+      <input type="number" id="growth" value="3.5" step="0.5" min="0" max="15">%
+    </label>
+    <label>Monthly invest contribution
+      <input type="number" id="invAmt" value="300" step="50">
+    </label>
+    <label>Investment return / yr
+      <input type="number" id="invRet" value="6" step="0.5">%
+    </label>
+    <label><input type="checkbox" id="showMargin" checked> Count Moomoo margin loan</label>
+    <button class="btn sm" onclick="recalc()">Recalculate</button>
+  </div>
+
+  <div class="grid g4">
+    <div class="stat accent">
+      <div class="lbl">Projected net worth · 2031</div>
+      <div class="val" id="s-nw5">—</div>
+      <div class="note">CPF + investments + cash − debt</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">CPF total · 2031</div>
+      <div class="val" id="s-cpf5">—</div>
+      <div class="note">OA + SA + MA compounded</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Investment pot · 2031</div>
+      <div class="val" id="s-inv5">—</div>
+      <div class="note">ILP + monthly contributions</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Liquid cash savings · 2031</div>
+      <div class="val" id="s-cash5">—</div>
+      <div class="note">Accumulated surplus</div>
+    </div>
+  </div>
+
+  <h2>Net worth trajectory · 2026 – 2031</h2>
+  <div class="card">
+    <div class="chartbox tall"><canvas id="c-nw"></canvas></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--moss)"></i>CPF</span>
+      <span><i class="dot" style="background:var(--sky)"></i>Investments</span>
+      <span><i class="dot" style="background:var(--gold)"></i>Cash savings</span>
+      <span><i class="dot" style="background:var(--rust)"></i>Debt (negative)</span>
+      <span><i class="dot" style="background:var(--ink)"></i>Net worth line</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <table id="t-5y">
+      <thead><tr>
+        <th>Year-end</th><th>Salary</th><th>CPF total</th>
+        <th>Investments</th><th>Cash</th><th>Debt</th><th>Net worth</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="callout tip">
+    <span class="ico">Reading this</span>
+    The projection assumes you stay debt-free after Oct 2027, hold a stable surplus, and contribute steadily to investments. CPF compounds at the floor rates (OA 2.5%, SA/MA 4%). Real outcomes shift with bonuses, big purchases, and market returns — treat the line as a planning baseline, not a forecast.
+  </div>
+</section>
+
+<!-- ============ WEALTH & BUDGET ============ -->
+<section class="panel" id="wealth">
+  <div class="grid g4">
+    <div class="stat accent">
+      <div class="lbl">Liquid net worth — excl. CPF</div>
+      <div class="val" id="w-lnw">—</div>
+      <div class="note">Investments + cash − margin − card debt</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Total investment assets</div>
+      <div class="val" id="w-inv">—</div>
+      <div class="note">Moomoo holdings + Manulife ILP</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Cash savings</div>
+      <div class="val" id="w-cash">—</div>
+      <div class="note">Emergency buffer</div>
+    </div>
+    <div class="stat warn">
+      <div class="lbl">Liabilities against investments</div>
+      <div class="val" id="w-liab">—</div>
+      <div class="note">Moomoo margin + remaining card debt</div>
+    </div>
+  </div>
+
+  <h2>Net worth — with vs without CPF</h2>
+  <div class="card">
+    <div class="chartbox"><canvas id="c-split"></canvas></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#3d6b8e"></i>Investments</span>
+      <span><i class="dot" style="background:#c08a2e"></i>Cash</span>
+      <span><i class="dot" style="background:#b5482e"></i>Liabilities</span>
+      <span><i class="dot" style="background:#2f5d3a"></i>CPF (locked)</span>
+    </div>
+    <div class="callout" style="margin-bottom:0">
+      <span class="ico" style="color:var(--gold)">Why split it out</span>
+      CPF is real wealth but it is <b>not spendable now</b> — it is locked for housing, healthcare and retirement. Your <b>liquid net worth</b> is what you could actually access for an emergency, a goal, or to invest. Watching this number grow is the truer measure of month-to-month financial progress.
+    </div>
+  </div>
+
+  <h2>Investment holdings — full detail</h2>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--moss)">Moomoo — margin account (SGX equities)</div>
+      <div class="num" style="font-size:12px;color:var(--muted)">Acct 1008···0528 · stmt 19 May 2026</div>
+    </div>
+    <table id="t-moomoo">
+      <thead><tr>
+        <th>Stock</th><th>Ticker</th><th>Qty</th><th>Price</th>
+        <th>Value</th><th>Weight</th><th>Sector</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="grid g3" style="margin-top:14px">
+      <div class="minirow" style="border:none"><span class="k">Portfolio value</span><span class="v" id="m-port">—</span></div>
+      <div class="minirow" style="border:none"><span class="k">Margin loan</span><span class="v neg" id="m-margin">—</span></div>
+      <div class="minirow" style="border:none"><span class="k">Net account value</span><span class="v" id="m-nav">—</span></div>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--moss);margin-bottom:10px">Manulife InvestReady — ILP</div>
+      <div class="minirow"><span class="k">Account value</span><span class="v" id="ilp-val">—</span></div>
+      <div class="minirow"><span class="k">Premiums paid to date</span><span class="v">$6,000.00</span></div>
+      <div class="minirow"><span class="k">Monthly premium</span><span class="v">$300.00</span></div>
+      <div class="minirow"><span class="k">Funds held</span><span class="v" style="font-size:11px">3 — see below</span></div>
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);font-style:italic;line-height:1.5">
+        Capital Group New Perspective 58% · BGF World Technology 34% · Franklin India 7%. Note: monthly policy charges (~$11/mo) are deducted from units — early-year ILP value typically lags total premiums paid.
+      </div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--moss);margin-bottom:10px">Concentration check</div>
+      <div class="chartbox" style="height:200px"><canvas id="c-conc"></canvas></div>
+    </div>
+  </div>
+
+  <div class="callout urgent">
+    <span class="ico">Risk worth seeing clearly</span>
+    Two things stand out in the Moomoo account. First, <b>ValueMax alone is ~73% of the portfolio</b> — a single small-cap stock carrying most of your risk. Second, the account is on <b>margin (−$3,954 borrowed at 4.80%)</b> — that loan amplifies both gains and losses, and the interest accrues whether the stocks rise or not. Neither is "wrong," but both are aggressive choices for money you may need within a few years. A common first step is to reduce the margin balance and avoid adding new margin-funded positions.
+  </div>
+
+  <h2>Monthly budget planner</h2>
+  <div class="callout tip">
+    <span class="ico">How to use this</span>
+    Set how you want to split your stable monthly take-home (<b id="bud-income">$5,365</b> from August). The planner shows whether your plan balances, then projects how the <b>investment + savings</b> portion grows your liquid net worth over 10 years. Adjust the sliders until the split feels right for you.
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Allocate your monthly take-home</div>
+      <div id="budSliders"></div>
+      <div class="minirow tot" style="margin-top:10px">
+        <span class="k">Allocated</span>
+        <span class="v" id="bud-alloc">—</span>
+      </div>
+      <div class="minirow" style="border:none">
+        <span class="k">Unallocated / shortfall</span>
+        <span class="v" id="bud-left">—</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Your allocation</div>
+      <div class="chartbox" style="height:220px"><canvas id="c-budget"></canvas></div>
+      <div id="budVerdict" style="margin-top:12px;font-size:13px;line-height:1.55"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ctrl">
+      <label>Investing return assumption
+        <input type="number" id="bud-ret" value="6" step="0.5">%
+      </label>
+      <label>Project over
+        <input type="number" id="bud-yrs" value="10" step="1" min="3" max="30"> years
+      </label>
+      <button class="btn sm" onclick="renderBudget()">Update projection</button>
+    </div>
+    <div class="chartbox"><canvas id="c-budproj"></canvas></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#3d6b8e"></i>Invested pot</span>
+      <span><i class="dot" style="background:#c08a2e"></i>Cash savings</span>
+      <span><i class="dot" style="background:#11201a"></i>Total liquid net worth</span>
+    </div>
+  </div>
+
+  <div class="grid g3">
+    <div class="stat">
+      <div class="lbl">Invested pot — projection end</div>
+      <div class="val" id="bp-inv">—</div>
+      <div class="note">From monthly investing + current holdings</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Cash savings — projection end</div>
+      <div class="val" id="bp-cash">—</div>
+      <div class="note">From monthly saving allocation</div>
+    </div>
+    <div class="stat accent">
+      <div class="lbl">Liquid net worth — projection end</div>
+      <div class="val" id="bp-nw">—</div>
+      <div class="note">Excludes CPF entirely</div>
+    </div>
+  </div>
+
+  <h2>Framework — matching investments to goals</h2>
+  <div class="callout">
+    <span class="ico" style="color:var(--gold)">Not financial advice</span>
+    This is a general framework, not a recommendation to buy any specific product. Which vehicle suits you depends on your goals, timeline and risk comfort — and for specific products, a licensed advisor or your own research is the right path. What follows is the standard way the decision is usually framed.
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Money for…</th><th>Timeline</th><th>Typical home for it</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Emergency buffer</b></td><td>Anytime</td>
+          <td>High-yield savings / T-bills / money-market fund</td>
+          <td style="text-align:left;font-size:12.5px">Must be safe and instantly accessible. 3–6 months of expenses (~$11k–$22k for you) before anything else.</td>
+        </tr>
+        <tr>
+          <td><b>Goals 1–3 yrs out</b></td><td>Short</td>
+          <td>Fixed deposits, T-bills, Singapore Savings Bonds</td>
+          <td style="text-align:left;font-size:12.5px">Capital preservation matters more than growth — no time to recover from a market dip.</td>
+        </tr>
+        <tr>
+          <td><b>Long-term wealth</b></td><td>5+ yrs</td>
+          <td>Low-cost diversified index funds / ETFs (global or S&amp;P 500)</td>
+          <td style="text-align:left;font-size:12.5px">Broad diversification spreads risk across hundreds of companies; time smooths out volatility. The opposite of a single-stock concentration.</td>
+        </tr>
+        <tr>
+          <td><b>Higher-risk satellite</b></td><td>5+ yrs</td>
+          <td>Individual stocks, sector bets — small slice only</td>
+          <td style="text-align:left;font-size:12.5px">Where your current Moomoo holdings sit. Fine as a minority of the portfolio; risky as the core.</td>
+        </tr>
+        <tr>
+          <td><b>Retirement</b></td><td>Decades</td>
+          <td>CPF (already automatic) + SRS for tax relief</td>
+          <td style="text-align:left;font-size:12.5px">CPF SA/MA already earn 4% risk-free. SRS adds income-tax relief if you want to top up.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout tip">
+    <span class="ico">A common ordering</span>
+    The usual priority sequence: <b>(1)</b> clear high-interest debt — for you, the 0% BT by 7 Jul, then chip at the 4.8% margin loan; <b>(2)</b> build the emergency buffer to 3–6 months; <b>(3)</b> invest the long-term slice into something diversified; <b>(4)</b> only then add higher-risk individual picks. You are early in your career with a rising income — time is your biggest advantage, and steady monthly investing into something broad tends to beat trying to time individual stocks.
+  </div>
+</section>
+
+
+<!-- ============ SAVINGS GOALS ============ -->
+<section class="panel" id="goals">
+  <div class="grid g3">
+    <div class="stat accent">
+      <div class="lbl">Total target across all goals</div>
+      <div class="val" id="gl-target">—</div>
+      <div class="note">Sum of every goal below</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Saved so far</div>
+      <div class="val" id="gl-saved">—</div>
+      <div class="note">Allocated against goals</div>
+    </div>
+    <div class="stat warn">
+      <div class="lbl">Still to save</div>
+      <div class="val" id="gl-gap">—</div>
+      <div class="note">Remaining funding needed</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="ico">How this works</span>
+    Each goal has a target, what you've set aside, a deadline and a suggested home for the money. The <b>monthly need</b> is what you'd have to save each month to hit the target on time. Edit any field — totals and the chart update live. Aim to fund goals in order of urgency: safety first, then near-term, then long-term.
+  </div>
+
+  <h2>Your savings goals</h2>
+  <div class="card">
+    <table id="t-goals">
+      <thead><tr>
+        <th>Goal</th><th>Target</th><th>Saved</th><th>Gap</th>
+        <th>By</th><th>Months</th><th>Need / mo</th><th>Where to keep it</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="toolbar">
+      <button class="btn ghost sm" onclick="addGoal()">+ Add goal</button>
+      <span style="font-size:12px;color:var(--muted);font-style:italic">Edit cells directly · changes apply on blur</span>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Progress by goal</div>
+      <div class="chartbox" style="height:260px"><canvas id="c-goals"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Combined monthly savings needed</div>
+      <div id="gl-monthly"></div>
+      <div class="callout" style="margin-bottom:0;margin-top:12px">
+        <span class="ico" style="color:var(--gold)">Reality check</span>
+        <span id="gl-verdict">—</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Where to place each type of saving</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Goal horizon</th><th>Suggested home</th><th>Indicative return</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Emergency fund</b></td>
+          <td>High-yield savings account (e.g. a salary-credit account) or a cash management account</td>
+          <td>~2–3% p.a.</td>
+          <td style="text-align:left;font-size:12.5px">Instant access is the priority. Never invest the emergency fund — it must be there on the day you need it.</td>
+        </tr>
+        <tr>
+          <td><b>Short-term · under 2 yrs</b></td>
+          <td>Singapore T-bills, fixed deposits, Singapore Savings Bonds (SSB)</td>
+          <td>~2.5–3% p.a.</td>
+          <td style="text-align:left;font-size:12.5px">Capital-guaranteed. No time to recover from a market dip, so growth takes a back seat to certainty.</td>
+        </tr>
+        <tr>
+          <td><b>Medium-term · 2–5 yrs</b></td>
+          <td>SSB ladder, short-duration bond funds, conservative cash-management portfolios</td>
+          <td>~3–4% p.a.</td>
+          <td style="text-align:left;font-size:12.5px">A little more yield, still low volatility. SSBs let you redeem any month without penalty.</td>
+        </tr>
+        <tr>
+          <td><b>Long-term · 5+ yrs</b></td>
+          <td>Low-cost diversified index funds / ETFs</td>
+          <td>~5–7% p.a. (variable)</td>
+          <td style="text-align:left;font-size:12.5px">Time absorbs volatility; broad diversification spreads risk. This is where compounding does the heavy lifting.</td>
+        </tr>
+        <tr>
+          <td><b>BTO downpayment</b></td>
+          <td>CPF OA (already earning 2.5%) — see BTO Planner tab</td>
+          <td>2.5% p.a. guaranteed</td>
+          <td style="text-align:left;font-size:12.5px">Your OA grows automatically from salary contributions and can be used directly for the flat. No action needed.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <span class="ico" style="color:var(--gold)">Not financial advice</span>
+    These are general categories, not product recommendations. The right specific choice depends on your goals and risk comfort — for specific products, your own research or a licensed advisor is the right route.
+  </div>
+</section>
+
+<!-- ============ BTO PLANNER ============ -->
+<section class="panel" id="bto">
+  <div class="callout tip">
+    <span class="ico">Scenario</span>
+    Telok Blangah (Berlayar Estate) — <b>June 2026 BTO launch</b>. This models the <b>Deferred Income Assessment + Staggered Downpayment Scheme</b> with an HDB loan, and tests your goal of <b>paying the flat entirely through CPF</b>. All inputs are editable below. Berlayar is expected to be a Prime project; 4-room prices were indicated from about $580k.
+  </div>
+
+  <div class="card">
+    <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--moss);margin-bottom:14px">Assumptions — edit freely</div>
+    <div class="grid g3">
+      <label style="font-size:12.5px;color:var(--muted)">Flat price
+        <input type="number" id="bto-price" value="580000" step="10000" style="margin-top:4px">
+      </label>
+      <label style="font-size:12.5px;color:var(--muted)">HDB loan LTV %
+        <input type="number" id="bto-ltv" value="75" step="5" style="margin-top:4px">
+      </label>
+      <label style="font-size:12.5px;color:var(--muted)">Loan interest % p.a.
+        <input type="number" id="bto-rate" value="2.6" step="0.1" style="margin-top:4px">
+      </label>
+      <label style="font-size:12.5px;color:var(--muted)">Loan tenure (years)
+        <input type="number" id="bto-tenure" value="25" step="1" style="margin-top:4px">
+      </label>
+      <label style="font-size:12.5px;color:var(--muted)">Years to key collection
+        <input type="number" id="bto-keys" value="4" step="0.5" style="margin-top:4px">
+      </label>
+      <label style="font-size:12.5px;color:var(--muted)">EHG grant estimate
+        <input type="number" id="bto-ehg" value="0" step="5000" style="margin-top:4px">
+      </label>
+    </div>
+    <div class="grid g3" style="margin-top:4px">
+      <label style="font-size:12.5px;color:var(--muted)">Your salary / mo
+        <input type="number" id="bto-tsal" value="6500" step="100" style="margin-top:4px">
+      </label>
+      <label style="font-size:12.5px;color:var(--muted)">Partner salary / mo
+        <input type="number" id="bto-psal" value="4300" step="100" style="margin-top:4px">
+      </label>
+      <label style="font-size:12.5px;color:var(--muted)">Partner CPF OA now
+        <input type="number" id="bto-poa" value="14575" step="100" style="margin-top:4px">
+      </label>
+    </div>
+    <div class="toolbar">
+      <button class="btn sm" onclick="renderBTO()">Recalculate</button>
+      <span style="font-size:12px;color:var(--muted);font-style:italic">Your OA now ($26,688) is pulled from the CPF tab.</span>
+    </div>
+  </div>
+
+  <div class="grid g4">
+    <div class="stat">
+      <div class="lbl">HDB loan amount</div>
+      <div class="val" id="bto-loan">—</div>
+      <div class="note">At chosen LTV</div>
+    </div>
+    <div class="stat accent">
+      <div class="lbl">Downpayment at signing (2.5%)</div>
+      <div class="val" id="bto-afl">—</div>
+      <div class="note">Deferred assessment — reduced rate</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Downpayment at keys (22.5%)</div>
+      <div class="val" id="bto-keypay">—</div>
+      <div class="note">Payable ~3–5 yrs later</div>
+    </div>
+    <div class="stat warn">
+      <div class="lbl">Monthly mortgage</div>
+      <div class="val" id="bto-mortgage">—</div>
+      <div class="note">Over chosen tenure</div>
+    </div>
+  </div>
+
+  <h2>Payment timeline — Deferred Income Assessment + Staggered Downpayment</h2>
+  <div class="card">
+    <table id="t-bto-timeline">
+      <thead><tr>
+        <th>Stage</th><th>When</th><th>What's due</th><th>Amount</th><th>Paid from</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h2>Can CPF cover it all? — OA projection to key collection</h2>
+  <div class="card">
+    <div class="chartbox"><canvas id="c-bto-oa"></canvas></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#2f5d3a"></i>Your OA</span>
+      <span><i class="dot" style="background:#3d6b8e"></i>Partner OA</span>
+      <span><i class="dot" style="background:#b5482e"></i>Downpayment due at keys</span>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Downpayment — CPF check at key collection</div>
+      <div id="bto-dpcheck"></div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Monthly mortgage — CPF check</div>
+      <div id="bto-mortcheck"></div>
+    </div>
+  </div>
+
+  <div class="callout" id="bto-verdict-box">
+    <span class="ico" style="color:var(--gold)">Verdict</span>
+    <span id="bto-verdict">—</span>
+  </div>
+
+  <h2>Upfront cash you'll still need</h2>
+  <div class="card">
+    <div class="minirow"><span class="k">Buyer's Stamp Duty (on flat price)</span><span class="v" id="bto-bsd">—</span></div>
+    <div class="minirow"><span class="k">Legal &amp; conveyancing fees (approx)</span><span class="v">$1,500</span></div>
+    <div class="minirow"><span class="k">Option fee at booking (4-room)</span><span class="v">$2,000</span></div>
+    <div class="minirow"><span class="k">Renovation + furnishing (set your own)</span><span class="v">budget separately</span></div>
+    <div class="minirow tot"><span class="k">Indicative cash/CPF outside the downpayment</span><span class="v" id="bto-extras">—</span></div>
+    <div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:8px;line-height:1.5">
+      Stamp duty and legal fees can usually be paid from CPF OA. The option fee at booking is cash. Renovation is a separate budget — a common range is $30k–$60k for a new 4-room flat, but it's entirely up to you.
+    </div>
+  </div>
+
+  <div class="callout">
+    <span class="ico" style="color:var(--gold)">Important caveats</span>
+    Flat price is an <b>estimate</b> — actual Berlayar Estate prices are confirmed only at launch. With <b>Deferred Income Assessment</b>, your EHG grant and HDB loan amount are assessed about 3 months before key collection, based on income then — a higher income can mean a larger loan but a smaller (or zero) EHG. Your combined income (~$10,800) is currently above the $9,000 EHG ceiling, so this model defaults EHG to $0; adjust if your assessed situation differs. Prime flats carry a 10-year MOP and a subsidy clawback on resale. Confirm all figures with HDB and CPF before committing.
+  </div>
+</section>
+
+<!-- ============ CPF ============ -->
+<section class="panel" id="cpf">
+  <div class="grid g4">
+    <div class="stat">
+      <div class="lbl">Ordinary Account · now</div>
+      <div class="val">$26,688</div>
+      <div class="note">Housing, investments, education</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Special Account · now</div>
+      <div class="val">$7,391</div>
+      <div class="note">Retirement, 4% floor</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">MediSave · now</div>
+      <div class="val">$9,941</div>
+      <div class="note">Healthcare, insurance premiums</div>
+    </div>
+    <div class="stat accent">
+      <div class="lbl">Total CPF · now</div>
+      <div class="val">$44,019</div>
+      <div class="note">As at 21 May 2026</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="ico">Verified with CPF Board</span>
+    For employees <b>aged 55 and below the rate is 37% total — 17% employer + 20% employee</b>, with the Ordinary Wage ceiling at <b>$8,000/mo</b> in 2026. Your $6,500 salary is under the ceiling, so the full amount attracts CPF. The <b>$165 communications allowance is treated as non-CPF</b> (not ordinary wages), as you indicated. The one-off $350 setup allowance is also outside CPF.
+  </div>
+
+  <h2>Contribution change at the job switch</h2>
+  <div class="split">
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Eye-Share — $4,545/mo</div>
+      <div class="minirow"><span class="k">Employee share (20%)</span><span class="v">$909.00</span></div>
+      <div class="minirow"><span class="k">Employer share (17%)</span><span class="v">$772.65</span></div>
+      <div class="minirow tot"><span class="k">Total into CPF / mo</span><span class="v">$1,681.65</span></div>
+      <div class="note" style="font-size:12px;color:var(--muted);font-style:italic;margin-top:8px">Matches your Apr statement contribution of $1,682.00.</div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="font-family:'SF Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">ThoughtWorks — $6,500/mo</div>
+      <div class="minirow"><span class="k">Employee share (20%)</span><span class="v">$1,300.00</span></div>
+      <div class="minirow"><span class="k">Employer share (17%)</span><span class="v">$1,105.00</span></div>
+      <div class="minirow tot"><span class="k">Total into CPF / mo</span><span class="v pos">$2,405.00</span></div>
+      <div class="note" style="font-size:12px;color:var(--muted);font-style:italic;margin-top:8px">+$723/mo more into CPF than before. June is a split month (~$1,787 from two pro-rated employers).</div>
+    </div>
+  </div>
+
+  <h2>CPF account growth · 5 years</h2>
+  <div class="card">
+    <div class="chartbox tall"><canvas id="c-cpf"></canvas></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--moss)"></i>Ordinary Account</span>
+      <span><i class="dot" style="background:var(--sky)"></i>Special Account</span>
+      <span><i class="dot" style="background:var(--gold)"></i>MediSave</span>
+    </div>
+  </div>
+  <div class="card">
+    <table id="t-cpf">
+      <thead><tr><th>Year-end</th><th>OA</th><th>SA</th><th>MA</th><th>Total</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <span class="ico" style="color:var(--gold)">Allocation note</span>
+    For members aged 35 &amp; below, monthly CPF splits roughly <b>OA 62.2% · SA 16.2% · MA 21.6%</b>. MediSave growth will slow once it hits the Basic Healthcare Sum ceiling — overflow then redirects to other accounts. This model uses the floor interest rates and does not include the extra 1% on the first $60k.
+  </div>
+</section>
+
+<!-- ============ DEBT ============ -->
+<section class="panel" id="debt">
+  <div class="grid g3">
+    <div class="stat warn">
+      <div class="lbl">Total instalment debt outstanding</div>
+      <div class="val" id="s-debt-out">$4,132</div>
+      <div class="note">Across Altitude + MariBank loans</div>
+    </div>
+    <div class="stat warn">
+      <div class="lbl">Moomoo margin loan</div>
+      <div class="val">$3,954</div>
+      <div class="note">4.80% p.a. — interest accrues daily</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Debt-free date</div>
+      <div class="val">Oct 2027</div>
+      <div class="note">When IL24M makes its last payment</div>
+    </div>
+  </div>
+
+  <div class="callout urgent">
+    <span class="ico">Highest priority</span>
+    The <b>Woman's World balance transfer</b> ($622.58 remaining) is interest-free only until <b>7 Jul 2026</b>. Missing it means 27.8% on the balance. After that, the <b>Moomoo margin loan</b> at 4.80% is your most expensive ongoing debt — the instalment loans are mostly low-rate and self-amortising, so once the BT is cleared, surplus cash is best aimed at the margin balance.
+  </div>
+
+  <h2>Instalment plans &amp; loans</h2>
+  <div class="card">
+    <table id="t-loans">
+      <thead><tr>
+        <th>Plan</th><th>Card</th><th>Monthly</th><th>Outstanding</th>
+        <th>Ends</th><th>Status</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h2>Debt burn-down · monthly outstanding</h2>
+  <div class="card">
+    <div class="chartbox"><canvas id="c-debt"></canvas></div>
+  </div>
+</section>
+
+<!-- ============ EDIT ============ -->
+<section class="panel" id="edit">
+  <div class="callout tip">
+    <span class="ico">Live inputs</span>
+    Everything below feeds the charts and tables. Adjust a number, then hit <b>Apply changes</b>. Use <b>Save to browser</b> to keep your edits for next time, or <b>Export JSON</b> to back them up.
+  </div>
+
+  <h2>Income</h2>
+  <div class="card">
+    <div class="editrow head"><span>Item</span><span>Amount</span><span>—</span><span>—</span><span></span></div>
+    <div class="editrow">
+      <span>Eye-Share monthly (until 19 Jun)</span>
+      <input type="number" id="i-old" value="4545">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>ThoughtWorks base monthly (from 22 Jun)</span>
+      <input type="number" id="i-new" value="6500">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>Comms allowance / mo (non-CPF)</span>
+      <input type="number" id="i-comms" value="165">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>One-off setup allowance (first paycheck)</span>
+      <input type="number" id="i-setup" value="350">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <h2>Fixed obligations / month</h2>
+  <div class="card">
+    <div class="editrow head"><span>Item</span><span>Amount</span><span>—</span><span>—</span><span></span></div>
+    <div class="editrow">
+      <span>Fatty (family allowance — paused May+Jun)</span>
+      <input type="number" id="f-fatty" value="1000">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>Household contribution</span>
+      <input type="number" id="f-house" value="600">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>Manulife InvestReady base (ILP)</span>
+      <input type="number" id="f-manu" value="300">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>Variable / daily spending estimate</span>
+      <input type="number" id="f-var" value="1100">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <h2>Insurance premiums</h2>
+  <div class="card">
+    <div class="editrow head"><span>Policy</span><span>Monthly</span><span>Note</span><span>—</span><span></span></div>
+    <div class="editrow">
+      <span>ECI — Early CompleteCare + waiver (yr 1–3)</span>
+      <input type="number" id="ins-eci" value="84.13" step="0.01">
+      <input type="text" value="Altitude PPP, then $93.49 yr 4+" disabled>
+      <span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>ManuProtect — Death/TPD term</span>
+      <input type="number" id="ins-tpd" value="54.98" step="0.01">
+      <input type="text" value="GIRO, 2nd of month" disabled>
+      <span></span><span></span>
+    </div>
+    <div class="editrow">
+      <span>ReadyProtect — personal accident</span>
+      <input type="number" id="ins-acc" value="24.72" step="0.01">
+      <input type="text" value="GIRO, 2nd of month" disabled>
+      <span></span><span></span>
+    </div>
+  </div>
+
+  <h2>Loans &amp; instalment plans</h2>
+  <div class="card">
+    <div class="editrow head">
+      <span>Plan name</span><span>Monthly $</span><span>Outstanding $</span>
+      <span>Ends (YYYY-MM)</span><span></span>
+    </div>
+    <div id="loanEditor"></div>
+    <div class="toolbar">
+      <button class="btn ghost sm" onclick="addLoan()">+ Add loan</button>
+    </div>
+  </div>
+
+  <h2>Assets &amp; CPF starting balances</h2>
+  <div class="card">
+    <div class="editrow head"><span>Item</span><span>Value</span><span>—</span><span>—</span><span></span></div>
+    <div class="editrow"><span>CPF Ordinary Account</span><input type="number" id="a-oa" value="26687.97" step="0.01"><span></span><span></span><span></span></div>
+    <div class="editrow"><span>CPF Special Account</span><input type="number" id="a-sa" value="7390.51" step="0.01"><span></span><span></span><span></span></div>
+    <div class="editrow"><span>CPF MediSave Account</span><input type="number" id="a-ma" value="9940.98" step="0.01"><span></span><span></span><span></span></div>
+    <div class="editrow"><span>Manulife InvestReady (ILP value)</span><input type="number" id="a-ilp" value="8300.04" step="0.01"><span></span><span></span><span></span></div>
+    <div class="editrow"><span>Moomoo portfolio value</span><input type="number" id="a-moo" value="25185.50" step="0.01"><span></span><span></span><span></span></div>
+    <div class="editrow"><span>Moomoo margin loan (liability)</span><input type="number" id="a-margin" value="3953.91" step="0.01"><span></span><span></span><span></span></div>
+    <div class="editrow"><span>Liquid cash savings (starting)</span><input type="number" id="a-cash" value="2000" step="100"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" onclick="applyAll()">Apply changes</button>
+    <button class="btn ghost" onclick="saveLocal()">Save to browser</button>
+    <button class="btn ghost" onclick="exportJSON()">Export JSON</button>
+    <button class="btn ghost" onclick="document.getElementById('importFile').click()">Import JSON</button>
+    <button class="btn del" onclick="resetAll()">Reset to defaults</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+    <span id="saveMsg" style="font-size:12px;color:var(--moss);font-style:italic"></span>
+  </div>
+</section>
+
+<footer>
+  Built from your loan tracker, financial summary, Manulife policies, Moomoo statement and CPF screenshot.
+  CPF rates verified against the CPF Board contribution table effective 1 Jan 2026 (37% total, 17%+20%, $8,000 OW ceiling for under-55s).
+  This is a personal planning tool, not financial advice — projections rely on the assumptions you set and will drift from reality with bonuses, market moves and life changes.
+</footer>
+
+</div>
+
+<script>
+/* ============ DEFAULT STATE ============ */
+const DEFAULTS = {
+  oldSal:4545, newSal:6500, comms:165, setup:350,
+  fatty:1000, house:600, manu:300, varSpend:1100,
+  eci:84.13, tpd:54.98, acc:24.72,
+  oa:26687.97, sa:7390.51, ma:9940.98,
+  ilp:8300.04, moo:25185.50, margin:3953.91, cash:2000,
+  ccDebt:622.58,
+  holdings:[
+    {name:'Centurion',ticker:'OU8',qty:4000,price:1.48,sector:'Accommodation assets'},
+    {name:'ValueMax',ticker:'T6I',qty:18500,price:0.995,sector:'Pawnbroking & gold'},
+    {name:'Oiltek',ticker:'HQU',qty:200,price:2.14,sector:'Palm-oil engineering'},
+    {name:'Aspial Lifestyle',ticker:'5UF',qty:1000,price:0.43,sector:'Jewellery retail'}
+  ],
+  // budget allocation — defaults sum to stable take-home
+  budget:[
+    {cat:'Fatty (family)',amt:1000,type:'fixed'},
+    {cat:'Household',amt:600,type:'fixed'},
+    {cat:'Insurance + ILP',amt:464,type:'fixed'},
+    {cat:'Living & variable spend',amt:1100,type:'spend'},
+    {cat:'Emergency / cash savings',amt:900,type:'save'},
+    {cat:'Investing',amt:1300,type:'invest'}
+  ],
+  // savings goals
+  goals:[
+    {name:'Emergency fund (6 months)',target:18000,saved:2000,by:'2027-06',where:'High-yield savings account'},
+    {name:'BTO downpayment & costs (cash portion)',target:16000,saved:0,by:'2027-03',where:'T-bills / SSB ladder'},
+    {name:'Wedding / ROM',target:20000,saved:0,by:'2028-06',where:'SSB + fixed deposit'},
+    {name:'Renovation & furnishing',target:45000,saved:0,by:'2030-06',where:'SSB ladder, shift to cash near keys'},
+    {name:'Travel fund',target:6000,saved:500,by:'2027-01',where:'Separate savings account'}
+  ],
+  loans:[
+    {name:'PPP 001 — Preferred Payment Plan', card:'Altitude', monthly:161.51, out:161.60, end:'2026-06'},
+    {name:'PPP 004 — Preferred Payment Plan', card:'Altitude', monthly:84.13,  out:925.52, end:'2027-04'},
+    {name:'IL 12M — Instalment Loan',          card:'Altitude', monthly:170.63, out:853.19, end:'2026-10'},
+    {name:'IL 24M — Instalment Loan',          card:'Altitude', monthly:87.30,  out:1484.10,end:'2027-10'},
+    {name:'Instant Loan 9M',                   card:'MariBank', monthly:233.09, out:233.09, end:'2026-06'},
+    {name:'Instant Loan 12M',                  card:'MariBank', monthly:94.90,  out:474.50, end:'2026-10'},
+    {name:'Woman\u2019s World — Balance Transfer 0%', card:'WW Mastercard', monthly:0, out:622.58, end:'2026-07'}
+  ]
+};
+let S = structuredClone(DEFAULTS);
+
+/* ============ CPF ============ */
+const CPF_EMP=0.20, CPF_ER=0.17, OW_CEIL=8000;
+const ALLOC_OA=0.6217, ALLOC_SA=0.1621, ALLOC_MA=0.2162;
+function cpfTotal(w){const ow=Math.min(w,OW_CEIL);return ow*(CPF_EMP+CPF_ER);}
+function cpfEmp(w){return Math.min(w,OW_CEIL)*CPF_EMP;}
+
+/* ============ HELPERS ============ */
+const $=id=>document.getElementById(id);
+const fmt=n=>'$'+Math.round(n).toLocaleString('en-US');
+const fmt2=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const monIdx=s=>{const[y,m]=s.split('-').map(Number);return y*12+(m-1);};
+
+let charts={};
+function destroy(k){if(charts[k]){charts[k].destroy();delete charts[k];}}
+
+const FONT="'SF Mono',ui-monospace,Menlo,monospace";
+Chart.defaults.font.family=FONT;
+Chart.defaults.font.size=10.5;
+Chart.defaults.color='#7d7560';
+
+/* ============ TABS ============ */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    $(t.dataset.p).classList.add('on');
+  };
+});
+
+/* ============ LOAN EDITOR ============ */
+function renderLoanEditor(){
+  const box=$('loanEditor');box.innerHTML='';
+  S.loans.forEach((l,i)=>{
+    const r=document.createElement('div');r.className='editrow';
+    r.innerHTML=`
+      <input type="text" value="${l.name}" data-i="${i}" data-k="name">
+      <input type="number" value="${l.monthly}" step="0.01" data-i="${i}" data-k="monthly">
+      <input type="number" value="${l.out}" step="0.01" data-i="${i}" data-k="out">
+      <input type="text" value="${l.end}" data-i="${i}" data-k="end" placeholder="YYYY-MM">
+      <button class="btn del sm" data-del="${i}">del</button>`;
+    box.appendChild(r);
+  });
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.onchange=e=>{
+      const i=+e.target.dataset.i,k=e.target.dataset.k;
+      S.loans[i][k]=(k==='name'||k==='end')?e.target.value:parseFloat(e.target.value)||0;
+    };
+  });
+  box.querySelectorAll('[data-del]').forEach(b=>{
+    b.onclick=e=>{S.loans.splice(+e.target.dataset.del,1);renderLoanEditor();};
+  });
+}
+function addLoan(){
+  S.loans.push({name:'New loan',card:'—',monthly:0,out:0,end:'2027-01'});
+  renderLoanEditor();
+}
+
+/* ============ READ INPUTS ============ */
+function readInputs(){
+  S.oldSal=+$('i-old').value; S.newSal=+$('i-new').value;
+  S.comms=+$('i-comms').value; S.setup=+$('i-setup').value;
+  S.fatty=+$('f-fatty').value; S.house=+$('f-house').value;
+  S.manu=+$('f-manu').value; S.varSpend=+$('f-var').value;
+  S.eci=+$('ins-eci').value; S.tpd=+$('ins-tpd').value; S.acc=+$('ins-acc').value;
+  S.oa=+$('a-oa').value; S.sa=+$('a-sa').value; S.ma=+$('a-ma').value;
+  S.ilp=+$('a-ilp').value; S.moo=+$('a-moo').value;
+  S.margin=+$('a-margin').value; S.cash=+$('a-cash').value;
+}
+function writeInputs(){
+  $('i-old').value=S.oldSal; $('i-new').value=S.newSal;
+  $('i-comms').value=S.comms; $('i-setup').value=S.setup;
+  $('f-fatty').value=S.fatty; $('f-house').value=S.house;
+  $('f-manu').value=S.manu; $('f-var').value=S.varSpend;
+  $('ins-eci').value=S.eci; $('ins-tpd').value=S.tpd; $('ins-acc').value=S.acc;
+  $('a-oa').value=S.oa; $('a-sa').value=S.sa; $('a-ma').value=S.ma;
+  $('a-ilp').value=S.ilp; $('a-moo').value=S.moo;
+  $('a-margin').value=S.margin; $('a-cash').value=S.cash;
+}
+
+/* ============ 5-MONTH CASHFLOW ============ */
+// Months Jun-Oct 2026. Jun is split income; Fatty paused Jun, resumes Jul.
+function build5m(){
+  const insMonthly=S.eci+S.tpd+S.acc;
+  // loans active in a given YYYY-MM
+  function loanLoad(ym){
+    const idx=monIdx(ym);
+    return S.loans.reduce((s,l)=>s+(monIdx(l.end)>=idx?l.monthly:0),0);
+  }
+  // cash income per month
+  const newCash=S.newSal-cpfEmp(S.newSal)+S.comms;   // stable take-home
+  const months=[
+    {m:'Jun 26',ym:'2026-06',
+      income: Math.round(S.oldSal*19/30) + Math.round(S.newSal*9/30 - cpfEmp(S.newSal*9/30)),
+      fatty:0, note:'split — Eye-Share final + 9d TW'},
+    {m:'Jul 26',ym:'2026-07',
+      income: Math.round(S.newSal*9/30 - cpfEmp(S.newSal*9/30)) + S.setup + S.comms,
+      fatty:S.fatty, note:'TW 1st pay: 9d + setup'},
+    {m:'Aug 26',ym:'2026-08',income:newCash,fatty:S.fatty,note:'first full TW month'},
+    {m:'Sep 26',ym:'2026-09',income:newCash,fatty:S.fatty,note:'stable'},
+    {m:'Oct 26',ym:'2026-10',income:newCash,fatty:S.fatty,note:'stable'}
+  ];
+  let running=S.cash;
+  const rows=months.map(o=>{
+    const fixed=o.fatty+S.house+S.manu;
+    const loans=loanLoad(o.ym)+insMonthly;
+    const net=o.income-fixed-loans-S.varSpend;
+    running+=net;
+    return {...o,fixed,loans,net,running};
+  });
+  return rows;
+}
+
+function render5m(){
+  const rows=build5m();
+  // stat cards
+  const insM=S.eci+S.tpd+S.acc;
+  $('s-income').textContent=fmt(S.newSal-cpfEmp(S.newSal)+S.comms);
+  $('s-fixed').textContent=fmt(S.fatty+S.house+S.manu);
+  // current loan load = loans active this month + insurance
+  const idxNow=monIdx('2026-06');
+  const loadNow=S.loans.reduce((s,l)=>s+(monIdx(l.end)>=idxNow?l.monthly:0),0)+insM;
+  $('s-load').textContent=fmt(loadNow);
+
+  // table
+  const tb=$('t-5m').querySelector('tbody');tb.innerHTML='';
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.m}<div style="font-size:11px;color:var(--muted);font-style:italic">${r.note}</div></td>
+      <td class="num">${fmt(r.income)}</td>
+      <td class="num">${fmt(r.fixed)}</td>
+      <td class="num">${fmt(r.loans)}</td>
+      <td class="num">${fmt(S.varSpend)}</td>
+      <td class="num ${r.net>=0?'pos':'neg'}">${r.net>=0?'+':''}${fmt(r.net)}</td>
+      <td class="num ${r.running>=0?'pos':'neg'}">${fmt(r.running)}</td>`;
+    tb.appendChild(tr);
+  });
+
+  // chart
+  destroy('c5');
+  charts.c5=new Chart($('c-5m'),{
+    type:'bar',
+    data:{
+      labels:rows.map(r=>r.m),
+      datasets:[
+        {label:'Cash income',data:rows.map(r=>r.income),backgroundColor:'#2f5d3a',stack:'a',order:2},
+        {label:'Fixed',data:rows.map(r=>-r.fixed),backgroundColor:'#d8cfb4',stack:'b',order:2},
+        {label:'Loans+Ins',data:rows.map(r=>-r.loans),backgroundColor:'#c08a2e',stack:'b',order:2},
+        {label:'Variable',data:rows.map(r=>-S.varSpend),backgroundColor:'#a89a76',stack:'b',order:2},
+        {label:'Net',data:rows.map(r=>r.net),type:'line',borderColor:'#b5482e',
+         backgroundColor:'#b5482e',borderWidth:2.5,pointRadius:4,pointStyle:'rectRot',
+         tension:.2,order:1}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(Math.abs(c.raw))}}},
+      scales:{
+        x:{stacked:true,grid:{display:false}},
+        y:{stacked:false,grid:{color:'#e6dfca'},
+           ticks:{callback:v=>'$'+(v/1000).toFixed(1)+'k'}}
+      }
+    }
+  });
+
+  // breakdown — stable month
+  const bd=$('breakdown');bd.innerHTML='';
+  const newCash=S.newSal-cpfEmp(S.newSal)+S.comms;
+  const items=[
+    ['Fatty (family)',S.fatty],['Household',S.house],
+    ['Manulife ILP base',S.manu],['Insurance premiums',insM],
+    ['Variable / daily spend',S.varSpend]
+  ];
+  const idxAug=monIdx('2026-08');
+  const augLoans=S.loans.reduce((s,l)=>s+(monIdx(l.end)>=idxAug?l.monthly:0),0);
+  if(augLoans>0)items.push(['Loan instalments',augLoans]);
+  let spent=0;
+  items.forEach(([k,v])=>{spent+=v;
+    bd.innerHTML+=`<div class="minirow"><span class="k">${k}</span><span class="v">${fmt2(v)}</span></div>`;});
+  const surplus=newCash-spent;
+  bd.innerHTML+=`<div class="minirow tot"><span class="k">Surplus to save / invest</span>
+    <span class="v ${surplus>=0?'pos':'neg'}">${fmt2(surplus)}</span></div>`;
+}
+
+/* ============ 5-YEAR ============ */
+function simulate5y(){
+  const growth=(+$('growth').value||0)/100;
+  const invAdd=+$('invAmt').value||0;
+  const invRet=(+$('invRet').value||0)/100;
+  const useMargin=$('showMargin').checked;
+  const insM=S.eci+S.tpd+S.acc;
+
+  let oa=S.oa,sa=S.sa,ma=S.ma;
+  let inv=S.ilp+S.moo;
+  let cash=S.cash;
+  let margin=useMargin?S.margin:0;
+  let sal=S.newSal;
+  let loanState=S.loans.map(l=>({...l,bal:l.out}));
+
+  const startYM='2026-08';
+  let curIdx=monIdx(startYM);
+  const rows=[];
+  const series=[]; // {label, oa,sa,ma,inv,cash,debt,nw}
+
+  // any loan that finishes before the projection window is already cleared
+  loanState.forEach(l=>{ if(monIdx(l.end)<curIdx) l.bal=0; });
+
+  // snapshot start
+  function snapshot(label){
+    const debt=loanState.reduce((s,l)=>s+Math.max(0,l.bal),0)+Math.max(0,margin);
+    const cpf=oa+sa+ma;
+    const nw=cpf+inv+cash-debt;
+    series.push({label,oa,sa,ma,inv,cash,debt,nw,sal});
+  }
+  snapshot('Now');
+
+  // run to end of 2031 -> from Aug2026 that's months until Dec2031
+  const endIdx=monIdx('2031-12');
+  for(let i=curIdx;i<=endIdx;i++){
+    const tot=cpfTotal(sal);
+    oa+=tot*ALLOC_OA; sa+=tot*ALLOC_SA; ma+=tot*ALLOC_MA;
+    oa*=(1+0.025/12); sa*=(1+0.04/12); ma*=(1+0.04/12);
+
+    let loanPaid=0;
+    loanState.forEach(l=>{
+      if(monIdx(l.end)>=i && l.bal>0){
+        // in the loan's final month, clear the whole remaining balance
+        const isFinal=monIdx(l.end)===i;
+        const p=isFinal?l.bal:Math.min(l.monthly||l.bal,l.bal);
+        l.bal-=p;loanPaid+=p;
+      }
+    });
+    inv=inv*(1+invRet/12)+invAdd;
+    let marginPay=0;
+    if(margin>0){margin*=(1+0.048/12);marginPay=Math.min(300,margin);margin-=marginPay;}
+
+    const cashIncome=sal-cpfEmp(sal)+S.comms;
+    const fixed=S.fatty+S.house+S.manu;
+    const surplus=cashIncome-fixed-loanPaid-insM-S.varSpend-invAdd-marginPay;
+    cash+=surplus;
+
+    // december -> snapshot (absolute calendar year) then bump salary in jan
+    if((i%12)===11){
+      snapshot(String(Math.floor(i/12)));
+      sal=Math.round(sal*(1+growth));
+    }
+  }
+  return series;
+}
+
+function render5y(){
+  const s=simulate5y();
+  const last=s[s.length-1];
+  $('s-nw5').textContent=fmt(last.nw);
+  $('s-cpf5').textContent=fmt(last.oa+last.sa+last.ma);
+  $('s-inv5').textContent=fmt(last.inv);
+  $('s-cash5').textContent=fmt(last.cash);
+
+  // table
+  const tb=$('t-5y').querySelector('tbody');tb.innerHTML='';
+  s.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.label}</td>
+      <td class="num">${fmt(r.sal)}</td>
+      <td class="num">${fmt(r.oa+r.sa+r.ma)}</td>
+      <td class="num">${fmt(r.inv)}</td>
+      <td class="num">${fmt(r.cash)}</td>
+      <td class="num neg">${r.debt>0?'−'+fmt(r.debt).slice(1):'$0'}</td>
+      <td class="num pos"><b>${fmt(r.nw)}</b></td>`;
+    tb.appendChild(tr);
+  });
+
+  destroy('cnw');
+  charts.cnw=new Chart($('c-nw'),{
+    type:'bar',
+    data:{
+      labels:s.map(r=>r.label),
+      datasets:[
+        {label:'CPF',data:s.map(r=>r.oa+r.sa+r.ma),backgroundColor:'#2f5d3a',stack:'a'},
+        {label:'Investments',data:s.map(r=>r.inv),backgroundColor:'#3d6b8e',stack:'a'},
+        {label:'Cash',data:s.map(r=>r.cash),backgroundColor:'#c08a2e',stack:'a'},
+        {label:'Debt',data:s.map(r=>-r.debt),backgroundColor:'#b5482e',stack:'a'},
+        {label:'Net worth',data:s.map(r=>r.nw),type:'line',borderColor:'#11201a',
+         backgroundColor:'#11201a',borderWidth:2.5,pointRadius:4,tension:.25}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(Math.abs(c.raw))}}},
+      scales:{
+        x:{stacked:true,grid:{display:false}},
+        y:{stacked:true,grid:{color:'#e6dfca'},
+           ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}
+      }
+    }
+  });
+}
+
+/* ============ CPF CHART ============ */
+function renderCPF(){
+  const growth=(+$('growth').value||0)/100;
+  let oa=S.oa,sa=S.sa,ma=S.ma,sal=S.newSal;
+  const series=[{label:'Now',oa,sa,ma}];
+  let curIdx=monIdx('2026-08');
+  const endIdx=monIdx('2031-12');
+  for(let i=curIdx;i<=endIdx;i++){
+    const tot=cpfTotal(sal);
+    oa+=tot*ALLOC_OA;sa+=tot*ALLOC_SA;ma+=tot*ALLOC_MA;
+    oa*=(1+0.025/12);sa*=(1+0.04/12);ma*=(1+0.04/12);
+    if((i%12)===11){
+      series.push({label:String(Math.floor(i/12)),oa,sa,ma});
+      sal=Math.round(sal*(1+growth));
+    }
+  }
+  const tb=$('t-cpf').querySelector('tbody');tb.innerHTML='';
+  series.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.label}</td>
+      <td class="num">${fmt(r.oa)}</td>
+      <td class="num">${fmt(r.sa)}</td>
+      <td class="num">${fmt(r.ma)}</td>
+      <td class="num pos"><b>${fmt(r.oa+r.sa+r.ma)}</b></td>`;
+    tb.appendChild(tr);
+  });
+
+  destroy('ccpf');
+  charts.ccpf=new Chart($('c-cpf'),{
+    type:'line',
+    data:{
+      labels:series.map(r=>r.label),
+      datasets:[
+        {label:'OA',data:series.map(r=>r.oa),borderColor:'#2f5d3a',
+         backgroundColor:'rgba(47,93,58,.12)',fill:true,borderWidth:2.5,tension:.3,pointRadius:3},
+        {label:'SA',data:series.map(r=>r.sa),borderColor:'#3d6b8e',
+         backgroundColor:'rgba(61,107,142,.10)',fill:true,borderWidth:2.5,tension:.3,pointRadius:3},
+        {label:'MA',data:series.map(r=>r.ma),borderColor:'#c08a2e',
+         backgroundColor:'rgba(192,138,46,.10)',fill:true,borderWidth:2.5,tension:.3,pointRadius:3}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},
+      scales:{x:{grid:{display:false}},
+        y:{grid:{color:'#e6dfca'},ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}
+    }
+  });
+}
+
+/* ============ DEBT ============ */
+function renderDebt(){
+  const totalOut=S.loans.reduce((s,l)=>s+l.out,0);
+  $('s-debt-out').textContent=fmt(totalOut);
+
+  // loans table
+  const tb=$('t-loans').querySelector('tbody');tb.innerHTML='';
+  const nowIdx=monIdx('2026-06');
+  S.loans.slice().sort((a,b)=>monIdx(a.end)-monIdx(b.end)).forEach(l=>{
+    const ei=monIdx(l.end);
+    let tag,cls;
+    if(ei<=nowIdx){tag='ending';cls='t-end';}
+    else if(ei<=nowIdx+2){tag='soon';cls='t-soon';}
+    else{tag='active';cls='t-live';}
+    const endLbl=new Date(l.end+'-01').toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${l.name}</td><td>${l.card}</td>
+      <td class="num">${l.monthly?fmt2(l.monthly):'—'}</td>
+      <td class="num">${fmt2(l.out)}</td>
+      <td class="num">${endLbl}</td>
+      <td><span class="tag ${cls}">${tag}</span></td>`;
+    tb.appendChild(tr);
+  });
+
+  // burn-down chart: outstanding each month Jun26..Dec27
+  const labels=[],data=[];
+  let loanState=S.loans.map(l=>({...l,bal:l.out}));
+  for(let i=monIdx('2026-06');i<=monIdx('2027-12');i++){
+    const d=new Date(2000+Math.floor(i/12)-2000+2000,i%12,1);
+    labels.push(new Date(Math.floor(i/12),i%12,1).toLocaleDateString('en-GB',{month:'short',year:'2-digit'}));
+    let tot=loanState.reduce((s,l)=>s+Math.max(0,l.bal),0);
+    data.push(tot);
+    loanState.forEach(l=>{
+      if(monIdx(l.end)>=i&&l.bal>0){
+        const isFinal=monIdx(l.end)===i;
+        l.bal-=isFinal?l.bal:Math.min(l.monthly||l.bal,l.bal);
+      }
+    });
+  }
+  destroy('cdebt');
+  charts.cdebt=new Chart($('c-debt'),{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Outstanding',data,borderColor:'#b5482e',
+      backgroundColor:'rgba(181,72,46,.12)',fill:true,borderWidth:2.5,
+      tension:.25,pointRadius:3
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>'Outstanding: '+fmt(c.raw)}}},
+      scales:{x:{grid:{display:false}},
+        y:{grid:{color:'#e6dfca'},ticks:{callback:v=>'$'+(v/1000).toFixed(1)+'k'}}}
+    }
+  });
+}
+
+/* ============ WEALTH (excl CPF) ============ */
+function portfolioValue(){
+  return S.holdings.reduce((s,h)=>s+h.qty*h.price,0);
+}
+function renderWealth(){
+  const port=portfolioValue();
+  const invTotal=port+S.ilp;
+  const liab=S.margin+S.ccDebt;
+  const lnw=invTotal+S.cash-liab;
+
+  $('w-lnw').textContent=fmt(lnw);
+  $('w-inv').textContent=fmt(invTotal);
+  $('w-cash').textContent=fmt(S.cash);
+  $('w-liab').textContent=fmt(liab);
+
+  // moomoo table
+  const tb=$('t-moomoo').querySelector('tbody');tb.innerHTML='';
+  S.holdings.slice().sort((a,b)=>b.qty*b.price-a.qty*a.price).forEach(h=>{
+    const v=h.qty*h.price, w=v/port*100;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${h.name}</td><td class="num">${h.ticker}</td>
+      <td class="num">${h.qty.toLocaleString()}</td>
+      <td class="num">${h.price.toFixed(3)}</td>
+      <td class="num">${fmt2(v)}</td>
+      <td class="num ${w>50?'neg':''}">${w.toFixed(1)}%</td>
+      <td style="font-size:12px;color:var(--muted)">${h.sector}</td>`;
+    tb.appendChild(tr);
+  });
+  $('m-port').textContent=fmt2(port);
+  $('m-margin').textContent='−'+fmt2(S.margin).slice(1);
+  $('m-nav').textContent=fmt2(port-S.margin);
+  $('ilp-val').textContent=fmt2(S.ilp);
+
+  // split chart: liquid vs cpf
+  destroy('csplit');
+  charts.csplit=new Chart($('c-split'),{
+    type:'bar',
+    data:{
+      labels:['Liquid (spendable now)','CPF (locked)'],
+      datasets:[
+        {label:'Investments',data:[invTotal,0],backgroundColor:'#3d6b8e',stack:'a'},
+        {label:'Cash',data:[S.cash,0],backgroundColor:'#c08a2e',stack:'a'},
+        {label:'Liabilities',data:[-liab,0],backgroundColor:'#b5482e',stack:'a'},
+        {label:'CPF',data:[0,S.oa+S.sa+S.ma],backgroundColor:'#2f5d3a',stack:'a'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(Math.abs(c.raw))}}},
+      scales:{
+        x:{stacked:true,grid:{color:'#e6dfca'},
+           ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}},
+        y:{stacked:true,grid:{display:false}}
+      }
+    }
+  });
+
+  // concentration doughnut
+  destroy('cconc');
+  const cols=['#2f5d3a','#b5482e','#c08a2e','#3d6b8e','#a89a76'];
+  charts.cconc=new Chart($('c-conc'),{
+    type:'doughnut',
+    data:{
+      labels:S.holdings.map(h=>h.name),
+      datasets:[{data:S.holdings.map(h=>h.qty*h.price),
+        backgroundColor:cols,borderColor:'#fffdf6',borderWidth:2}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{boxWidth:10,font:{size:10}}},
+        tooltip:{callbacks:{label:c=>c.label+': '+fmt(c.raw)+' ('+(c.raw/port*100).toFixed(0)+'%)'}}}
+    }
+  });
+}
+
+/* ============ BUDGET PLANNER ============ */
+function stableTakeHome(){
+  return S.newSal-cpfEmp(S.newSal)+S.comms;
+}
+function renderBudgetSliders(){
+  const box=$('budSliders');box.innerHTML='';
+  const income=stableTakeHome();
+  S.budget.forEach((b,i)=>{
+    const row=document.createElement('div');
+    row.style.marginBottom='12px';
+    row.innerHTML=`
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px">
+        <span>${b.cat}</span>
+        <span class="num" id="bv-${i}">${fmt2(b.amt)}</span>
+      </div>
+      <input type="range" min="0" max="${Math.round(income)}" step="10"
+        value="${b.amt}" data-bi="${i}" style="width:100%;cursor:pointer">`;
+    box.appendChild(row);
+  });
+  box.querySelectorAll('input[type=range]').forEach(r=>{
+    r.oninput=e=>{
+      const i=+e.target.dataset.bi;
+      S.budget[i].amt=+e.target.value;
+      $('bv-'+i).textContent=fmt2(S.budget[i].amt);
+      renderBudget();
+    };
+  });
+}
+function renderBudget(){
+  const income=stableTakeHome();
+  $('bud-income').textContent=fmt(income);
+  const alloc=S.budget.reduce((s,b)=>s+b.amt,0);
+  const left=income-alloc;
+  $('bud-alloc').textContent=fmt2(alloc);
+  const le=$('bud-left');
+  le.textContent=(left>=0?'':'−')+fmt2(Math.abs(left)).slice(1);
+  le.className='v '+(left<-1?'neg':(left>1?'':'pos'));
+
+  // budget doughnut
+  destroy('cbud');
+  const palette={fixed:'#a89a76',spend:'#c08a2e',save:'#3d6b8e',invest:'#2f5d3a'};
+  charts.cbud=new Chart($('c-budget'),{
+    type:'doughnut',
+    data:{
+      labels:S.budget.map(b=>b.cat),
+      datasets:[{data:S.budget.map(b=>b.amt),
+        backgroundColor:S.budget.map(b=>palette[b.type]||'#999'),
+        borderColor:'#fffdf6',borderWidth:2}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{boxWidth:9,font:{size:9.5}}},
+        tooltip:{callbacks:{label:c=>c.label+': '+fmt2(c.raw)+' ('+(c.raw/income*100).toFixed(0)+'%)'}}}
+    }
+  });
+
+  // verdict
+  const inv=S.budget.filter(b=>b.type==='invest').reduce((s,b)=>s+b.amt,0);
+  const sav=S.budget.filter(b=>b.type==='save').reduce((s,b)=>s+b.amt,0);
+  const invPct=(inv/income*100), savePct=(sav/income*100);
+  let v='';
+  if(Math.abs(left)>20){
+    v=left<0
+      ? `<b style="color:var(--rust)">Over-allocated by ${fmt2(-left)}.</b> Trim a category — your plan currently spends more than you take home.`
+      : `<b style="color:var(--gold)">${fmt2(left)} unallocated.</b> Assign it — idle cash tends to get spent. Adding it to investing or savings makes it work for you.`;
+  }else{
+    v=`<b style="color:var(--moss)">Balanced plan.</b> `;
+  }
+  v+=` You are directing <b>${invPct.toFixed(0)}%</b> to investing and <b>${savePct.toFixed(0)}%</b> to savings — a combined <b>${(invPct+savePct).toFixed(0)}%</b> toward building wealth.`;
+  if(invPct+savePct<20) v+=` That is on the lean side; many aim for 20%+ once debt is cleared.`;
+  else if(invPct+savePct>=35) v+=` That is a strong savings rate for your income.`;
+  $('budVerdict').innerHTML=v;
+
+  renderBudgetProjection(inv,sav);
+}
+function renderBudgetProjection(monthlyInv,monthlySave){
+  const ret=(+$('bud-ret').value||0)/100;
+  const yrs=+$('bud-yrs').value||10;
+  // start: invested pot = current investments; cash = current cash savings
+  let invPot=portfolioValue()+S.ilp;
+  let cashPot=S.cash;
+  const labels=['Now'],invSeries=[invPot],cashSeries=[cashPot],nwSeries=[invPot+cashPot];
+  for(let y=1;y<=yrs;y++){
+    for(let m=0;m<12;m++){
+      invPot=invPot*(1+ret/12)+monthlyInv;
+      cashPot+=monthlySave; // cash savings — modelled flat, no return
+    }
+    labels.push('Y'+y);
+    invSeries.push(invPot);cashSeries.push(cashPot);
+    nwSeries.push(invPot+cashPot);
+  }
+  $('bp-inv').textContent=fmt(invPot);
+  $('bp-cash').textContent=fmt(cashPot);
+  $('bp-nw').textContent=fmt(invPot+cashPot);
+
+  destroy('cbp');
+  charts.cbp=new Chart($('c-budproj'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Invested pot',data:invSeries,backgroundColor:'#3d6b8e',stack:'a'},
+      {label:'Cash savings',data:cashSeries,backgroundColor:'#c08a2e',stack:'a'},
+      {label:'Liquid net worth',data:nwSeries,type:'line',borderColor:'#11201a',
+       backgroundColor:'#11201a',borderWidth:2.5,pointRadius:3,tension:.25}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},
+      scales:{
+        x:{stacked:true,grid:{display:false}},
+        y:{stacked:true,grid:{color:'#e6dfca'},
+           ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}
+      }
+    }
+  });
+}
+
+
+/* ============ SAVINGS GOALS ============ */
+function monthsUntil(ym){
+  const now=monIdx('2026-05');
+  return Math.max(1,monIdx(ym)-now);
+}
+function renderGoals(){
+  const tb=$('t-goals').querySelector('tbody');tb.innerHTML='';
+  let totT=0,totS=0,totMonthly=0;
+  S.goals.forEach((g,i)=>{
+    const gap=Math.max(0,g.target-g.saved);
+    const mths=monthsUntil(g.by);
+    const need=gap/mths;
+    totT+=g.target;totS+=g.saved;totMonthly+=need;
+    const pct=g.target>0?Math.min(100,g.saved/g.target*100):0;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input type="text" value="${g.name}" data-gi="${i}" data-gk="name" style="border:none;background:none;padding:2px"></td>
+      <td><input type="number" value="${g.target}" data-gi="${i}" data-gk="target" style="width:90px;text-align:right"></td>
+      <td><input type="number" value="${g.saved}" data-gi="${i}" data-gk="saved" style="width:80px;text-align:right"></td>
+      <td class="num ${gap>0?'neg':'pos'}">${gap>0?fmt(gap):'done'}</td>
+      <td><input type="text" value="${g.by}" data-gi="${i}" data-gk="by" style="width:78px;text-align:right" placeholder="YYYY-MM"></td>
+      <td class="num">${mths}</td>
+      <td class="num"><b>${fmt(need)}</b></td>
+      <td style="font-size:11.5px;color:var(--muted);text-align:left">
+        <input type="text" value="${g.where}" data-gi="${i}" data-gk="where" style="border:none;background:none;padding:2px;font-size:11.5px">
+        <div style="margin-top:3px;height:5px;background:var(--line)">
+          <div style="height:100%;width:${pct}%;background:var(--moss)"></div>
+        </div>
+      </td>
+      <td><button class="btn del sm" data-gdel="${i}">del</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(inp=>{
+    inp.onchange=e=>{
+      const i=+e.target.dataset.gi,k=e.target.dataset.gk;
+      S.goals[i][k]=(k==='name'||k==='by'||k==='where')?e.target.value:(parseFloat(e.target.value)||0);
+      renderGoals();
+    };
+  });
+  tb.querySelectorAll('[data-gdel]').forEach(b=>{
+    b.onclick=e=>{S.goals.splice(+e.target.dataset.gdel,1);renderGoals();};
+  });
+
+  $('gl-target').textContent=fmt(totT);
+  $('gl-saved').textContent=fmt(totS);
+  $('gl-gap').textContent=fmt(Math.max(0,totT-totS));
+
+  destroy('cgoals');
+  charts.cgoals=new Chart($('c-goals'),{
+    type:'bar',
+    data:{
+      labels:S.goals.map(g=>g.name.length>22?g.name.slice(0,20)+'\u2026':g.name),
+      datasets:[
+        {label:'Saved',data:S.goals.map(g=>g.saved),backgroundColor:'#2f5d3a',stack:'a'},
+        {label:'Still needed',data:S.goals.map(g=>Math.max(0,g.target-g.saved)),
+         backgroundColor:'#d8cfb4',stack:'a'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},
+      scales:{
+        x:{stacked:true,grid:{color:'#e6dfca'},ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}},
+        y:{stacked:true,grid:{display:false}}
+      }
+    }
+  });
+
+  const mb=$('gl-monthly');mb.innerHTML='';
+  S.goals.forEach(g=>{
+    const need=Math.max(0,g.target-g.saved)/monthsUntil(g.by);
+    mb.innerHTML+=`<div class="minirow"><span class="k">${g.name}</span><span class="v">${fmt(need)}/mo</span></div>`;
+  });
+  mb.innerHTML+=`<div class="minirow tot"><span class="k">Total / month</span><span class="v">${fmt(totMonthly)}</span></div>`;
+
+  const invSave=S.budget.filter(b=>b.type==='save'||b.type==='invest').reduce((s,b)=>s+b.amt,0);
+  let v;
+  if(totMonthly<=invSave){
+    v=`Your goals need <b>${fmt(totMonthly)}/month</b>. Your budget currently directs <b>${fmt(invSave)}/month</b> to saving + investing — that covers it with <b>${fmt(invSave-totMonthly)}</b> to spare. You're on track.`;
+  }else{
+    v=`Your goals need <b>${fmt(totMonthly)}/month</b> but your budget directs only <b>${fmt(invSave)}/month</b> to saving + investing — a shortfall of <b style="color:var(--rust)">${fmt(totMonthly-invSave)}/month</b>. Either extend a deadline, trim a target, or raise the savings allocation in the Wealth &amp; Budget tab.`;
+  }
+  $('gl-verdict').innerHTML=v;
+}
+function addGoal(){
+  S.goals.push({name:'New goal',target:5000,saved:0,by:'2028-01',where:'Savings account'});
+  renderGoals();
+}
+
+/* ============ BTO PLANNER ============ */
+function cpfOAmonthly(sal){
+  return cpfTotal(sal)*ALLOC_OA;
+}
+function renderBTO(){
+  const price=+$('bto-price').value||0;
+  const ltv=(+$('bto-ltv').value||75)/100;
+  const rate=(+$('bto-rate').value||2.6)/100;
+  const tenure=+$('bto-tenure').value||25;
+  const yrsToKeys=+$('bto-keys').value||4;
+  const ehg=+$('bto-ehg').value||0;
+  const tSal=+$('bto-tsal').value||6500;
+  const pSal=+$('bto-psal').value||4300;
+  const pOA=+$('bto-poa').value||0;
+  const tOA=S.oa;
+
+  const loan=price*ltv;
+  const dpTotal=price*(1-ltv);
+  const afl=price*0.025;
+  const keyPay=dpTotal-afl;
+
+  $('bto-loan').textContent=fmt(loan);
+  $('bto-afl').textContent=fmt(afl);
+  $('bto-keypay').textContent=fmt(keyPay);
+
+  const n=tenure*12,r=rate/12;
+  const mortgage=loan*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1);
+  $('bto-mortgage').textContent=fmt(mortgage);
+
+  const tl=$('t-bto-timeline').querySelector('tbody');tl.innerHTML='';
+  const rows=[
+    ['Application & ballot','Jun 2026','Submit BTO application, HFE letter','\u2014','\u2014'],
+    ['Booking appointment','~Late 2026','Option fee (4-room)','$2,000','Cash'],
+    ['Sign Agreement for Lease','~3\u20136 mths after booking',
+      'Downpayment 2.5% (Deferred Income Assessment rate)',fmt(afl),'CPF OA / cash'],
+    ['','','Buyer\u2019s Stamp Duty + legal fees','see below','CPF OA / cash'],
+    ['Construction period',`~${yrsToKeys} years`,'No payments \u2014 OA keeps growing','\u2014','\u2014'],
+    ['Income assessment','~3 mths before keys','HDB assesses income for loan + EHG','\u2014','\u2014'],
+    ['Key collection','~'+(2026+Math.round(yrsToKeys)),
+      'Remaining downpayment 22.5%',fmt(keyPay),'CPF OA'],
+    ['Mortgage begins','After key collection','Monthly loan instalment',fmt(mortgage)+'/mo','CPF OA']
+  ];
+  rows.forEach(rw=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><b>${rw[0]}</b></td><td>${rw[1]}</td>
+      <td style="text-align:left;font-size:12.5px">${rw[2]}</td>
+      <td class="num">${rw[3]}</td><td>${rw[4]}</td>`;
+    tl.appendChild(tr);
+  });
+
+  const months=Math.round(yrsToKeys*12);
+  let to=tOA,po=pOA;
+  const labels=['Now'],tSeries=[to],pSeries=[po];
+  for(let m=1;m<=months;m++){
+    to=to*(1+0.025/12)+cpfOAmonthly(tSal);
+    po=po*(1+0.025/12)+cpfOAmonthly(pSal);
+    if(m%6===0||m===months){labels.push('M'+m);tSeries.push(to);pSeries.push(po);}
+  }
+  const combinedOA=to+po;
+
+  destroy('cbtooa');
+  charts.cbtooa=new Chart($('c-bto-oa'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Your OA',data:tSeries,backgroundColor:'#2f5d3a',stack:'a'},
+      {label:'Partner OA',data:pSeries,backgroundColor:'#3d6b8e',stack:'a'},
+      {label:'Downpayment due',data:labels.map(()=>keyPay),type:'line',
+       borderColor:'#b5482e',borderWidth:2.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)}}},
+      scales:{
+        x:{stacked:true,grid:{display:false}},
+        y:{stacked:true,grid:{color:'#e6dfca'},
+           ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}
+      }
+    }
+  });
+
+  const dpc=$('bto-dpcheck');dpc.innerHTML='';
+  const dpAvail=combinedOA+ehg;
+  [['Your OA at key collection',to,''],
+   ['Partner OA at key collection',po,''],
+   ['EHG grant (to CPF OA)',ehg,''],
+   ['Combined available',dpAvail,'pos'],
+   ['Downpayment due (22.5%)',-keyPay,'neg']].forEach(([k,val,cls],idx)=>{
+    dpc.innerHTML+=`<div class="minirow ${idx>=3?'tot':''}"><span class="k">${k}</span>
+      <span class="v ${cls}">${val<0?'\u2212'+fmt(-val).slice(1):fmt(val)}</span></div>`;
+  });
+  const dpSurplus=dpAvail-keyPay;
+  dpc.innerHTML+=`<div class="minirow tot"><span class="k">${dpSurplus>=0?'Surplus in OA after downpayment':'Cash top-up needed'}</span>
+    <span class="v ${dpSurplus>=0?'pos':'neg'}">${dpSurplus>=0?fmt(dpSurplus):fmt(-dpSurplus)}</span></div>`;
+
+  const mc=$('bto-mortcheck');mc.innerHTML='';
+  const oaInflow=cpfOAmonthly(tSal)+cpfOAmonthly(pSal);
+  [['Your OA inflow / mo',cpfOAmonthly(tSal),''],
+   ['Partner OA inflow / mo',cpfOAmonthly(pSal),''],
+   ['Combined OA inflow / mo',oaInflow,'pos'],
+   ['Monthly mortgage',-mortgage,'neg']].forEach(([k,val,cls],idx)=>{
+    mc.innerHTML+=`<div class="minirow ${idx>=2?'tot':''}"><span class="k">${k}</span>
+      <span class="v ${cls}">${val<0?'\u2212'+fmt(-val).slice(1):fmt(val)}</span></div>`;
+  });
+  const mortSurplus=oaInflow-mortgage;
+  mc.innerHTML+=`<div class="minirow tot"><span class="k">${mortSurplus>=0?'OA surplus after mortgage':'Cash top-up needed / mo'}</span>
+    <span class="v ${mortSurplus>=0?'pos':'neg'}">${mortSurplus>=0?fmt(mortSurplus):fmt(-mortSurplus)}</span></div>`;
+
+  let v='';
+  const dpOK=dpSurplus>=0, mortOK=mortSurplus>=0;
+  if(dpOK&&mortOK){
+    v=`<b style="color:var(--moss)">Your goal of paying the flat fully through CPF looks achievable.</b> By key collection your combined OA (~${fmt(combinedOA)}) covers the 22.5% downpayment (${fmt(keyPay)}) with ${fmt(dpSurplus)} to spare, and your combined monthly OA inflow (${fmt(oaInflow)}) exceeds the mortgage (${fmt(mortgage)}) — so the loan can be serviced from CPF with little or no cash outlay. The 2.5% signing downpayment (${fmt(afl)}) is the one early sum to have ready.`;
+  }else if(dpOK&&!mortOK){
+    v=`The downpayment is covered by CPF, but the monthly mortgage (${fmt(mortgage)}) is <b style="color:var(--rust)">${fmt(-mortSurplus)}/mo above</b> your combined OA inflow. You'd need a cash top-up each month, or a longer tenure to lower the instalment.`;
+  }else if(!dpOK&&mortOK){
+    v=`The mortgage is CPF-serviceable, but the 22.5% downpayment falls <b style="color:var(--rust)">${fmt(-dpSurplus)} short</b> of projected OA. Consider a longer runway to key collection, a lower flat price, or setting aside cash for the gap.`;
+  }else{
+    v=`Both the downpayment and the monthly mortgage currently exceed CPF capacity. Consider a lower flat price, a longer loan tenure, or building cash savings to bridge the gap.`;
+  }
+  $('bto-verdict').innerHTML=v;
+
+  const bsd=(p=>{
+    let t=0;const br=[[180000,0.01],[180000,0.02],[640000,0.03],[500000,0.04],[1500000,0.05]];
+    for(const pair of br){if(p<=0)break;const x=Math.min(p,pair[0]);t+=x*pair[1];p-=x;}
+    return t;
+  })(price);
+  $('bto-bsd').textContent=fmt(bsd);
+  $('bto-extras').textContent=fmt(bsd+1500+2000);
+}
+
+function recalc(){render5m();render5y();renderWealth();renderBudget();renderGoals();renderBTO();renderCPF();renderDebt();}
+function applyAll(){readInputs();recalc();flash('Changes applied');}
+
+function flash(msg){
+  const e=$('saveMsg');e.textContent=msg;
+  setTimeout(()=>e.textContent='',2500);
+}
+
+/* ============ PERSISTENCE ============ */
+function saveLocal(){
+  readInputs();
+  try{localStorage.setItem('triciaFin',JSON.stringify(S));flash('Saved to browser');}
+  catch(e){flash('Save failed');}
+}
+function loadLocal(){
+  try{
+    const d=localStorage.getItem('triciaFin');
+    if(d){
+      const saved=JSON.parse(d);
+      // merge: keep defaults for any field a stale save is missing
+      S=Object.assign(structuredClone(DEFAULTS),saved);
+      if(!S.holdings) S.holdings=structuredClone(DEFAULTS.holdings);
+      if(!S.budget)   S.budget=structuredClone(DEFAULTS.budget);
+      if(!S.goals)    S.goals=structuredClone(DEFAULTS.goals);
+      writeInputs();renderLoanEditor();return true;
+    }
+  }catch(e){}
+  return false;
+}
+function exportJSON(){
+  readInputs();
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='financial_dashboard_data.json';
+  a.click();
+  flash('Exported JSON');
+}
+$('importFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const imp=JSON.parse(r.result);
+      S=Object.assign(structuredClone(DEFAULTS),imp);
+      if(!S.holdings) S.holdings=structuredClone(DEFAULTS.holdings);
+      if(!S.budget)   S.budget=structuredClone(DEFAULTS.budget);
+      if(!S.goals)    S.goals=structuredClone(DEFAULTS.goals);
+      writeInputs();renderLoanEditor();renderBudgetSliders();recalc();flash('Imported');
+    }
+    catch(err){flash('Invalid file');}
+  };
+  r.readAsText(f);
+};
+function resetAll(){
+  S=structuredClone(DEFAULTS);
+  writeInputs();renderLoanEditor();renderBudgetSliders();recalc();
+  try{localStorage.removeItem('triciaFin');}catch(e){}
+  flash('Reset to defaults');
+}
+
+/* recalc when projection controls change */
+['growth','invAmt','invRet','showMargin'].forEach(id=>{
+  $(id).addEventListener('change',()=>{render5y();renderCPF();});
+});
+['bud-ret','bud-yrs'].forEach(id=>{
+  $(id).addEventListener('change',renderBudget);
+});
+['bto-price','bto-ltv','bto-rate','bto-tenure','bto-keys','bto-ehg','bto-tsal','bto-psal','bto-poa'].forEach(id=>{
+  $(id).addEventListener('change',renderBTO);
+});
+
+/* ============ INIT ============ */
+loadLocal();
+renderLoanEditor();
+renderBudgetSliders();
+writeInputs();
+recalc();
+</script>
+</body>
+</html>
