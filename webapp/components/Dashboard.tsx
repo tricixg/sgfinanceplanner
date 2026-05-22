@@ -1,5 +1,6 @@
 "use client";
 
+import "@/components/chart-setup";
 import { useState } from "react";
 import { appConfig } from "@/lib/config";
 import { createEmptyState } from "@/lib/finance/defaults";
