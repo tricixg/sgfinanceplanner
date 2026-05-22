@@ -6,11 +6,25 @@ export type Loan = {
   end: string;
 };
 
+export type { CardRewardType, SpendCategory } from "./cards/sg-card-catalog";
+
+export type CreditCardRewardRule = {
+  category: string;
+  earn: string;
+  cap?: string;
+};
+
 export type CreditCard = {
   name: string;
   statementDay: number;
   paymentDueDay: number;
   statementAmount: number;
+  /** Link to [sg-card-catalog] entry; rewards snapshot stored below. */
+  catalogId?: string;
+  bank?: string;
+  rewardType?: import("./cards/sg-card-catalog").CardRewardType;
+  rewardHeadline?: string;
+  rewardRules?: CreditCardRewardRule[];
 };
 
 export type HoldingMarket = "SGX" | "US";

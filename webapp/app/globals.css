@@ -361,6 +361,98 @@ tbody tr:hover {
 .editrow.accounts {
   grid-template-columns: 1.3fr 0.85fr 1fr auto;
 }
+.editrow.cards-edit {
+  grid-template-columns: 1.4fr 0.55fr 0.55fr 0.85fr auto;
+  margin-top: 8px;
+}
+.catalog-select-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px 12px;
+  margin-bottom: 4px;
+}
+.catalog-select-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.catalog-select-row select {
+  font-size: 13.5px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.card-edit-block {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.card-edit-block:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.card-edit-reward {
+  margin: 6px 0 0;
+}
+.reward-tag,
+.tag.t-live,
+.tag.t-soon,
+.tag.t-end {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.reward-details {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.reward-details summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.reward-details ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.card-advisor {
+  margin-top: 8px;
+}
+.card-advisor-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.card-advisor-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.card-advisor-form input,
+.card-advisor-form select {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13.5px;
+}
+.card-advisor-result {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+@media (max-width: 720px) {
+  .catalog-select-row,
+  .card-advisor-form {
+    grid-template-columns: 1fr;
+  }
+}
 .editrow.budget-line {
   grid-template-columns: 1.6fr 0.75fr 0.75fr auto;
 }

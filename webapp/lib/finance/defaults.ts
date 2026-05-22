@@ -4,6 +4,7 @@ import { migrateInsurancePolicies } from "./insurance";
 import { migrateIlpPolicies } from "./ilp";
 import { migrateAccounts } from "./accounts";
 import { migrateHoldings } from "./wealth";
+import { normalizeCreditCard } from "./card-rewards";
 import { currentYm } from "./helpers";
 
 /** Blank slate — used for reset and when no saved data exists. */
@@ -215,9 +216,36 @@ export const DEFAULTS: DashboardState = {
     },
   ],
   creditCards: [
-    { name: "DBS Altitude", statementDay: 1, paymentDueDay: 21, statementAmount: 0 },
-    { name: "MariBank Card", statementDay: 5, paymentDueDay: 25, statementAmount: 0 },
-    { name: "WW Mastercard", statementDay: 10, paymentDueDay: 7, statementAmount: 622.58 },
+    {
+      name: "DBS Altitude Visa",
+      statementDay: 1,
+      paymentDueDay: 21,
+      statementAmount: 0,
+      catalogId: "dbs-altitude-visa",
+      bank: "DBS",
+      rewardType: "miles",
+      rewardHeadline: "Up to 3 mpd on travel; 2 mpd overseas",
+    },
+    {
+      name: "Mari Credit Card",
+      statementDay: 5,
+      paymentDueDay: 25,
+      statementAmount: 0,
+      catalogId: "maribank-card",
+      bank: "MariBank",
+      rewardType: "cashback",
+      rewardHeadline: "1.5% unlimited cashback",
+    },
+    {
+      name: "DBS Woman's World Mastercard",
+      statementDay: 10,
+      paymentDueDay: 7,
+      statementAmount: 622.58,
+      catalogId: "dbs-ww-mastercard",
+      bank: "DBS",
+      rewardType: "miles",
+      rewardHeadline: "4 mpd on online spend (DBS Points → miles)",
+    },
   ],
 };
 
@@ -251,7 +279,7 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
     budget: migrateBudget(saved),
     goals: saved.goals ?? [],
     loans: saved.loans ?? [],
-    creditCards: saved.creditCards ?? [],
+    creditCards: (saved.creditCards ?? []).map((c) => normalizeCreditCard(c)),
     ilpPolicies: migrateIlpPolicies(saved),
     insurancePolicies: migrateInsurancePolicies(saved),
     accounts: migrateAccounts(saved),
