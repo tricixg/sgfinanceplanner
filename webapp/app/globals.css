@@ -298,6 +298,14 @@ tbody tr:hover {
 .editrow.holdings {
   grid-template-columns: 1.2fr 0.65fr 0.75fr 0.75fr 1fr auto;
 }
+.holdings-summary {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.holdings-summary .stat {
+  margin: 0;
+}
 .editrow.insurance {
   grid-template-columns: 1.1fr 0.9fr 0.85fr 1fr auto;
 }

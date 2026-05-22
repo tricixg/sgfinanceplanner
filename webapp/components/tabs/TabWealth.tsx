@@ -509,29 +509,23 @@ export function TabWealth({ state: S, setState }: Props) {
             </tbody>
           </table>
         )}
-        <div className="grid g3" style={{ marginTop: 14 }}>
-          <div className="minirow" style={{ border: "none" }}>
-            <span className="k">Portfolio value (calculated)</span>
-            <span className="v">{fmt2(port)}</span>
-            <span className="note" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-              Sum of qty × price across holdings
-            </span>
+        <div className="grid g3 holdings-summary">
+          <div className="stat accent">
+            <div className="lbl">Portfolio value (calculated)</div>
+            <div className="val">{fmt(port)}</div>
+            <div className="note">Sum of qty × price across holdings</div>
           </div>
-          <div className="minirow" style={{ border: "none" }}>
-            <span className="k">Margin loan</span>
-            <span className="v neg">−{fmt2(S.margin).slice(1)}</span>
-            {!editingHoldings && (
-              <span className="note" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-                Click Edit to change
-              </span>
-            )}
+          <div className="stat warn">
+            <div className="lbl">Margin loan</div>
+            <div className="val">{fmt(S.margin)}</div>
+            <div className="note">
+              {editingHoldings ? "Edit in the row above" : "Click Edit to change"}
+            </div>
           </div>
-          <div className="minirow" style={{ border: "none" }}>
-            <span className="k">Cash (savings accounts)</span>
-            <span className="v">{fmt2(cash)}</span>
-            <span className="note" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-              Sum of balances on ME tab
-            </span>
+          <div className="stat">
+            <div className="lbl">Cash (savings accounts)</div>
+            <div className="val">{fmt(cash)}</div>
+            <div className="note">Sum of balances on ME tab</div>
           </div>
         </div>
       </div>
