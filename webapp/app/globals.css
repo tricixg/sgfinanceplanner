@@ -1,0 +1,494 @@
+:root {
+  --ink: #11201a;
+  --paper: #f4f1e8;
+  --card: #fffdf6;
+  --moss: #2f5d3a;
+  --moss-lt: #4a8055;
+  --sand: #d8cfb4;
+  --rust: #b5482e;
+  --gold: #c08a2e;
+  --sky: #3d6b8e;
+  --line: #dcd4bd;
+  --muted: #7d7560;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 0 80px;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 26px;
+}
+
+header {
+  border-bottom: 2px solid var(--ink);
+  padding: 30px 0 20px;
+  margin-bottom: 8px;
+}
+
+.kicker {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--rust);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 42px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 6px 0 4px;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 15px;
+  font-style: italic;
+}
+
+.asof {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+nav {
+  display: flex;
+  gap: 2px;
+  margin: 22px 0 26px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  padding: 9px 16px;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink);
+  text-transform: uppercase;
+  transition: 0.15s;
+}
+
+.tab:hover {
+  background: var(--sand);
+}
+
+.tab.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.panel {
+  display: none;
+}
+
+.panel.on {
+  display: block;
+  animation: fade 0.35s ease;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+.g4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.g3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.g2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 860px) {
+  .g4,
+  .g3,
+  .g2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .g4,
+  .g3,
+  .g2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat {
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  padding: 18px 18px 16px;
+  position: relative;
+}
+.stat .lbl {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.stat .val {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 7px;
+}
+.stat .note {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-style: italic;
+}
+.stat.accent {
+  background: var(--moss);
+  border-color: var(--moss);
+}
+.stat.accent .lbl,
+.stat.accent .note {
+  color: #cde0cf;
+}
+.stat.accent .val {
+  color: #fff;
+}
+.stat.warn {
+  background: #fbf0ec;
+  border-color: var(--rust);
+}
+.stat.warn .val {
+  color: var(--rust);
+}
+.pos {
+  color: var(--moss);
+}
+.neg {
+  color: var(--rust);
+}
+
+h2 {
+  font-size: 13px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin: 34px 0 14px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+  color: var(--moss);
+}
+h2:first-child {
+  margin-top: 8px;
+}
+
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.chartbox {
+  position: relative;
+  height: 340px;
+}
+.chartbox.tall {
+  height: 400px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+th {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+  padding: 8px 9px;
+  border-bottom: 1.5px solid var(--ink);
+}
+th:first-child {
+  text-align: left;
+}
+td {
+  padding: 8px 9px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+td:first-child {
+  text-align: left;
+}
+tbody tr:hover {
+  background: #faf7ec;
+}
+.num {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12.5px;
+}
+.tag {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 9.5px;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: inline-block;
+}
+.t-end {
+  color: var(--rust);
+}
+.t-live {
+  color: var(--moss);
+}
+.t-soon {
+  color: var(--gold);
+}
+
+.editrow {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.editrow.head {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1.5px solid var(--ink);
+  padding-bottom: 8px;
+}
+input,
+select {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border: 1.5px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+}
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--moss);
+}
+.editrow input[type="text"] {
+  font-family: inherit;
+  font-size: 13.5px;
+}
+.btn {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  transition: 0.15s;
+}
+.btn:hover {
+  background: var(--moss);
+  border-color: var(--moss);
+}
+.btn.ghost {
+  background: transparent;
+  color: var(--ink);
+}
+.btn.ghost:hover {
+  background: var(--sand);
+  color: var(--ink);
+}
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 10px;
+}
+.btn.del {
+  border-color: var(--rust);
+  background: transparent;
+  color: var(--rust);
+}
+.btn.del:hover {
+  background: var(--rust);
+  color: #fff;
+}
+.toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  align-items: center;
+}
+
+.legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.callout {
+  border-left: 3px solid var(--gold);
+  background: #fbf6e8;
+  padding: 13px 16px;
+  font-size: 13.5px;
+  margin: 14px 0;
+  line-height: 1.55;
+}
+.callout.urgent {
+  border-color: var(--rust);
+  background: #fbf0ec;
+}
+.callout b {
+  font-weight: 600;
+}
+.callout .ico {
+  font-family: "SF Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rust);
+  display: block;
+  margin-bottom: 4px;
+}
+.callout.tip .ico {
+  color: var(--gold);
+}
+
+.ctrl {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.ctrl label {
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+.ctrl input[type="number"] {
+  width: 90px;
+}
+.ctrl input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 760px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.minirow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+.minirow:last-child {
+  border-bottom: none;
+}
+.minirow .k {
+  color: var(--muted);
+}
+.minirow .v {
+  font-family: "SF Mono", monospace;
+  font-size: 12.5px;
+}
+.minirow.tot {
+  border-top: 1.5px solid var(--ink);
+  font-weight: 600;
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+footer {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.section-lbl {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.save-status {
+  font-size: 12px;
+  color: var(--moss);
+  font-style: italic;
+}
