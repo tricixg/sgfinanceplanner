@@ -12,6 +12,12 @@ import { portfolioValue } from "@/lib/finance/wealth";
 
 type QuoteMap = Record<string, { price: number; updatedAt: string }>;
 
+export type LastRefresh = {
+  status: "success" | "failed";
+  at: string;
+  reason?: "no_api_key" | "no_symbols" | "error";
+};
+
 type RefreshResult = {
   ok: boolean;
   updated: number;
@@ -24,13 +30,26 @@ export function useLiveQuotes(
 ) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<LastRefresh | null>(null);
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
+
+  const markFailed = useCallback(
+    (reason: LastRefresh["reason"], message: string) => {
+      const at = new Date().toISOString();
+      setLastRefresh({ status: "failed", at, reason });
+      setError(message);
+      console.info("[useLiveQuotes] refresh failed", { reason, at });
+    },
+    []
+  );
 
   const refresh = useCallback(async (): Promise<RefreshResult> => {
     const symbols = quoteSymbolsFromHoldings(holdings);
     if (symbols.length === 0) {
-      setError("Add holdings with tickers to refresh prices.");
+      markFailed(
+        "no_symbols",
+        "Add holdings with tickers to refresh prices."
+      );
       return { ok: false, updated: 0 };
     }
 
@@ -51,10 +70,10 @@ export function useLiveQuotes(
 
       if (res.status === 503 && data.error === "no_api_key") {
         setApiAvailable(false);
-        setError(
+        markFailed(
+          "no_api_key",
           "Live quotes need FINNHUB_API_KEY in .env.local — use manual last price in Edit until then."
         );
-        console.info("[useLiveQuotes] no API key configured");
         return { ok: false, updated: 0, noApiKey: true };
       }
 
@@ -95,18 +114,30 @@ export function useLiveQuotes(
         };
       });
 
-      setLastRefreshAt(refreshedAt);
-      console.log("[useLiveQuotes] refresh done", { updated, symbols: symbols.length });
-      return { ok: updated > 0, updated };
+      if (updated === 0) {
+        markFailed(
+          "error",
+          "No prices returned — check tickers and market (SGX/US)."
+        );
+        return { ok: false, updated: 0 };
+      }
+
+      setLastRefresh({ status: "success", at: refreshedAt });
+      setError(null);
+      console.log("[useLiveQuotes] refresh done", {
+        updated,
+        symbols: symbols.length,
+      });
+      return { ok: true, updated };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Quote refresh failed";
-      setError(msg);
+      markFailed("error", msg);
       console.error("[useLiveQuotes] refresh failed", msg);
       return { ok: false, updated: 0 };
     } finally {
       setLoading(false);
     }
-  }, [holdings, setState]);
+  }, [holdings, setState, markFailed]);
 
-  return { refresh, loading, error, lastRefreshAt, apiAvailable };
+  return { refresh, loading, error, lastRefresh, apiAvailable };
 }

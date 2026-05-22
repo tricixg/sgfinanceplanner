@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultIlpPolicy } from "./ilp";
 import {
+  estimatedNetPremiumsPaid,
   estimatedPremiumsPaid,
   ilpChartSeries,
   ilpProfit,
@@ -17,7 +18,7 @@ describe("ilp-history", () => {
     expect(estimatedPremiumsPaid(p, "2026-06")).toBe(300 * 6);
   });
 
-  it("ilpProfit is value minus premiums", () => {
+  it("ilpProfit is value minus net premiums", () => {
     const p = {
       ...defaultIlpPolicy(),
       policyStartYm: "2026-01",
@@ -25,6 +26,18 @@ describe("ilp-history", () => {
       accountValue: 5000,
     };
     expect(ilpProfit(p, "2026-06")).toBe(5000 - 1800);
+  });
+
+  it("initialBonus reduces net premiums for profit", () => {
+    const p = {
+      ...defaultIlpPolicy(),
+      policyStartYm: "2026-01",
+      monthlyPremium: 300,
+      initialBonus: 500,
+      accountValue: 5000,
+    };
+    expect(estimatedNetPremiumsPaid(p, "2026-06")).toBe(1300);
+    expect(ilpProfit(p, "2026-06")).toBe(3700);
   });
 
   it("recordIlpValueSnapshot appends on change", () => {

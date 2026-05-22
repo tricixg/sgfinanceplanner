@@ -62,6 +62,7 @@ export const DEFAULTS: DashboardState = {
       premiumType: "regular",
       loadingType: "front-end",
       monthlyPremium: 300,
+      initialBonus: 0,
       accountValue: 8300.04,
       premiumAllocationPct: 100,
       lockInEndYm: "",

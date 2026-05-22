@@ -13,8 +13,18 @@ export function estimatedPremiumsPaid(
   return months * policy.monthlyPremium;
 }
 
+/** Premiums paid minus one-off start bonus (floor at 0). */
+export function estimatedNetPremiumsPaid(
+  policy: IlpPolicy,
+  asOfYm?: string
+): number {
+  const gross = estimatedPremiumsPaid(policy, asOfYm);
+  const bonus = policy.initialBonus ?? 0;
+  return Math.max(0, gross - bonus);
+}
+
 export function ilpProfit(policy: IlpPolicy, asOfYm?: string): number {
-  return policy.accountValue - estimatedPremiumsPaid(policy, asOfYm);
+  return policy.accountValue - estimatedNetPremiumsPaid(policy, asOfYm);
 }
 
 export function recordIlpValueSnapshot(
@@ -66,31 +76,16 @@ export function ilpChartSeries(policy: IlpPolicy): IlpChartSeries | null {
     labels.push(snap.recordedAt);
     values.push(snap.accountValue);
     const ym = snap.recordedAt.slice(0, 7);
-    premiums.push(estimatedPremiumsPaid(policy, ym));
+    premiums.push(estimatedNetPremiumsPaid(policy, ym));
   }
 
   return { labels, values, premiums };
 }
 
-export function seedIlpValueHistory(policy: IlpPolicy): IlpPolicy {
-  const history = policy.valueHistory ?? [];
-  if (history.length > 0) return policy;
-  if (policy.accountValue <= 0) return { ...policy, valueHistory: [] };
-  const recordedAt = todayDateStr();
-  console.log("[ilp-history] seeded initial snapshot", {
-    plan: policy.planName,
-    accountValue: policy.accountValue,
-  });
-  return {
-    ...policy,
-    valueHistory: [{ recordedAt, accountValue: policy.accountValue }],
-  };
-}
-
+/** Ensure valueHistory exists; does not auto-add today's value. */
 export function migrateIlpValueHistory(policy: IlpPolicy): IlpPolicy {
-  const withHistory: IlpPolicy = {
+  return {
     ...policy,
     valueHistory: Array.isArray(policy.valueHistory) ? policy.valueHistory : [],
   };
-  return seedIlpValueHistory(withHistory);
 }

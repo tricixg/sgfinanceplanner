@@ -48,6 +48,8 @@ export type IlpPolicy = {
   /** front-end: low allocation early years; back-end: 100% units but surrender fees; single: lump sum */
   loadingType: "front-end" | "back-end" | "single";
   monthlyPremium: number;
+  /** Welcome / allocation bonus credited at policy start (SGD) — lowers net premiums for profit. */
+  initialBonus: number;
   accountValue: number;
   /** % of premium used to buy units this policy year (allocation rate) */
   premiumAllocationPct: number;

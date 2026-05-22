@@ -12,6 +12,7 @@ export function defaultIlpPolicy(): IlpPolicy {
     premiumType: "regular",
     loadingType: "front-end",
     monthlyPremium: 0,
+    initialBonus: 0,
     accountValue: 0,
     premiumAllocationPct: 100,
     lockInEndYm: "",
@@ -94,6 +95,7 @@ function normalizePolicy(raw: Partial<IlpPolicy>): IlpPolicy {
         ? raw.loadingType
         : "front-end",
     monthlyPremium: typeof raw.monthlyPremium === "number" ? raw.monthlyPremium : 0,
+    initialBonus: typeof raw.initialBonus === "number" ? raw.initialBonus : 0,
     accountValue: typeof raw.accountValue === "number" ? raw.accountValue : 0,
     premiumAllocationPct:
       typeof raw.premiumAllocationPct === "number" ? raw.premiumAllocationPct : 100,

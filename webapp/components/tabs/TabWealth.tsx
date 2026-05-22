@@ -14,11 +14,7 @@ import {
   portfolioValue,
   wealthSummary,
 } from "@/lib/finance";
-import {
-  ilpChartSeries,
-  ilpProfit,
-  recordIlpValueSnapshot,
-} from "@/lib/finance/ilp-history";
+import { ilpProfit } from "@/lib/finance/ilp-history";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -60,7 +56,7 @@ export function TabWealth({ state: S, setState }: Props) {
   const { port, invTotal, ilpVal, ilpLocked } = wealthSummary(S);
   const ilpPrem = computedIlpMonthly(S);
   const totals = portfolioTotals(S.holdings);
-  const { refresh, loading, error, lastRefreshAt, apiAvailable } = useLiveQuotes(
+  const { refresh, loading, error, lastRefresh, apiAvailable } = useLiveQuotes(
     S.holdings,
     setState
   );
@@ -81,27 +77,6 @@ export function TabWealth({ state: S, setState }: Props) {
       ),
     }));
     console.log("[TabWealth] updated ILP policy", i, patch);
-  };
-
-  const finishIlpEdit = () => {
-    setState((prev) => ({
-      ...prev,
-      ilpPolicies: prev.ilpPolicies.map((p) =>
-        recordIlpValueSnapshot(p, p.accountValue)
-      ),
-    }));
-    setEditingIlp(false);
-    console.log("[TabWealth] ILP edit off, snapshots recorded");
-  };
-
-  const recordIlpUpdate = (i: number) => {
-    setState((prev) => ({
-      ...prev,
-      ilpPolicies: prev.ilpPolicies.map((p, j) =>
-        j === i ? recordIlpValueSnapshot(p, p.accountValue) : p
-      ),
-    }));
-    console.log("[TabWealth] ILP value snapshot recorded", i);
   };
 
   const addPolicy = () => {
@@ -277,7 +252,14 @@ export function TabWealth({ state: S, setState }: Props) {
       <div className="section-head">
         <h2>Investment-linked policies (ILP)</h2>
         {editingIlp ? (
-          <button type="button" className="btn sm" onClick={finishIlpEdit}>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              setEditingIlp(false);
+              console.log("[TabWealth] ILP edit off");
+            }}
+          >
             Done
           </button>
         ) : (
@@ -295,8 +277,9 @@ export function TabWealth({ state: S, setState }: Props) {
       </div>
 
       <div className="callout tip" style={{ marginBottom: 12 }}>
-        Singapore ILPs combine insurance and unit-linked funds. Update <b>account value</b> when
-        you get statements — Done or <b>Record value</b> saves a point for the profit chart.
+        Singapore ILPs combine insurance and unit-linked funds. Update <b>account value</b> in
+        Edit when you get statements; <b>Est. profit vs premiums</b> uses current value vs net
+        premiums paid (minus start bonus).
         MAS guide:{" "}
         <a
           href="https://www.moneysense.gov.sg/investment-linked-policies-guide-to-fees-and-pricing/"
@@ -389,6 +372,17 @@ export function TabWealth({ state: S, setState }: Props) {
                     />
                   </label>
                   <label>
+                    Start bonus (SGD)
+                    <NumInput
+                      value={p.initialBonus}
+                      step={0.01}
+                      onChange={(v) => updatePolicy(i, { initialBonus: v })}
+                    />
+                    <span className="note" style={{ display: "block", marginTop: 4 }}>
+                      Welcome / allocation bonus at policy start
+                    </span>
+                  </label>
+                  <label>
                     Allocation rate (% to units)
                     <NumInput
                       value={p.premiumAllocationPct}
@@ -473,109 +467,57 @@ export function TabWealth({ state: S, setState }: Props) {
           </div>
         </div>
       ) : (
-        <>
-          <div className="card table-scroll">
-            {S.ilpPolicies.length === 0 ? (
-              <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-                No ILP policies. Click Edit to add your Manulife or other ILP details.
-              </p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Insurer</th>
-                    <th>Plan</th>
-                    <th>Premium / mo</th>
-                    <th>Account value</th>
-                    <th>Est. profit vs premiums</th>
-                    <th>Loading</th>
-                    <th>Lock-in</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {S.ilpPolicies.map((p, i) => {
-                    const lock = lockInStatus(p);
-                    const profit = ilpProfit(p);
-                    return (
-                      <tr key={i}>
-                        <td>{p.insurer || "—"}</td>
-                        <td>{p.planName || "—"}</td>
-                        <td className="num">{fmt2(p.monthlyPremium)}</td>
-                        <td className="num">{fmt2(p.accountValue)}</td>
-                        <td className={`num ${profit >= 0 ? "gain-pos" : "gain-neg"}`}>
-                          {profit >= 0 ? "+" : ""}
-                          {fmt2(profit)}
-                        </td>
-                        <td>{p.loadingType}</td>
-                        <td>
-                          <span
-                            className={`tag ${lock === "locked" ? "t-soon" : lock === "free" ? "t-live" : "t-end"}`}
-                          >
-                            {lockInLabel(p)}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn ghost sm"
-                            onClick={() => recordIlpUpdate(i)}
-                          >
-                            Record value
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-          {S.ilpPolicies.map((p, i) => {
-            const series = ilpChartSeries(p);
-            if (!series) return null;
-            return (
-              <div key={`ilp-chart-${i}`} className="card ilp-chart-card">
-                <h3>
-                  {p.insurer || "ILP"} — {p.planName || "Plan"} · value vs premiums paid
-                </h3>
-                <ChartBox
-                  type="line"
-                  tall
-                  data={{
-                    labels: series.labels,
-                    datasets: [
-                      {
-                        label: "Account value",
-                        data: series.values,
-                        borderColor: "#6b5a8e",
-                        backgroundColor: "rgba(107,90,142,.1)",
-                        fill: true,
-                        tension: 0.25,
-                      },
-                      {
-                        label: "Est. premiums paid",
-                        data: series.premiums,
-                        borderColor: "#a89a76",
-                        borderDash: [6, 4],
-                        tension: 0.25,
-                      },
-                    ],
-                  }}
-                  options={lineOpts}
-                />
-                <div className="note" style={{ marginTop: 8 }}>
-                  Profit today:{" "}
-                  <span className={ilpProfit(p) >= 0 ? "gain-pos" : "gain-neg"}>
-                    {fmt2(ilpProfit(p))}
-                  </span>{" "}
-                  ({(p.valueHistory ?? []).length} snapshot
-                  {(p.valueHistory ?? []).length === 1 ? "" : "s"})
-                </div>
-              </div>
-            );
-          })}
-        </>
+        <div className="card table-scroll">
+          {S.ilpPolicies.length === 0 ? (
+            <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
+              No ILP policies. Click Edit to add your Manulife or other ILP details.
+            </p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Insurer</th>
+                  <th>Plan</th>
+                  <th>Premium / mo</th>
+                  <th>Account value</th>
+                  <th>Start bonus</th>
+                  <th>Est. profit vs premiums</th>
+                  <th>Loading</th>
+                  <th>Lock-in</th>
+                </tr>
+              </thead>
+              <tbody>
+                {S.ilpPolicies.map((p, i) => {
+                  const lock = lockInStatus(p);
+                  const profit = ilpProfit(p);
+                  return (
+                    <tr key={i}>
+                      <td>{p.insurer || "—"}</td>
+                      <td>{p.planName || "—"}</td>
+                      <td className="num">{fmt2(p.monthlyPremium)}</td>
+                      <td className="num">{fmt2(p.accountValue)}</td>
+                      <td className="num">
+                        {p.initialBonus > 0 ? fmt2(p.initialBonus) : "—"}
+                      </td>
+                      <td className={`num ${profit >= 0 ? "gain-pos" : "gain-neg"}`}>
+                        {profit >= 0 ? "+" : ""}
+                        {fmt2(profit)}
+                      </td>
+                      <td>{p.loadingType}</td>
+                      <td>
+                        <span
+                          className={`tag ${lock === "locked" ? "t-soon" : lock === "free" ? "t-live" : "t-end"}`}
+                        >
+                          {lockInLabel(p)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
       )}
 
       <div className="section-head">
@@ -616,19 +558,37 @@ export function TabWealth({ state: S, setState }: Props) {
             >
               {loading ? "Refreshing…" : "Refresh prices"}
             </button>
-            {lastRefreshAt && (
+            {lastRefresh?.status === "success" && (
               <span className="quotes-meta">
-                Last refresh {new Date(lastRefreshAt).toLocaleString("en-SG")}
+                Last refresh {new Date(lastRefresh.at).toLocaleString("en-SG")}
               </span>
             )}
-            {apiAvailable === false && (
-              <span className="quotes-meta">
-                No API key — set FINNHUB_API_KEY or edit last price manually
-              </span>
+            {lastRefresh?.status === "failed" && (
+              <>
+                <span className="quotes-meta" style={{ color: "var(--rust)" }}>
+                  Last refresh failed
+                  {lastRefresh.reason === "no_api_key"
+                    ? " — no API key"
+                    : lastRefresh.reason === "no_symbols"
+                      ? " — no tickers"
+                      : ""}{" "}
+                  ({new Date(lastRefresh.at).toLocaleString("en-SG")})
+                </span>
+                {error && (
+                  <span className="quotes-meta" style={{ color: "var(--muted)" }}>
+                    {error}
+                  </span>
+                )}
+              </>
             )}
-            {error && (
+            {error && !lastRefresh && (
               <span className="quotes-meta" style={{ color: "var(--rust)" }}>
                 {error}
+              </span>
+            )}
+            {apiAvailable === false && !lastRefresh && (
+              <span className="quotes-meta">
+                Set FINNHUB_API_KEY in .env.local for live quotes
               </span>
             )}
           </div>
