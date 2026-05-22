@@ -1,6 +1,7 @@
 import type { DashboardState } from "@/lib/types";
 import { ALLOC_MA, ALLOC_OA, ALLOC_SA, cpfEmp, cpfTotal } from "./cpf";
-import { insMonthly, stableTakeHome } from "./cashflow";
+import { stableTakeHome } from "./cashflow";
+import { budgetFixedTotal, budgetSpendTotal } from "./budget";
 import { monIdx } from "./helpers";
 
 export type ProjectionRow = {
@@ -30,8 +31,6 @@ export function simulate5y(
   const invAdd = params.invAdd;
   const invRet = params.invRet / 100;
   const useMargin = params.useMargin;
-  const insM = insMonthly(S);
-
   let oa = S.oa;
   let sa = S.sa;
   let ma = S.ma;
@@ -87,9 +86,10 @@ export function simulate5y(
     }
 
     const cashIncome = sal - cpfEmp(sal) + S.comms;
-    const fixed = S.fatty + S.house + S.manu;
+    const fixed = budgetFixedTotal(S);
+    const spend = budgetSpendTotal(S);
     const surplus =
-      cashIncome - fixed - loanPaid - insM - S.varSpend - invAdd - marginPay;
+      cashIncome - fixed - spend - loanPaid - invAdd - marginPay;
     cash += surplus;
 
     if (i % 12 === 11) {

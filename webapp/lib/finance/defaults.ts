@@ -1,4 +1,5 @@
 import type { DashboardState } from "@/lib/types";
+import { defaultBudgetTemplate, migrateBudget } from "./budget";
 import { currentYm } from "./helpers";
 
 /** Blank slate — used for reset and when no saved data exists. */
@@ -6,10 +7,6 @@ export const EMPTY_STATE: DashboardState = {
   monthlySal: 0,
   comms: 0,
   salaryCreditDay: 0,
-  fatty: 0,
-  house: 0,
-  manu: 0,
-  varSpend: 0,
   eci: 0,
   tpd: 0,
   acc: 0,
@@ -41,10 +38,6 @@ export const DEFAULTS: DashboardState = {
   monthlySal: 6500,
   comms: 165,
   salaryCreditDay: 25,
-  fatty: 1000,
-  house: 600,
-  manu: 300,
-  varSpend: 1100,
   eci: 84.13,
   tpd: 54.98,
   acc: 24.72,
@@ -194,6 +187,11 @@ type LegacySaved = Partial<DashboardState> & {
   newSal?: number;
   oldSal?: number;
   setup?: number;
+  fatty?: number;
+  house?: number;
+  manu?: number;
+  varSpend?: number;
+  monthlyExpenses?: { name: string; amt: number; kind?: string }[];
 };
 
 export function mergeWithDefaults(saved: LegacySaved): DashboardState {
@@ -205,20 +203,7 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
     salaryCreditDay: saved.salaryCreditDay ?? 0,
     cashflowStartYm: saved.cashflowStartYm ?? currentYm(),
     holdings: saved.holdings ?? [],
-    budget: (saved.budget ?? []).map((b) => ({
-      cat:
-        typeof b.cat === "string"
-          ? b.cat
-          : String((b as { category?: string }).category ?? ""),
-      amt: typeof b.amt === "number" ? b.amt : 0,
-      type:
-        b.type === "fixed" ||
-        b.type === "spend" ||
-        b.type === "save" ||
-        b.type === "invest"
-          ? b.type
-          : "spend",
-    })),
+    budget: migrateBudget(saved),
     goals: saved.goals ?? [],
     loans: saved.loans ?? [],
     creditCards: saved.creditCards ?? [],

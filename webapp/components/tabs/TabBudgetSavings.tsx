@@ -10,7 +10,11 @@ import {
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
-import { defaultBudgetTemplate } from "@/lib/finance/budget";
+import {
+  COMPUTED_DEBT_LABEL,
+  computedDebtMonthly,
+  defaultBudgetTemplate,
+} from "@/lib/finance/budget";
 
 type Props = {
   state: DashboardState;
@@ -45,12 +49,21 @@ const palette: Record<string, string> = {
   invest: "#2f5d3a",
 };
 
+const TYPE_TAG: Record<BudgetItem["type"], string> = {
+  fixed: "t-end",
+  spend: "t-soon",
+  save: "t-live",
+  invest: "t-live",
+};
+
 export function TabBudgetSavings({ state: S, setState }: Props) {
   const [budRet, setBudRet] = useState(6);
   const [budYrs, setBudYrs] = useState(10);
+  const [editingAllocation, setEditingAllocation] = useState(false);
   const [editingGoals, setEditingGoals] = useState(false);
 
   const income = stableTakeHome(S);
+  const debt = computedDebtMonthly(S);
   const { alloc, left, invPct, savePct } = budgetVerdict(S);
   const monthlyInv = S.budget
     .filter((b) => b.type === "invest")
@@ -61,14 +74,6 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
   const proj = budgetProjection(S, monthlyInv, monthlySave, budRet, budYrs);
   const { rows, totT, totS, totMonthly } = goalsSummary(S);
   const invSave = monthlyInv + monthlySave;
-
-  const patch = <K extends keyof DashboardState>(
-    key: K,
-    val: DashboardState[K]
-  ) => {
-    setState((prev) => ({ ...prev, [key]: val }));
-    console.log("[TabBudgetSavings] patched", key, val);
-  };
 
   const updateBudget = (i: number, patchItem: Partial<BudgetItem>) => {
     setState((prev) => ({
@@ -156,13 +161,35 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
     glVerdict = `Shortfall of ${fmt(totMonthly - invSave)}/month vs saving+investing allocation.`;
   }
 
+  const allocationChart = S.budget.length > 0 && (
+    <ChartBox
+      type="doughnut"
+      data={{
+        labels: S.budget.map((b) => b.cat?.trim() || "Unnamed"),
+        datasets: [{
+          data: S.budget.map((b) => b.amt),
+          backgroundColor: S.budget.map((b) => palette[b.type] ?? "#999"),
+          borderColor: "#fffdf6",
+          borderWidth: 2,
+        }],
+      }}
+      options={{
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "right", labels: { boxWidth: 9, font: { size: 9.5 } } },
+        },
+      }}
+      height={220}
+    />
+  );
+
   return (
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Monthly expenses and salary allocation feed cashflow and wealth projections.
-        Changes auto-save to Supabase when configured. Income is set on{" "}
-        <b>Edit Inputs</b>.
+        Click <b>Edit</b> to change categories. Loans &amp; debt is auto-calculated from{" "}
+        <b>Debts &amp; Loans</b>. Auto-saves to Supabase. Salary on <b>Edit Inputs</b>.
       </div>
 
       <div className="grid g4">
@@ -179,69 +206,90 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
           <div className={`val ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</div>
         </div>
         <div className="stat warn">
-          <div className="lbl">Cashflow fixed costs / mo</div>
-          <div className="val">{fmt(S.fatty + S.house + S.manu + S.varSpend)}</div>
-          <div className="note">Used on 5-Month Cashflow tab</div>
+          <div className="lbl">Loans &amp; debt / mo</div>
+          <div className="val">{fmt(debt)}</div>
+          <div className="note">From Debts &amp; Loans tab</div>
         </div>
       </div>
 
-      <h2>Monthly expenses</h2>
-      <div className="card">
-        <div className="editrow head">
-          <span>Item</span>
-          <span>Amount / month</span>
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div className="editrow">
-          <span>Family allowance</span>
-          <NumInput value={S.fatty} onChange={(v) => patch("fatty", v)} />
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div className="editrow">
-          <span>Household</span>
-          <NumInput value={S.house} onChange={(v) => patch("house", v)} />
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div className="editrow">
-          <span>Manulife ILP base</span>
-          <NumInput value={S.manu} onChange={(v) => patch("manu", v)} />
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div className="editrow">
-          <span>Variable spending estimate</span>
-          <NumInput value={S.varSpend} onChange={(v) => patch("varSpend", v)} />
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
+      <div className="section-head">
+        <h2>Monthly salary allocation</h2>
+        {editingAllocation ? (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              setEditingAllocation(false);
+              console.log("[TabBudgetSavings] allocation edit off");
+            }}
+          >
+            Done
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => {
+              setEditingAllocation(true);
+              console.log("[TabBudgetSavings] allocation edit on");
+            }}
+          >
+            Edit
+          </button>
+        )}
       </div>
 
-      <h2>Monthly salary allocation</h2>
       <div className="callout tip">
-        Allocate take-home ({fmt(income)}) across categories. Insurance premiums stay on{" "}
-        <b>Edit Inputs</b> and appear in cashflow as Loans+Ins.
+        Take-home: <b>{fmt(income)}</b>. Unallocated = take-home − your categories − loans/debt (
+        {fmt(debt)}). Edit instalment plans on <b>Debts &amp; Loans</b>.
       </div>
 
-      {S.budget.length === 0 ? (
+      {S.budget.length === 0 && !editingAllocation ? (
         <div className="card">
-          <p style={{ color: "var(--muted)", fontStyle: "italic", marginBottom: 12 }}>
-            No budget categories yet.
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Type</th>
+                <th>Amount / month</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="computed-row">
+                <td>{COMPUTED_DEBT_LABEL}</td>
+                <td>
+                  <span className="tag t-soon">auto</span>
+                </td>
+                <td className="num">{fmt2(debt)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p style={{ color: "var(--muted)", fontStyle: "italic", margin: "12px 0" }}>
+            No editable categories yet.
           </p>
           <button type="button" className="btn ghost sm" onClick={initBudgetTemplate}>
             Set up default categories
           </button>
         </div>
-      ) : (
+      ) : editingAllocation ? (
         <div className="split">
           <div className="card">
+            {S.budget.length === 0 ? (
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={initBudgetTemplate}
+                style={{ marginBottom: 12 }}
+              >
+                Set up default categories
+              </button>
+            ) : null}
+            <div className="editrow budget-line computed-line">
+              <span>{COMPUTED_DEBT_LABEL}</span>
+              <span className="tag t-soon">auto</span>
+              <span className="num">{fmt2(debt)}</span>
+              <span></span>
+            </div>
             {S.budget.map((b, i) => (
               <div key={i} className="budget-item" style={{ marginBottom: 14 }}>
                 <div className="editrow budget-line">
@@ -249,14 +297,12 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                     type="text"
                     value={b.cat ?? ""}
                     placeholder="Category name"
-                    aria-label={`Category ${i + 1} name`}
-                    onChange={(e) => updateBudget(i, { cat: e.target.value })}
+                    onChange={(ev) => updateBudget(i, { cat: ev.target.value })}
                   />
                   <select
                     value={b.type}
-                    aria-label={`Category ${i + 1} type`}
-                    onChange={(e) =>
-                      updateBudget(i, { type: e.target.value as BudgetItem["type"] })
+                    onChange={(ev) =>
+                      updateBudget(i, { type: ev.target.value as BudgetItem["type"] })
                     }
                   >
                     {BUDGET_TYPES.map((t) => (
@@ -281,7 +327,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                   max={Math.round(income) || 1}
                   step={10}
                   value={b.amt}
-                  onChange={(e) => updateBudget(i, { amt: +e.target.value })}
+                  onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
                 />
               </div>
             ))}
@@ -290,8 +336,12 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                 + Add category
               </button>
             </div>
+            <div className="minirow">
+              <span className="k">Loans &amp; debt (auto)</span>
+              <span className="v">{fmt2(debt)}</span>
+            </div>
             <div className="minirow tot">
-              <span className="k">Allocated</span>
+              <span className="k">Your categories</span>
               <span className="v">{fmt2(alloc)}</span>
             </div>
             <div className="minirow" style={{ border: "none" }}>
@@ -300,26 +350,55 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
             </div>
           </div>
           <div className="card">
-            <ChartBox
-              type="doughnut"
-              data={{
-                labels: S.budget.map((b) => b.cat?.trim() || "Unnamed"),
-                datasets: [{
-                  data: S.budget.map((b) => b.amt),
-                  backgroundColor: S.budget.map((b) => palette[b.type] ?? "#999"),
-                  borderColor: "#fffdf6",
-                  borderWidth: 2,
-                }],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { position: "right", labels: { boxWidth: 9, font: { size: 9.5 } } },
-                },
-              }}
-              height={220}
-            />
+            {allocationChart}
+            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="split">
+          <div className="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th>Amount / month</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="computed-row">
+                  <td>{COMPUTED_DEBT_LABEL}</td>
+                  <td>
+                    <span className="tag t-soon">auto</span>
+                  </td>
+                  <td className="num">{fmt2(debt)}</td>
+                </tr>
+                {S.budget.map((b, i) => (
+                  <tr key={i}>
+                    <td>{b.cat?.trim() || "Unnamed"}</td>
+                    <td>
+                      <span className={`tag ${TYPE_TAG[b.type]}`}>{b.type}</span>
+                    </td>
+                    <td className="num">{fmt2(b.amt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="minirow" style={{ marginTop: 12 }}>
+              <span className="k">Loans &amp; debt (auto)</span>
+              <span className="v">{fmt2(debt)}</span>
+            </div>
+            <div className="minirow tot">
+              <span className="k">Your categories</span>
+              <span className="v">{fmt2(alloc)}</span>
+            </div>
+            <div className="minirow" style={{ border: "none" }}>
+              <span className="k">Unallocated</span>
+              <span className={`v ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</span>
+            </div>
+          </div>
+          <div className="card">
+            {allocationChart}
             <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
           </div>
         </div>
@@ -459,14 +538,14 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                     <input
                       type="text"
                       value={g.name}
-                      onChange={(e) => updateGoal(i, "name", e.target.value)}
+                      onChange={(ev) => updateGoal(i, "name", ev.target.value)}
                     />
                   </td>
                   <td>
                     <input
                       type="number"
                       value={g.target}
-                      onChange={(e) => updateGoal(i, "target", +e.target.value)}
+                      onChange={(ev) => updateGoal(i, "target", +ev.target.value)}
                       style={{ width: 90 }}
                     />
                   </td>
@@ -474,7 +553,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                     <input
                       type="number"
                       value={g.saved}
-                      onChange={(e) => updateGoal(i, "saved", +e.target.value)}
+                      onChange={(ev) => updateGoal(i, "saved", +ev.target.value)}
                       style={{ width: 80 }}
                     />
                   </td>
@@ -482,7 +561,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                     <input
                       type="text"
                       value={g.by}
-                      onChange={(e) => updateGoal(i, "by", e.target.value)}
+                      onChange={(ev) => updateGoal(i, "by", ev.target.value)}
                       style={{ width: 90 }}
                     />
                   </td>
@@ -490,7 +569,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                     <input
                       type="text"
                       value={g.where}
-                      onChange={(e) => updateGoal(i, "where", e.target.value)}
+                      onChange={(ev) => updateGoal(i, "where", ev.target.value)}
                     />
                   </td>
                   <td>
@@ -585,7 +664,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                   grid: { color: "#e6dfca" },
                   ticks: { callback: (v) => "$" + (Number(v) / 1000).toFixed(0) + "k" },
                 },
-                y: { stacked: true, grid: { display: false } },
+                y: { stacked: true, grid: { display: "none" } },
               },
             }}
             height={260}

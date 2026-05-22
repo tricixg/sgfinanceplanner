@@ -1,36 +1,27 @@
 import type { DashboardState } from "@/lib/types";
-import { cpfEmp } from "./cpf";
-import { formatMonthLabel, monIdx } from "./helpers";
+import { budgetFixedTotal, budgetSpendTotal } from "./budget";
+import { formatMonthLabel } from "./helpers";
+import { stableTakeHome } from "./income";
+import { loanLoadForMonth } from "./loanLoad";
+
+export { stableTakeHome } from "./income";
 
 export type MonthRow = {
   m: string;
   ym: string;
   income: number;
-  fatty: number;
   note: string;
   fixed: number;
+  spend: number;
   loans: number;
   net: number;
   running: number;
 };
 
-export function loanLoadForMonth(
-  loans: DashboardState["loans"],
-  ym: string
-): number {
-  const idx = monIdx(ym);
-  return loans.reduce(
-    (s, l) => s + (monIdx(l.end) >= idx ? l.monthly : 0),
-    0
-  );
-}
+export { loanLoadForMonth } from "./loanLoad";
 
 export function insMonthly(S: DashboardState): number {
   return S.eci + S.tpd + S.acc;
-}
-
-export function stableTakeHome(S: DashboardState): number {
-  return S.monthlySal - cpfEmp(S.monthlySal) + S.comms;
 }
 
 function addMonths(ym: string, n: number): string {
@@ -46,26 +37,27 @@ export function buildMonths(
   startYm: string,
   count = 5
 ): MonthRow[] {
-  const ins = insMonthly(S);
   const income = stableTakeHome(S);
+  const fixed = budgetFixedTotal(S);
+  const spend = budgetSpendTotal(S);
   const months = Array.from({ length: count }, (_, i) => {
     const ym = addMonths(startYm, i);
     return {
       m: formatMonthLabel(ym),
       ym,
       income,
-      fatty: S.fatty,
       note: "Stable income",
+      fixed,
+      spend,
     };
   });
 
   let running = S.cash;
   return months.map((o) => {
-    const fixed = o.fatty + S.house + S.manu;
-    const loans = loanLoadForMonth(S.loans, o.ym) + ins;
-    const net = o.income - fixed - loans - S.varSpend;
+    const loans = loanLoadForMonth(S.loans, o.ym);
+    const net = o.income - o.fixed - o.spend - loans;
     running += net;
-    return { ...o, fixed, loans, net, running };
+    return { ...o, loans, net, running };
   });
 }
 
@@ -78,5 +70,5 @@ export function currentLoanLoad(S: DashboardState, ym?: string): number {
   const ymVal =
     ym ??
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-  return loanLoadForMonth(S.loans, ymVal) + insMonthly(S);
+  return loanLoadForMonth(S.loans, ymVal);
 }

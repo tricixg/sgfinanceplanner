@@ -298,6 +298,9 @@ tbody tr:hover {
 .editrow.budget-line {
   grid-template-columns: 1.6fr 0.75fr 0.75fr auto;
 }
+.editrow.expense-line {
+  grid-template-columns: 1.6fr 0.75fr 1fr auto;
+}
 .editrow.budget-line input[type="text"] {
   width: 100%;
   min-width: 0;
@@ -310,6 +313,20 @@ tbody tr:hover {
   width: 100%;
   margin-top: 6px;
   cursor: pointer;
+}
+.computed-line {
+  opacity: 0.92;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+.computed-line span:first-child {
+  font-style: italic;
+  color: var(--muted);
+}
+tr.computed-row td {
+  color: var(--muted);
+  font-style: italic;
 }
 input,
 select {

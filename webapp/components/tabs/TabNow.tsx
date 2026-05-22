@@ -3,10 +3,12 @@
 import type { DashboardState } from "@/lib/types";
 import {
   buildMonths,
-  currentLoanLoad,
-  insMonthly,
   stableTakeHome,
   loanLoadForMonth,
+  budgetFixedTotal,
+  budgetSpendTotal,
+  computedDebtMonthly,
+  COMPUTED_DEBT_LABEL,
 } from "@/lib/finance";
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
@@ -20,12 +22,11 @@ type Props = {
 export function TabNow({ state: S, setState }: Props) {
   const startYm = S.cashflowStartYm;
   const rows = buildMonths(S, startYm, 5);
-  const insM = insMonthly(S);
   const newCash = stableTakeHome(S);
   const firstYm = rows[0]?.ym ?? startYm;
   const lastYm = rows[rows.length - 1]?.ym ?? startYm;
-  const loadFirst = loanLoadForMonth(S.loans, firstYm) + insM;
-  const loadLast = loanLoadForMonth(S.loans, lastYm) + insM;
+  const loadFirst = loanLoadForMonth(S.loans, firstYm);
+  const loadLast = loanLoadForMonth(S.loans, lastYm);
 
   const chartData = {
     labels: rows.map((r) => r.m),
@@ -45,15 +46,15 @@ export function TabNow({ state: S, setState }: Props) {
         order: 2,
       },
       {
-        label: "Loans+Ins",
+        label: "Loan instalments",
         data: rows.map((r) => -r.loans),
         backgroundColor: "#c08a2e",
         stack: "b",
         order: 2,
       },
       {
-        label: "Variable",
-        data: rows.map((r) => -S.varSpend),
+        label: "Variable spend",
+        data: rows.map((r) => -r.spend),
         backgroundColor: "#a89a76",
         stack: "b",
         order: 2,
@@ -99,13 +100,9 @@ export function TabNow({ state: S, setState }: Props) {
   const midYm = rows[2]?.ym ?? firstYm;
   const midLoans = loanLoadForMonth(S.loans, midYm);
   const items: [string, number][] = [
-    ["Fatty (family)", S.fatty],
-    ["Household", S.house],
-    ["Manulife ILP base", S.manu],
-    ["Insurance premiums", insM],
-    ["Variable / daily spend", S.varSpend],
+    ...S.budget.map((b) => [b.cat, b.amt] as [string, number]),
+    [COMPUTED_DEBT_LABEL, midLoans],
   ];
-  if (midLoans > 0) items.push(["Loan instalments", midLoans]);
   let spent = 0;
 
   const rangeLabel = `${formatMonthLabel(firstYm)} – ${formatMonthLabel(lastYm)}`;
@@ -136,12 +133,12 @@ export function TabNow({ state: S, setState }: Props) {
           <div className="note">Gross − CPF + comms allowance</div>
         </div>
         <div className="stat">
-          <div className="lbl">Fixed obligations / mo</div>
-          <div className="val">{fmt(S.fatty + S.house + S.manu)}</div>
-          <div className="note">Fatty + household + Manulife base</div>
+          <div className="lbl">Budget outflows / mo</div>
+          <div className="val">{fmt(budgetFixedTotal(S) + budgetSpendTotal(S))}</div>
+          <div className="note">Fixed + spend categories</div>
         </div>
         <div className="stat">
-          <div className="lbl">Loan + insurance (window)</div>
+          <div className="lbl">Loan instalments (window)</div>
           <div className="val">{fmt(loadFirst)} → {fmt(loadLast)}</div>
           <div className="note">{rangeLabel}</div>
         </div>
@@ -153,7 +150,7 @@ export function TabNow({ state: S, setState }: Props) {
         <div className="legend">
           <span><i className="dot" style={{ background: "var(--moss)" }} />Cash income</span>
           <span><i className="dot" style={{ background: "var(--sand)" }} />Fixed obligations</span>
-          <span><i className="dot" style={{ background: "var(--gold)" }} />Loans + insurance</span>
+          <span><i className="dot" style={{ background: "var(--gold)" }} />Loan instalments</span>
           <span><i className="dot" style={{ background: "var(--rust)" }} />Net position</span>
         </div>
       </div>
@@ -165,8 +162,8 @@ export function TabNow({ state: S, setState }: Props) {
               <th>Month</th>
               <th>Cash in</th>
               <th>Fixed</th>
-              <th>Loans+Ins</th>
-              <th>Variable spend</th>
+              <th>Loans</th>
+              <th>Spend</th>
               <th>Net</th>
               <th>Running cash</th>
             </tr>
@@ -178,7 +175,7 @@ export function TabNow({ state: S, setState }: Props) {
                 <td className="num">{fmt(r.income)}</td>
                 <td className="num">{fmt(r.fixed)}</td>
                 <td className="num">{fmt(r.loans)}</td>
-                <td className="num">{fmt(S.varSpend)}</td>
+                <td className="num">{fmt(r.spend)}</td>
                 <td className={`num ${r.net >= 0 ? "pos" : "neg"}`}>
                   {r.net >= 0 ? "+" : ""}
                   {fmt(r.net)}

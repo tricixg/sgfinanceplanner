@@ -39,10 +39,6 @@ export type DashboardState = {
   monthlySal: number;
   comms: number;
   salaryCreditDay: number;
-  fatty: number;
-  house: number;
-  manu: number;
-  varSpend: number;
   eci: number;
   tpd: number;
   acc: number;
