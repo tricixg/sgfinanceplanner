@@ -2,24 +2,30 @@
 
 import type { DashboardState } from "@/lib/types";
 import {
-  build5m,
+  buildMonths,
   currentLoanLoad,
   insMonthly,
   stableTakeHome,
   loanLoadForMonth,
-  monIdx,
 } from "@/lib/finance";
-import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import type { ChartOptions } from "chart.js";
 
-type Props = { state: DashboardState };
+type Props = {
+  state: DashboardState;
+  setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
+};
 
-export function TabNow({ state: S }: Props) {
-  const rows = build5m(S);
+export function TabNow({ state: S, setState }: Props) {
+  const startYm = S.cashflowStartYm;
+  const rows = buildMonths(S, startYm, 5);
   const insM = insMonthly(S);
   const newCash = stableTakeHome(S);
-  const loadNow = currentLoanLoad(S);
+  const firstYm = rows[0]?.ym ?? startYm;
+  const lastYm = rows[rows.length - 1]?.ym ?? startYm;
+  const loadFirst = loanLoadForMonth(S.loans, firstYm) + insM;
+  const loadLast = loanLoadForMonth(S.loans, lastYm) + insM;
 
   const chartData = {
     labels: rows.map((r) => r.m),
@@ -90,8 +96,8 @@ export function TabNow({ state: S }: Props) {
     },
   };
 
-  const idxAug = monIdx("2026-08");
-  const augLoans = loanLoadForMonth(S.loans, "2026-08");
+  const midYm = rows[2]?.ym ?? firstYm;
+  const midLoans = loanLoadForMonth(S.loans, midYm);
   const items: [string, number][] = [
     ["Fatty (family)", S.fatty],
     ["Household", S.house],
@@ -99,16 +105,35 @@ export function TabNow({ state: S }: Props) {
     ["Insurance premiums", insM],
     ["Variable / daily spend", S.varSpend],
   ];
-  if (augLoans > 0) items.push(["Loan instalments", augLoans]);
+  if (midLoans > 0) items.push(["Loan instalments", midLoans]);
   let spent = 0;
+
+  const rangeLabel = `${formatMonthLabel(firstYm)} – ${formatMonthLabel(lastYm)}`;
 
   return (
     <section className="panel on">
-      <div className="grid g4">
+      <div className="ctrl">
+        <label>
+          Start month
+          <input
+            type="month"
+            value={startYm}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) {
+                setState((p) => ({ ...p, cashflowStartYm: v }));
+                console.log("[TabNow] cashflowStartYm", v);
+              }
+            }}
+          />
+        </label>
+      </div>
+
+      <div className="grid g3">
         <div className="stat accent">
-          <div className="lbl">Monthly cash income — from Aug</div>
+          <div className="lbl">Monthly cash income</div>
           <div className="val">{fmt(newCash)}</div>
-          <div className="note">ThoughtWorks base − CPF + allowance</div>
+          <div className="note">Gross − CPF + comms allowance</div>
         </div>
         <div className="stat">
           <div className="lbl">Fixed obligations / mo</div>
@@ -116,25 +141,13 @@ export function TabNow({ state: S }: Props) {
           <div className="note">Fatty + household + Manulife base</div>
         </div>
         <div className="stat">
-          <div className="lbl">Loan + insurance load now</div>
-          <div className="val">{fmt(loadNow)}</div>
-          <div className="note">Drops sharply from Jul &amp; Nov</div>
-        </div>
-        <div className="stat warn">
-          <div className="lbl">Hard deadline — clear BT</div>
-          <div className="val">7 Jul</div>
-          <div className="note">Balance transfer at 0%</div>
+          <div className="lbl">Loan + insurance (window)</div>
+          <div className="val">{fmt(loadFirst)} → {fmt(loadLast)}</div>
+          <div className="note">{rangeLabel}</div>
         </div>
       </div>
 
-      <div className="callout urgent">
-        <span className="ico">Transition window</span>
-        <b>Jun &amp; Jul are the tight months.</b> Final pay from old employer lands ~25 Jun,
-        then a gap until first full paycheck ~15 Jul. Clear balance transfers before promo
-        rates end; keep reserves for loan bills due in the gap month.
-      </div>
-
-      <h2>Month-by-month cashflow · Jun – Oct 2026</h2>
+      <h2>Month-by-month cashflow · {rangeLabel}</h2>
       <div className="card">
         <ChartBox type="bar" data={chartData} options={chartOpts} />
         <div className="legend">
@@ -161,12 +174,7 @@ export function TabNow({ state: S }: Props) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.ym}>
-                <td>
-                  {r.m}
-                  <div style={{ fontSize: 11, color: "var(--muted)", fontStyle: "italic" }}>
-                    {r.note}
-                  </div>
-                </td>
+                <td>{r.m}</td>
                 <td className="num">{fmt(r.income)}</td>
                 <td className="num">{fmt(r.fixed)}</td>
                 <td className="num">{fmt(r.loans)}</td>
@@ -184,7 +192,7 @@ export function TabNow({ state: S }: Props) {
 
       <div className="split">
         <div className="card">
-          <div className="section-lbl">Where the money goes — stable month (from Aug)</div>
+          <div className="section-lbl">Where the money goes — mid window month</div>
           {items.map(([k, v]) => {
             spent += v;
             return (
@@ -202,14 +210,14 @@ export function TabNow({ state: S }: Props) {
           </div>
         </div>
         <div className="card">
-          <div className="section-lbl">Loan load step-down</div>
+          <div className="section-lbl">Loan load across window</div>
           <div className="minirow">
-            <span className="k">Now (May–Jun)</span>
-            <span className="v">{fmt2(loanLoadForMonth(S.loans, "2026-06"))} / mo</span>
+            <span className="k">{formatMonthLabel(firstYm)}</span>
+            <span className="v">{fmt2(loadFirst)} / mo</span>
           </div>
           <div className="minirow">
-            <span className="k">From Jul</span>
-            <span className="v pos">{fmt2(loanLoadForMonth(S.loans, "2026-08"))} / mo</span>
+            <span className="k">{formatMonthLabel(lastYm)}</span>
+            <span className="v">{fmt2(loadLast)} / mo</span>
           </div>
           <div className="callout tip" style={{ marginBottom: 0 }}>
             <span className="ico">Tip</span>

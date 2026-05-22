@@ -37,6 +37,8 @@ export function ensureChartsRegistered() {
   registered = true;
 }
 
+ensureChartsRegistered();
+
 export const chartOptionsBase = {
   responsive: true,
   maintainAspectRatio: false as const,

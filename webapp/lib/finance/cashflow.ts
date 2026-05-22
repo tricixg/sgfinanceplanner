@@ -1,6 +1,6 @@
 import type { DashboardState } from "@/lib/types";
 import { cpfEmp } from "./cpf";
-import { monIdx } from "./helpers";
+import { formatMonthLabel, monIdx } from "./helpers";
 
 export type MonthRow = {
   m: string;
@@ -30,54 +30,34 @@ export function insMonthly(S: DashboardState): number {
 }
 
 export function stableTakeHome(S: DashboardState): number {
-  return S.newSal - cpfEmp(S.newSal) + S.comms;
+  return S.monthlySal - cpfEmp(S.monthlySal) + S.comms;
 }
 
-export function build5m(S: DashboardState): MonthRow[] {
+function addMonths(ym: string, n: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const total = y * 12 + (m - 1) + n;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  return `${ny}-${String(nm).padStart(2, "0")}`;
+}
+
+export function buildMonths(
+  S: DashboardState,
+  startYm: string,
+  count = 5
+): MonthRow[] {
   const ins = insMonthly(S);
-  const newCash = stableTakeHome(S);
-  const months = [
-    {
-      m: "Jun 26",
-      ym: "2026-06",
-      income:
-        Math.round((S.oldSal * 19) / 30) +
-        Math.round(S.newSal * (9 / 30) - cpfEmp(S.newSal * (9 / 30))),
-      fatty: 0,
-      note: "split — Eye-Share final + 9d TW",
-    },
-    {
-      m: "Jul 26",
-      ym: "2026-07",
-      income:
-        Math.round(S.newSal * (9 / 30) - cpfEmp(S.newSal * (9 / 30))) +
-        S.setup +
-        S.comms,
+  const income = stableTakeHome(S);
+  const months = Array.from({ length: count }, (_, i) => {
+    const ym = addMonths(startYm, i);
+    return {
+      m: formatMonthLabel(ym),
+      ym,
+      income,
       fatty: S.fatty,
-      note: "TW 1st pay: 9d + setup",
-    },
-    {
-      m: "Aug 26",
-      ym: "2026-08",
-      income: newCash,
-      fatty: S.fatty,
-      note: "first full TW month",
-    },
-    {
-      m: "Sep 26",
-      ym: "2026-09",
-      income: newCash,
-      fatty: S.fatty,
-      note: "stable",
-    },
-    {
-      m: "Oct 26",
-      ym: "2026-10",
-      income: newCash,
-      fatty: S.fatty,
-      note: "stable",
-    },
-  ];
+      note: "Stable income",
+    };
+  });
 
   let running = S.cash;
   return months.map((o) => {
@@ -89,6 +69,14 @@ export function build5m(S: DashboardState): MonthRow[] {
   });
 }
 
-export function currentLoanLoad(S: DashboardState, ym = "2026-06"): number {
-  return loanLoadForMonth(S.loans, ym) + insMonthly(S);
+/** @deprecated Use buildMonths */
+export function build5m(S: DashboardState): MonthRow[] {
+  return buildMonths(S, S.cashflowStartYm ?? "2026-06", 5);
+}
+
+export function currentLoanLoad(S: DashboardState, ym?: string): number {
+  const ymVal =
+    ym ??
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+  return loanLoadForMonth(S.loans, ymVal) + insMonthly(S);
 }

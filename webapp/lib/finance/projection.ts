@@ -38,7 +38,7 @@ export function simulate5y(
   let inv = S.ilp + S.moo;
   let cash = S.cash;
   let margin = useMargin ? S.margin : 0;
-  let sal = S.newSal;
+  let sal = S.monthlySal;
   const loanState = S.loans.map((l) => ({ ...l, bal: l.out }));
 
   const startYM = "2026-08";
@@ -108,7 +108,7 @@ export function simulateCPF(
   let oa = S.oa;
   let sa = S.sa;
   let ma = S.ma;
-  let sal = S.newSal;
+  let sal = S.monthlySal;
   const series = [{ label: "Now", oa, sa, ma }];
   let curIdx = monIdx("2026-08");
   const endIdx = monIdx("2031-12");

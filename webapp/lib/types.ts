@@ -6,6 +6,13 @@ export type Loan = {
   end: string;
 };
 
+export type CreditCard = {
+  name: string;
+  statementDay: number;
+  paymentDueDay: number;
+  statementAmount: number;
+};
+
 export type Holding = {
   name: string;
   ticker: string;
@@ -29,10 +36,9 @@ export type Goal = {
 };
 
 export type DashboardState = {
-  oldSal: number;
-  newSal: number;
+  monthlySal: number;
   comms: number;
-  setup: number;
+  salaryCreditDay: number;
   fatty: number;
   house: number;
   manu: number;
@@ -48,8 +54,10 @@ export type DashboardState = {
   margin: number;
   cash: number;
   ccDebt: number;
+  cashflowStartYm: string;
   holdings: Holding[];
   budget: BudgetItem[];
   goals: Goal[];
   loans: Loan[];
+  creditCards: CreditCard[];
 };

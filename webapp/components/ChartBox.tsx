@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { Chart } from "react-chartjs-2";
 import type { ChartData, ChartOptions } from "chart.js";
-import { ensureChartsRegistered } from "./chart-setup";
+import "./chart-setup";
 
 type Props = {
   type: "bar" | "line" | "doughnut";
@@ -14,10 +13,6 @@ type Props = {
 };
 
 export function ChartBox({ type, data, options, tall, height }: Props) {
-  useEffect(() => {
-    ensureChartsRegistered();
-  }, []);
-
   const style = height ? { height } : undefined;
   const className = tall ? "chartbox tall" : "chartbox";
 

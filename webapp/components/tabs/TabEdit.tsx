@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import type { DashboardState, Loan } from "@/lib/types";
-import { DEFAULTS } from "@/lib/finance/defaults";
+import { DEFAULTS, mergeWithDefaults } from "@/lib/finance/defaults";
 
 type Props = {
   state: DashboardState;
@@ -76,7 +76,7 @@ export function TabEdit({
     r.onload = () => {
       try {
         const imp = JSON.parse(r.result as string);
-        setState({ ...structuredClone(DEFAULTS), ...imp });
+        setState(mergeWithDefaults(imp));
         onSaveNow();
       } catch {
         console.error("[TabEdit] invalid JSON import");
@@ -95,13 +95,8 @@ export function TabEdit({
       <div className="card">
         <div className="editrow head"><span>Item</span><span>Amount</span><span></span><span></span><span></span></div>
         <div className="editrow">
-          <span>Previous employer monthly</span>
-          <NumInput value={S.oldSal} onChange={(v) => patch("oldSal", v)} />
-          <span></span><span></span><span></span>
-        </div>
-        <div className="editrow">
-          <span>Current base monthly</span>
-          <NumInput value={S.newSal} onChange={(v) => patch("newSal", v)} />
+          <span>Monthly gross salary</span>
+          <NumInput value={S.monthlySal} onChange={(v) => patch("monthlySal", v)} />
           <span></span><span></span><span></span>
         </div>
         <div className="editrow">
@@ -110,8 +105,8 @@ export function TabEdit({
           <span></span><span></span><span></span>
         </div>
         <div className="editrow">
-          <span>One-off setup allowance</span>
-          <NumInput value={S.setup} onChange={(v) => patch("setup", v)} />
+          <span>Salary credit day (1–31)</span>
+          <NumInput value={S.salaryCreditDay} onChange={(v) => patch("salaryCreditDay", Math.min(31, Math.max(1, Math.round(v))))} />
           <span></span><span></span><span></span>
         </div>
       </div>

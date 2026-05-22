@@ -4,7 +4,9 @@ import { useState } from "react";
 import { appConfig } from "@/lib/config";
 import { DEFAULTS } from "@/lib/finance/defaults";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { TabThisMonth } from "./tabs/TabThisMonth";
 import { TabNow } from "./tabs/TabNow";
+import { TabCards } from "./tabs/TabCards";
 import { TabYear } from "./tabs/TabYear";
 import { TabWealth } from "./tabs/TabWealth";
 import { TabGoals } from "./tabs/TabGoals";
@@ -14,7 +16,9 @@ import { TabDebt } from "./tabs/TabDebt";
 import { TabEdit } from "./tabs/TabEdit";
 
 const TABS = [
-  { id: "now", label: "5-Month View" },
+  { id: "thisMonth", label: "This Month" },
+  { id: "now", label: "5-Month Cashflow" },
+  { id: "cards", label: "Credit Cards" },
   { id: "year", label: "5-Year Projection" },
   { id: "wealth", label: "Wealth & Budget" },
   { id: "goals", label: "Savings Goals" },
@@ -27,7 +31,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export function Dashboard() {
-  const [active, setActive] = useState<TabId>("now");
+  const [active, setActive] = useState<TabId>("thisMonth");
   const { state, setState, loading, saveMsg, flash, saveNow, reload } =
     usePersistedState();
 
@@ -67,8 +71,14 @@ export function Dashboard() {
         ))}
       </nav>
 
+      <div style={{ display: active === "thisMonth" ? "block" : "none" }}>
+        <TabThisMonth state={state} />
+      </div>
       <div style={{ display: active === "now" ? "block" : "none" }}>
-        <TabNow state={state} />
+        <TabNow state={state} setState={setState} />
+      </div>
+      <div style={{ display: active === "cards" ? "block" : "none" }}>
+        <TabCards state={state} setState={setState} />
       </div>
       <div style={{ display: active === "year" ? "block" : "none" }}>
         <TabYear state={state} />

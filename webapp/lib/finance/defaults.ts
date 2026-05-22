@@ -1,10 +1,9 @@
 import type { DashboardState } from "@/lib/types";
 
 export const DEFAULTS: DashboardState = {
-  oldSal: 4545,
-  newSal: 6500,
+  monthlySal: 6500,
   comms: 165,
-  setup: 350,
+  salaryCreditDay: 25,
   fatty: 1000,
   house: 600,
   manu: 300,
@@ -20,6 +19,7 @@ export const DEFAULTS: DashboardState = {
   margin: 3953.91,
   cash: 2000,
   ccDebt: 622.58,
+  cashflowStartYm: "2026-06",
   holdings: [
     {
       name: "Centurion",
@@ -146,13 +146,39 @@ export const DEFAULTS: DashboardState = {
       end: "2026-07",
     },
   ],
+  creditCards: [
+    { name: "DBS Altitude", statementDay: 1, paymentDueDay: 21, statementAmount: 0 },
+    { name: "MariBank Card", statementDay: 5, paymentDueDay: 25, statementAmount: 0 },
+    { name: "WW Mastercard", statementDay: 10, paymentDueDay: 7, statementAmount: 622.58 },
+  ],
 };
 
-export function mergeWithDefaults(saved: Partial<DashboardState>): DashboardState {
-  const merged = { ...structuredClone(DEFAULTS), ...saved };
+type LegacySaved = Partial<DashboardState> & {
+  newSal?: number;
+  oldSal?: number;
+  setup?: number;
+};
+
+export function mergeWithDefaults(saved: LegacySaved): DashboardState {
+  const monthlySal =
+    saved.monthlySal ?? saved.newSal ?? DEFAULTS.monthlySal;
+  const merged: DashboardState = {
+    ...structuredClone(DEFAULTS),
+    ...saved,
+    monthlySal,
+    salaryCreditDay: saved.salaryCreditDay ?? DEFAULTS.salaryCreditDay,
+    cashflowStartYm: saved.cashflowStartYm ?? DEFAULTS.cashflowStartYm,
+  };
   if (!saved.holdings?.length) merged.holdings = structuredClone(DEFAULTS.holdings);
   if (!saved.budget?.length) merged.budget = structuredClone(DEFAULTS.budget);
   if (!saved.goals?.length) merged.goals = structuredClone(DEFAULTS.goals);
   if (!saved.loans?.length) merged.loans = structuredClone(DEFAULTS.loans);
+  if (!saved.creditCards?.length) {
+    merged.creditCards = structuredClone(DEFAULTS.creditCards);
+  }
+  console.log("[mergeWithDefaults] merged state", {
+    monthlySal: merged.monthlySal,
+    creditCards: merged.creditCards.length,
+  });
   return merged;
 }

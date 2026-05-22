@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULTS } from "./defaults";
-import { build5m, loanLoadForMonth, stableTakeHome } from "./cashflow";
+import { buildMonths, loanLoadForMonth, stableTakeHome } from "./cashflow";
 
 describe("cashflow", () => {
-  it("stable take-home matches TW base minus CPF plus comms", () => {
+  it("stable take-home matches base minus CPF plus comms", () => {
     const th = stableTakeHome(DEFAULTS);
     expect(th).toBeCloseTo(5365, -1);
   });
@@ -14,9 +14,10 @@ describe("cashflow", () => {
     expect(loadNov).toBeLessThan(loadJun);
   });
 
-  it("build5m returns five months", () => {
-    const rows = build5m(DEFAULTS);
+  it("buildMonths returns five months from start", () => {
+    const rows = buildMonths(DEFAULTS, "2026-06", 5);
     expect(rows).toHaveLength(5);
     expect(rows[0].m).toBe("Jun 26");
+    expect(rows.every((r) => r.income === stableTakeHome(DEFAULTS))).toBe(true);
   });
 });
