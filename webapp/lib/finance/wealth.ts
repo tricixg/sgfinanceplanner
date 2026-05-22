@@ -1,13 +1,24 @@
 import type { DashboardState, Holding } from "@/lib/types";
 import { cashAccountsTotal } from "./accounts";
+import { holdingMarketValue, normalizeHolding, type LegacyHolding } from "./holdings";
 import { ilpValueByLock } from "./ilp";
 
+export { normalizeHolding, portfolioTotals, holdingGain } from "./holdings";
+
 export function defaultHolding(): Holding {
-  return { name: "", ticker: "", qty: 0, price: 0, sector: "" };
+  return {
+    name: "",
+    ticker: "",
+    market: "SGX",
+    qty: 0,
+    avgCost: 0,
+    lastPrice: 0,
+    sector: "",
+  };
 }
 
 export function portfolioValue(holdings: Holding[]): number {
-  return holdings.reduce((s, h) => s + h.qty * h.price, 0);
+  return holdings.reduce((s, h) => s + holdingMarketValue(h), 0);
 }
 
 /** Stock portfolio from holdings; falls back to legacy `moo` when no lines exist. */
@@ -17,22 +28,24 @@ export function portfolioInvestmentValue(S: DashboardState): number {
 }
 
 export function migrateHoldings(saved: {
-  holdings?: Holding[];
+  holdings?: LegacyHolding[];
   moo?: number;
 }): Holding[] {
-  const holdings = saved.holdings ?? [];
-  if (holdings.length > 0) return holdings;
+  const raw = saved.holdings ?? [];
+  if (raw.length > 0) {
+    return raw.map((h) => normalizeHolding(h));
+  }
   const moo = saved.moo ?? 0;
   if (moo > 0) {
     console.info("[migrateHoldings] legacy moo converted to holding line", { moo });
     return [
-      {
+      normalizeHolding({
         name: "Portfolio (legacy total)",
         ticker: "—",
         qty: 1,
         price: moo,
         sector: "",
-      },
+      }),
     ];
   }
   return [];

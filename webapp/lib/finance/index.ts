@@ -6,6 +6,8 @@ export * from "./loanLoad";
 export * from "./cashflow";
 export * from "./projection";
 export * from "./wealth";
+export * from "./holdings";
+export * from "./ilp-history";
 export * from "./budget";
 export * from "./ilp";
 export * from "./insurance";

@@ -1,4 +1,5 @@
 import type { DashboardState, IlpPolicy } from "@/lib/types";
+import { migrateIlpValueHistory } from "./ilp-history";
 import { currentYm, monIdx } from "./helpers";
 
 export const COMPUTED_ILP_LABEL = "ILP premiums (from Investment)";
@@ -20,6 +21,7 @@ export function defaultIlpPolicy(): IlpPolicy {
     funds: "",
     freeFundSwitchesPerYear: 2,
     notes: "",
+    valueHistory: [],
   };
 }
 
@@ -81,7 +83,7 @@ type LegacyIlpSaved = {
 
 function normalizePolicy(raw: Partial<IlpPolicy>): IlpPolicy {
   const base = defaultIlpPolicy();
-  return {
+  const merged: IlpPolicy = {
     ...base,
     ...raw,
     premiumType: raw.premiumType === "single" ? "single" : "regular",
@@ -99,7 +101,9 @@ function normalizePolicy(raw: Partial<IlpPolicy>): IlpPolicy {
       typeof raw.freeFundSwitchesPerYear === "number"
         ? raw.freeFundSwitchesPerYear
         : 2,
+    valueHistory: Array.isArray(raw.valueHistory) ? raw.valueHistory : [],
   };
+  return migrateIlpValueHistory(merged);
 }
 
 export function migrateIlpPolicies(saved: LegacyIlpSaved): IlpPolicy[] {

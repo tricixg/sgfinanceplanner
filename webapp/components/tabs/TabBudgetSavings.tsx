@@ -705,7 +705,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                   grid: { color: "#e6dfca" },
                   ticks: { callback: (v) => "$" + (Number(v) / 1000).toFixed(0) + "k" },
                 },
-                y: { stacked: true, grid: { display: "none" } },
+                y: { stacked: true, grid: { display: false } },
               },
             }}
             height={260}

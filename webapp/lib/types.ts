@@ -13,12 +13,30 @@ export type CreditCard = {
   statementAmount: number;
 };
 
+export type HoldingMarket = "SGX" | "US";
+
 export type Holding = {
   name: string;
   ticker: string;
+  market: HoldingMarket;
   qty: number;
-  price: number;
+  /** User-entered average cost per share (SGD). */
+  avgCost: number;
+  /** Last live quote or manual price per share (SGD). */
+  lastPrice: number;
+  lastPriceAt?: string;
   sector: string;
+};
+
+export type IlpValueSnapshot = {
+  recordedAt: string;
+  accountValue: number;
+};
+
+export type PortfolioSnapshot = {
+  recordedAt: string;
+  totalValue: number;
+  totalCost: number;
 };
 
 /** Singapore investment-linked policy (ILP) — insurance + unit-linked funds. */
@@ -42,6 +60,7 @@ export type IlpPolicy = {
   funds: string;
   freeFundSwitchesPerYear: number;
   notes: string;
+  valueHistory: IlpValueSnapshot[];
 };
 
 /** Non-ILP insurance (term, PA, CI, etc.) — premiums flow to Budget & Savings. */
@@ -90,6 +109,7 @@ export type DashboardState = {
   ccDebt: number;
   cashflowStartYm: string;
   holdings: Holding[];
+  portfolioHistory: PortfolioSnapshot[];
   budget: BudgetItem[];
   goals: Goal[];
   loans: Loan[];

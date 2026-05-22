@@ -296,7 +296,56 @@ tbody tr:hover {
   grid-template-columns: 1.3fr 0.9fr 0.85fr 0.85fr 1fr auto;
 }
 .editrow.holdings {
-  grid-template-columns: 1.2fr 0.65fr 0.75fr 0.75fr 1fr auto;
+  grid-template-columns: 1.1fr 0.55fr 0.45fr 0.6fr 0.65fr 0.65fr 0.85fr auto;
+}
+.holdings-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+@media (max-width: 900px) {
+  .holdings-charts {
+    grid-template-columns: 1fr;
+  }
+}
+.holdings-charts .chartbox {
+  min-height: 220px;
+}
+.holdings-charts .chartbox.tall {
+  min-height: 260px;
+}
+.holdings-charts-full {
+  grid-column: 1 / -1;
+}
+.gain-pos {
+  color: var(--moss);
+}
+.gain-neg {
+  color: var(--rust);
+}
+.quotes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.quotes-toolbar .quotes-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ilp-chart-card {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.ilp-chart-card h3 {
+  font-size: 14px;
+  margin: 0 0 10px;
+  font-weight: 600;
 }
 .holdings-summary {
   margin-top: 16px;

@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import type { DashboardState, Holding, IlpPolicy } from "@/lib/types";
+import { useMemo, useState } from "react";
+import type { DashboardState, Holding, HoldingMarket, IlpPolicy } from "@/lib/types";
 import {
   computedIlpMonthly,
   defaultHolding,
   defaultIlpPolicy,
+  holdingGain,
+  holdingMarketValue,
   lockInLabel,
   lockInStatus,
+  portfolioTotals,
   portfolioValue,
   wealthSummary,
 } from "@/lib/finance";
+import {
+  ilpChartSeries,
+  ilpProfit,
+  recordIlpValueSnapshot,
+} from "@/lib/finance/ilp-history";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { ChartBox } from "@/components/ChartBox";
+import { useLiveQuotes } from "@/hooks/useLiveQuotes";
+import type { ChartOptions } from "chart.js";
 
 type Props = {
   state: DashboardState;
@@ -37,12 +48,30 @@ function NumInput({
   );
 }
 
+function priceStale(lastPriceAt?: string): boolean {
+  if (!lastPriceAt) return true;
+  const age = Date.now() - new Date(lastPriceAt).getTime();
+  return age > 24 * 60 * 60 * 1000;
+}
+
 export function TabWealth({ state: S, setState }: Props) {
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
-  const { port, invTotal, cash, ilpVal, ilpLocked } = wealthSummary(S);
+  const { port, invTotal, ilpVal, ilpLocked } = wealthSummary(S);
   const ilpPrem = computedIlpMonthly(S);
-  const holdings = [...S.holdings].sort((a, b) => b.qty * b.price - a.qty * a.price);
+  const totals = portfolioTotals(S.holdings);
+  const { refresh, loading, error, lastRefreshAt, apiAvailable } = useLiveQuotes(
+    S.holdings,
+    setState
+  );
+
+  const holdings = useMemo(
+    () =>
+      [...S.holdings].sort(
+        (a, b) => holdingMarketValue(b) - holdingMarketValue(a)
+      ),
+    [S.holdings]
+  );
 
   const updatePolicy = (i: number, patch: Partial<IlpPolicy>) => {
     setState((prev) => ({
@@ -52,6 +81,27 @@ export function TabWealth({ state: S, setState }: Props) {
       ),
     }));
     console.log("[TabWealth] updated ILP policy", i, patch);
+  };
+
+  const finishIlpEdit = () => {
+    setState((prev) => ({
+      ...prev,
+      ilpPolicies: prev.ilpPolicies.map((p) =>
+        recordIlpValueSnapshot(p, p.accountValue)
+      ),
+    }));
+    setEditingIlp(false);
+    console.log("[TabWealth] ILP edit off, snapshots recorded");
+  };
+
+  const recordIlpUpdate = (i: number) => {
+    setState((prev) => ({
+      ...prev,
+      ilpPolicies: prev.ilpPolicies.map((p, j) =>
+        j === i ? recordIlpValueSnapshot(p, p.accountValue) : p
+      ),
+    }));
+    console.log("[TabWealth] ILP value snapshot recorded", i);
   };
 
   const addPolicy = () => {
@@ -99,14 +149,109 @@ export function TabWealth({ state: S, setState }: Props) {
     console.log("[TabWealth] updated margin", margin);
   };
 
+  const allocationChart = useMemo(() => {
+    const rows = holdings.filter((h) => holdingMarketValue(h) > 0);
+    if (rows.length === 0) return null;
+    return {
+      labels: rows.map((h) => h.name || h.ticker),
+      datasets: [
+        {
+          data: rows.map((h) => holdingMarketValue(h)),
+          backgroundColor: [
+            "#3d6b8e",
+            "#2f5d3a",
+            "#c08a2e",
+            "#6b5a8e",
+            "#b5482e",
+            "#7a9eb5",
+          ],
+          borderWidth: 2,
+          borderColor: "#faf7ef",
+        },
+      ],
+    };
+  }, [holdings]);
+
+  const pnlChart = useMemo(() => {
+    const rows = holdings.filter((h) => h.ticker && h.ticker !== "—");
+    if (rows.length === 0) return null;
+    return {
+      labels: rows.map((h) => h.ticker),
+      datasets: [
+        {
+          label: "Unrealized P&L",
+          data: rows.map((h) => holdingGain(h).gain),
+          backgroundColor: rows.map((h) =>
+            holdingGain(h).gain >= 0 ? "rgba(47,93,58,.75)" : "rgba(181,72,46,.75)"
+          ),
+        },
+      ],
+    };
+  }, [holdings]);
+
+  const growthChart = useMemo(() => {
+    const hist = S.portfolioHistory ?? [];
+    if (hist.length < 2) return null;
+    const sorted = [...hist].sort((a, b) =>
+      a.recordedAt.localeCompare(b.recordedAt)
+    );
+    return {
+      labels: sorted.map((s) => s.recordedAt),
+      datasets: [
+        {
+          label: "Market value",
+          data: sorted.map((s) => s.totalValue),
+          borderColor: "#3d6b8e",
+          backgroundColor: "rgba(61,107,142,.12)",
+          fill: true,
+          tension: 0.25,
+        },
+        {
+          label: "Cost basis",
+          data: sorted.map((s) => s.totalCost),
+          borderColor: "#a89a76",
+          borderDash: [6, 4],
+          tension: 0.25,
+        },
+      ],
+    };
+  }, [S.portfolioHistory]);
+
+  const lineOpts: ChartOptions<"line"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: true, position: "bottom" } },
+    scales: {
+      y: {
+        ticks: {
+          callback: (v) => "$" + (Number(v) / 1000).toFixed(1) + "k",
+        },
+      },
+    },
+  };
+
+  const hBarOpts: ChartOptions<"bar"> = {
+    indexAxis: "y",
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        ticks: {
+          callback: (v) => "$" + Number(v).toLocaleString(),
+        },
+      },
+    },
+  };
+
   return (
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Edit stock holdings below — portfolio value is calculated from qty × price. Configure ILP
-        plans here; premiums flow to <b>Budget &amp; Savings</b> automatically. Cash is the sum of
-        savings account balances on <b>ME</b>. Net worth is on <b>This Month</b>. Changes
-        auto-save to Supabase.
+        Enter holdings with ticker, market (SGX/US), qty, and <b>avg cost</b>. Use{" "}
+        <b>Refresh prices</b> when <code>FINNHUB_API_KEY</code> is in{" "}
+        <code>.env.local</code>, or set last price manually in Edit. ILP account value
+        updates build a profit history chart. Net worth is on <b>This Month</b>.
       </div>
 
       <div className="grid g3">
@@ -132,14 +277,7 @@ export function TabWealth({ state: S, setState }: Props) {
       <div className="section-head">
         <h2>Investment-linked policies (ILP)</h2>
         {editingIlp ? (
-          <button
-            type="button"
-            className="btn sm"
-            onClick={() => {
-              setEditingIlp(false);
-              console.log("[TabWealth] ILP edit off");
-            }}
-          >
+          <button type="button" className="btn sm" onClick={finishIlpEdit}>
             Done
           </button>
         ) : (
@@ -157,9 +295,9 @@ export function TabWealth({ state: S, setState }: Props) {
       </div>
 
       <div className="callout tip" style={{ marginBottom: 12 }}>
-        Singapore ILPs combine insurance and unit-linked funds. Key fields: premium loading
-        (front-end vs back-end), allocation rate (% of premium buying units), lock-in / surrender
-        period, and sub-funds. MAS guide:{" "}
+        Singapore ILPs combine insurance and unit-linked funds. Update <b>account value</b> when
+        you get statements — Done or <b>Record value</b> saves a point for the profit chart.
+        MAS guide:{" "}
         <a
           href="https://www.moneysense.gov.sg/investment-linked-policies-guide-to-fees-and-pricing/"
           target="_blank"
@@ -335,51 +473,109 @@ export function TabWealth({ state: S, setState }: Props) {
           </div>
         </div>
       ) : (
-        <div className="card table-scroll">
-          {S.ilpPolicies.length === 0 ? (
-            <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-              No ILP policies. Click Edit to add your Manulife or other ILP details.
-            </p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Insurer</th>
-                  <th>Plan</th>
-                  <th>Premium / mo</th>
-                  <th>Account value</th>
-                  <th>Loading</th>
-                  <th>Allocation</th>
-                  <th>Lock-in</th>
-                  <th>Funds</th>
-                </tr>
-              </thead>
-              <tbody>
-                {S.ilpPolicies.map((p, i) => {
-                  const lock = lockInStatus(p);
-                  return (
-                    <tr key={i}>
-                      <td>{p.insurer || "—"}</td>
-                      <td>{p.planName || "—"}</td>
-                      <td className="num">{fmt2(p.monthlyPremium)}</td>
-                      <td className="num">{fmt2(p.accountValue)}</td>
-                      <td>{p.loadingType}</td>
-                      <td className="num">{p.premiumAllocationPct}%</td>
-                      <td>
-                        <span
-                          className={`tag ${lock === "locked" ? "t-soon" : lock === "free" ? "t-live" : "t-end"}`}
-                        >
-                          {lockInLabel(p)}
-                        </span>
-                      </td>
-                      <td>{p.funds || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <>
+          <div className="card table-scroll">
+            {S.ilpPolicies.length === 0 ? (
+              <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
+                No ILP policies. Click Edit to add your Manulife or other ILP details.
+              </p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Insurer</th>
+                    <th>Plan</th>
+                    <th>Premium / mo</th>
+                    <th>Account value</th>
+                    <th>Est. profit vs premiums</th>
+                    <th>Loading</th>
+                    <th>Lock-in</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {S.ilpPolicies.map((p, i) => {
+                    const lock = lockInStatus(p);
+                    const profit = ilpProfit(p);
+                    return (
+                      <tr key={i}>
+                        <td>{p.insurer || "—"}</td>
+                        <td>{p.planName || "—"}</td>
+                        <td className="num">{fmt2(p.monthlyPremium)}</td>
+                        <td className="num">{fmt2(p.accountValue)}</td>
+                        <td className={`num ${profit >= 0 ? "gain-pos" : "gain-neg"}`}>
+                          {profit >= 0 ? "+" : ""}
+                          {fmt2(profit)}
+                        </td>
+                        <td>{p.loadingType}</td>
+                        <td>
+                          <span
+                            className={`tag ${lock === "locked" ? "t-soon" : lock === "free" ? "t-live" : "t-end"}`}
+                          >
+                            {lockInLabel(p)}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            onClick={() => recordIlpUpdate(i)}
+                          >
+                            Record value
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {S.ilpPolicies.map((p, i) => {
+            const series = ilpChartSeries(p);
+            if (!series) return null;
+            return (
+              <div key={`ilp-chart-${i}`} className="card ilp-chart-card">
+                <h3>
+                  {p.insurer || "ILP"} — {p.planName || "Plan"} · value vs premiums paid
+                </h3>
+                <ChartBox
+                  type="line"
+                  tall
+                  data={{
+                    labels: series.labels,
+                    datasets: [
+                      {
+                        label: "Account value",
+                        data: series.values,
+                        borderColor: "#6b5a8e",
+                        backgroundColor: "rgba(107,90,142,.1)",
+                        fill: true,
+                        tension: 0.25,
+                      },
+                      {
+                        label: "Est. premiums paid",
+                        data: series.premiums,
+                        borderColor: "#a89a76",
+                        borderDash: [6, 4],
+                        tension: 0.25,
+                      },
+                    ],
+                  }}
+                  options={lineOpts}
+                />
+                <div className="note" style={{ marginTop: 8 }}>
+                  Profit today:{" "}
+                  <span className={ilpProfit(p) >= 0 ? "gain-pos" : "gain-neg"}>
+                    {fmt2(ilpProfit(p))}
+                  </span>{" "}
+                  ({(p.valueHistory ?? []).length} snapshot
+                  {(p.valueHistory ?? []).length === 1 ? "" : "s"})
+                </div>
+              </div>
+            );
+          })}
+        </>
       )}
 
       <div className="section-head">
@@ -410,11 +606,44 @@ export function TabWealth({ state: S, setState }: Props) {
       </div>
 
       <div className="card">
+        {!editingHoldings && holdings.length > 0 && (
+          <div className="quotes-toolbar">
+            <button
+              type="button"
+              className="btn sm"
+              disabled={loading}
+              onClick={() => void refresh()}
+            >
+              {loading ? "Refreshing…" : "Refresh prices"}
+            </button>
+            {lastRefreshAt && (
+              <span className="quotes-meta">
+                Last refresh {new Date(lastRefreshAt).toLocaleString("en-SG")}
+              </span>
+            )}
+            {apiAvailable === false && (
+              <span className="quotes-meta">
+                No API key — set FINNHUB_API_KEY or edit last price manually
+              </span>
+            )}
+            {error && (
+              <span className="quotes-meta" style={{ color: "var(--rust)" }}>
+                {error}
+              </span>
+            )}
+          </div>
+        )}
+
         {editingHoldings ? (
           <>
-            <div className="editrow" style={{ borderBottom: "1.5px solid var(--ink)", paddingBottom: 10 }}>
+            <div
+              className="editrow"
+              style={{ borderBottom: "1.5px solid var(--ink)", paddingBottom: 10 }}
+            >
               <span>Margin loan (outstanding)</span>
               <NumInput value={S.margin} step={0.01} onChange={patchMargin} />
+              <span></span>
+              <span></span>
               <span></span>
               <span></span>
               <span></span>
@@ -422,8 +651,10 @@ export function TabWealth({ state: S, setState }: Props) {
             <div className="editrow head holdings">
               <span>Stock</span>
               <span>Ticker</span>
+              <span>Mkt</span>
               <span>Qty</span>
-              <span>Price</span>
+              <span>Avg cost</span>
+              <span>Last $</span>
               <span>Sector</span>
               <span></span>
             </div>
@@ -444,15 +675,34 @@ export function TabWealth({ state: S, setState }: Props) {
                     value={h.ticker}
                     onChange={(e) => updateHolding(i, { ticker: e.target.value })}
                   />
+                  <select
+                    value={h.market}
+                    onChange={(e) =>
+                      updateHolding(i, { market: e.target.value as HoldingMarket })
+                    }
+                  >
+                    <option value="SGX">SGX</option>
+                    <option value="US">US</option>
+                  </select>
                   <NumInput
                     value={h.qty}
                     step={1}
                     onChange={(v) => updateHolding(i, { qty: v })}
                   />
                   <NumInput
-                    value={h.price}
+                    value={h.avgCost}
                     step={0.001}
-                    onChange={(v) => updateHolding(i, { price: v })}
+                    onChange={(v) => updateHolding(i, { avgCost: v })}
+                  />
+                  <NumInput
+                    value={h.lastPrice}
+                    step={0.001}
+                    onChange={(v) =>
+                      updateHolding(i, {
+                        lastPrice: v,
+                        lastPriceAt: new Date().toISOString(),
+                      })
+                    }
                   />
                   <input
                     type="text"
@@ -477,43 +727,114 @@ export function TabWealth({ state: S, setState }: Props) {
           </>
         ) : holdings.length === 0 ? (
           <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-            No stock holdings. Click <b>Edit</b> to add lines or import JSON.
+            No stock holdings. Click <b>Edit</b> to add lines.
           </p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Stock</th>
-                <th>Ticker</th>
-                <th>Qty</th>
-                <th>Price</th>
-                <th>Value</th>
-                <th>Weight</th>
-              </tr>
-            </thead>
-            <tbody>
-              {holdings.map((h, i) => {
-                const v = h.qty * h.price;
-                const w = port > 0 ? (v / port) * 100 : 0;
-                return (
-                  <tr key={`${h.ticker}-${i}`}>
-                    <td>{h.name}</td>
-                    <td className="num">{h.ticker}</td>
-                    <td className="num">{h.qty.toLocaleString()}</td>
-                    <td className="num">{h.price.toFixed(3)}</td>
-                    <td className="num">{fmt2(v)}</td>
-                    <td className={`num ${w > 50 ? "neg" : ""}`}>{w.toFixed(1)}%</td>
+          <>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Stock</th>
+                    <th>Ticker</th>
+                    <th>Mkt</th>
+                    <th>Qty</th>
+                    <th>Last</th>
+                    <th>Avg cost</th>
+                    <th>Value</th>
+                    <th>Gain</th>
+                    <th>%</th>
+                    <th>Wt</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {holdings.map((h, i) => {
+                    const g = holdingGain(h);
+                    const w = port > 0 ? (g.marketValue / port) * 100 : 0;
+                    const stale = priceStale(h.lastPriceAt);
+                    return (
+                      <tr key={`${h.ticker}-${i}`}>
+                        <td>{h.name}</td>
+                        <td className="num">
+                          {h.ticker}
+                          {stale && (
+                            <span
+                              className="tag t-soon"
+                              style={{ marginLeft: 6, fontSize: 8 }}
+                            >
+                              stale
+                            </span>
+                          )}
+                        </td>
+                        <td>{h.market}</td>
+                        <td className="num">{h.qty.toLocaleString()}</td>
+                        <td className="num">{h.lastPrice.toFixed(3)}</td>
+                        <td className="num">{h.avgCost.toFixed(3)}</td>
+                        <td className="num">{fmt2(g.marketValue)}</td>
+                        <td className={`num ${g.gain >= 0 ? "gain-pos" : "gain-neg"}`}>
+                          {g.gain >= 0 ? "+" : ""}
+                          {fmt2(g.gain)}
+                        </td>
+                        <td className={`num ${g.gain >= 0 ? "gain-pos" : "gain-neg"}`}>
+                          {g.gainPct.toFixed(1)}%
+                        </td>
+                        <td className={`num ${w > 50 ? "neg" : ""}`}>{w.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {(allocationChart || pnlChart || growthChart) && (
+              <div className="holdings-charts">
+                {allocationChart && (
+                  <div className="card" style={{ margin: 0 }}>
+                    <div className="section-lbl">Allocation</div>
+                    <ChartBox
+                      type="doughnut"
+                      height={240}
+                      data={allocationChart}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: "bottom" } },
+                      }}
+                    />
+                  </div>
+                )}
+                {pnlChart && (
+                  <div className="card" style={{ margin: 0 }}>
+                    <div className="section-lbl">P&amp;L by holding</div>
+                    <ChartBox type="bar" height={240} data={pnlChart} options={hBarOpts} />
+                  </div>
+                )}
+                {growthChart && (
+                  <div className="card holdings-charts-full" style={{ margin: 0 }}>
+                    <div className="section-lbl">Portfolio growth (on refresh)</div>
+                    <ChartBox type="line" tall data={growthChart} options={lineOpts} />
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
+
         <div className="grid g3 holdings-summary">
           <div className="stat accent">
-            <div className="lbl">Portfolio value (calculated)</div>
-            <div className="val">{fmt(port)}</div>
-            <div className="note">Sum of qty × price across holdings</div>
+            <div className="lbl">Portfolio value</div>
+            <div className="val">{fmt(totals.totalValue)}</div>
+            <div className="note">Qty × last price</div>
+          </div>
+          <div className="stat">
+            <div className="lbl">Unrealized gain</div>
+            <div className={`val ${totals.totalGain >= 0 ? "gain-pos" : "gain-neg"}`}>
+              {totals.totalGain >= 0 ? "+" : ""}
+              {fmt(totals.totalGain)}
+            </div>
+            <div className="note">
+              {totals.totalGainPct.toFixed(1)}% on {fmt(totals.totalCost)} cost
+            </div>
           </div>
           <div className="stat warn">
             <div className="lbl">Margin loan</div>
@@ -521,11 +842,6 @@ export function TabWealth({ state: S, setState }: Props) {
             <div className="note">
               {editingHoldings ? "Edit in the row above" : "Click Edit to change"}
             </div>
-          </div>
-          <div className="stat">
-            <div className="lbl">Cash (savings accounts)</div>
-            <div className="val">{fmt(cash)}</div>
-            <div className="note">Sum of balances on ME tab</div>
           </div>
         </div>
       </div>
