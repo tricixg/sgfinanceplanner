@@ -63,7 +63,7 @@ export function TabThisMonth({ state: S }: Props) {
         <div className="stat accent">
           <div className="lbl">Statement balances (all cards)</div>
           <div className="val">{fmt(stmtTotal)}</div>
-          <div className="note">Edit amounts on Credit Cards tab</div>
+          <div className="note">Edit on Credit Cards tab (Edit button)</div>
         </div>
         <div className="stat">
           <div className="lbl">Events this month</div>

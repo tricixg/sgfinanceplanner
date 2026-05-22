@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import type { DashboardState, Loan } from "@/lib/types";
+import type { DashboardState } from "@/lib/types";
 import { DEFAULTS, mergeWithDefaults } from "@/lib/finance/defaults";
 
 type Props = {
@@ -46,23 +46,6 @@ export function TabEdit({
     setState((prev) => ({ ...prev, [key]: val }));
   };
 
-  const updateLoan = (i: number, key: keyof Loan, val: string | number) => {
-    setState((prev) => ({
-      ...prev,
-      loans: prev.loans.map((l, j) => (j === i ? { ...l, [key]: val } : l)),
-    }));
-  };
-
-  const addLoan = () => {
-    setState((prev) => ({
-      ...prev,
-      loans: [
-        ...prev.loans,
-        { name: "New loan", card: "—", monthly: 0, out: 0, end: "2027-01" },
-      ],
-    }));
-  };
-
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -88,7 +71,8 @@ export function TabEdit({
   return (
     <section className="panel on">
       <div className="callout tip">
-        Everything below feeds the charts. Changes auto-save to the cloud (when Supabase is configured).
+        Income, obligations, insurance, and assets feed the charts. Instalment plans are edited on{" "}
+        <b>Debts &amp; Loans</b>. Changes auto-save to the cloud (when Supabase is configured).
       </div>
 
       <h2>Income</h2>
@@ -151,25 +135,6 @@ export function TabEdit({
           <span>ReadyProtect PA</span>
           <NumInput value={S.acc} step={0.01} onChange={(v) => patch("acc", v)} />
           <span></span><span></span><span></span>
-        </div>
-      </div>
-
-      <h2>Loans &amp; instalment plans</h2>
-      <div className="card">
-        <div className="editrow head">
-          <span>Plan</span><span>Monthly $</span><span>Outstanding $</span><span>Ends YYYY-MM</span><span></span>
-        </div>
-        {S.loans.map((l, i) => (
-          <div className="editrow" key={i}>
-            <input type="text" value={l.name} onChange={(e) => updateLoan(i, "name", e.target.value)} />
-            <NumInput value={l.monthly} step={0.01} onChange={(v) => updateLoan(i, "monthly", v)} />
-            <NumInput value={l.out} step={0.01} onChange={(v) => updateLoan(i, "out", v)} />
-            <input type="text" value={l.end} onChange={(e) => updateLoan(i, "end", e.target.value)} />
-            <button className="btn del sm" onClick={() => setState((p) => ({ ...p, loans: p.loans.filter((_, j) => j !== i) }))}>del</button>
-          </div>
-        ))}
-        <div className="toolbar">
-          <button className="btn ghost sm" onClick={addLoan}>+ Add loan</button>
         </div>
       </div>
 

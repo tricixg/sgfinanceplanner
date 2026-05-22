@@ -96,7 +96,7 @@ export function Dashboard() {
         <TabCPF state={state} />
       </div>
       <div style={{ display: active === "debt" ? "block" : "none" }}>
-        <TabDebt state={state} />
+        <TabDebt state={state} setState={setState} />
       </div>
       <div style={{ display: active === "edit" ? "block" : "none" }}>
         <TabEdit

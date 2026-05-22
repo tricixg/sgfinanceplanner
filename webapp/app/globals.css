@@ -292,6 +292,9 @@ tbody tr:hover {
   border-bottom: 1.5px solid var(--ink);
   padding-bottom: 8px;
 }
+.editrow.loans {
+  grid-template-columns: 1.3fr 0.9fr 0.85fr 0.85fr 1fr auto;
+}
 input,
 select {
   font-family: "SF Mono", ui-monospace, monospace;
@@ -491,6 +494,21 @@ footer {
   font-size: 12px;
   color: var(--moss);
   font-style: italic;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.section-head h2 {
+  flex: 1;
+  font-size: 22px;
+  margin: 0;
+}
+.section-head .btn {
+  min-width: 72px;
 }
 
 .cal-nav {
