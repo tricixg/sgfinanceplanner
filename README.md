@@ -16,9 +16,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Legacy
-
-[`financial_dashboard.html`](financial_dashboard.html) is the original single-file version (browser localStorage only). The Next.js app is the maintained version with cloud save.
 
 ## Stack
 
