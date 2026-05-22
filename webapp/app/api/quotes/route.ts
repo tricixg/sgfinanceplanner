@@ -6,26 +6,40 @@ export type QuoteResult = {
 };
 
 const CONCURRENCY = 4;
+const YAHOO_UA = "Mozilla/5.0 (compatible; SGFinancePlanner/1.0)";
 
-async function fetchQuote(
-  symbol: string,
-  apiKey: string
-): Promise<QuoteResult | null> {
-  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${apiKey}`;
-  const res = await fetch(url, { next: { revalidate: 0 } });
-  if (!res.ok) {
-    console.warn("[api/quotes] Finnhub error", symbol, res.status);
+async function fetchYahooQuote(symbol: string): Promise<QuoteResult | null> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": YAHOO_UA },
+      next: { revalidate: 0 },
+    });
+    if (!res.ok) {
+      console.warn("[api/quotes] Yahoo error", symbol, res.status);
+      return null;
+    }
+    const data = (await res.json()) as {
+      chart?: {
+        result?: Array<{
+          meta?: { regularMarketPrice?: number; regularMarketTime?: number };
+        }>;
+      };
+    };
+    const meta = data.chart?.result?.[0]?.meta;
+    const price = meta?.regularMarketPrice;
+    if (typeof price !== "number" || price <= 0) {
+      console.warn("[api/quotes] Yahoo no price", symbol);
+      return null;
+    }
+    const updatedAt = meta?.regularMarketTime
+      ? new Date(meta.regularMarketTime * 1000).toISOString()
+      : new Date().toISOString();
+    return { price, updatedAt };
+  } catch (e) {
+    console.warn("[api/quotes] Yahoo fetch failed", symbol, e);
     return null;
   }
-  const data = (await res.json()) as { c?: number; t?: number };
-  if (typeof data.c !== "number" || data.c <= 0) {
-    console.warn("[api/quotes] no price for", symbol);
-    return null;
-  }
-  const updatedAt = data.t
-    ? new Date(data.t * 1000).toISOString()
-    : new Date().toISOString();
-  return { price: data.c, updatedAt };
 }
 
 async function mapPool<T, R>(
@@ -43,15 +57,6 @@ async function mapPool<T, R>(
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.FINNHUB_API_KEY;
-  if (!apiKey) {
-    console.info("[api/quotes] FINNHUB_API_KEY not set");
-    return NextResponse.json(
-      { error: "no_api_key", quotes: {}, source: null },
-      { status: 503 }
-    );
-  }
-
   let body: { symbols?: string[] };
   try {
     body = await req.json();
@@ -64,11 +69,11 @@ export async function POST(req: NextRequest) {
     .filter((s) => s && s !== "—");
 
   if (symbols.length === 0) {
-    return NextResponse.json({ quotes: {}, source: "finnhub" });
+    return NextResponse.json({ quotes: {}, source: "yahoo" });
   }
 
   const pairs = await mapPool(symbols, CONCURRENCY, async (symbol) => {
-    const quote = await fetchQuote(symbol, apiKey);
+    const quote = await fetchYahooQuote(symbol);
     return { symbol, quote };
   });
 
@@ -77,10 +82,10 @@ export async function POST(req: NextRequest) {
     if (quote) quotes[symbol] = quote;
   }
 
-  console.info("[api/quotes] fetched", {
+  console.info("[api/quotes] Yahoo fetched", {
     requested: symbols.length,
     ok: Object.keys(quotes).length,
   });
 
-  return NextResponse.json({ quotes, source: "finnhub" });
+  return NextResponse.json({ quotes, source: "yahoo" });
 }

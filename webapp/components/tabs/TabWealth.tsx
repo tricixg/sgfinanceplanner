@@ -56,7 +56,7 @@ export function TabWealth({ state: S, setState }: Props) {
   const { port, invTotal, ilpVal, ilpLocked } = wealthSummary(S);
   const ilpPrem = computedIlpMonthly(S);
   const totals = portfolioTotals(S.holdings);
-  const { refresh, loading, error, lastRefresh, apiAvailable } = useLiveQuotes(
+  const { refresh, loading, error, lastRefresh } = useLiveQuotes(
     S.holdings,
     setState
   );
@@ -224,8 +224,8 @@ export function TabWealth({ state: S, setState }: Props) {
       <div className="callout tip">
         <span className="ico">Tip</span>
         Enter holdings with ticker, market (SGX/US), qty, and <b>avg cost</b>. Use{" "}
-        <b>Refresh prices</b> when <code>FINNHUB_API_KEY</code> is in{" "}
-        <code>.env.local</code>, or set last price manually in Edit. ILP account value
+        <b>Refresh prices</b> loads live quotes from Yahoo (SGX <code>.SI</code>, US tickers).
+        ILP account value
         updates build a profit history chart. Net worth is on <b>This Month</b>.
       </div>
 
@@ -559,19 +559,22 @@ export function TabWealth({ state: S, setState }: Props) {
               {loading ? "Refreshing…" : "Refresh prices"}
             </button>
             {lastRefresh?.status === "success" && (
-              <span className="quotes-meta">
-                Last refresh {new Date(lastRefresh.at).toLocaleString("en-SG")}
-              </span>
+              <>
+                <span className="quotes-meta">
+                  Last refresh {new Date(lastRefresh.at).toLocaleString("en-SG")}
+                </span>
+                {error && (
+                  <span className="quotes-meta" style={{ color: "var(--muted)" }}>
+                    {error}
+                  </span>
+                )}
+              </>
             )}
             {lastRefresh?.status === "failed" && (
               <>
                 <span className="quotes-meta" style={{ color: "var(--rust)" }}>
                   Last refresh failed
-                  {lastRefresh.reason === "no_api_key"
-                    ? " — no API key"
-                    : lastRefresh.reason === "no_symbols"
-                      ? " — no tickers"
-                      : ""}{" "}
+                  {lastRefresh.reason === "no_symbols" ? " — no tickers" : ""}{" "}
                   ({new Date(lastRefresh.at).toLocaleString("en-SG")})
                 </span>
                 {error && (
@@ -584,11 +587,6 @@ export function TabWealth({ state: S, setState }: Props) {
             {error && !lastRefresh && (
               <span className="quotes-meta" style={{ color: "var(--rust)" }}>
                 {error}
-              </span>
-            )}
-            {apiAvailable === false && !lastRefresh && (
-              <span className="quotes-meta">
-                Set FINNHUB_API_KEY in .env.local for live quotes
               </span>
             )}
           </div>
