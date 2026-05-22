@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { appConfig } from "@/lib/config";
-import { DEFAULTS } from "@/lib/finance/defaults";
+import { createEmptyState } from "@/lib/finance/defaults";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { TabThisMonth } from "./tabs/TabThisMonth";
 import { TabNow } from "./tabs/TabNow";
@@ -36,9 +36,10 @@ export function Dashboard() {
     usePersistedState();
 
   const handleReset = () => {
-    setState(structuredClone(DEFAULTS));
+    setState(createEmptyState());
     saveNow();
-    flash("Reset to defaults");
+    flash("Reset to blank (all zeros)");
+    console.info("[dashboard] reset to empty state");
   };
 
   if (loading) {

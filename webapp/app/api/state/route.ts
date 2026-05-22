@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DEFAULTS, mergeWithDefaults } from "@/lib/finance/defaults";
+import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { isValidDashboardState } from "@/lib/validate-state";
 
@@ -15,7 +15,7 @@ export async function GET() {
   if (!isSupabaseConfigured()) {
     console.info("[api/state] GET — Supabase not configured, returning defaults");
     return NextResponse.json({
-      data: DEFAULTS,
+      data: createEmptyState(),
       updatedAt: null,
       source: "defaults",
     });
@@ -40,8 +40,8 @@ export async function GET() {
     Object.keys(raw as object).length > 0;
 
   const state = hasData
-    ? mergeWithDefaults(raw as Partial<typeof DEFAULTS>)
-    : DEFAULTS;
+    ? mergeWithDefaults(raw as Partial<ReturnType<typeof createEmptyState>>)
+    : createEmptyState();
 
   const payloadSize = JSON.stringify(state).length;
   console.info("[api/state] GET ok", {

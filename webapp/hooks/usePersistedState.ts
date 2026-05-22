@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEFAULTS, mergeWithDefaults } from "@/lib/finance/defaults";
+import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import type { DashboardState } from "@/lib/types";
 
 const LOCAL_KEY = "sgfinance_dashboard";
 const DEBOUNCE_MS = 800;
 
 export function usePersistedState() {
-  const [state, setState] = useState<DashboardState>(DEFAULTS);
+  const [state, setState] = useState<DashboardState>(createEmptyState);
   const [loading, setLoading] = useState(true);
   const [saveMsg, setSaveMsg] = useState("");
   const [lastSaved, setLastSaved] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function usePersistedState() {
           flash("Loaded from browser (server unavailable)");
         }
       } catch {
-        setState(DEFAULTS);
+        setState(createEmptyState());
       }
     } finally {
       setLoading(false);

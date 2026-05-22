@@ -62,6 +62,11 @@ export function TabDebt({ state: S, setState }: Props) {
     console.log("[TabDebt] removed loan", i);
   };
 
+  const patchCcDebt = (val: number) => {
+    setState((prev) => ({ ...prev, ccDebt: val }));
+    console.log("[TabDebt] updated ccDebt", val);
+  };
+
   const finishEditing = () => {
     setEditing(false);
     console.log("[TabDebt] edit mode off");
@@ -72,8 +77,8 @@ export function TabDebt({ state: S, setState }: Props) {
       <div className="callout tip">
         <span className="ico">Tip</span>
         Instalment plans feed cashflow, calendar, and debt burn-down charts.
-        Click <b>Edit</b> below to change plans — changes auto-save to Supabase when configured.
-        Margin loan and card/BT balances are under <b>Edit Inputs</b>.
+        Click <b>Edit</b> below to change instalment plans and card/BT balance — changes auto-save to Supabase when configured.
+        Margin loan is under <b>Edit Inputs</b>.
       </div>
 
       <div className="grid g3">
@@ -88,6 +93,9 @@ export function TabDebt({ state: S, setState }: Props) {
         <div className="stat">
           <div className="lbl">Card / BT remaining</div>
           <div className="val">{fmt(S.ccDebt)}</div>
+          {!editing && (
+            <div className="note">Edit with instalment plans below</div>
+          )}
         </div>
       </div>
 
@@ -113,6 +121,17 @@ export function TabDebt({ state: S, setState }: Props) {
 
       {editing ? (
         <div className="card">
+          <div className="editrow">
+            <span>Card / BT remaining</span>
+            <NumInput
+              value={S.ccDebt}
+              step={0.01}
+              onChange={patchCcDebt}
+            />
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
           <div className="editrow head loans">
             <span>Plan</span>
             <span>Card</span>

@@ -1,5 +1,42 @@
 import type { DashboardState } from "@/lib/types";
+import { currentYm } from "./helpers";
 
+/** Blank slate — used for reset and when no saved data exists. */
+export const EMPTY_STATE: DashboardState = {
+  monthlySal: 0,
+  comms: 0,
+  salaryCreditDay: 0,
+  fatty: 0,
+  house: 0,
+  manu: 0,
+  varSpend: 0,
+  eci: 0,
+  tpd: 0,
+  acc: 0,
+  oa: 0,
+  sa: 0,
+  ma: 0,
+  ilp: 0,
+  moo: 0,
+  margin: 0,
+  cash: 0,
+  ccDebt: 0,
+  cashflowStartYm: "",
+  holdings: [],
+  budget: [],
+  goals: [],
+  loans: [],
+  creditCards: [],
+};
+
+export function createEmptyState(): DashboardState {
+  return {
+    ...structuredClone(EMPTY_STATE),
+    cashflowStartYm: currentYm(),
+  };
+}
+
+/** Sample data for unit tests only — not used for reset or initial load. */
 export const DEFAULTS: DashboardState = {
   monthlySal: 6500,
   comms: 165,
@@ -160,25 +197,23 @@ type LegacySaved = Partial<DashboardState> & {
 };
 
 export function mergeWithDefaults(saved: LegacySaved): DashboardState {
-  const monthlySal =
-    saved.monthlySal ?? saved.newSal ?? DEFAULTS.monthlySal;
+  const monthlySal = saved.monthlySal ?? saved.newSal ?? 0;
   const merged: DashboardState = {
-    ...structuredClone(DEFAULTS),
+    ...createEmptyState(),
     ...saved,
     monthlySal,
-    salaryCreditDay: saved.salaryCreditDay ?? DEFAULTS.salaryCreditDay,
-    cashflowStartYm: saved.cashflowStartYm ?? DEFAULTS.cashflowStartYm,
+    salaryCreditDay: saved.salaryCreditDay ?? 0,
+    cashflowStartYm: saved.cashflowStartYm ?? currentYm(),
+    holdings: saved.holdings ?? [],
+    budget: saved.budget ?? [],
+    goals: saved.goals ?? [],
+    loans: saved.loans ?? [],
+    creditCards: saved.creditCards ?? [],
   };
-  if (!saved.holdings?.length) merged.holdings = structuredClone(DEFAULTS.holdings);
-  if (!saved.budget?.length) merged.budget = structuredClone(DEFAULTS.budget);
-  if (!saved.goals?.length) merged.goals = structuredClone(DEFAULTS.goals);
-  if (!saved.loans?.length) merged.loans = structuredClone(DEFAULTS.loans);
-  if (!saved.creditCards?.length) {
-    merged.creditCards = structuredClone(DEFAULTS.creditCards);
-  }
   console.log("[mergeWithDefaults] merged state", {
     monthlySal: merged.monthlySal,
     creditCards: merged.creditCards.length,
+    loans: merged.loans.length,
   });
   return merged;
 }

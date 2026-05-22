@@ -149,7 +149,6 @@ export function TabEdit({
             ["Portfolio value", "moo"],
             ["Margin loan", "margin"],
             ["Cash savings", "cash"],
-            ["Card / BT debt", "ccDebt"],
           ] as const
         ).map(([label, key]) => (
           <div className="editrow" key={key}>
@@ -165,7 +164,7 @@ export function TabEdit({
         <button className="btn ghost" onClick={onSaveNow}>Save now</button>
         <button className="btn ghost" onClick={exportJSON}>Export JSON</button>
         <button className="btn ghost" onClick={() => fileRef.current?.click()}>Import JSON</button>
-        <button className="btn del" onClick={onReset}>Reset to defaults</button>
+        <button className="btn del" onClick={onReset}>Reset all to zero</button>
         <input ref={fileRef} type="file" accept=".json" style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) importJSON(f); e.target.value = ""; }} />
         <span className="save-status">{saveMsg}</span>
