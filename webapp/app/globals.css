@@ -628,6 +628,74 @@ footer {
 .cal-nav .btn {
   min-width: 72px;
 }
+.bto-schemes-card {
+  margin-bottom: 16px;
+}
+.bto-scheme-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.bto-scheme-row:last-of-type {
+  border-bottom: none;
+}
+.bto-scheme-row.on {
+  background: rgba(47, 93, 58, 0.04);
+  margin: 0 -14px;
+  padding: 14px;
+  border-radius: 6px;
+  border-bottom-color: transparent;
+}
+.bto-scheme-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+}
+.bto-scheme-check input {
+  width: auto;
+  cursor: pointer;
+}
+.bto-scheme-title {
+  font-size: 14px;
+}
+.bto-scheme-summary,
+.bto-scheme-eligibility {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.bto-scheme-link {
+  font-size: 12px;
+  color: var(--moss);
+}
+.bto-scheme-amt {
+  margin-top: 10px;
+  display: grid;
+  gap: 4px;
+}
+.bto-scheme-amt .v {
+  font-weight: 600;
+  color: var(--ink);
+}
+.bto-scheme-amt input {
+  max-width: 160px;
+  margin-top: 4px;
+}
+.bto-field {
+  font-size: 12.5px;
+  color: var(--muted);
+  display: block;
+}
+.bto-field input {
+  margin-top: 4px;
+  display: block;
+  width: 100%;
+}
+
 .cal-nav--in-card {
   margin-bottom: 12px;
   padding-bottom: 12px;

@@ -12,5 +12,6 @@ export * from "./insurance";
 export * from "./goals";
 export * from "./accounts";
 export * from "./bto";
+export * from "./bto-schemes";
 export * from "./debt";
 export * from "./calendar";

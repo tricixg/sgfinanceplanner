@@ -1,10 +1,11 @@
+import { addMonthsYm } from "./calendar";
 import { cpfOAmonthly } from "./cpf";
 import {
   defaultBTOSchemes,
   totalHousingGrants,
   type BTOSchemeSelection,
 } from "./bto-schemes";
-import { fmt } from "./helpers";
+import { fmt, formatMonthLabel } from "./helpers";
 
 export type BTOInputs = {
   price: number;
@@ -20,6 +21,17 @@ export type BTOInputs = {
 };
 
 export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
+
+/** Payment timeline labels from BTO application month and years to keys. */
+export function buildBTOTimeline(applicationYm: string, yrsToKeys: number) {
+  const bookingYm = addMonthsYm(applicationYm, 4);
+  const keysYm = addMonthsYm(applicationYm, Math.round(yrsToKeys * 12));
+  return {
+    application: formatMonthLabel(applicationYm),
+    booking: `~${formatMonthLabel(bookingYm)}`,
+    keys: `~${formatMonthLabel(keysYm)}`,
+  };
+}
 
 export function calcBSD(price: number): number {
   let p = price;
@@ -41,13 +53,15 @@ export function calcBSD(price: number): number {
 }
 
 export function computeBTO(inputs: BTOInputs) {
-  const { price, ltv, rate, tenure, yrsToKeys, ehg, tSal, pSal, pOA, tOA } =
+  const { price, ltv, rate, tenure, yrsToKeys, schemes, tSal, pSal, pOA, tOA } =
     inputs;
   const ltvFrac = ltv / 100;
   const rateFrac = rate / 100;
-  const loan = price * ltvFrac;
-  const dpTotal = price * (1 - ltvFrac);
-  const afl = price * 0.025;
+  const totalGrants = totalHousingGrants(schemes, { tSal, pSal });
+  const netPrice = Math.max(0, price - totalGrants);
+  const loan = netPrice * ltvFrac;
+  const dpTotal = netPrice * (1 - ltvFrac);
+  const afl = netPrice * 0.025;
   const keyPay = dpTotal - afl;
 
   const n = tenure * 12;
@@ -75,17 +89,17 @@ export function computeBTO(inputs: BTOInputs) {
   }
 
   const combinedOA = to + po;
-  const dpAvail = combinedOA + ehg;
+  const dpAvail = combinedOA;
   const dpSurplus = dpAvail - keyPay;
   const oaInflow = cpfOAmonthly(tSal) + cpfOAmonthly(pSal);
   const mortSurplus = oaInflow - mortgage;
-  const bsd = calcBSD(price);
+  const bsd = calcBSD(netPrice);
 
   let verdict = "";
   const dpOK = dpSurplus >= 0;
   const mortOK = mortSurplus >= 0;
   if (dpOK && mortOK) {
-    verdict = `Your goal of paying the flat fully through CPF looks achievable. By key collection your combined OA (~${fmt(combinedOA)}) covers the 22.5% downpayment (${fmt(keyPay)}) with ${fmt(dpSurplus)} to spare, and your combined monthly OA inflow (${fmt(oaInflow)}) exceeds the mortgage (${fmt(mortgage)}).`;
+    verdict = `Your goal of paying the flat fully through CPF looks achievable. Grants of ${fmt(totalGrants)} reduce the purchase price to ${fmt(netPrice)}. By key collection your combined OA (~${fmt(combinedOA)}) covers the 22.5% downpayment (${fmt(keyPay)}) with ${fmt(dpSurplus)} to spare, and your combined monthly OA inflow (${fmt(oaInflow)}) exceeds the mortgage (${fmt(mortgage)}).`;
   } else if (dpOK && !mortOK) {
     verdict = `The downpayment is covered by CPF, but the monthly mortgage (${fmt(mortgage)}) is ${fmt(-mortSurplus)}/mo above your combined OA inflow.`;
   } else if (!dpOK && mortOK) {
@@ -96,6 +110,9 @@ export function computeBTO(inputs: BTOInputs) {
   }
 
   return {
+    price,
+    netPrice,
+    totalGrants,
     loan,
     afl,
     keyPay,
