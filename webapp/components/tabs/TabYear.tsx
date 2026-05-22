@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardState } from "@/lib/types";
-import { simulate5y } from "@/lib/finance";
+import { monthlyInvestContribution, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import type { ChartOptions } from "chart.js";
@@ -11,9 +11,20 @@ type Props = { state: DashboardState };
 
 export function TabYear({ state: S }: Props) {
   const [growth, setGrowth] = useState(3.5);
-  const [invAmt, setInvAmt] = useState(300);
   const [invRet, setInvRet] = useState(6);
   const [showMargin, setShowMargin] = useState(true);
+
+  const fromBudget = useMemo(() => monthlyInvestContribution(S), [S.budget]);
+  const [invAmt, setInvAmt] = useState(fromBudget);
+  const invAmtUserEdited = useRef(false);
+
+  useEffect(() => {
+    if (!invAmtUserEdited.current) {
+      setInvAmt(fromBudget);
+    }
+  }, [fromBudget]);
+
+  const invDiffersFromBudget = invAmt !== fromBudget;
 
   const series = simulate5y(S, { growth, invAdd: invAmt, invRet, useMargin: showMargin });
   const last = series[series.length - 1];
@@ -62,25 +73,75 @@ export function TabYear({ state: S }: Props) {
 
   return (
     <section className="panel on">
+      <div className="callout tip">
+        <span className="ico">Tip</span>
+        Monthly invest contribution defaults from <b>Budget &amp; Savings</b> (your investing
+        categories). Change it here for what-if projections without changing your budget.
+      </div>
+
       <div className="ctrl">
         <label>
           Salary growth / yr
-          <input type="number" value={growth} step={0.5} min={0} max={15}
-            onChange={(e) => setGrowth(+e.target.value)} />%
+          <input
+            type="number"
+            value={growth}
+            step={0.5}
+            min={0}
+            max={15}
+            onChange={(e) => setGrowth(+e.target.value)}
+          />
+          %
         </label>
         <label>
           Monthly invest contribution
-          <input type="number" value={invAmt} step={50}
-            onChange={(e) => setInvAmt(+e.target.value)} />
+          <input
+            type="number"
+            value={invAmt}
+            step={50}
+            onChange={(e) => {
+              invAmtUserEdited.current = true;
+              setInvAmt(+e.target.value);
+              console.log("[TabYear] inv contribution override", +e.target.value);
+            }}
+          />
+          <span style={{ fontSize: 11, color: "var(--muted)", display: "block", marginTop: 4 }}>
+            From budget: {fmt(fromBudget)}/mo
+            {invDiffersFromBudget ? (
+              <>
+                {" "}
+                ·{" "}
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  style={{ padding: "2px 6px", fontSize: 11 }}
+                  onClick={() => {
+                    invAmtUserEdited.current = false;
+                    setInvAmt(fromBudget);
+                    console.log("[TabYear] reset inv contribution to budget", fromBudget);
+                  }}
+                >
+                  Reset to budget
+                </button>
+              </>
+            ) : null}
+          </span>
         </label>
         <label>
           Investment return / yr
-          <input type="number" value={invRet} step={0.5}
-            onChange={(e) => setInvRet(+e.target.value)} />%
+          <input
+            type="number"
+            value={invRet}
+            step={0.5}
+            onChange={(e) => setInvRet(+e.target.value)}
+          />
+          %
         </label>
         <label>
-          <input type="checkbox" checked={showMargin}
-            onChange={(e) => setShowMargin(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={showMargin}
+            onChange={(e) => setShowMargin(e.target.checked)}
+          />
           Count margin loan
         </label>
       </div>
@@ -98,6 +159,7 @@ export function TabYear({ state: S }: Props) {
         <div className="stat">
           <div className="lbl">Investment pot · 2031</div>
           <div className="val">{fmt(last.inv)}</div>
+          <div className="note">At {fmt(invAmt)}/mo contribution</div>
         </div>
         <div className="stat">
           <div className="lbl">Liquid cash savings · 2031</div>
@@ -132,7 +194,9 @@ export function TabYear({ state: S }: Props) {
                 <td className="num">{fmt(r.inv)}</td>
                 <td className="num">{fmt(r.cash)}</td>
                 <td className="num neg">{r.debt > 0 ? "−" + fmt(r.debt).slice(1) : "$0"}</td>
-                <td className="num pos"><b>{fmt(r.nw)}</b></td>
+                <td className="num pos">
+                  <b>{fmt(r.nw)}</b>
+                </td>
               </tr>
             ))}
           </tbody>

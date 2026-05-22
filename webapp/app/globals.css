@@ -295,6 +295,15 @@ tbody tr:hover {
 .editrow.loans {
   grid-template-columns: 1.3fr 0.9fr 0.85fr 0.85fr 1fr auto;
 }
+.editrow.holdings {
+  grid-template-columns: 1.2fr 0.65fr 0.75fr 0.75fr 1fr auto;
+}
+.editrow.insurance {
+  grid-template-columns: 1.1fr 0.9fr 0.85fr 1fr auto;
+}
+.editrow.accounts {
+  grid-template-columns: 1.3fr 0.85fr 1fr auto;
+}
 .editrow.budget-line {
   grid-template-columns: 1.6fr 0.75fr 0.75fr auto;
 }
@@ -327,6 +336,40 @@ tbody tr:hover {
 tr.computed-row td {
   color: var(--muted);
   font-style: italic;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.ilp-edit-card {
+  border: 1px solid var(--line);
+  padding: 14px;
+  margin-bottom: 14px;
+  background: #fffef9;
+}
+.ilp-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 12px;
+  margin-bottom: 10px;
+}
+.ilp-edit-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ilp-edit-grid label.full {
+  grid-column: 1 / -1;
+}
+.ilp-edit-grid input,
+.ilp-edit-grid select {
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
 }
 input,
 select {
@@ -527,6 +570,33 @@ footer {
   font-size: 12px;
   color: var(--moss);
   font-style: italic;
+}
+
+.net-worth-card .ctrl {
+  margin-bottom: 12px;
+}
+.net-worth-total {
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.net-worth-total .lbl {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.net-worth-total .val {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 6px 0;
+}
+.net-worth-total .note {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .section-head {

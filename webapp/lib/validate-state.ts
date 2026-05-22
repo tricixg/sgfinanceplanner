@@ -10,6 +10,8 @@ export function isValidDashboardState(data: unknown): data is DashboardState {
     Array.isArray(d.loans) &&
     Array.isArray(d.goals) &&
     Array.isArray(d.holdings) &&
-    Array.isArray(d.budget)
+    Array.isArray(d.budget) &&
+    (Array.isArray(d.accounts) || Array.isArray(d.goals)) &&
+    (Array.isArray(d.ilpPolicies) || typeof (d as { ilp?: number }).ilp === "number")
   );
 }

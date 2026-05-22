@@ -78,7 +78,7 @@ export function TabDebt({ state: S, setState }: Props) {
         <span className="ico">Tip</span>
         Instalment plans feed cashflow, calendar, and debt burn-down charts.
         Click <b>Edit</b> below to change instalment plans and card/BT balance — changes auto-save to Supabase when configured.
-        Margin loan is under <b>Edit Inputs</b>.
+        Margin loan is edited on <b>Investment</b> (holdings section).
       </div>
 
       <div className="grid g3">

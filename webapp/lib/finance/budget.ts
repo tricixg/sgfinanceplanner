@@ -1,16 +1,22 @@
 import type { BudgetItem, DashboardState } from "@/lib/types";
+import { cashAccountsTotal } from "./accounts";
+import { isInsuranceBudgetCategory } from "./insurance";
+import { isIlpBudgetCategory } from "./ilp";
 import { stableTakeHome } from "./income";
 import { loanLoadForMonth } from "./loanLoad";
 import { currentYm } from "./helpers";
-import { portfolioValue } from "./wealth";
+import { computedInsuranceMonthly } from "./insurance";
+import { computedIlpMonthly, ilpTotalValue } from "./ilp";
+import { portfolioInvestmentValue } from "./wealth";
 
 export const COMPUTED_DEBT_LABEL = "Loans & debt (from Debts & Loans)";
+export { COMPUTED_INSURANCE_LABEL, computedInsuranceMonthly } from "./insurance";
+export { COMPUTED_ILP_LABEL, computedIlpMonthly } from "./ilp";
 
 export function defaultBudgetTemplate(): BudgetItem[] {
   return [
     { cat: "Family allowance", amt: 0, type: "fixed" },
     { cat: "Household", amt: 0, type: "fixed" },
-    { cat: "Insurance premiums", amt: 0, type: "fixed" },
     { cat: "Living & variable spend", amt: 0, type: "spend" },
     { cat: "Emergency / cash savings", amt: 0, type: "save" },
     { cat: "Investing", amt: 0, type: "invest" },
@@ -26,6 +32,19 @@ export function budgetFixedTotal(S: DashboardState): number {
 export function budgetSpendTotal(S: DashboardState): number {
   return S.budget
     .filter((b) => b.type === "spend")
+    .reduce((s, b) => s + b.amt, 0);
+}
+
+/** Sum of budget lines with type invest — used on Budget & Savings and 5-year projection. */
+export function monthlyInvestContribution(S: DashboardState): number {
+  return S.budget
+    .filter((b) => b.type === "invest")
+    .reduce((s, b) => s + b.amt, 0);
+}
+
+export function monthlySaveContribution(S: DashboardState): number {
+  return S.budget
+    .filter((b) => b.type === "save")
     .reduce((s, b) => s + b.amt, 0);
 }
 
@@ -62,7 +81,9 @@ type LegacyBudgetSaved = {
 
 export function migrateBudget(saved: LegacyBudgetSaved): BudgetItem[] {
   if (saved.budget?.length) {
-    return saved.budget.map((b) => normalizeBudgetItem(b));
+    return saved.budget
+      .map((b) => normalizeBudgetItem(b))
+      .filter((b) => !isIlpBudgetCategory(b.cat) && !isInsuranceBudgetCategory(b.cat));
   }
 
   const items: BudgetItem[] = [];
@@ -84,7 +105,6 @@ export function migrateBudget(saved: LegacyBudgetSaved): BudgetItem[] {
     items.push(
       { cat: "Family allowance", amt: saved.fatty ?? 0, type: "fixed" },
       { cat: "Household", amt: saved.house ?? 0, type: "fixed" },
-      { cat: "Manulife ILP base", amt: saved.manu ?? 0, type: "fixed" },
       { cat: "Variable spending estimate", amt: saved.varSpend ?? 0, type: "spend" }
     );
   }
@@ -93,20 +113,23 @@ export function migrateBudget(saved: LegacyBudgetSaved): BudgetItem[] {
   return items;
 }
 
+/** Label for take-home minus all allocations (positive = room left, negative = over budget). */
+export function budgetBalanceLabel(left: number): string {
+  return left < -1 ? "Over-allocated" : "Remaining";
+}
+
 export function budgetVerdict(S: DashboardState, ym?: string) {
   const income = stableTakeHome(S);
   const alloc = S.budget.reduce((s, b) => s + b.amt, 0);
   const debt = computedDebtMonthly(S, ym);
-  const left = income - alloc - debt;
-  const inv = S.budget
-    .filter((b) => b.type === "invest")
-    .reduce((s, b) => s + b.amt, 0);
-  const sav = S.budget
-    .filter((b) => b.type === "save")
-    .reduce((s, b) => s + b.amt, 0);
+  const ilp = computedIlpMonthly(S);
+  const insurance = computedInsuranceMonthly(S);
+  const left = income - alloc - debt - ilp - insurance;
+  const inv = monthlyInvestContribution(S);
+  const sav = monthlySaveContribution(S);
   const invPct = income > 0 ? (inv / income) * 100 : 0;
   const savePct = income > 0 ? (sav / income) * 100 : 0;
-  return { income, alloc, debt, left, inv, sav, invPct, savePct };
+  return { income, alloc, debt, ilp, insurance, left, inv, sav, invPct, savePct };
 }
 
 export function budgetProjection(
@@ -117,8 +140,8 @@ export function budgetProjection(
   yrs: number
 ) {
   const ret = retPct / 100;
-  let invPot = portfolioValue(S.holdings) + S.ilp;
-  let cashPot = S.cash;
+  let invPot = portfolioInvestmentValue(S) + ilpTotalValue(S);
+  let cashPot = cashAccountsTotal(S);
   const labels = ["Now"];
   const invSeries = [invPot];
   const cashSeries = [cashPot];

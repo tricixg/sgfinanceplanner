@@ -8,7 +8,9 @@ import {
   budgetFixedTotal,
   budgetSpendTotal,
   computedDebtMonthly,
+  computedIlpMonthly,
   COMPUTED_DEBT_LABEL,
+  COMPUTED_ILP_LABEL,
 } from "@/lib/finance";
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
@@ -102,6 +104,7 @@ export function TabNow({ state: S, setState }: Props) {
   const items: [string, number][] = [
     ...S.budget.map((b) => [b.cat, b.amt] as [string, number]),
     [COMPUTED_DEBT_LABEL, midLoans],
+    [COMPUTED_ILP_LABEL, computedIlpMonthly(S)],
   ];
   let spent = 0;
 

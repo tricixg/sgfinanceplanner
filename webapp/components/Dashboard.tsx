@@ -13,7 +13,7 @@ import { TabBudgetSavings } from "./tabs/TabBudgetSavings";
 import { TabBTO } from "./tabs/TabBTO";
 import { TabCPF } from "./tabs/TabCPF";
 import { TabDebt } from "./tabs/TabDebt";
-import { TabEdit } from "./tabs/TabEdit";
+import { TabMe } from "./tabs/TabMe";
 
 const TABS = [
   { id: "thisMonth", label: "This Month" },
@@ -25,7 +25,7 @@ const TABS = [
   { id: "bto", label: "BTO Planner" },
   { id: "cpf", label: "CPF Outlook" },
   { id: "debt", label: "Debts & Loans" },
-  { id: "edit", label: "Edit Inputs" },
+  { id: "me", label: "ME" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -85,7 +85,7 @@ export function Dashboard() {
         <TabYear state={state} />
       </div>
       <div style={{ display: active === "wealth" ? "block" : "none" }}>
-        <TabWealth state={state} />
+        <TabWealth state={state} setState={setState} />
       </div>
       <div style={{ display: active === "budget" ? "block" : "none" }}>
         <TabBudgetSavings state={state} setState={setState} />
@@ -94,13 +94,13 @@ export function Dashboard() {
         <TabBTO state={state} />
       </div>
       <div style={{ display: active === "cpf" ? "block" : "none" }}>
-        <TabCPF state={state} />
+        <TabCPF state={state} setState={setState} />
       </div>
       <div style={{ display: active === "debt" ? "block" : "none" }}>
         <TabDebt state={state} setState={setState} />
       </div>
-      <div style={{ display: active === "edit" ? "block" : "none" }}>
-        <TabEdit
+      <div style={{ display: active === "me" ? "block" : "none" }}>
+        <TabMe
           state={state}
           setState={setState}
           onApply={() => flash("Charts updated")}

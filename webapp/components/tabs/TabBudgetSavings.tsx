@@ -6,13 +6,20 @@ import {
   budgetProjection,
   budgetVerdict,
   goalsSummary,
+  monthlyInvestContribution,
+  monthlySaveContribution,
   stableTakeHome,
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import {
   COMPUTED_DEBT_LABEL,
+  budgetBalanceLabel,
   computedDebtMonthly,
+  COMPUTED_INSURANCE_LABEL,
+  computedInsuranceMonthly,
+  COMPUTED_ILP_LABEL,
+  computedIlpMonthly,
   defaultBudgetTemplate,
 } from "@/lib/finance/budget";
 
@@ -64,16 +71,15 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
 
   const income = stableTakeHome(S);
   const debt = computedDebtMonthly(S);
+  const insurancePrem = computedInsuranceMonthly(S);
+  const ilpPrem = computedIlpMonthly(S);
   const { alloc, left, invPct, savePct } = budgetVerdict(S);
-  const monthlyInv = S.budget
-    .filter((b) => b.type === "invest")
-    .reduce((s, b) => s + b.amt, 0);
-  const monthlySave = S.budget
-    .filter((b) => b.type === "save")
-    .reduce((s, b) => s + b.amt, 0);
+  const monthlyInv = monthlyInvestContribution(S);
+  const monthlySave = monthlySaveContribution(S);
   const proj = budgetProjection(S, monthlyInv, monthlySave, budRet, budYrs);
   const { rows, totT, totS, totMonthly } = goalsSummary(S);
   const invSave = monthlyInv + monthlySave;
+  const balanceLbl = budgetBalanceLabel(left);
 
   const updateBudget = (i: number, patchItem: Partial<BudgetItem>) => {
     setState((prev) => ({
@@ -148,7 +154,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
     verdict =
       left < 0
         ? `Over-allocated by ${fmt2(-left)}. Trim a category.`
-        : `${fmt2(left)} unallocated — assign to saving or investing.`;
+        : `${fmt2(left)} remaining — assign to saving or investing.`;
   } else {
     verdict = "Balanced plan. ";
   }
@@ -188,27 +194,28 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Click <b>Edit</b> to change categories. Loans &amp; debt is auto-calculated from{" "}
-        <b>Debts &amp; Loans</b>. Auto-saves to Supabase. Salary on <b>Edit Inputs</b>.
+        Click <b>Edit</b> to change categories. Cash balances live on <b>ME</b> (savings
+        accounts). Loans, insurance, and ILP premiums are auto from <b>Debts &amp; Loans</b>,{" "}
+        <b>ME</b>, and <b>Investment</b>.
       </div>
 
-      <div className="grid g4">
+      <div className="grid g3">
         <div className="stat accent">
           <div className="lbl">Monthly take-home</div>
           <div className="val">{fmt(income)}</div>
         </div>
         <div className="stat">
-          <div className="lbl">Budget allocated</div>
+          <div className="lbl">Your categories</div>
           <div className="val">{fmt(alloc)}</div>
         </div>
-        <div className="stat">
-          <div className="lbl">Unallocated</div>
+        <div className={`stat ${left < -20 ? "warn" : ""}`}>
+          <div className="lbl">{balanceLbl}</div>
           <div className={`val ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</div>
-        </div>
-        <div className="stat warn">
-          <div className="lbl">Loans &amp; debt / mo</div>
-          <div className="val">{fmt(debt)}</div>
-          <div className="note">From Debts &amp; Loans tab</div>
+          <div className="note">
+            {left < -1
+              ? "Spending exceeds take-home — trim a category"
+              : "After auto deductions in table"}
+          </div>
         </div>
       </div>
 
@@ -240,8 +247,9 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
       </div>
 
       <div className="callout tip">
-        Take-home: <b>{fmt(income)}</b>. Unallocated = take-home − your categories − loans/debt (
-        {fmt(debt)}). Edit instalment plans on <b>Debts &amp; Loans</b>.
+        Take-home: <b>{fmt(income)}</b>. <b>Remaining</b> (or over-allocated) = take-home − your
+        categories − loans ({fmt(debt)}) − insurance ({fmt(insurancePrem)}) − ILP (
+        {fmt(ilpPrem)}).
       </div>
 
       {S.budget.length === 0 && !editingAllocation ? (
@@ -261,6 +269,20 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                   <span className="tag t-soon">auto</span>
                 </td>
                 <td className="num">{fmt2(debt)}</td>
+              </tr>
+              <tr className="computed-row">
+                <td>{COMPUTED_INSURANCE_LABEL}</td>
+                <td>
+                  <span className="tag t-soon">auto</span>
+                </td>
+                <td className="num">{fmt2(insurancePrem)}</td>
+              </tr>
+              <tr className="computed-row">
+                <td>{COMPUTED_ILP_LABEL}</td>
+                <td>
+                  <span className="tag t-soon">auto</span>
+                </td>
+                <td className="num">{fmt2(ilpPrem)}</td>
               </tr>
             </tbody>
           </table>
@@ -288,6 +310,18 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
               <span>{COMPUTED_DEBT_LABEL}</span>
               <span className="tag t-soon">auto</span>
               <span className="num">{fmt2(debt)}</span>
+              <span></span>
+            </div>
+            <div className="editrow budget-line computed-line">
+              <span>{COMPUTED_INSURANCE_LABEL}</span>
+              <span className="tag t-soon">auto</span>
+              <span className="num">{fmt2(insurancePrem)}</span>
+              <span></span>
+            </div>
+            <div className="editrow budget-line computed-line">
+              <span>{COMPUTED_ILP_LABEL}</span>
+              <span className="tag t-soon">auto</span>
+              <span className="num">{fmt2(ilpPrem)}</span>
               <span></span>
             </div>
             {S.budget.map((b, i) => (
@@ -336,16 +370,12 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                 + Add category
               </button>
             </div>
-            <div className="minirow">
-              <span className="k">Loans &amp; debt (auto)</span>
-              <span className="v">{fmt2(debt)}</span>
-            </div>
-            <div className="minirow tot">
+            <div className="minirow tot" style={{ marginTop: 12 }}>
               <span className="k">Your categories</span>
               <span className="v">{fmt2(alloc)}</span>
             </div>
             <div className="minirow" style={{ border: "none" }}>
-              <span className="k">Unallocated</span>
+              <span className="k">{balanceLbl}</span>
               <span className={`v ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</span>
             </div>
           </div>
@@ -373,6 +403,20 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                   </td>
                   <td className="num">{fmt2(debt)}</td>
                 </tr>
+                <tr className="computed-row">
+                  <td>{COMPUTED_INSURANCE_LABEL}</td>
+                  <td>
+                    <span className="tag t-soon">auto</span>
+                  </td>
+                  <td className="num">{fmt2(insurancePrem)}</td>
+                </tr>
+                <tr className="computed-row">
+                  <td>{COMPUTED_ILP_LABEL}</td>
+                  <td>
+                    <span className="tag t-soon">auto</span>
+                  </td>
+                  <td className="num">{fmt2(ilpPrem)}</td>
+                </tr>
                 {S.budget.map((b, i) => (
                   <tr key={i}>
                     <td>{b.cat?.trim() || "Unnamed"}</td>
@@ -384,16 +428,12 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                 ))}
               </tbody>
             </table>
-            <div className="minirow" style={{ marginTop: 12 }}>
-              <span className="k">Loans &amp; debt (auto)</span>
-              <span className="v">{fmt2(debt)}</span>
-            </div>
-            <div className="minirow tot">
+            <div className="minirow tot" style={{ marginTop: 12 }}>
               <span className="k">Your categories</span>
               <span className="v">{fmt2(alloc)}</span>
             </div>
             <div className="minirow" style={{ border: "none" }}>
-              <span className="k">Unallocated</span>
+              <span className="k">{balanceLbl}</span>
               <span className={`v ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</span>
             </div>
           </div>
@@ -482,8 +522,9 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
           <div className="val">{fmt(totT)}</div>
         </div>
         <div className="stat">
-          <div className="lbl">Saved so far</div>
+          <div className="lbl">Goal progress (tracked)</div>
           <div className="val">{fmt(totS)}</div>
+          <div className="note">Cash balances are on ME tab</div>
         </div>
         <div className="stat warn">
           <div className="lbl">Still to save</div>
@@ -525,7 +566,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
               <tr>
                 <th>Goal</th>
                 <th>Target</th>
-                <th>Saved</th>
+                <th>Progress</th>
                 <th>By</th>
                 <th>Where</th>
                 <th></th>
@@ -603,7 +644,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
                 <tr>
                   <th>Goal</th>
                   <th>Target</th>
-                  <th>Saved</th>
+                  <th>Progress</th>
                   <th>Gap</th>
                   <th>By</th>
                   <th>Need / mo</th>
@@ -640,7 +681,7 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
               ),
               datasets: [
                 {
-                  label: "Saved",
+                  label: "Progress",
                   data: S.goals.map((g) => g.saved),
                   backgroundColor: "#2f5d3a",
                   stack: "a",

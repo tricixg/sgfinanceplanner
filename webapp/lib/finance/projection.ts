@@ -2,6 +2,9 @@ import type { DashboardState } from "@/lib/types";
 import { ALLOC_MA, ALLOC_OA, ALLOC_SA, cpfEmp, cpfTotal } from "./cpf";
 import { stableTakeHome } from "./cashflow";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
+import { cashAccountsTotal } from "./accounts";
+import { ilpTotalValue } from "./ilp";
+import { portfolioInvestmentValue } from "./wealth";
 import { monIdx } from "./helpers";
 
 export type ProjectionRow = {
@@ -34,8 +37,8 @@ export function simulate5y(
   let oa = S.oa;
   let sa = S.sa;
   let ma = S.ma;
-  let inv = S.ilp + S.moo;
-  let cash = S.cash;
+  let inv = ilpTotalValue(S) + portfolioInvestmentValue(S);
+  let cash = cashAccountsTotal(S);
   let margin = useMargin ? S.margin : 0;
   let sal = S.monthlySal;
   const loanState = S.loans.map((l) => ({ ...l, bal: l.out }));

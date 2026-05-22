@@ -1,5 +1,9 @@
 import type { DashboardState } from "@/lib/types";
 import { defaultBudgetTemplate, migrateBudget } from "./budget";
+import { migrateInsurancePolicies } from "./insurance";
+import { migrateIlpPolicies } from "./ilp";
+import { migrateAccounts } from "./accounts";
+import { migrateHoldings } from "./wealth";
 import { currentYm } from "./helpers";
 
 /** Blank slate — used for reset and when no saved data exists. */
@@ -7,13 +11,12 @@ export const EMPTY_STATE: DashboardState = {
   monthlySal: 0,
   comms: 0,
   salaryCreditDay: 0,
-  eci: 0,
-  tpd: 0,
-  acc: 0,
+  insurancePolicies: [],
+  accounts: [],
   oa: 0,
   sa: 0,
   ma: 0,
-  ilp: 0,
+  ilpPolicies: [],
   moo: 0,
   margin: 0,
   cash: 0,
@@ -38,13 +41,37 @@ export const DEFAULTS: DashboardState = {
   monthlySal: 6500,
   comms: 165,
   salaryCreditDay: 25,
-  eci: 84.13,
-  tpd: 54.98,
-  acc: 24.72,
+  insurancePolicies: [
+    { name: "ECI", insurer: "", monthlyPremium: 84.13, notes: "" },
+    { name: "ManuProtect TPD", insurer: "Manulife", monthlyPremium: 54.98, notes: "" },
+    { name: "ReadyProtect PA", insurer: "", monthlyPremium: 24.72, notes: "" },
+  ],
+  accounts: [
+    { name: "High-yield savings account", balance: 2000, notes: "" },
+    { name: "Separate savings account", balance: 500, notes: "" },
+  ],
   oa: 26687.97,
   sa: 7390.51,
   ma: 9940.98,
-  ilp: 8300.04,
+  ilpPolicies: [
+    {
+      insurer: "Manulife",
+      planName: "ILP",
+      policyNo: "",
+      premiumType: "regular",
+      loadingType: "front-end",
+      monthlyPremium: 300,
+      accountValue: 8300.04,
+      premiumAllocationPct: 100,
+      lockInEndYm: "",
+      policyStartYm: "2020-01",
+      surrenderChargeEndYm: "",
+      insuranceCover: 0,
+      funds: "",
+      freeFundSwitchesPerYear: 2,
+      notes: "",
+    },
+  ],
   moo: 25185.5,
   margin: 3953.91,
   cash: 2000,
@@ -83,7 +110,6 @@ export const DEFAULTS: DashboardState = {
   budget: [
     { cat: "Fatty (family)", amt: 1000, type: "fixed" },
     { cat: "Household", amt: 600, type: "fixed" },
-    { cat: "Insurance + ILP", amt: 464, type: "fixed" },
     { cat: "Living & variable spend", amt: 1100, type: "spend" },
     { cat: "Emergency / cash savings", amt: 900, type: "save" },
     { cat: "Investing", amt: 1300, type: "invest" },
@@ -192,6 +218,10 @@ type LegacySaved = Partial<DashboardState> & {
   manu?: number;
   varSpend?: number;
   monthlyExpenses?: { name: string; amt: number; kind?: string }[];
+  ilp?: number;
+  eci?: number;
+  tpd?: number;
+  acc?: number;
 };
 
 export function mergeWithDefaults(saved: LegacySaved): DashboardState {
@@ -202,11 +232,14 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
     monthlySal,
     salaryCreditDay: saved.salaryCreditDay ?? 0,
     cashflowStartYm: saved.cashflowStartYm ?? currentYm(),
-    holdings: saved.holdings ?? [],
+    holdings: migrateHoldings(saved),
     budget: migrateBudget(saved),
     goals: saved.goals ?? [],
     loans: saved.loans ?? [],
     creditCards: saved.creditCards ?? [],
+    ilpPolicies: migrateIlpPolicies(saved),
+    insurancePolicies: migrateInsurancePolicies(saved),
+    accounts: migrateAccounts(saved),
   };
   console.log("[mergeWithDefaults] merged state", {
     monthlySal: merged.monthlySal,

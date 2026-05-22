@@ -5,7 +5,7 @@ import type { ChartData, ChartOptions } from "chart.js";
 import "./chart-setup";
 
 type Props = {
-  type: "bar" | "line" | "doughnut";
+  type: "bar" | "line" | "doughnut" | "pie";
   data: ChartData;
   options?: ChartOptions;
   tall?: boolean;

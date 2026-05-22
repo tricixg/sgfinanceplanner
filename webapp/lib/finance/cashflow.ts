@@ -1,5 +1,8 @@
 import type { DashboardState } from "@/lib/types";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
+import { cashAccountsTotal } from "./accounts";
+import { computedInsuranceMonthly } from "./insurance";
+import { computedIlpMonthly } from "./ilp";
 import { formatMonthLabel } from "./helpers";
 import { stableTakeHome } from "./income";
 import { loanLoadForMonth } from "./loanLoad";
@@ -21,7 +24,7 @@ export type MonthRow = {
 export { loanLoadForMonth } from "./loanLoad";
 
 export function insMonthly(S: DashboardState): number {
-  return S.eci + S.tpd + S.acc;
+  return computedInsuranceMonthly(S);
 }
 
 function addMonths(ym: string, n: number): string {
@@ -40,6 +43,8 @@ export function buildMonths(
   const income = stableTakeHome(S);
   const fixed = budgetFixedTotal(S);
   const spend = budgetSpendTotal(S);
+  const ilpPrem = computedIlpMonthly(S);
+  const insurance = computedInsuranceMonthly(S);
   const months = Array.from({ length: count }, (_, i) => {
     const ym = addMonths(startYm, i);
     return {
@@ -52,10 +57,10 @@ export function buildMonths(
     };
   });
 
-  let running = S.cash;
+  let running = cashAccountsTotal(S);
   return months.map((o) => {
     const loans = loanLoadForMonth(S.loans, o.ym);
-    const net = o.income - o.fixed - o.spend - loans;
+    const net = o.income - o.fixed - o.spend - loans - ilpPrem - insurance;
     running += net;
     return { ...o, loans, net, running };
   });

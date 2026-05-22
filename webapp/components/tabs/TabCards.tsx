@@ -102,7 +102,7 @@ export function TabCards({ state: S, setState }: Props) {
         <div className="stat">
           <div className="lbl">Salary credit day</div>
           <div className="val">Day {S.salaryCreditDay}</div>
-          <div className="note">Edit on Edit Inputs tab</div>
+          <div className="note">Salary on ME tab</div>
         </div>
       </div>
 
