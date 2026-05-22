@@ -5,6 +5,7 @@ import { migrateIlpPolicies } from "./ilp";
 import { migrateAccounts } from "./accounts";
 import { migrateHoldings } from "./wealth";
 import { normalizeCreditCard } from "./card-rewards";
+import { getDummyEnrichment } from "./dummy-data";
 import { currentYm } from "./helpers";
 
 /** Blank slate — used for reset and when no saved data exists. */
@@ -38,15 +39,21 @@ export function createEmptyState(): DashboardState {
   };
 }
 
-/** Sample dashboard for demos / local testing — merges DEFAULTS through migrations. */
+/** Sample dashboard for demos / local testing — full data across all tabs. */
 export function createDummyState(): DashboardState {
-  const dummy = mergeWithDefaults(structuredClone(DEFAULTS));
+  const dummy = mergeWithDefaults({
+    ...structuredClone(DEFAULTS),
+    ...getDummyEnrichment(),
+  });
   dummy.cashflowStartYm = currentYm();
-  console.log("[createDummyState] loaded dummy dashboard", {
+  dummy.creditCards = dummy.creditCards.map((c) => normalizeCreditCard(c));
+  console.log("[createDummyState] loaded full dummy dashboard", {
     monthlySal: dummy.monthlySal,
     creditCards: dummy.creditCards.length,
     loans: dummy.loans.length,
     holdings: dummy.holdings.length,
+    portfolioHistory: dummy.portfolioHistory.length,
+    btoPlanner: Boolean(dummy.btoPlanner),
   });
   return dummy;
 }
@@ -86,7 +93,6 @@ export const DEFAULTS: DashboardState = {
       funds: "",
       freeFundSwitchesPerYear: 2,
       notes: "",
-      valueHistory: [],
     },
   ],
   portfolioHistory: [],
@@ -296,6 +302,7 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
     ilpPolicies: migrateIlpPolicies(saved),
     insurancePolicies: migrateInsurancePolicies(saved),
     accounts: migrateAccounts(saved),
+    btoPlanner: saved.btoPlanner,
   };
   console.log("[mergeWithDefaults] merged state", {
     monthlySal: merged.monthlySal,

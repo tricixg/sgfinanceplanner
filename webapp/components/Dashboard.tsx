@@ -200,7 +200,7 @@ export function Dashboard() {
           <TabYear state={state} />
         </div>
         <div style={{ display: active === "bto" ? "block" : "none" }}>
-          <TabBTO state={state} />
+          <TabBTO state={state} setState={setState} />
         </div>
         <div style={{ display: active === "me" ? "block" : "none" }}>
           <TabMe

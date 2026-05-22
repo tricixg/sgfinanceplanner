@@ -1,89 +1,102 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { DashboardState } from "@/lib/types";
+import type { BtoPlannerPrefs, DashboardState } from "@/lib/types";
 import {
   BTO_SCHEME_DEFS,
   calcEhgFamilyGrant,
   buildBTOTimeline,
   computeBTO,
-  currentYm,
-  defaultBTOSchemes,
+  defaultBtoPlannerPrefs,
   enabledSchemeRows,
   schemeComputedAmount,
   type BTOSchemeId,
-  type BTOSchemeSelection,
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 
-type Props = { state: DashboardState };
+type Props = {
+  state: DashboardState;
+  setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
+};
 
-export function TabBTO({ state: S }: Props) {
-  const [price, setPrice] = useState(580000);
-  const [ltv, setLtv] = useState(75);
-  const [rate, setRate] = useState(2.6);
-  const [tenure, setTenure] = useState(25);
-  const [yrsToKeys, setYrsToKeys] = useState(4);
-  const [applicationYm, setApplicationYm] = useState(currentYm);
-  const [tSal, setTSal] = useState(S.monthlySal || 6500);
-  const [pSal, setPSal] = useState(4300);
-  const [pOA, setPOA] = useState(14575);
-  const [schemes, setSchemes] = useState<BTOSchemeSelection>(defaultBTOSchemes);
+function resolveBtoPrefs(S: DashboardState): BtoPlannerPrefs {
+  return (
+    S.btoPlanner ??
+    defaultBtoPlannerPrefs({ monthlySal: S.monthlySal, oa: S.oa })
+  );
+}
+
+export function TabBTO({ state: S, setState }: Props) {
+  const p = resolveBtoPrefs(S);
   const [editingSchemes, setEditingSchemes] = useState(false);
   const [editingCalc, setEditingCalc] = useState(false);
+
+  const updatePrefs = (patch: Partial<BtoPlannerPrefs>) => {
+    setState((prev) => {
+      const next = { ...resolveBtoPrefs(prev), ...patch };
+      console.log("[TabBTO] updated prefs", patch);
+      return { ...prev, btoPlanner: next };
+    });
+  };
 
   const b = useMemo(
     () =>
       computeBTO({
-        price,
-        ltv,
-        rate,
-        tenure,
-        yrsToKeys,
-        schemes,
-        tSal,
-        pSal,
-        pOA,
+        price: p.price,
+        ltv: p.ltv,
+        rate: p.rate,
+        tenure: p.tenure,
+        yrsToKeys: p.yrsToKeys,
+        schemes: p.schemes,
+        tSal: p.tSal,
+        pSal: p.pSal,
+        pOA: p.pOA,
         tOA: S.oa,
       }),
-    [price, ltv, rate, tenure, yrsToKeys, schemes, tSal, pSal, pOA, S.oa]
+    [p, S.oa]
   );
 
   const activeSchemes = useMemo(
-    () => enabledSchemeRows(schemes, { tSal, pSal }),
-    [schemes, tSal, pSal]
+    () => enabledSchemeRows(p.schemes, { tSal: p.tSal, pSal: p.pSal }),
+    [p.schemes, p.tSal, p.pSal]
   );
 
-  const householdIncome = tSal + pSal;
+  const householdIncome = p.tSal + p.pSal;
 
   const toggleScheme = (id: BTOSchemeId, enabled: boolean) => {
-    setSchemes((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], enabled },
-    }));
+    updatePrefs({
+      schemes: {
+        ...p.schemes,
+        [id]: { ...p.schemes[id], enabled },
+      },
+    });
     console.log("[TabBTO] scheme toggled", id, enabled);
   };
 
   const setSchemeOverride = (id: BTOSchemeId, amount: number | null) => {
-    setSchemes((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], amountOverride: amount },
-    }));
+    updatePrefs({
+      schemes: {
+        ...p.schemes,
+        [id]: { ...p.schemes[id], amountOverride: amount },
+      },
+    });
     console.log("[TabBTO] scheme amount override", id, amount);
   };
 
   const resetSchemeAmount = (id: BTOSchemeId) => {
-    setSchemes((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], amountOverride: null },
-    }));
+    updatePrefs({
+      schemes: {
+        ...p.schemes,
+        [id]: { ...p.schemes[id], amountOverride: null },
+      },
+    });
     console.log("[TabBTO] scheme amount reset", id);
   };
 
   const timelineDates = useMemo(
-    () => buildBTOTimeline(applicationYm, yrsToKeys),
-    [applicationYm, yrsToKeys]
+    () => buildBTOTimeline(p.applicationYm, p.yrsToKeys),
+    [p.applicationYm, p.yrsToKeys]
   );
 
   const timeline = useMemo(
@@ -136,8 +149,8 @@ export function TabBTO({ state: S }: Props) {
 
       <div className="card bto-schemes-card">
         {BTO_SCHEME_DEFS.map((def) => {
-          const sel = schemes[def.id];
-          const computed = schemeComputedAmount(def.id, { tSal, pSal });
+          const sel = p.schemes[def.id];
+          const computed = schemeComputedAmount(def.id, { tSal: p.tSal, pSal: p.pSal });
           const amount = sel.enabled
             ? sel.amountOverride != null
               ? sel.amountOverride
@@ -267,44 +280,44 @@ export function TabBTO({ state: S }: Props) {
               Flat price (list)
               <input
                 type="number"
-                value={price}
+                value={p.price}
                 step={10000}
-                onChange={(e) => setPrice(+e.target.value)}
+                onChange={(e) => updatePrefs({ price: +e.target.value })}
               />
             </label>
             <label className="bto-field">
               HDB loan LTV %
               <input
                 type="number"
-                value={ltv}
+                value={p.ltv}
                 step={5}
-                onChange={(e) => setLtv(+e.target.value)}
+                onChange={(e) => updatePrefs({ ltv: +e.target.value })}
               />
             </label>
             <label className="bto-field">
               Loan interest % p.a.
               <input
                 type="number"
-                value={rate}
+                value={p.rate}
                 step={0.1}
-                onChange={(e) => setRate(+e.target.value)}
+                onChange={(e) => updatePrefs({ rate: +e.target.value })}
               />
             </label>
             <label className="bto-field">
               Tenure (years)
               <input
                 type="number"
-                value={tenure}
-                onChange={(e) => setTenure(+e.target.value)}
+                value={p.tenure}
+                onChange={(e) => updatePrefs({ tenure: +e.target.value })}
               />
             </label>
             <label className="bto-field">
               BTO application month
               <input
                 type="month"
-                value={applicationYm}
+                value={p.applicationYm}
                 onChange={(e) => {
-                  setApplicationYm(e.target.value);
+                  updatePrefs({ applicationYm: e.target.value });
                   console.log("[TabBTO] application month", e.target.value);
                 }}
               />
@@ -313,36 +326,36 @@ export function TabBTO({ state: S }: Props) {
               Years to keys
               <input
                 type="number"
-                value={yrsToKeys}
+                value={p.yrsToKeys}
                 step={0.5}
-                onChange={(e) => setYrsToKeys(+e.target.value)}
+                onChange={(e) => updatePrefs({ yrsToKeys: +e.target.value })}
               />
             </label>
             <label className="bto-field">
               Your salary / mo
               <input
                 type="number"
-                value={tSal}
+                value={p.tSal}
                 step={100}
-                onChange={(e) => setTSal(+e.target.value)}
+                onChange={(e) => updatePrefs({ tSal: +e.target.value })}
               />
             </label>
             <label className="bto-field">
               Partner salary / mo
               <input
                 type="number"
-                value={pSal}
+                value={p.pSal}
                 step={100}
-                onChange={(e) => setPSal(+e.target.value)}
+                onChange={(e) => updatePrefs({ pSal: +e.target.value })}
               />
             </label>
             <label className="bto-field">
               Partner CPF OA now
               <input
                 type="number"
-                value={pOA}
+                value={p.pOA}
                 step={100}
-                onChange={(e) => setPOA(+e.target.value)}
+                onChange={(e) => updatePrefs({ pOA: +e.target.value })}
               />
             </label>
           </div>

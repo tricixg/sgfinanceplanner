@@ -432,8 +432,9 @@ export function TabMe({
       <h2>Settings</h2>
       <div className="card">
         <p className="note" style={{ marginTop: 0 }}>
-          Export or import your full dashboard JSON. Dummy data fills salary, accounts,
-          budget, loans, cards, holdings, CPF, and goals for trying the app.
+          Export or import your full dashboard JSON. Dummy data fills every tab — salary,
+          accounts, budget, goals, loans, cards (with catalog rewards), holdings (SGX + US),
+          portfolio history, CPF, BTO planner, and more.
         </p>
         <div className="toolbar">
           <button type="button" className="btn" onClick={onApply}>

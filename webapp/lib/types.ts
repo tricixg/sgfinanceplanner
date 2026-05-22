@@ -1,3 +1,5 @@
+import type { BTOSchemeSelection } from "./finance/bto-schemes";
+
 export type Loan = {
   name: string;
   card: string;
@@ -42,11 +44,6 @@ export type Holding = {
   sector: string;
 };
 
-export type IlpValueSnapshot = {
-  recordedAt: string;
-  accountValue: number;
-};
-
 export type PortfolioSnapshot = {
   recordedAt: string;
   totalValue: number;
@@ -76,7 +73,6 @@ export type IlpPolicy = {
   funds: string;
   freeFundSwitchesPerYear: number;
   notes: string;
-  valueHistory: IlpValueSnapshot[];
 };
 
 /** Non-ILP insurance (term, PA, CI, etc.) — premiums flow to Budget & Savings. */
@@ -109,6 +105,20 @@ export type Goal = {
   where: string;
 };
 
+/** Persisted BTO Planner inputs (schemes, salaries, flat assumptions). */
+export type BtoPlannerPrefs = {
+  price: number;
+  ltv: number;
+  rate: number;
+  tenure: number;
+  yrsToKeys: number;
+  applicationYm: string;
+  tSal: number;
+  pSal: number;
+  pOA: number;
+  schemes: BTOSchemeSelection;
+};
+
 export type DashboardState = {
   monthlySal: number;
   comms: number;
@@ -130,4 +140,5 @@ export type DashboardState = {
   goals: Goal[];
   loans: Loan[];
   creditCards: CreditCard[];
+  btoPlanner?: BtoPlannerPrefs;
 };

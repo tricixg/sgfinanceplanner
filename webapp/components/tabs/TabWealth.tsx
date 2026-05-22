@@ -12,9 +12,9 @@ import {
   lockInStatus,
   portfolioTotals,
   portfolioValue,
+  ilpProfit,
   wealthSummary,
 } from "@/lib/finance";
-import { ilpProfit } from "@/lib/finance/ilp-history";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -225,8 +225,8 @@ export function TabWealth({ state: S, setState }: Props) {
         <span className="ico">Tip</span>
         Enter holdings with ticker, market (SGX/US), qty, and <b>avg cost</b>. Use{" "}
         <b>Refresh prices</b> loads live quotes from Yahoo (SGX <code>.SI</code>, US tickers).
-        ILP account value
-        updates build a profit history chart. Net worth is on <b>This Month</b>.
+        Update ILP <b>account value</b> when you get statements; estimated profit uses
+        current value vs premiums paid. Net worth is on <b>This Month</b>.
       </div>
 
       <div className="grid g3">

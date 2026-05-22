@@ -1,3 +1,4 @@
+import type { BtoPlannerPrefs } from "@/lib/types";
 import { addMonthsYm } from "./calendar";
 import { cpfOAmonthly } from "./cpf";
 import {
@@ -5,7 +6,7 @@ import {
   totalHousingGrants,
   type BTOSchemeSelection,
 } from "./bto-schemes";
-import { fmt, formatMonthLabel } from "./helpers";
+import { currentYm, fmt, formatMonthLabel } from "./helpers";
 
 export type BTOInputs = {
   price: number;
@@ -21,6 +22,31 @@ export type BTOInputs = {
 };
 
 export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
+
+export function defaultBtoPlannerPrefs(opts: {
+  monthlySal: number;
+  oa: number;
+  existing?: BtoPlannerPrefs;
+}): BtoPlannerPrefs {
+  if (opts.existing) return opts.existing;
+  return {
+    price: 580000,
+    ltv: 75,
+    rate: 2.6,
+    tenure: 25,
+    yrsToKeys: 4,
+    applicationYm: currentYm(),
+    tSal: opts.monthlySal || 6500,
+    pSal: 4300,
+    pOA: 14575,
+    schemes: {
+      ...defaultBTOSchemes(),
+      ehg: { enabled: true, amountOverride: null },
+      family: { enabled: true, amountOverride: null },
+      step_up: { enabled: true, amountOverride: null },
+    },
+  };
+}
 
 /** Payment timeline labels from BTO application month and years to keys. */
 export function buildBTOTimeline(applicationYm: string, yrsToKeys: number) {

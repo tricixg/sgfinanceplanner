@@ -1,8 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULTS } from "./defaults";
 import type { DashboardState } from "@/lib/types";
-import { ilpValueByLock } from "./ilp";
+import {
+  defaultIlpPolicy,
+  estimatedNetPremiumsPaid,
+  estimatedPremiumsPaid,
+  ilpProfit,
+  ilpValueByLock,
+} from "./ilp";
 import { wealthSummary } from "./wealth";
+
+describe("ilp premiums and profit", () => {
+  it("estimates premiums from policy start", () => {
+    const p = {
+      ...defaultIlpPolicy(),
+      policyStartYm: "2026-01",
+      monthlyPremium: 300,
+    };
+    expect(estimatedPremiumsPaid(p, "2026-06")).toBe(300 * 6);
+  });
+
+  it("ilpProfit is value minus net premiums", () => {
+    const p = {
+      ...defaultIlpPolicy(),
+      policyStartYm: "2026-01",
+      monthlyPremium: 300,
+      accountValue: 5000,
+    };
+    expect(ilpProfit(p, "2026-06")).toBe(5000 - 1800);
+  });
+
+  it("initialBonus reduces net premiums for profit", () => {
+    const p = {
+      ...defaultIlpPolicy(),
+      policyStartYm: "2026-01",
+      monthlyPremium: 300,
+      initialBonus: 500,
+      accountValue: 5000,
+    };
+    expect(estimatedNetPremiumsPaid(p, "2026-06")).toBe(1300);
+    expect(ilpProfit(p, "2026-06")).toBe(3700);
+  });
+});
 
 describe("ilpValueByLock", () => {
   it("treats policies past lock-in end as spendable", () => {

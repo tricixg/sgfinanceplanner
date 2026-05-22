@@ -1,6 +1,6 @@
 import type { DashboardState, IlpPolicy } from "@/lib/types";
-import { migrateIlpValueHistory } from "./ilp-history";
 import { currentYm, monIdx } from "./helpers";
+import { todayDateStr } from "./holdings";
 
 export const COMPUTED_ILP_LABEL = "ILP premiums (from Investment)";
 
@@ -22,8 +22,32 @@ export function defaultIlpPolicy(): IlpPolicy {
     funds: "",
     freeFundSwitchesPerYear: 2,
     notes: "",
-    valueHistory: [],
   };
+}
+
+export function estimatedPremiumsPaid(
+  policy: IlpPolicy,
+  asOfYm?: string
+): number {
+  if (!policy.policyStartYm || policy.monthlyPremium <= 0) return 0;
+  const endIdx = asOfYm ? monIdx(asOfYm) : monIdx(todayDateStr().slice(0, 7));
+  const startIdx = monIdx(policy.policyStartYm);
+  const months = Math.max(0, endIdx - startIdx + 1);
+  return months * policy.monthlyPremium;
+}
+
+/** Premiums paid minus one-off start bonus (floor at 0). */
+export function estimatedNetPremiumsPaid(
+  policy: IlpPolicy,
+  asOfYm?: string
+): number {
+  const gross = estimatedPremiumsPaid(policy, asOfYm);
+  const bonus = policy.initialBonus ?? 0;
+  return Math.max(0, gross - bonus);
+}
+
+export function ilpProfit(policy: IlpPolicy, asOfYm?: string): number {
+  return policy.accountValue - estimatedNetPremiumsPaid(policy, asOfYm);
 }
 
 export function ilpTotalValue(S: DashboardState): number {
@@ -84,7 +108,7 @@ type LegacyIlpSaved = {
 
 function normalizePolicy(raw: Partial<IlpPolicy>): IlpPolicy {
   const base = defaultIlpPolicy();
-  const merged: IlpPolicy = {
+  return {
     ...base,
     ...raw,
     premiumType: raw.premiumType === "single" ? "single" : "regular",
@@ -103,9 +127,7 @@ function normalizePolicy(raw: Partial<IlpPolicy>): IlpPolicy {
       typeof raw.freeFundSwitchesPerYear === "number"
         ? raw.freeFundSwitchesPerYear
         : 2,
-    valueHistory: Array.isArray(raw.valueHistory) ? raw.valueHistory : [],
   };
-  return migrateIlpValueHistory(merged);
 }
 
 export function migrateIlpPolicies(saved: LegacyIlpSaved): IlpPolicy[] {
