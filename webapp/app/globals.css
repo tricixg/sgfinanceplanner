@@ -886,7 +886,7 @@ footer {
 
 .cal-weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
   margin-bottom: 4px;
   font-family: "SF Mono", ui-monospace, monospace;
@@ -899,16 +899,23 @@ footer {
 
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
 }
 
 .cal-day {
-  min-height: 88px;
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
   background: var(--card);
   border: 1px solid var(--line);
   padding: 6px 5px;
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 .cal-day.out {
   background: transparent;
@@ -919,6 +926,7 @@ footer {
   box-shadow: inset 0 0 0 1px var(--moss);
 }
 .cal-day-num {
+  flex-shrink: 0;
   font-family: "SF Mono", ui-monospace, monospace;
   font-size: 11px;
   color: var(--muted);
@@ -926,14 +934,17 @@ footer {
 }
 .cal-event {
   display: block;
+  flex-shrink: 0;
   font-size: 10px;
   line-height: 1.25;
   padding: 2px 4px;
   margin-bottom: 2px;
   border-radius: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  max-width: 100%;
 }
 .cal-event.salary {
   background: rgba(47, 93, 58, 0.15);
