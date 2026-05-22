@@ -38,6 +38,19 @@ export function createEmptyState(): DashboardState {
   };
 }
 
+/** Sample dashboard for demos / local testing — merges DEFAULTS through migrations. */
+export function createDummyState(): DashboardState {
+  const dummy = mergeWithDefaults(structuredClone(DEFAULTS));
+  dummy.cashflowStartYm = currentYm();
+  console.log("[createDummyState] loaded dummy dashboard", {
+    monthlySal: dummy.monthlySal,
+    creditCards: dummy.creditCards.length,
+    loans: dummy.loans.length,
+    holdings: dummy.holdings.length,
+  });
+  return dummy;
+}
+
 /** Sample data for unit tests only — not used for reset or initial load. */
 export const DEFAULTS: DashboardState = {
   monthlySal: 6500,

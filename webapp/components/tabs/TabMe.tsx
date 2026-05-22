@@ -8,7 +8,7 @@ import {
   defaultInsurancePolicy,
   defaultSavingsAccount,
 } from "@/lib/finance";
-import { mergeWithDefaults } from "@/lib/finance/defaults";
+import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 
 type Props = {
@@ -114,6 +114,21 @@ export function TabMe({
     a.href = URL.createObjectURL(blob);
     a.download = "financial_dashboard_data.json";
     a.click();
+  };
+
+  const loadDummyData = () => {
+    if (
+      !confirm(
+        "Replace all current data with sample dummy data? You can still Reset or Import JSON to undo."
+      )
+    ) {
+      console.log("[TabMe] add dummy data cancelled");
+      return;
+    }
+    setState(createDummyState());
+    onSaveNow();
+    onApply();
+    console.log("[TabMe] loaded dummy data");
   };
 
   const importJSON = (file: File) => {
@@ -414,34 +429,44 @@ export function TabMe({
         </div>
       </div>
 
-      <div className="toolbar">
-        <button className="btn" onClick={onApply}>
-          Apply &amp; refresh
-        </button>
-        <button className="btn ghost" onClick={onSaveNow}>
-          Save now
-        </button>
-        <button className="btn ghost" onClick={exportJSON}>
-          Export JSON
-        </button>
-        <button className="btn ghost" onClick={() => fileRef.current?.click()}>
-          Import JSON
-        </button>
-        <button className="btn del" onClick={onReset}>
-          Reset all to zero
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".json"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) importJSON(f);
-            e.target.value = "";
-          }}
-        />
-        <span className="save-status">{saveMsg}</span>
+      <h2>Settings</h2>
+      <div className="card">
+        <p className="note" style={{ marginTop: 0 }}>
+          Export or import your full dashboard JSON. Dummy data fills salary, accounts,
+          budget, loans, cards, holdings, CPF, and goals for trying the app.
+        </p>
+        <div className="toolbar">
+          <button type="button" className="btn" onClick={onApply}>
+            Apply &amp; refresh
+          </button>
+          <button type="button" className="btn ghost" onClick={onSaveNow}>
+            Save now
+          </button>
+          <button type="button" className="btn ghost" onClick={exportJSON}>
+            Export JSON
+          </button>
+          <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
+            Import JSON
+          </button>
+          <button type="button" className="btn ghost" onClick={loadDummyData}>
+            Add dummy data
+          </button>
+          <button type="button" className="btn del" onClick={onReset}>
+            Reset all to zero
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importJSON(f);
+              e.target.value = "";
+            }}
+          />
+          <span className="save-status">{saveMsg}</span>
+        </div>
       </div>
     </section>
   );
