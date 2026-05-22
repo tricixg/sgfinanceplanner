@@ -23,7 +23,7 @@ export function usePersistedState() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/state");
+      const res = await fetch("/api/state", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load");
       const json = await res.json();
       const merged = mergeWithDefaults(json.data ?? {});
@@ -62,6 +62,7 @@ export function usePersistedState() {
       try {
         const res = await fetch("/api/state", {
           method: "PUT",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: next }),
         });

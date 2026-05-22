@@ -862,6 +862,48 @@ footer {
   font-style: italic;
 }
 
+.pin-screen {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 48px;
+}
+
+.pin-card {
+  max-width: 380px;
+  width: 100%;
+}
+
+.pin-title {
+  font-size: 32px;
+  margin: 8px 0 4px;
+}
+
+.pin-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.pin-label input {
+  font-size: 22px;
+  letter-spacing: 0.2em;
+  text-align: center;
+  padding: 12px;
+}
+
+.pin-error {
+  color: var(--rust);
+  font-size: 13px;
+  margin: -6px 0 12px;
+}
+
 .save-status {
   font-size: 12px;
   color: var(--moss);

@@ -152,7 +152,7 @@ export function TabMe({
         Your salary, savings accounts, and non-ILP insurance live here. Account balances
         total <b>{fmt(cashTotal)}</b> (used for net worth and cashflow). Insurance premiums
         total <b>{fmt(insuranceTotal)}/mo</b> and flow to <b>Budget &amp; Savings</b>. CPF is on{" "}
-        <b>CPF Outlook</b>; ILP is on <b>Investment</b>. Changes auto-save when configured.
+        <b>CPF Outlook</b>; ILP is on <b>Investment</b>. Changes auto-save to Supabase and this browser.
       </div>
 
       <h2>Salary</h2>
@@ -468,6 +468,22 @@ export function TabMe({
           />
           <span className="save-status">{saveMsg}</span>
         </div>
+        <p className="note" style={{ marginTop: 14, marginBottom: 0 }}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={async () => {
+              await fetch("/api/auth/pin", {
+                method: "DELETE",
+                credentials: "include",
+              });
+              window.location.reload();
+              console.log("[TabMe] locked app");
+            }}
+          >
+            Lock app (require PIN again)
+          </button>
+        </p>
       </div>
     </section>
   );

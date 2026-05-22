@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isUnlockedRequest } from "@/lib/auth/pin";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { isValidDashboardState } from "@/lib/validate-state";
@@ -11,7 +12,16 @@ function checkWriteSecret(req: NextRequest): boolean {
   return req.headers.get("x-dashboard-secret") === secret;
 }
 
-export async function GET() {
+async function requirePin(req: NextRequest) {
+  if (!(await isUnlockedRequest(req))) {
+    return NextResponse.json({ error: "PIN required" }, { status: 401 });
+  }
+  return null;
+}
+
+export async function GET(req: NextRequest) {
+  const denied = await requirePin(req);
+  if (denied) return denied;
   if (!isSupabaseConfigured()) {
     console.info("[api/state] GET — Supabase not configured, returning defaults");
     return NextResponse.json({
@@ -58,6 +68,9 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const denied = await requirePin(req);
+  if (denied) return denied;
+
   if (!checkWriteSecret(req)) {
     console.warn("[api/state] PUT rejected — invalid secret");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -29,6 +29,8 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
    | `SUPABASE_SERVICE_ROLE_KEY` | service_role (server only) |
+   | `DASHBOARD_PIN` | PIN to unlock the app (min 4 chars) |
+   | `SESSION_SECRET` | Random string to sign the unlock cookie |
 
    Optional branding:
 
@@ -53,7 +55,11 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    npm run dev
    ```
 
-   Without Supabase configured, the app still runs using default sample data and browser `localStorage` fallback.
+   Without Supabase configured, the app still runs using browser `localStorage` fallback. Without `DASHBOARD_PIN`, the PIN screen is skipped (local dev only).
+
+## PIN protection
+
+Set `DASHBOARD_PIN` and `SESSION_SECRET` on Vercel. Visitors must enter the PIN before the dashboard or APIs load. Data continues to auto-save to Supabase (single `dashboard_state` row) while you are unlocked.
 
 5. **Tests**
 
