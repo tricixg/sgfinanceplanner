@@ -1,4 +1,9 @@
 import { cpfOAmonthly } from "./cpf";
+import {
+  defaultBTOSchemes,
+  totalHousingGrants,
+  type BTOSchemeSelection,
+} from "./bto-schemes";
 import { fmt } from "./helpers";
 
 export type BTOInputs = {
@@ -7,12 +12,14 @@ export type BTOInputs = {
   rate: number;
   tenure: number;
   yrsToKeys: number;
-  ehg: number;
+  schemes: BTOSchemeSelection;
   tSal: number;
   pSal: number;
   pOA: number;
   tOA: number;
 };
+
+export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
 
 export function calcBSD(price: number): number {
   let p = price;

@@ -9,7 +9,9 @@ import {
   getCalendarEvents,
   totalStatementAmount,
 } from "@/lib/finance/calendar";
+import { netWorthSlices, netWorthTotal, wealthSummary } from "@/lib/finance";
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { ChartBox } from "@/components/ChartBox";
 
 type Props = { state: DashboardState };
 
@@ -17,8 +19,12 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function TabThisMonth({ state: S }: Props) {
   const [viewYm, setViewYm] = useState(currentYm);
+  const [includeCpf, setIncludeCpf] = useState(false);
   const todayYm = currentYm();
   const todayDay = new Date().getDate();
+  const { liab, lnw } = wealthSummary(S);
+  const totalNw = netWorthTotal(S, includeCpf);
+  const nwSlices = netWorthSlices(S, includeCpf);
 
   const events = useMemo(
     () => getCalendarEvents(S, viewYm),
@@ -32,30 +38,68 @@ export function TabThisMonth({ state: S }: Props) {
 
   return (
     <section className="panel on">
-      <div className="cal-nav">
-        <button
-          type="button"
-          className="btn ghost sm"
-          onClick={() => setViewYm((v) => addMonthsYm(v, -1))}
-        >
-          Prev
-        </button>
-        <h2>{formatMonthLabel(viewYm)}</h2>
-        <button
-          type="button"
-          className="btn ghost sm"
-          onClick={() => setViewYm((v) => addMonthsYm(v, 1))}
-        >
-          Next
-        </button>
-        {viewYm !== todayYm && (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => setViewYm(todayYm)}
-          >
-            Today
-          </button>
+      <h2>Net worth</h2>
+      <div className="card net-worth-card" style={{ marginBottom: 16 }}>
+        <label className="ctrl">
+          <input
+            type="checkbox"
+            checked={includeCpf}
+            onChange={(e) => {
+              setIncludeCpf(e.target.checked);
+              console.log("[TabThisMonth] include CPF", e.target.checked);
+            }}
+          />
+          Include CPF in total net worth
+        </label>
+        <div className="net-worth-total">
+          <div className="lbl">Total net worth</div>
+          <div className="val">{fmt(totalNw)}</div>
+          <div className="note">
+            {includeCpf ? "Includes CPF" : "Excludes CPF"} · liquid {fmt(lnw)} · debt deducted (
+            {fmt(liab)})
+          </div>
+        </div>
+        {nwSlices.length > 0 ? (
+          <ChartBox
+            type="pie"
+            height={280}
+            data={{
+              labels: nwSlices.map((s) => s.label),
+              datasets: [
+                {
+                  data: nwSlices.map((s) => s.value),
+                  backgroundColor: nwSlices.map((s) => s.color),
+                  borderWidth: 2,
+                  borderColor: "#faf7ef",
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: true,
+                  position: "bottom",
+                  labels: { boxWidth: 12, padding: 14 },
+                },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => {
+                      const v = Number(ctx.raw);
+                      const sum = nwSlices.reduce((s, x) => s + x.value, 0);
+                      const pct = sum > 0 ? ((v / sum) * 100).toFixed(1) : "0";
+                      return ` ${fmt(v)} (${pct}%)`;
+                    },
+                  },
+                },
+              },
+            }}
+          />
+        ) : (
+          <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
+            Add holdings on Investment, savings accounts on ME, or CPF on CPF Outlook.
+          </p>
         )}
       </div>
 
@@ -76,6 +120,32 @@ export function TabThisMonth({ state: S }: Props) {
       </div>
 
       <div className="card">
+        <div className="cal-nav cal-nav--in-card">
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => setViewYm((v) => addMonthsYm(v, -1))}
+          >
+            Prev
+          </button>
+          <h2>{formatMonthLabel(viewYm)}</h2>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => setViewYm((v) => addMonthsYm(v, 1))}
+          >
+            Next
+          </button>
+          {viewYm !== todayYm && (
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setViewYm(todayYm)}
+            >
+              Today
+            </button>
+          )}
+        </div>
         <div className="cal-weekdays">
           {WEEKDAYS.map((d) => (
             <span key={d}>{d}</span>

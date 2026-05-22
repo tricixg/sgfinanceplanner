@@ -8,13 +8,10 @@ import {
   defaultIlpPolicy,
   lockInLabel,
   lockInStatus,
-  netWorthSlices,
-  netWorthTotal,
   portfolioValue,
   wealthSummary,
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
-import { ChartBox } from "@/components/ChartBox";
 
 type Props = {
   state: DashboardState;
@@ -43,10 +40,7 @@ function NumInput({
 export function TabWealth({ state: S, setState }: Props) {
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
-  const [includeCpf, setIncludeCpf] = useState(false);
-  const { port, invTotal, liab, lnw, cpf, cash, ilpVal, ilpLocked } = wealthSummary(S);
-  const totalNw = netWorthTotal(S, includeCpf);
-  const nwSlices = netWorthSlices(S, includeCpf);
+  const { port, invTotal, cash, ilpVal, ilpLocked } = wealthSummary(S);
   const ilpPrem = computedIlpMonthly(S);
   const holdings = [...S.holdings].sort((a, b) => b.qty * b.price - a.qty * a.price);
 
@@ -111,17 +105,12 @@ export function TabWealth({ state: S, setState }: Props) {
         <span className="ico">Tip</span>
         Edit stock holdings below — portfolio value is calculated from qty × price. Configure ILP
         plans here; premiums flow to <b>Budget &amp; Savings</b> automatically. Cash is the sum of
-        savings account balances on <b>ME</b>. Changes auto-save
-        to Supabase.
+        savings account balances on <b>ME</b>. Net worth is on <b>This Month</b>. Changes
+        auto-save to Supabase.
       </div>
 
-      <div className="grid g4">
+      <div className="grid g3">
         <div className="stat accent">
-          <div className="lbl">Net worth (excl. CPF)</div>
-          <div className="val">{fmt(lnw)}</div>
-          <div className="note">After debt · edit CPF on CPF Outlook tab</div>
-        </div>
-        <div className="stat">
           <div className="lbl">Total investment assets</div>
           <div className="val">{fmt(invTotal)}</div>
           <div className="note">Holdings + ILP account value</div>
@@ -138,70 +127,6 @@ export function TabWealth({ state: S, setState }: Props) {
           <div className="val">{fmt(ilpPrem)}</div>
           <div className="note">Shown on Budget tab (auto)</div>
         </div>
-      </div>
-
-      <h2>Net worth</h2>
-      <div className="card net-worth-card">
-        <label className="ctrl">
-          <input
-            type="checkbox"
-            checked={includeCpf}
-            onChange={(e) => {
-              setIncludeCpf(e.target.checked);
-              console.log("[TabWealth] include CPF", e.target.checked);
-            }}
-          />
-          Include CPF in total net worth
-        </label>
-        <div className="net-worth-total">
-          <div className="lbl">Total net worth</div>
-          <div className="val">{fmt(totalNw)}</div>
-          <div className="note">
-            {includeCpf ? "Includes CPF" : "Excludes CPF"} · debt deducted ({fmt(liab)})
-          </div>
-        </div>
-        {nwSlices.length > 0 ? (
-          <ChartBox
-            type="pie"
-            height={280}
-            data={{
-              labels: nwSlices.map((s) => s.label),
-              datasets: [
-                {
-                  data: nwSlices.map((s) => s.value),
-                  backgroundColor: nwSlices.map((s) => s.color),
-                  borderWidth: 2,
-                  borderColor: "#faf7ef",
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  display: true,
-                  position: "bottom",
-                  labels: { boxWidth: 12, padding: 14 },
-                },
-                tooltip: {
-                  callbacks: {
-                    label: (ctx) => {
-                      const v = Number(ctx.raw);
-                      const sum = nwSlices.reduce((s, x) => s + x.value, 0);
-                      const pct = sum > 0 ? ((v / sum) * 100).toFixed(1) : "0";
-                      return ` ${fmt(v)} (${pct}%)`;
-                    },
-                  },
-                },
-              },
-            }}
-          />
-        ) : (
-          <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-            Add holdings, ILP, cash goals, or CPF to see the breakdown.
-          </p>
-        )}
       </div>
 
       <div className="section-head">

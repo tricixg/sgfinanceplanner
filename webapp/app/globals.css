@@ -628,6 +628,11 @@ footer {
 .cal-nav .btn {
   min-width: 72px;
 }
+.cal-nav--in-card {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
 
 .cal-weekdays {
   display: grid;
