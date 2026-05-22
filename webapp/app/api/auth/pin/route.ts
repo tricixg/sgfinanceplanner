@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  clearPinCookieOnResponse,
   createSessionToken,
   isPinProtectionEnabled,
   isUnlockedRequest as checkUnlocked,
@@ -41,8 +43,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE() {
+  const jar = await cookies();
+  jar.delete(PIN_COOKIE);
+
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(PIN_COOKIE, "", { ...pinCookieOptions(), maxAge: 0 });
-  console.info("[api/auth/pin] DELETE — signed out");
+  clearPinCookieOnResponse(res);
+  console.info("[api/auth/pin] DELETE — session cleared");
   return res;
 }

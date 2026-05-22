@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { consumeForceLock } from "@/lib/auth/pin-client";
 import { Dashboard } from "@/components/Dashboard";
 
 export function PinGate() {
@@ -13,6 +14,12 @@ export function PinGate() {
 
   const checkSession = useCallback(async () => {
     setChecking(true);
+    if (consumeForceLock()) {
+      setEnabled(true);
+      setUnlocked(false);
+      setChecking(false);
+      return;
+    }
     try {
       const res = await fetch("/api/auth/pin", { credentials: "include" });
       const json = await res.json();
@@ -78,7 +85,7 @@ export function PinGate() {
         <div className="kicker">Private dashboard</div>
         <h1 className="pin-title">Enter PIN</h1>
         <p className="sub" style={{ marginBottom: 20 }}>
-          This app is protected. Your data syncs to Supabase after you unlock.
+          This app is protected. After unlock, your saved data loads from Supabase.
         </p>
         <form onSubmit={submitPin}>
           <label className="pin-label">

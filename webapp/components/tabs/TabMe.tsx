@@ -8,6 +8,7 @@ import {
   defaultInsurancePolicy,
   defaultSavingsAccount,
 } from "@/lib/finance";
+import { requestAppLock } from "@/lib/auth/pin-client";
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 
@@ -473,11 +474,19 @@ export function TabMe({
             type="button"
             className="btn ghost sm"
             onClick={async () => {
-              await fetch("/api/auth/pin", {
-                method: "DELETE",
-                credentials: "include",
-              });
-              window.location.reload();
+              requestAppLock();
+              try {
+                const res = await fetch("/api/auth/pin", {
+                  method: "DELETE",
+                  credentials: "include",
+                });
+                if (!res.ok) {
+                  console.warn("[TabMe] lock API failed", res.status);
+                }
+              } catch (e) {
+                console.warn("[TabMe] lock API error", e);
+              }
+              window.location.href = "/";
               console.log("[TabMe] locked app");
             }}
           >

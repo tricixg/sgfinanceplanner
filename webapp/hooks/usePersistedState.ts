@@ -7,6 +7,24 @@ import type { DashboardState } from "@/lib/types";
 const LOCAL_KEY = "sgfinance_dashboard";
 const DEBOUNCE_MS = 800;
 
+function readLocalDraft(): DashboardState | null {
+  try {
+    const local = localStorage.getItem(LOCAL_KEY);
+    if (!local) return null;
+    return mergeWithDefaults(JSON.parse(local));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalDraft(state: DashboardState) {
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("[dashboard] localStorage save failed", e);
+  }
+}
+
 export function usePersistedState() {
   const [state, setState] = useState<DashboardState>(createEmptyState);
   const [loading, setLoading] = useState(true);
@@ -24,21 +42,36 @@ export function usePersistedState() {
     setLoading(true);
     try {
       const res = await fetch("/api/state", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load");
+      if (!res.ok) throw new Error(`Failed to load (${res.status})`);
       const json = await res.json();
       const merged = mergeWithDefaults(json.data ?? {});
-      setState(merged);
-      setLastSaved(json.updatedAt ?? null);
-      console.info("[dashboard] loaded state", { source: json.source });
-    } catch (e) {
-      console.warn("[dashboard] load failed, using local fallback", e);
-      try {
-        const local = localStorage.getItem(LOCAL_KEY);
+
+      if (json.source === "database") {
+        setState(merged);
+        setLastSaved(json.updatedAt ?? null);
+        writeLocalDraft(merged);
+        console.info("[dashboard] loaded from Supabase", {
+          updatedAt: json.updatedAt,
+        });
+      } else {
+        const local = readLocalDraft();
         if (local) {
-          setState(mergeWithDefaults(JSON.parse(local)));
-          flash("Loaded from browser (server unavailable)");
+          setState(local);
+          flash("Loaded from browser (no cloud snapshot yet)");
+          console.info("[dashboard] cloud empty — using local draft");
+        } else {
+          setState(merged);
+          console.info("[dashboard] no cloud or local data — empty state");
         }
-      } catch {
+        setLastSaved(json.updatedAt ?? null);
+      }
+    } catch (e) {
+      console.warn("[dashboard] Supabase load failed, trying local draft", e);
+      const local = readLocalDraft();
+      if (local) {
+        setState(local);
+        flash("Loaded from browser (cloud unavailable)");
+      } else {
         setState(createEmptyState());
       }
     } finally {
@@ -53,11 +86,7 @@ export function usePersistedState() {
 
   const persist = useCallback(
     async (next: DashboardState) => {
-      try {
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
-      } catch (e) {
-        console.warn("[dashboard] localStorage save failed", e);
-      }
+      writeLocalDraft(next);
 
       try {
         const res = await fetch("/api/state", {

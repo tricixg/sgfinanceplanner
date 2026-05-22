@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { isUnlockedRequest } from "@/lib/auth/pin";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { isValidDashboardState } from "@/lib/validate-state";
+import {
+  isPersistedDashboardSnapshot,
+  isValidDashboardState,
+} from "@/lib/validate-state";
 
 const ROW_ID = "default";
 
@@ -44,10 +47,7 @@ export async function GET(req: NextRequest) {
   }
 
   const raw = row?.data;
-  const hasData =
-    raw &&
-    typeof raw === "object" &&
-    Object.keys(raw as object).length > 0;
+  const hasData = isPersistedDashboardSnapshot(raw);
 
   const state = hasData
     ? mergeWithDefaults(raw as Partial<ReturnType<typeof createEmptyState>>)

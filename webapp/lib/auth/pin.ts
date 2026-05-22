@@ -78,3 +78,12 @@ export function pinCookieOptions() {
     maxAge: PIN_COOKIE_MAX_AGE,
   };
 }
+
+/** Clear unlock cookie — must match path/secure/sameSite used when setting. */
+export function clearPinCookieOnResponse(
+  res: { cookies: { delete: (name: string) => void; set: (name: string, value: string, options?: object) => void } }
+) {
+  const opts = pinCookieOptions();
+  res.cookies.set(PIN_COOKIE, "", { ...opts, maxAge: 0, expires: new Date(0) });
+  res.cookies.delete(PIN_COOKIE);
+}
