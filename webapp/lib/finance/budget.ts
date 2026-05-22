@@ -1,6 +1,17 @@
-import type { DashboardState } from "@/lib/types";
+import type { BudgetItem, DashboardState } from "@/lib/types";
 import { portfolioValue } from "./wealth";
 import { stableTakeHome } from "./cashflow";
+
+export function defaultBudgetTemplate(): BudgetItem[] {
+  return [
+    { cat: "Family allowance", amt: 0, type: "fixed" },
+    { cat: "Household", amt: 0, type: "fixed" },
+    { cat: "Insurance + ILP", amt: 0, type: "fixed" },
+    { cat: "Living & variable spend", amt: 0, type: "spend" },
+    { cat: "Emergency / cash savings", amt: 0, type: "save" },
+    { cat: "Investing", amt: 0, type: "invest" },
+  ];
+}
 
 export function budgetVerdict(S: DashboardState) {
   const income = stableTakeHome(S);

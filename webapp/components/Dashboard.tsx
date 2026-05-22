@@ -9,7 +9,7 @@ import { TabNow } from "./tabs/TabNow";
 import { TabCards } from "./tabs/TabCards";
 import { TabYear } from "./tabs/TabYear";
 import { TabWealth } from "./tabs/TabWealth";
-import { TabGoals } from "./tabs/TabGoals";
+import { TabBudgetSavings } from "./tabs/TabBudgetSavings";
 import { TabBTO } from "./tabs/TabBTO";
 import { TabCPF } from "./tabs/TabCPF";
 import { TabDebt } from "./tabs/TabDebt";
@@ -20,8 +20,8 @@ const TABS = [
   { id: "now", label: "5-Month Cashflow" },
   { id: "cards", label: "Credit Cards" },
   { id: "year", label: "5-Year Projection" },
-  { id: "wealth", label: "Wealth & Budget" },
-  { id: "goals", label: "Savings Goals" },
+  { id: "wealth", label: "Investment" },
+  { id: "budget", label: "Budget & Savings" },
   { id: "bto", label: "BTO Planner" },
   { id: "cpf", label: "CPF Outlook" },
   { id: "debt", label: "Debts & Loans" },
@@ -85,10 +85,10 @@ export function Dashboard() {
         <TabYear state={state} />
       </div>
       <div style={{ display: active === "wealth" ? "block" : "none" }}>
-        <TabWealth state={state} setState={setState} />
+        <TabWealth state={state} />
       </div>
-      <div style={{ display: active === "goals" ? "block" : "none" }}>
-        <TabGoals state={state} setState={setState} />
+      <div style={{ display: active === "budget" ? "block" : "none" }}>
+        <TabBudgetSavings state={state} setState={setState} />
       </div>
       <div style={{ display: active === "bto" ? "block" : "none" }}>
         <TabBTO state={state} />

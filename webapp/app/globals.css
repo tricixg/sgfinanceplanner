@@ -295,6 +295,22 @@ tbody tr:hover {
 .editrow.loans {
   grid-template-columns: 1.3fr 0.9fr 0.85fr 0.85fr 1fr auto;
 }
+.editrow.budget-line {
+  grid-template-columns: 1.6fr 0.75fr 0.75fr auto;
+}
+.editrow.budget-line input[type="text"] {
+  width: 100%;
+  min-width: 0;
+}
+.editrow.budget-line select {
+  width: 100%;
+  min-width: 0;
+}
+.budget-slider {
+  width: 100%;
+  margin-top: 6px;
+  cursor: pointer;
+}
 input,
 select {
   font-family: "SF Mono", ui-monospace, monospace;

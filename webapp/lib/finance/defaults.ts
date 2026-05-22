@@ -205,7 +205,20 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
     salaryCreditDay: saved.salaryCreditDay ?? 0,
     cashflowStartYm: saved.cashflowStartYm ?? currentYm(),
     holdings: saved.holdings ?? [],
-    budget: saved.budget ?? [],
+    budget: (saved.budget ?? []).map((b) => ({
+      cat:
+        typeof b.cat === "string"
+          ? b.cat
+          : String((b as { category?: string }).category ?? ""),
+      amt: typeof b.amt === "number" ? b.amt : 0,
+      type:
+        b.type === "fixed" ||
+        b.type === "spend" ||
+        b.type === "save" ||
+        b.type === "invest"
+          ? b.type
+          : "spend",
+    })),
     goals: saved.goals ?? [],
     loans: saved.loans ?? [],
     creditCards: saved.creditCards ?? [],

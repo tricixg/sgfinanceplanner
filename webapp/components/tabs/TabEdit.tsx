@@ -71,8 +71,9 @@ export function TabEdit({
   return (
     <section className="panel on">
       <div className="callout tip">
-        Income, obligations, insurance, and assets feed the charts. Instalment plans are edited on{" "}
-        <b>Debts &amp; Loans</b>. Changes auto-save to the cloud (when Supabase is configured).
+        Income, insurance, and assets feed the charts. Monthly expenses and salary budget are on{" "}
+        <b>Budget &amp; Savings</b>. Instalment plans are on <b>Debts &amp; Loans</b>. Changes
+        auto-save to the cloud (when Supabase is configured).
       </div>
 
       <h2>Income</h2>
@@ -91,30 +92,6 @@ export function TabEdit({
         <div className="editrow">
           <span>Salary credit day (1–31)</span>
           <NumInput value={S.salaryCreditDay} onChange={(v) => patch("salaryCreditDay", Math.min(31, Math.max(1, Math.round(v))))} />
-          <span></span><span></span><span></span>
-        </div>
-      </div>
-
-      <h2>Fixed obligations / month</h2>
-      <div className="card">
-        <div className="editrow">
-          <span>Family allowance</span>
-          <NumInput value={S.fatty} onChange={(v) => patch("fatty", v)} />
-          <span></span><span></span><span></span>
-        </div>
-        <div className="editrow">
-          <span>Household</span>
-          <NumInput value={S.house} onChange={(v) => patch("house", v)} />
-          <span></span><span></span><span></span>
-        </div>
-        <div className="editrow">
-          <span>Manulife ILP base</span>
-          <NumInput value={S.manu} onChange={(v) => patch("manu", v)} />
-          <span></span><span></span><span></span>
-        </div>
-        <div className="editrow">
-          <span>Variable spending estimate</span>
-          <NumInput value={S.varSpend} onChange={(v) => patch("varSpend", v)} />
           <span></span><span></span><span></span>
         </div>
       </div>
