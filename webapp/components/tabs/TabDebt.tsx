@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { DashboardState, Loan } from "@/lib/types";
-import { debtBurnDown, sortedLoans } from "@/lib/finance";
+import { activeLoanOutstanding, debtBurnDown, partitionLoans } from "@/lib/finance";
+import type { EnrichedLoan } from "@/lib/finance/debt";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 
@@ -32,8 +33,9 @@ function NumInput({
 
 export function TabDebt({ state: S, setState }: Props) {
   const [editing, setEditing] = useState(false);
-  const { labels, data, totalOut } = debtBurnDown(S);
-  const loans = sortedLoans(S);
+  const { labels, data } = debtBurnDown(S);
+  const totalOut = activeLoanOutstanding(S);
+  const { active: activeLoans, archived: archivedLoans } = partitionLoans(S);
 
   const updateLoan = (i: number, key: keyof Loan, val: string | number) => {
     setState((prev) => ({
@@ -71,6 +73,70 @@ export function TabDebt({ state: S, setState }: Props) {
     setEditing(false);
     console.log("[TabDebt] edit mode off");
   };
+
+  const loanTableHead = (
+    <thead>
+      <tr>
+        <th>Plan</th>
+        <th>Card</th>
+        <th>Monthly</th>
+        <th>Outstanding</th>
+        <th>Ends</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+  );
+
+  const loanRow = (l: EnrichedLoan) => (
+    <tr key={l.index}>
+      <td>{l.name}</td>
+      <td>{l.card}</td>
+      <td className="num">{l.monthly ? fmt2(l.monthly) : "—"}</td>
+      <td className="num">{fmt2(l.out)}</td>
+      <td className="num">{l.endLbl}</td>
+      <td>
+        <span className={`tag ${l.cls}`}>{l.tag}</span>
+      </td>
+    </tr>
+  );
+
+  const editLoanRows = (list: EnrichedLoan[]) =>
+    list.map((l) => (
+      <div className="editrow loans" key={l.index}>
+        <input
+          type="text"
+          value={l.name}
+          onChange={(e) => updateLoan(l.index, "name", e.target.value)}
+        />
+        <input
+          type="text"
+          value={l.card}
+          onChange={(e) => updateLoan(l.index, "card", e.target.value)}
+        />
+        <NumInput
+          value={l.monthly}
+          step={0.01}
+          onChange={(v) => updateLoan(l.index, "monthly", v)}
+        />
+        <NumInput
+          value={l.out}
+          step={0.01}
+          onChange={(v) => updateLoan(l.index, "out", v)}
+        />
+        <input
+          type="text"
+          value={l.end}
+          onChange={(e) => updateLoan(l.index, "end", e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn del sm"
+          onClick={() => removeLoan(l.index)}
+        >
+          del
+        </button>
+      </div>
+    ));
 
   return (
     <section className="panel on">
@@ -140,42 +206,21 @@ export function TabDebt({ state: S, setState }: Props) {
             <span>Ends YYYY-MM</span>
             <span></span>
           </div>
-          {S.loans.map((l, i) => (
-            <div className="editrow loans" key={i}>
-              <input
-                type="text"
-                value={l.name}
-                onChange={(e) => updateLoan(i, "name", e.target.value)}
-              />
-              <input
-                type="text"
-                value={l.card}
-                onChange={(e) => updateLoan(i, "card", e.target.value)}
-              />
-              <NumInput
-                value={l.monthly}
-                step={0.01}
-                onChange={(v) => updateLoan(i, "monthly", v)}
-              />
-              <NumInput
-                value={l.out}
-                step={0.01}
-                onChange={(v) => updateLoan(i, "out", v)}
-              />
-              <input
-                type="text"
-                value={l.end}
-                onChange={(e) => updateLoan(i, "end", e.target.value)}
-              />
-              <button
-                type="button"
-                className="btn del sm"
-                onClick={() => removeLoan(i)}
-              >
-                del
-              </button>
-            </div>
-          ))}
+          {activeLoans.length === 0 && archivedLoans.length === 0 ? (
+            <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
+              No instalment plans configured. Click Edit to add one.
+            </p>
+          ) : (
+            <>
+              {editLoanRows(activeLoans)}
+              {archivedLoans.length > 0 && (
+                <details className="debt-archive" style={{ marginTop: 12 }}>
+                  <summary>Archive — {archivedLoans.length} ended</summary>
+                  <div style={{ marginTop: 10 }}>{editLoanRows(archivedLoans)}</div>
+                </details>
+              )}
+            </>
+          )}
           <div className="toolbar">
             <button type="button" className="btn ghost sm" onClick={addLoan}>
               + Add loan
@@ -183,40 +228,37 @@ export function TabDebt({ state: S, setState }: Props) {
           </div>
         </div>
       ) : (
-        <div className="card">
-          {S.loans.length === 0 ? (
-            <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-              No instalment plans configured. Click Edit to add one.
-            </p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Plan</th>
-                  <th>Card</th>
-                  <th>Monthly</th>
-                  <th>Outstanding</th>
-                  <th>Ends</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loans.map((l, i) => (
-                  <tr key={i}>
-                    <td>{l.name}</td>
-                    <td>{l.card}</td>
-                    <td className="num">{l.monthly ? fmt2(l.monthly) : "—"}</td>
-                    <td className="num">{fmt2(l.out)}</td>
-                    <td className="num">{l.endLbl}</td>
-                    <td>
-                      <span className={`tag ${l.cls}`}>{l.tag}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          <div className="card">
+            {activeLoans.length === 0 ? (
+              <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
+                No active instalment plans.{" "}
+                {archivedLoans.length > 0
+                  ? "See archive below for ended plans."
+                  : "Click Edit to add one."}
+              </p>
+            ) : (
+              <table>
+                {loanTableHead}
+                <tbody>{activeLoans.map(loanRow)}</tbody>
+              </table>
+            )}
+          </div>
+          {archivedLoans.length > 0 && (
+            <details className="debt-archive">
+              <summary>
+                Archive — {archivedLoans.length} ended plan
+                {archivedLoans.length === 1 ? "" : "s"}
+              </summary>
+              <div className="card" style={{ marginTop: 0, borderTop: "none" }}>
+                <table>
+                  {loanTableHead}
+                  <tbody>{archivedLoans.map(loanRow)}</tbody>
+                </table>
+              </div>
+            </details>
           )}
-        </div>
+        </>
       )}
 
       <h2>Debt burn-down</h2>

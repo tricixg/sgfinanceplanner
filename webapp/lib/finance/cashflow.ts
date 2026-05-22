@@ -17,6 +17,8 @@ export type MonthRow = {
   fixed: number;
   spend: number;
   loans: number;
+  ilp: number;
+  insurance: number;
   net: number;
   running: number;
 };
@@ -62,7 +64,7 @@ export function buildMonths(
     const loans = loanLoadForMonth(S.loans, o.ym);
     const net = o.income - o.fixed - o.spend - loans - ilpPrem - insurance;
     running += net;
-    return { ...o, loans, net, running };
+    return { ...o, loans, ilp: ilpPrem, insurance, net, running };
   });
 }
 

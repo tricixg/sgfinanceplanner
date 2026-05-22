@@ -9,8 +9,10 @@ import {
   budgetSpendTotal,
   computedDebtMonthly,
   computedIlpMonthly,
+  computedInsuranceMonthly,
   COMPUTED_DEBT_LABEL,
   COMPUTED_ILP_LABEL,
+  COMPUTED_INSURANCE_LABEL,
 } from "@/lib/finance";
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
@@ -37,28 +39,42 @@ export function TabNow({ state: S, setState }: Props) {
         label: "Cash income",
         data: rows.map((r) => r.income),
         backgroundColor: "#2f5d3a",
-        stack: "a",
+        stack: "inflows",
         order: 2,
       },
       {
-        label: "Fixed",
+        label: "Fixed obligations",
         data: rows.map((r) => -r.fixed),
         backgroundColor: "#d8cfb4",
-        stack: "b",
+        stack: "outflows",
         order: 2,
       },
       {
         label: "Loan instalments",
         data: rows.map((r) => -r.loans),
         backgroundColor: "#c08a2e",
-        stack: "b",
+        stack: "outflows",
         order: 2,
       },
       {
         label: "Variable spend",
         data: rows.map((r) => -r.spend),
         backgroundColor: "#a89a76",
-        stack: "b",
+        stack: "outflows",
+        order: 2,
+      },
+      {
+        label: "ILP premiums",
+        data: rows.map((r) => -r.ilp),
+        backgroundColor: "#7a9eb5",
+        stack: "outflows",
+        order: 2,
+      },
+      {
+        label: "Insurance premiums",
+        data: rows.map((r) => -r.insurance),
+        backgroundColor: "#6b7d6a",
+        stack: "outflows",
         order: 2,
       },
       {
@@ -90,7 +106,7 @@ export function TabNow({ state: S, setState }: Props) {
     scales: {
       x: { stacked: true, grid: { display: false } },
       y: {
-        stacked: false,
+        stacked: true,
         grid: { color: "#e6dfca" },
         ticks: {
           callback: (v) => "$" + (Number(v) / 1000).toFixed(1) + "k",
@@ -102,9 +118,12 @@ export function TabNow({ state: S, setState }: Props) {
   const midYm = rows[2]?.ym ?? firstYm;
   const midLoans = loanLoadForMonth(S.loans, midYm);
   const items: [string, number][] = [
-    ...S.budget.map((b) => [b.cat, b.amt] as [string, number]),
+    ...S.budget
+      .filter((b) => b.type !== "save" && b.type !== "invest")
+      .map((b) => [b.cat, b.amt] as [string, number]),
     [COMPUTED_DEBT_LABEL, midLoans],
     [COMPUTED_ILP_LABEL, computedIlpMonthly(S)],
+    [COMPUTED_INSURANCE_LABEL, computedInsuranceMonthly(S)],
   ];
   let spent = 0;
 
@@ -154,6 +173,7 @@ export function TabNow({ state: S, setState }: Props) {
           <span><i className="dot" style={{ background: "var(--moss)" }} />Cash income</span>
           <span><i className="dot" style={{ background: "var(--sand)" }} />Fixed obligations</span>
           <span><i className="dot" style={{ background: "var(--gold)" }} />Loan instalments</span>
+          <span><i className="dot" style={{ background: "#7a9eb5" }} />ILP &amp; insurance</span>
           <span><i className="dot" style={{ background: "var(--rust)" }} />Net position</span>
         </div>
       </div>

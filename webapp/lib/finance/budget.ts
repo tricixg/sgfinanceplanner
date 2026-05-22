@@ -13,6 +13,19 @@ export const COMPUTED_DEBT_LABEL = "Loans & debt (from Debts & Loans)";
 export { COMPUTED_INSURANCE_LABEL, computedInsuranceMonthly } from "./insurance";
 export { COMPUTED_ILP_LABEL, computedIlpMonthly } from "./ilp";
 
+/** Budget lines that duplicate Debts & Loans instalments — excluded from fixed totals. */
+export function isDebtBudgetCategory(cat: string): boolean {
+  const c = cat.toLowerCase().trim();
+  return (
+    cat === COMPUTED_DEBT_LABEL ||
+    c.includes("loans & debt") ||
+    c.includes("loan instalment") ||
+    c.includes("instalment plan") ||
+    (c.includes("instalment") && c.includes("loan")) ||
+    (c.includes("debt") && c.includes("loan"))
+  );
+}
+
 export function defaultBudgetTemplate(): BudgetItem[] {
   return [
     { cat: "Family allowance", amt: 0, type: "fixed" },
@@ -25,7 +38,7 @@ export function defaultBudgetTemplate(): BudgetItem[] {
 
 export function budgetFixedTotal(S: DashboardState): number {
   return S.budget
-    .filter((b) => b.type === "fixed")
+    .filter((b) => b.type === "fixed" && !isDebtBudgetCategory(b.cat))
     .reduce((s, b) => s + b.amt, 0);
 }
 
@@ -81,9 +94,19 @@ type LegacyBudgetSaved = {
 
 export function migrateBudget(saved: LegacyBudgetSaved): BudgetItem[] {
   if (saved.budget?.length) {
-    return saved.budget
+    const migrated = saved.budget
       .map((b) => normalizeBudgetItem(b))
-      .filter((b) => !isIlpBudgetCategory(b.cat) && !isInsuranceBudgetCategory(b.cat));
+      .filter(
+        (b) =>
+          !isIlpBudgetCategory(b.cat) &&
+          !isInsuranceBudgetCategory(b.cat) &&
+          !isDebtBudgetCategory(b.cat)
+      );
+    const dropped = saved.budget.length - migrated.length;
+    if (dropped > 0) {
+      console.log("[budget] migrateBudget dropped duplicate computed lines", dropped);
+    }
+    return migrated;
   }
 
   const items: BudgetItem[] = [];

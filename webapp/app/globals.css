@@ -696,6 +696,39 @@ footer {
   width: 100%;
 }
 
+.debt-archive {
+  margin-top: 12px;
+}
+.debt-archive summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  list-style: none;
+}
+.debt-archive summary::-webkit-details-marker {
+  display: none;
+}
+.debt-archive summary::before {
+  content: "▸ ";
+  color: var(--muted);
+}
+.debt-archive[open] summary::before {
+  content: "▾ ";
+}
+.debt-archive[open] summary {
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+}
+.debt-archive .card {
+  border-radius: 0 0 8px 8px;
+  border-top: none;
+}
+
 .cal-nav--in-card {
   margin-bottom: 12px;
   padding-bottom: 12px;

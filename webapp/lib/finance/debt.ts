@@ -1,5 +1,57 @@
-import type { DashboardState } from "@/lib/types";
-import { monIdx } from "./helpers";
+import type { DashboardState, Loan } from "@/lib/types";
+import { currentYm, monIdx } from "./helpers";
+
+export type EnrichedLoan = Loan & {
+  tag: string;
+  cls: string;
+  endLbl: string;
+  isEnded: boolean;
+  index: number;
+};
+
+export function enrichLoan(l: Loan, nowYm: string, index: number): EnrichedLoan {
+  const nowIdx = monIdx(nowYm);
+  const ei = monIdx(l.end);
+  let tag: string;
+  let cls: string;
+  if (ei < nowIdx) {
+    tag = "ended";
+    cls = "t-end";
+  } else if (ei <= nowIdx) {
+    tag = "ending";
+    cls = "t-soon";
+  } else if (ei <= nowIdx + 2) {
+    tag = "soon";
+    cls = "t-soon";
+  } else {
+    tag = "active";
+    cls = "t-live";
+  }
+  const endLbl = new Date(l.end + "-01").toLocaleDateString("en-GB", {
+    month: "short",
+    year: "numeric",
+  });
+  return { ...l, tag, cls, endLbl, isEnded: ei < nowIdx, index };
+}
+
+export function partitionLoans(S: DashboardState, nowYm?: string) {
+  const ym = nowYm ?? currentYm();
+  const rows = S.loans.map((l, i) => enrichLoan(l, ym, i));
+  const byEnd = (a: EnrichedLoan, b: EnrichedLoan) => monIdx(a.end) - monIdx(b.end);
+  return {
+    active: rows.filter((l) => !l.isEnded).sort(byEnd),
+    archived: rows.filter((l) => l.isEnded).sort(byEnd),
+  };
+}
+
+/** Outstanding balance on loans still active (end month not yet passed). */
+export function activeLoanOutstanding(S: DashboardState, nowYm?: string): number {
+  const ym = nowYm ?? currentYm();
+  const nowIdx = monIdx(ym);
+  return S.loans
+    .filter((l) => monIdx(l.end) >= nowIdx)
+    .reduce((s, l) => s + l.out, 0);
+}
 
 export function debtBurnDown(S: DashboardState) {
   const labels: string[] = [];
@@ -22,29 +74,16 @@ export function debtBurnDown(S: DashboardState) {
       }
     });
   }
-  return { labels, data, totalOut: S.loans.reduce((s, l) => s + l.out, 0) };
+  return {
+    labels,
+    data,
+    totalOut: activeLoanOutstanding(S),
+  };
 }
 
-export function sortedLoans(S: DashboardState, nowYm = "2026-06") {
-  const nowIdx = monIdx(nowYm);
-  return [...S.loans].sort((a, b) => monIdx(a.end) - monIdx(b.end)).map((l) => {
-    const ei = monIdx(l.end);
-    let tag: string;
-    let cls: string;
-    if (ei <= nowIdx) {
-      tag = "ending";
-      cls = "t-end";
-    } else if (ei <= nowIdx + 2) {
-      tag = "soon";
-      cls = "t-soon";
-    } else {
-      tag = "active";
-      cls = "t-live";
-    }
-    const endLbl = new Date(l.end + "-01").toLocaleDateString("en-GB", {
-      month: "short",
-      year: "numeric",
-    });
-    return { ...l, tag, cls, endLbl };
-  });
+export function sortedLoans(S: DashboardState, nowYm?: string) {
+  const ym = nowYm ?? currentYm();
+  return [...S.loans]
+    .map((l, i) => enrichLoan(l, ym, i))
+    .sort((a, b) => monIdx(a.end) - monIdx(b.end));
 }

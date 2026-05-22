@@ -17,14 +17,14 @@ import { TabMe } from "./tabs/TabMe";
 
 const TABS = [
   { id: "thisMonth", label: "This Month" },
-  { id: "now", label: "5-Month Cashflow" },
-  { id: "cards", label: "Credit Cards" },
-  { id: "year", label: "5-Year Projection" },
-  { id: "wealth", label: "Investment" },
   { id: "budget", label: "Budget & Savings" },
-  { id: "bto", label: "BTO Planner" },
-  { id: "cpf", label: "CPF Outlook" },
   { id: "debt", label: "Debts & Loans" },
+  { id: "cards", label: "Credit Cards" },
+  { id: "wealth", label: "Investment" },
+  { id: "cpf", label: "CPF Outlook" },
+  { id: "now", label: "5-Month Cashflow" },
+  { id: "year", label: "5-Year Projection" },
+  { id: "bto", label: "BTO Planner" },
   { id: "me", label: "ME" },
 ] as const;
 
@@ -75,29 +75,29 @@ export function Dashboard() {
       <div style={{ display: active === "thisMonth" ? "block" : "none" }}>
         <TabThisMonth state={state} />
       </div>
-      <div style={{ display: active === "now" ? "block" : "none" }}>
-        <TabNow state={state} setState={setState} />
+      <div style={{ display: active === "budget" ? "block" : "none" }}>
+        <TabBudgetSavings state={state} setState={setState} />
+      </div>
+      <div style={{ display: active === "debt" ? "block" : "none" }}>
+        <TabDebt state={state} setState={setState} />
       </div>
       <div style={{ display: active === "cards" ? "block" : "none" }}>
         <TabCards state={state} setState={setState} />
       </div>
-      <div style={{ display: active === "year" ? "block" : "none" }}>
-        <TabYear state={state} />
-      </div>
       <div style={{ display: active === "wealth" ? "block" : "none" }}>
         <TabWealth state={state} setState={setState} />
-      </div>
-      <div style={{ display: active === "budget" ? "block" : "none" }}>
-        <TabBudgetSavings state={state} setState={setState} />
-      </div>
-      <div style={{ display: active === "bto" ? "block" : "none" }}>
-        <TabBTO state={state} />
       </div>
       <div style={{ display: active === "cpf" ? "block" : "none" }}>
         <TabCPF state={state} setState={setState} />
       </div>
-      <div style={{ display: active === "debt" ? "block" : "none" }}>
-        <TabDebt state={state} setState={setState} />
+      <div style={{ display: active === "now" ? "block" : "none" }}>
+        <TabNow state={state} setState={setState} />
+      </div>
+      <div style={{ display: active === "year" ? "block" : "none" }}>
+        <TabYear state={state} />
+      </div>
+      <div style={{ display: active === "bto" ? "block" : "none" }}>
+        <TabBTO state={state} />
       </div>
       <div style={{ display: active === "me" ? "block" : "none" }}>
         <TabMe
