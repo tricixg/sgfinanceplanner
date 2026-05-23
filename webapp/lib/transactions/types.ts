@@ -34,7 +34,7 @@ export type BudgetTransaction = {
   createdAt: string;
 };
 
-export type TransactionRecordType = "savings" | "budget";
+export type TransactionRecordType = "savings" | "budget" | "expense";
 
 /** Row shown on /transactions (savings ledger + budget import). */
 export type UnifiedTransaction = {
@@ -69,5 +69,5 @@ export type ListUnifiedOpts = {
   financialAccountId?: string;
   kind?: SavingsTransactionKind;
   transactionType?: BudgetTransactionType;
-  source?: "all" | "savings" | "budget";
+  source?: "all" | "savings" | "budget" | "expense";
 };

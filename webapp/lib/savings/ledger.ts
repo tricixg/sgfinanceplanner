@@ -12,6 +12,7 @@ export type ApplyTransactionInput = {
   accountId?: string | null;
   poolId?: string | null;
   householdId?: string | null;
+  expenseId?: string | null;
 };
 
 export async function applyTransaction(
@@ -146,6 +147,7 @@ export async function applyTransaction(
       balance_after: balanceAfter,
       note: input.note ?? "",
       occurred_at: occurredAt,
+      expense_id: input.expenseId ?? null,
     })
     .select("*")
     .single();
@@ -161,6 +163,7 @@ export async function applyTransaction(
     accountId: input.accountId,
     poolId: input.poolId,
     goalId: input.goalId,
+    expenseId: input.expenseId ?? null,
     balanceAfter,
   });
 
@@ -290,7 +293,8 @@ export async function listAllTransactions(
 
   let query = supabase
     .from("savings_transactions")
-    .select("*", { count: "exact" });
+    .select("*", { count: "exact" })
+    .is("expense_id", null);
 
   if (opts.accountId) query = query.eq("account_id", opts.accountId);
   if (opts.poolId) query = query.eq("pool_id", opts.poolId);

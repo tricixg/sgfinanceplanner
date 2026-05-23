@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
+import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -78,6 +79,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const expense = mapExpense(existing);
+  const ledgerReverse = await syncExpenseLedgerBeforeDelete(supabase, user.id, expense);
+  if (!ledgerReverse.ok) {
+    return NextResponse.json({ error: ledgerReverse.error }, { status: 500 });
   }
 
   const { error } = await supabase

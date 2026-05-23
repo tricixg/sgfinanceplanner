@@ -7,6 +7,10 @@ import { listAllTransactions } from "@/lib/savings/ledger";
 import type { SavingsTransaction } from "@/lib/savings/types";
 import { listBudgetTransactions } from "@/lib/budget/transactions";
 import type { BudgetTransaction } from "@/lib/transactions/types";
+import {
+  expenseToUnified,
+  listExpensesForTransactions,
+} from "@/lib/expenses/list-for-transactions";
 import type { ListUnifiedOpts, UnifiedTransaction } from "@/lib/transactions/types";
 
 function budgetSortAt(tx: BudgetTransaction): string {
@@ -99,18 +103,15 @@ export async function listUnifiedTransactions(
   const source = opts.source ?? "all";
 
   const includeSavings =
-    source !== "budget" && !opts.transactionType;
+    (source === "all" || source === "savings") && !opts.transactionType;
   const includeBudget =
-    source !== "savings" && !opts.kind;
+    (source === "all" || source === "budget") && !opts.kind;
+  const includeExpenses =
+    (source === "all" || source === "expense") &&
+    !opts.kind &&
+    opts.transactionType !== "income";
 
   const savingsFilter = await resolveSavingsAccountFilter(supabase, userId, opts);
-
-  if (opts.financialAccountId && !savingsFilter.accountId && includeSavings) {
-    // Credit card filter — savings rows only if explicitly on pool/account filters
-    if (!opts.poolId && !opts.accountId) {
-      // skip savings when filtering by card-only financial account
-    }
-  }
 
   const skipSavingsForCardOnly =
     Boolean(opts.financialAccountId) &&
@@ -120,10 +121,11 @@ export async function listUnifiedTransactions(
 
   const fetchSavings = includeSavings && !skipSavingsForCardOnly;
   const fetchBudget = includeBudget;
+  const fetchExpenses = includeExpenses;
 
   const window = offset + limit;
 
-  const [savingsPage, budgetPage] = await Promise.all([
+  const [savingsPage, budgetPage, expensePage] = await Promise.all([
     fetchSavings
       ? listAllTransactions(supabase, {
           limit: window,
@@ -141,18 +143,28 @@ export async function listUnifiedTransactions(
           transactionType: opts.transactionType,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
+    fetchExpenses
+      ? listExpensesForTransactions(supabase, userId, {
+          limit: window,
+          offset: 0,
+          financialAccountId: opts.financialAccountId,
+          transactionType: opts.transactionType,
+        })
+      : Promise.resolve({ items: [], total: 0, nextOffset: null }),
   ]);
 
   const savingsTotal = fetchSavings ? savingsPage.total : 0;
   const budgetTotal = fetchBudget ? budgetPage.total : 0;
+  const expenseTotal = fetchExpenses ? expensePage.total : 0;
 
   const merged = [
     ...savingsPage.items.map(savingsToUnified),
     ...budgetPage.items.map(budgetToUnified),
+    ...expensePage.items.map(expenseToUnified),
   ].sort((a, b) => (a.sortAt < b.sortAt ? 1 : a.sortAt > b.sortAt ? -1 : 0));
 
   const items = merged.slice(offset, offset + limit);
-  const total = savingsTotal + budgetTotal;
+  const total = savingsTotal + budgetTotal + expenseTotal;
   const nextOffset = offset + items.length < total ? offset + limit : null;
 
   console.info("[transactions] unified list", {
@@ -161,6 +173,7 @@ export async function listUnifiedTransactions(
     total,
     savings: savingsPage.items.length,
     budget: budgetPage.items.length,
+    expenses: expensePage.items.length,
   });
 
   return { items, total, nextOffset };

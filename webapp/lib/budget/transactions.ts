@@ -30,7 +30,8 @@ export async function listBudgetTransactions(
   let query = supabase
     .from("budget_transactions")
     .select("*, financial_accounts(name)", { count: "exact" })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .is("expense_id", null);
 
   if (opts.financialAccountId) {
     query = query.eq("financial_account_id", opts.financialAccountId);

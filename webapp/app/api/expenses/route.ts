@@ -17,6 +17,7 @@ import {
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -179,14 +180,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const expense = mapExpense(row);
+    const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, user.id, expense, {
+      loanId: validated.autoCategory === "debt" ? body.loanId : undefined,
+      loanPaymentAmount: validated.autoCategory === "debt" ? amount : undefined,
+    });
+    if (!ledgerSync.ok) {
+      return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
+    }
+
     console.info("[api/expenses] auto payment POST ok", {
       userId: user.id,
       autoCategory: validated.autoCategory,
       sourceId,
       amount,
       spentAt,
+      financialAccountId: body.financialAccountId ?? null,
     });
-    return NextResponse.json({ item: mapExpense(row) });
+    return NextResponse.json({ item: expense });
   }
 
   const { data: budgetRows } = await supabase
@@ -214,6 +225,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid budget category" }, { status: 400 });
   }
 
+  if (body.financialAccountId) {
+    const acctOk = await verifyFinancialAccount(
+      supabase,
+      user.id,
+      body.financialAccountId
+    );
+    if (!acctOk) {
+      return NextResponse.json({ error: "Invalid financial account" }, { status: 400 });
+    }
+  }
+
   const { data: row, error } = await supabase
     .from("expenses")
     .insert({
@@ -223,6 +245,7 @@ export async function POST(req: NextRequest) {
       budget_line_id: budgetLineId,
       spent_at: spentAt,
       note: body.note ?? "",
+      financial_account_id: body.financialAccountId ?? null,
     })
     .select("*")
     .single();
@@ -232,11 +255,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const expense = mapExpense(row);
+  const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, user.id, expense);
+  if (!ledgerSync.ok) {
+    return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
+  }
+
   console.info("[api/expenses] POST ok", {
     userId: user.id,
     amount,
     spentAt,
     budgetLineId,
+    financialAccountId: body.financialAccountId ?? null,
   });
-  return NextResponse.json({ item: mapExpense(row) });
+  return NextResponse.json({ item: expense });
 }

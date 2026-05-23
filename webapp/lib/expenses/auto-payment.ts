@@ -62,13 +62,40 @@ export async function verifyFinancialAccount(
   userId: string,
   financialAccountId: string
 ): Promise<boolean> {
+  const acct = await loadFinancialAccount(supabase, userId, financialAccountId);
+  return Boolean(acct);
+}
+
+export type FinancialAccountInfo = {
+  id: string;
+  accountType: "cash" | "credit_card";
+  savingsAccountId: string | null;
+  name: string;
+};
+
+export async function loadFinancialAccount(
+  supabase: SupabaseClient,
+  userId: string,
+  financialAccountId: string
+): Promise<FinancialAccountInfo | null> {
   const { data } = await supabase
     .from("financial_accounts")
-    .select("id")
+    .select("id, account_type, savings_account_id, name")
     .eq("id", financialAccountId)
     .eq("user_id", userId)
     .maybeSingle();
-  return Boolean(data);
+
+  if (!data) return null;
+
+  const accountType =
+    data.account_type === "credit_card" ? "credit_card" : "cash";
+
+  return {
+    id: String(data.id),
+    accountType,
+    savingsAccountId: data.savings_account_id ? String(data.savings_account_id) : null,
+    name: String(data.name ?? "").trim(),
+  };
 }
 
 export async function adjustLoanOutstanding(

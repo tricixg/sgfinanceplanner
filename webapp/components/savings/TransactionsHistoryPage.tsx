@@ -277,6 +277,7 @@ export function TransactionsHistoryPage() {
             <option value="all">All</option>
             <option value="savings">Ledger</option>
             <option value="budget">Import</option>
+            <option value="expense">Recorded</option>
           </select>
         </label>
 
@@ -317,7 +318,7 @@ export function TransactionsHistoryPage() {
         {loading ? (
           <p className="note">Loading transactions…</p>
         ) : items.length === 0 ? (
-          <p className="note">No transactions found. Import a CSV or record savings on the Cash Accounts tab.</p>
+          <p className="note">No transactions found. Import a CSV, record savings on Cash Accounts, or log expenses and recurring payments.</p>
         ) : (
           <div className="table-scroll">
             <table>
