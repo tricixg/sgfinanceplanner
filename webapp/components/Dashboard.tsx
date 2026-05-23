@@ -1,6 +1,7 @@
 "use client";
 
 import "@/components/chart-setup";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { appConfig } from "@/lib/config";
 import { createEmptyState } from "@/lib/finance/defaults";
@@ -240,6 +241,18 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
                   {t.label}
                 </button>
               ))}
+              {group.category === "Planning" ? (
+                <Link
+                  href="/transactions"
+                  className="tab sidebar-tab"
+                  onClick={() => {
+                    setNavOpen(false);
+                    console.info("[dashboard] nav → transaction history");
+                  }}
+                >
+                  Transaction history
+                </Link>
+              ) : null}
             </div>
           ))}
         </nav>

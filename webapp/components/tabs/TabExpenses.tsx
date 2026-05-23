@@ -109,12 +109,6 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
 
   return (
     <section className="panel on">
-      <div className="callout tip">
-        <span className="ico">Tip</span>
-        Personal expenses only — your partner cannot see these. Loaded by month (not with the
-        main dashboard) so large histories stay fast.
-      </div>
-
       <div className="grid g2">
         <div className="stat">
           <div className="lbl">This month (loaded)</div>

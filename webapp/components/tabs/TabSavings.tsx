@@ -225,28 +225,47 @@ export function TabSavings({
               <p className="note">No shared pools yet. Click Edit to add one.</p>
             ) : (
               <>
-                <p className="ui-hint">Click a pool to record transactions and view history.</p>
-                {savings.pools.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="account-ledger-row"
-                    onClick={() => {
-                      setLedgerPoolId(p.id);
-                      console.info("[TabSavings] opened pool ledger", { id: p.id });
-                    }}
-                  >
-                    <span>
-                      <strong>{p.name}</strong>
-                      {p.notes ? (
-                        <span className="note" style={{ display: "block", marginTop: 2 }}>
-                          {p.notes}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="num">{fmt2(p.balance)}</span>
-                  </button>
-                ))}
+                <div className="table-scroll">
+                  <table className="ledger-table">
+                    <thead>
+                      <tr>
+                        <th>Pool</th>
+                        <th className="num">Balance</th>
+                        <th>In savings?</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {savings.pools.map((p) => (
+                        <tr
+                          key={p.id}
+                          className="ledger-row"
+                          tabIndex={0}
+                          role="button"
+                          onClick={() => {
+                            setLedgerPoolId(p.id);
+                            console.info("[TabSavings] opened pool ledger", { id: p.id });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setLedgerPoolId(p.id);
+                            }
+                          }}
+                        >
+                          <td>
+                            <strong>{p.name}</strong>
+                          </td>
+                          <td className="num">{fmt2(p.balance)}</td>
+                          <td>{p.includeInSavings ? "Yes" : "No"}</td>
+                          <td className="note" style={{ fontSize: 12 }}>
+                            {p.notes || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </>
             )}
             <p className="note" style={{ marginTop: 8 }}>

@@ -46,6 +46,7 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    2. [`supabase/migrations/002_per_user_auth.sql`](supabase/migrations/002_per_user_auth.sql)
    3. [`supabase/migrations/003_couples_and_ledger.sql`](supabase/migrations/003_couples_and_ledger.sql) — per-user savings accounts, shared pools, goals, expenses, and partner linking
    4. [`supabase/migrations/004_accounts_ledger.sql`](supabase/migrations/004_accounts_ledger.sql) — `include_in_savings` flags, deposit ledger (`savings_transactions`), and balance sync
+   5. [`supabase/migrations/005_financial_accounts_budget.sql`](supabase/migrations/005_financial_accounts_budget.sql) — unified `financial_accounts` (cash + credit cards) and `budget_transactions` for CSV import
 
 4. **Supabase Auth (magic link)**
 

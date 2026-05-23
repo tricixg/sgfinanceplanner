@@ -32,6 +32,9 @@ export type SavingsTransaction = {
   goalId: string | null;
   /** Resolved from savings_goals when listing history. */
   goalName: string | null;
+  /** Resolved when listing across accounts/pools. */
+  sourceType?: "account" | "pool" | null;
+  sourceName?: string | null;
   kind: SavingsTransactionKind;
   amount: number;
   balanceAfter: number | null;

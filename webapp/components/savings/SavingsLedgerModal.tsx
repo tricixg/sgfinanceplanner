@@ -36,7 +36,8 @@ function useLedgerMeta(target: SavingsLedgerTarget) {
       return {
         title: target.account.name || "Cash account",
         current: target.account.balance,
-        historyUrl: `/api/accounts/${target.account.id}/transactions?limit=20`,
+        historyUrl: `/api/accounts/${target.account.id}/transactions?limit=3`,
+        viewMoreHref: `/transactions?accountId=${encodeURIComponent(target.account.id)}`,
         subtitle: target.account.includeInSavings
           ? null
           : "Excluded from savings totals",
@@ -46,7 +47,8 @@ function useLedgerMeta(target: SavingsLedgerTarget) {
     return {
       title: target.pool.name || "Shared pool",
       current: target.pool.balance,
-      historyUrl: `/api/savings/pools/${target.pool.id}/transactions?limit=20`,
+      historyUrl: `/api/savings/pools/${target.pool.id}/transactions?limit=3`,
+      viewMoreHref: `/transactions?poolId=${encodeURIComponent(target.pool.id)}`,
       subtitle: target.pool.includeInSavings
         ? "Shared with partner"
         : "Shared · excluded from savings totals",
@@ -288,7 +290,11 @@ export function SavingsLedgerModal({
 
         <div className="modal-history">
           <h4 style={{ margin: "16px 0 8px", fontSize: 14 }}>Transaction history</h4>
-          <TransactionList fetchUrl={meta.historyUrl} refreshKey={historyKey} />
+          <TransactionList
+            fetchUrl={meta.historyUrl}
+            refreshKey={historyKey}
+            viewMoreHref={meta.viewMoreHref}
+          />
         </div>
       </div>
     </div>

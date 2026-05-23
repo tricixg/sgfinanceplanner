@@ -207,6 +207,112 @@ async function enrichTransactionsWithGoalNames(
   }));
 }
 
+async function enrichTransactionsWithSourceNames(
+  supabase: SupabaseClient,
+  items: SavingsTransaction[]
+): Promise<SavingsTransaction[]> {
+  const accountIds = [
+    ...new Set(
+      items.map((t) => t.accountId).filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const poolIds = [
+    ...new Set(items.map((t) => t.poolId).filter((id): id is string => Boolean(id))),
+  ];
+
+  const accountNames = new Map<string, string>();
+  const poolNames = new Map<string, string>();
+
+  if (accountIds.length) {
+    const { data, error } = await supabase
+      .from("user_savings_accounts")
+      .select("id, name")
+      .in("id", accountIds);
+    if (error) {
+      console.warn("[ledger] account name lookup failed", error.message);
+    } else {
+      for (const row of data ?? []) {
+        accountNames.set(
+          String(row.id),
+          String(row.name ?? "").trim() || "Cash account"
+        );
+      }
+    }
+  }
+
+  if (poolIds.length) {
+    const { data, error } = await supabase
+      .from("savings_pools")
+      .select("id, name")
+      .in("id", poolIds);
+    if (error) {
+      console.warn("[ledger] pool name lookup failed", error.message);
+    } else {
+      for (const row of data ?? []) {
+        poolNames.set(String(row.id), String(row.name ?? "").trim() || "Shared pool");
+      }
+    }
+  }
+
+  return items.map((t) => {
+    if (t.accountId) {
+      return {
+        ...t,
+        sourceType: "account" as const,
+        sourceName: accountNames.get(t.accountId) ?? null,
+      };
+    }
+    if (t.poolId) {
+      return {
+        ...t,
+        sourceType: "pool" as const,
+        sourceName: poolNames.get(t.poolId) ?? null,
+      };
+    }
+    return { ...t, sourceType: null, sourceName: null };
+  });
+}
+
+export type ListTransactionsOpts = {
+  limit?: number;
+  offset?: number;
+  accountId?: string;
+  poolId?: string;
+  kind?: SavingsTransactionKind;
+};
+
+export async function listAllTransactions(
+  supabase: SupabaseClient,
+  opts: ListTransactionsOpts = {}
+) {
+  const limit = opts.limit ?? 20;
+  const offset = opts.offset ?? 0;
+
+  let query = supabase
+    .from("savings_transactions")
+    .select("*", { count: "exact" });
+
+  if (opts.accountId) query = query.eq("account_id", opts.accountId);
+  if (opts.poolId) query = query.eq("pool_id", opts.poolId);
+  if (opts.kind) query = query.eq("kind", opts.kind);
+
+  const { data, error, count } = await query
+    .order("occurred_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(error.message);
+
+  let items = (data ?? []).map((r) => mapTransaction(r));
+  items = await enrichTransactionsWithGoalNames(supabase, items);
+  items = await enrichTransactionsWithSourceNames(supabase, items);
+
+  return {
+    items,
+    total: count ?? 0,
+    nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
+  };
+}
+
 export async function listAccountTransactions(
   supabase: SupabaseClient,
   accountId: string,

@@ -527,33 +527,49 @@ export function TabMe({
               <p className="note">No cash accounts yet. Click Edit to add one.</p>
             ) : (
               <>
-                <p className="ui-hint" style={{ marginBottom: 6 }}>
-                  Click an account to add transactions or view history.
-                </p>
-                {accountsApi.accounts.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className="account-ledger-row"
-                    onClick={() => {
-                      setLedgerAccountId(a.id);
-                      console.info("[TabMe] opened account ledger", { id: a.id });
-                    }}
-                  >
-                    <span>
-                      <strong>{a.name || "—"}</strong>
-                      {!a.includeInSavings ? (
-                        <span className="note"> (net worth only)</span>
-                      ) : null}
-                      {a.notes ? (
-                        <span className="note" style={{ display: "block", marginTop: 2 }}>
-                          {a.notes}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="num">{fmt2(a.balance)}</span>
-                  </button>
-                ))}
+                <div className="table-scroll">
+                  <table className="ledger-table">
+                    <thead>
+                      <tr>
+                        <th>Account</th>
+                        <th className="num">Balance</th>
+                        <th>In savings?</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accountsApi.accounts.map((a) => (
+                        <tr
+                          key={a.id}
+                          className="ledger-row"
+                          tabIndex={0}
+                          role="button"
+                          onClick={() => {
+                            setLedgerAccountId(a.id);
+                            console.info("[TabMe] opened account ledger", { id: a.id });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setLedgerAccountId(a.id);
+                            }
+                          }}
+                        >
+                          <td>
+                            <strong>{a.name || "—"}</strong>
+                          </td>
+                          <td className="num">{fmt2(a.balance)}</td>
+                          <td>
+                            {a.includeInSavings ? "Yes" : "Net worth only"}
+                          </td>
+                          <td className="note" style={{ fontSize: 12 }}>
+                            {a.notes || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 {ledgerAccount ? (
                   <AccountLedgerModal
                     account={ledgerAccount}

@@ -1465,6 +1465,51 @@ footer {
   outline-offset: 2px;
 }
 
+.ledger-table {
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.ledger-table thead th {
+  padding-bottom: 6px;
+}
+
+.ledger-table tbody tr:hover {
+  background: transparent;
+}
+
+.ledger-table tbody tr.ledger-row {
+  cursor: pointer;
+}
+
+.ledger-table tbody tr.ledger-row td {
+  padding: 12px 14px;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.ledger-table tbody tr.ledger-row td:first-child {
+  border-left: 1px solid var(--line);
+  border-radius: 4px 0 0 4px;
+}
+
+.ledger-table tbody tr.ledger-row td:last-child {
+  border-right: 1px solid var(--line);
+  border-radius: 0 4px 4px 0;
+}
+
+.ledger-table tbody tr.ledger-row:hover td {
+  border-color: var(--moss);
+  background: var(--wash);
+}
+
+.ledger-table tbody tr.ledger-row:focus-visible {
+  outline: 2px solid var(--moss);
+  outline-offset: 2px;
+}
+
 .account-totals {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
