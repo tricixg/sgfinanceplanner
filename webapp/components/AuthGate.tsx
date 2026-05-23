@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Dashboard } from "@/components/Dashboard";
+import { fetchJson } from "@/lib/fetch-json";
 import { createClient } from "@/lib/supabase/client";
 
 type SessionUser = { id: string; email: string | null };
 
 export function AuthGate() {
   const [checking, setChecking] = useState(true);
+  const [checkFailed, setCheckFailed] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [email, setEmail] = useState("");
@@ -17,9 +19,16 @@ export function AuthGate() {
 
   const checkSession = useCallback(async () => {
     setChecking(true);
+    setCheckFailed(false);
     try {
-      const res = await fetch("/api/auth/session", { credentials: "include" });
-      const json = await res.json();
+      const { res, data: json } = await fetchJson<{
+        configured?: boolean;
+        user?: SessionUser | null;
+        error?: string;
+      }>("/api/auth/session", { credentials: "include" });
+      if (!res.ok) {
+        throw new Error(json.error ?? `Session check failed (${res.status})`);
+      }
       setConfigured(Boolean(json.configured));
       setUser(json.user ?? null);
       console.info("[AuthGate] session check", {
@@ -28,8 +37,12 @@ export function AuthGate() {
       });
     } catch (e) {
       console.error("[AuthGate] session check failed", e);
-      setConfigured(false);
-      setUser(null);
+      setCheckFailed(true);
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not reach the server. Is `npm run dev` running?"
+      );
     } finally {
       setChecking(false);
     }
@@ -75,6 +88,27 @@ export function AuthGate() {
     return (
       <div className="wrap pin-screen">
         <p className="loading">Checking access…</p>
+      </div>
+    );
+  }
+
+  if (checkFailed) {
+    return (
+      <div className="wrap pin-screen">
+        <div className="pin-card card">
+          <div className="kicker">Private dashboard</div>
+          <h1 className="pin-title">Cannot reach server</h1>
+          <p className="pin-error" role="alert">
+            {error}
+          </p>
+          <p className="note" style={{ marginBottom: 16 }}>
+            If you are developing locally, stop any old dev server and run{" "}
+            <code>npm run dev</code> from the <code>webapp</code> folder (Node 20+).
+          </p>
+          <button type="button" className="btn" onClick={() => checkSession()}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import type { DashboardState, Loan } from "@/lib/types";
-import { activeLoanOutstanding, debtBurnDown, partitionLoans } from "@/lib/finance";
+import {
+  activeLoanOutstanding,
+  creditCardLabel,
+  debtBurnDown,
+  ensureCreditCardIds,
+  partitionLoans,
+} from "@/lib/finance";
 import type { EnrichedLoan } from "@/lib/finance/debt";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
@@ -37,6 +43,8 @@ export function TabDebt({ state: S, setState }: Props) {
   const totalOut = activeLoanOutstanding(S);
   const { active: activeLoans, archived: archivedLoans } = partitionLoans(S);
 
+  const cardsWithIds = ensureCreditCardIds(S.creditCards);
+
   const updateLoan = (i: number, key: keyof Loan, val: string | number) => {
     setState((prev) => ({
       ...prev,
@@ -45,14 +53,38 @@ export function TabDebt({ state: S, setState }: Props) {
     console.log("[TabDebt] updated loan", i, key, val);
   };
 
+  const setLoanCard = (i: number, cardId: string) => {
+    const label = creditCardLabel(cardsWithIds, cardId) || "—";
+    setState((prev) => {
+      const loans = prev.loans.map((l, j) =>
+        j === i ? { ...l, cardId: cardId || undefined, card: label } : l
+      );
+      console.log("[TabDebt] linked loan to card", { index: i, cardId, label });
+      return { ...prev, loans };
+    });
+  };
+
   const addLoan = () => {
-    setState((prev) => ({
-      ...prev,
-      loans: [
-        ...prev.loans,
-        { name: "New loan", card: "—", monthly: 0, out: 0, end: "2027-01" },
-      ],
-    }));
+    const defaultCardId = cardsWithIds[0]?.id;
+    const defaultLabel = creditCardLabel(cardsWithIds, defaultCardId) || "—";
+    setState((prev) => {
+      const creditCards = ensureCreditCardIds(prev.creditCards);
+      return {
+        ...prev,
+        creditCards,
+        loans: [
+          ...prev.loans,
+          {
+            name: "New instalment plan",
+            card: defaultLabel,
+            cardId: defaultCardId,
+            monthly: 0,
+            out: 0,
+            end: "2027-01",
+          },
+        ],
+      };
+    });
     console.log("[TabDebt] added loan");
   };
 
@@ -90,7 +122,7 @@ export function TabDebt({ state: S, setState }: Props) {
   const loanRow = (l: EnrichedLoan) => (
     <tr key={l.index}>
       <td>{l.name}</td>
-      <td>{l.card}</td>
+      <td>{creditCardLabel(cardsWithIds, l.cardId) || l.card}</td>
       <td className="num">{l.monthly ? fmt2(l.monthly) : "—"}</td>
       <td className="num">{fmt2(l.out)}</td>
       <td className="num">{l.endLbl}</td>
@@ -108,11 +140,17 @@ export function TabDebt({ state: S, setState }: Props) {
           value={l.name}
           onChange={(e) => updateLoan(l.index, "name", e.target.value)}
         />
-        <input
-          type="text"
-          value={l.card}
-          onChange={(e) => updateLoan(l.index, "card", e.target.value)}
-        />
+        <select
+          value={l.cardId ?? ""}
+          onChange={(e) => setLoanCard(l.index, e.target.value)}
+        >
+          <option value="">— Select card —</option>
+          {cardsWithIds.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
         <NumInput
           value={l.monthly}
           step={0.01}
@@ -142,8 +180,9 @@ export function TabDebt({ state: S, setState }: Props) {
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Instalment plans feed cashflow, calendar, and debt burn-down charts.
-        Click <b>Edit</b> below to change instalment plans and card/BT balance — changes auto-save to Supabase when configured.
+        Instalment plans feed cashflow, calendar, and debt burn-down charts. Link each
+        plan to a <b>credit card</b> — those amounts appear on the Credit Cards tab
+        statement breakdown. Click <b>Edit</b> to change plans and card/BT balance.
         Margin loan is edited on <b>Investment</b> (holdings section).
       </div>
 

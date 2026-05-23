@@ -618,6 +618,19 @@ tbody tr:hover {
   margin-bottom: 0;
   padding-bottom: 0;
 }
+.card-outstanding-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.card-outstanding-toggle input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
 .card-edit-reward {
   margin: 6px 0 0;
 }
@@ -669,6 +682,28 @@ tbody tr:hover {
 .card-advisor-result {
   border-top: 1px solid var(--line);
   padding-top: 14px;
+}
+.card-breakdown-grid {
+  align-items: stretch;
+}
+.card-breakdown-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.card-breakdown-loans {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.card-breakdown-loans li {
+  margin-bottom: 4px;
+}
+.card-breakdown-grid .chart-box {
+  height: 200px;
 }
 @media (max-width: 720px) {
   .catalog-select-row,

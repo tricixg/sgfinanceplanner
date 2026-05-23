@@ -1,4 +1,5 @@
 import type { DashboardState } from "@/lib/types";
+import { creditCardLabel } from "./card-linking";
 import { stableTakeHome } from "./cashflow";
 import { clampDay, formatMonthLabel } from "./helpers";
 
@@ -64,7 +65,7 @@ export function getCalendarEvents(
         day,
         type: "loan_end",
         label: `${loan.name} ends`,
-        detail: loan.card,
+        detail: creditCardLabel(S.creditCards, loan.cardId) || loan.card,
       });
     }
   }

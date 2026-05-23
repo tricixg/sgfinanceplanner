@@ -16,4 +16,5 @@ export * from "./bto";
 export * from "./bto-schemes";
 export * from "./debt";
 export * from "./calendar";
+export * from "./card-linking";
 export * from "./card-rewards";

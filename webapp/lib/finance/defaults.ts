@@ -4,6 +4,7 @@ import { migrateInsurancePolicies } from "./insurance";
 import { migrateIlpPolicies } from "./ilp";
 import { migrateAccounts } from "./accounts";
 import { migrateHoldings } from "./wealth";
+import { migrateCardLoanLinks } from "./card-linking";
 import { normalizeCreditCard } from "./card-rewards";
 import { getDummyEnrichment } from "./dummy-data";
 import { currentYm } from "./helpers";
@@ -46,7 +47,12 @@ export function createDummyState(): DashboardState {
     ...getDummyEnrichment(),
   });
   dummy.cashflowStartYm = currentYm();
-  dummy.creditCards = dummy.creditCards.map((c) => normalizeCreditCard(c));
+  const linkedDummy = migrateCardLoanLinks({
+    creditCards: dummy.creditCards.map((c) => normalizeCreditCard(c)),
+    loans: dummy.loans,
+  });
+  dummy.creditCards = linkedDummy.creditCards;
+  dummy.loans = linkedDummy.loans;
   console.log("[createDummyState] loaded full dummy dashboard", {
     monthlySal: dummy.monthlySal,
     creditCards: dummy.creditCards.length,
@@ -285,6 +291,11 @@ type LegacySaved = Partial<DashboardState> & {
 
 export function mergeWithDefaults(saved: LegacySaved): DashboardState {
   const monthlySal = saved.monthlySal ?? saved.newSal ?? 0;
+  const normalizedCards = (saved.creditCards ?? []).map((c) => normalizeCreditCard(c));
+  const linked = migrateCardLoanLinks({
+    creditCards: normalizedCards,
+    loans: saved.loans ?? [],
+  });
   const merged: DashboardState = {
     ...createEmptyState(),
     ...saved,
@@ -297,8 +308,8 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
       : [],
     budget: migrateBudget(saved),
     goals: saved.goals ?? [],
-    loans: saved.loans ?? [],
-    creditCards: (saved.creditCards ?? []).map((c) => normalizeCreditCard(c)),
+    loans: linked.loans,
+    creditCards: linked.creditCards,
     ilpPolicies: migrateIlpPolicies(saved),
     insurancePolicies: migrateInsurancePolicies(saved),
     accounts: migrateAccounts(saved),
