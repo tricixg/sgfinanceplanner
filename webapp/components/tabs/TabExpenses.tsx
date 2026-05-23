@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { CategoryBudgetCard } from "@/components/expenses/CategoryBudgetCard";
 import { ZeroBudgetCategoryList } from "@/components/expenses/ZeroBudgetCategoryList";
+import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 
 export function TabExpenses({ enabled }: { enabled: boolean }) {
+  const { reload: reloadFinancialAccounts } = useFinancialAccounts();
   const [viewYm, setViewYm] = useState(currentYm);
   const [summary, setSummary] = useState<BudgetExpenseSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,17 +44,30 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     void loadSummary();
   }, [loadSummary]);
 
+  useEffect(() => {
+    if (enabled) void reloadFinancialAccounts();
+  }, [enabled, reloadFinancialAccounts]);
+
   const addExpense = async (payload: {
     budgetLineId: string;
     amount: number;
     spentAt: string;
     note: string;
+    financialAccountId?: string;
   }) => {
     const { res, data } = await fetchJson<{ error?: string }>("/api/expenses", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        budgetLineId: payload.budgetLineId,
+        amount: payload.amount,
+        spentAt: payload.spentAt,
+        note: payload.note,
+        ...(payload.financialAccountId
+          ? { financialAccountId: payload.financialAccountId }
+          : {}),
+      }),
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to add expense");
     await loadSummary();

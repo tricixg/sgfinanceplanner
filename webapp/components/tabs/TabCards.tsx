@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CreditCard, DashboardState } from "@/lib/types";
+import type { CardStatementComputed } from "@/lib/cards/types";
 import {
   BANKS,
   CATALOG_AS_OF,
@@ -17,15 +18,13 @@ import {
   type CardRecommendation,
   type RewardPreference,
 } from "@/lib/finance/card-rewards";
-import { ChartBox } from "@/components/ChartBox";
-import {
-  ensureCreditCardIds,
-  getAllCardStatementBreakdowns,
-  totalInstalmentOnStatements,
-  totalRevolvingOnStatements,
-} from "@/lib/finance/card-linking";
-import { totalStatementAmount } from "@/lib/finance/calendar";
-import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { ensureCreditCardIds } from "@/lib/finance/card-linking";
+import { fmt2 } from "@/lib/finance/helpers";
+import { fetchJson } from "@/lib/fetch-json";
+import { Snackbar } from "@/components/Snackbar";
+import { useCardStatements } from "@/hooks/useCardStatements";
+import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { useSnackbar } from "@/hooks/useSnackbar";
 
 type CardsApi = {
   cards: CreditCard[];
@@ -36,7 +35,6 @@ type CardsApi = {
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
-  /** When set, cards are loaded/saved via /api/credit-cards instead of dashboard_state. */
   cardsApi?: CardsApi;
 };
 
@@ -74,45 +72,194 @@ function rewardTagClass(type?: CreditCard["rewardType"]): string {
   return "tag";
 }
 
-export function TabCards({ state: S, setState, cardsApi }: Props) {
-  const creditCards = cardsApi?.configured ? cardsApi.cards : S.creditCards;
-  const viewState = useMemo(
-    () => ({ ...S, creditCards }),
-    [S, creditCards]
-  );
+function fmtDate(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-SG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
-  const setCreditCards = (updater: (prev: CreditCard[]) => CreditCard[]) => {
-    const next = ensureCreditCardIds(updater(creditCards));
-    if (cardsApi?.configured) {
-      void cardsApi.saveCards(next);
-    } else {
-      setState((prev) => ({ ...prev, creditCards: next }));
+function CardPaymentModal({
+  statement,
+  onClose,
+  onPaid,
+}: {
+  statement: CardStatementComputed;
+  onClose: () => void;
+  onPaid: () => Promise<void>;
+}) {
+  const { accounts } = useFinancialAccounts();
+  const cashAccounts = accounts.filter((a) => a.accountType === "cash");
+  const defaultPay =
+    statement.minimumDue != null && statement.minimumDue > 0
+      ? statement.minimumDue
+      : statement.outstandingBalance;
+  const [amount, setAmount] = useState(String(defaultPay));
+  const [financialAccountId, setFinancialAccountId] = useState(
+    cashAccounts[0]?.id ?? ""
+  );
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) {
+      setMsg("Enter a valid amount");
+      return;
+    }
+    if (!financialAccountId) {
+      setMsg("Select a cash account");
+      return;
+    }
+    setSaving(true);
+    setMsg("");
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/credit-cards/statements/${statement.id}/pay`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: amt, financialAccountId }),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Payment failed");
+      console.info("[TabCards] payment ok", { statementId: statement.id, amt });
+      await onPaid();
+      onClose();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Payment failed");
+      console.error("[TabCards] payment failed", err);
+    } finally {
+      setSaving(false);
     }
   };
 
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="card modal-panel">
+        <h3>Record card payment</h3>
+        <p className="note">
+          {statement.cardName} · statement {fmtDate(statement.statementCloseDate)} ·
+          outstanding {fmt2(statement.outstandingBalance)}
+        </p>
+        <form onSubmit={(e) => void submit(e)}>
+          <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
+          <label>
+            Amount (SGD)
+            <input
+              type="number"
+              step={0.01}
+              min={0}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              disabled={saving}
+            />
+          </label>
+          <label>
+            Pay from (cash)
+            <select
+              value={financialAccountId}
+              onChange={(e) => setFinancialAccountId(e.target.value)}
+              required
+              disabled={saving}
+            >
+              <option value="">— Select —</option>
+              {cashAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          </fieldset>
+          {msg && <p className="note" style={{ color: "var(--rust)" }}>{msg}</p>}
+          <div className="toolbar">
+            <button type="button" className="btn ghost sm" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" className="btn sm" disabled={saving}>
+              {saving ? "Saving…" : "Record payment"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function TabCards({ state: S, setState, cardsApi }: Props) {
+  const creditCards = cardsApi?.configured ? cardsApi.cards : S.creditCards;
+  const statementsEnabled = Boolean(cardsApi?.configured);
+  const {
+    bundle,
+    loading: statementsLoading,
+    reload: reloadStatements,
+  } = useCardStatements(statementsEnabled);
+  const {
+    accounts: financialAccounts,
+    loading: accountsLoading,
+    reload: reloadFinancialAccounts,
+  } = useFinancialAccounts();
+
+  const snackbar = useSnackbar();
+  const [initialLoadDone, setInitialLoadDone] = useState(!statementsEnabled);
+
+  useEffect(() => {
+    if (statementsEnabled) {
+      void reloadFinancialAccounts();
+    }
+  }, [statementsEnabled, reloadFinancialAccounts]);
+
+  useEffect(() => {
+    if (!statementsEnabled) {
+      setInitialLoadDone(true);
+      return;
+    }
+    if (!statementsLoading && !accountsLoading) {
+      setInitialLoadDone(true);
+    }
+  }, [statementsEnabled, statementsLoading, accountsLoading]);
+
   const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<CreditCard[] | null>(null);
+  const [savingConfig, setSavingConfig] = useState(false);
   const [spendAmount, setSpendAmount] = useState(500);
   const [spendCategory, setSpendCategory] = useState<SpendCategory>("dining");
   const [preference, setPreference] = useState<RewardPreference>("best");
   const [recommendation, setRecommendation] = useState<CardRecommendation | null>(
     null
   );
+  const [payStatement, setPayStatement] = useState<CardStatementComputed | null>(null);
+  const [draftActual, setDraftActual] = useState<Record<string, string>>({});
+  const [draftMinDue, setDraftMinDue] = useState<Record<string, string>>({});
+  const [savingRow, setSavingRow] = useState<string | null>(null);
+  const [showOpenCycleDetail, setShowOpenCycleDetail] = useState(false);
 
-  const stmtTotal = totalStatementAmount(viewState);
-  const statementBreakdowns = useMemo(
-    () => getAllCardStatementBreakdowns(viewState),
-    [viewState]
-  );
   const rewardCounts = useMemo(
     () => countCardsByRewardType(creditCards),
     [creditCards]
   );
 
+  const statementByCardKey = useMemo(() => {
+    const map = new Map<string, CardStatementComputed>();
+    for (const s of bundle.statements) {
+      map.set(s.creditCardKey, s);
+    }
+    return map;
+  }, [bundle.statements]);
+
+  const patchEditDraft = (updater: (prev: CreditCard[]) => CreditCard[]) => {
+    setEditDraft((prev) => ensureCreditCardIds(updater(prev ?? creditCards)));
+  };
+
   const updateCard = (i: number, patch: Partial<CreditCard>) => {
-    setCreditCards((prev) =>
-      prev.map((c, j) => (j === i ? { ...c, ...patch } : c))
-    );
-    console.log("[TabCards] updated card", i, patch);
+    patchEditDraft((prev) => prev.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+    console.log("[TabCards] updated card draft", i, patch);
   };
 
   const applyCatalog = (i: number, catalogId: string) => {
@@ -128,7 +275,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     }
     const entry = getCatalogEntry(catalogId);
     if (!entry) return;
-    setCreditCards((prev) =>
+    patchEditDraft((prev) =>
       prev.map((c, j) =>
         j === i
           ? {
@@ -136,7 +283,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
               ...applyCatalogEntry(entry),
               statementDay: c.statementDay,
               paymentDueDay: c.paymentDueDay,
-              statementAmount: c.statementAmount,
+              interestRateApr: c.interestRateApr,
             }
           : c
       )
@@ -145,21 +292,97 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
   };
 
   const addCard = () => {
-    setCreditCards((prev) => [
+    patchEditDraft((prev) => [
       ...prev,
       {
         name: "New card",
         statementDay: 1,
         paymentDueDay: 21,
         statementAmount: 0,
+        interestRateApr: 0,
       },
     ]);
-    console.log("[TabCards] added card");
+    console.log("[TabCards] added card to draft");
   };
 
   const removeCard = (i: number) => {
-    setCreditCards((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabCards] removed card", i);
+    patchEditDraft((prev) => prev.filter((_, j) => j !== i));
+    console.log("[TabCards] removed card from draft", i);
+  };
+
+  const cardsInEdit = editDraft ?? creditCards;
+
+  useEffect(() => {
+    setDraftActual((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const s of bundle.statements) {
+        if (next[s.id] === undefined && s.actualAmount != null) {
+          next[s.id] = String(s.actualAmount);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    setDraftMinDue((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const s of bundle.statements) {
+        if (next[s.id] === undefined && s.minimumDue != null) {
+          next[s.id] = String(s.minimumDue);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [bundle.statements]);
+
+  const saveStatementRow = async (stmt: CardStatementComputed) => {
+    const actualRaw = draftActual[stmt.id] ?? "";
+    const minRaw = draftMinDue[stmt.id] ?? "";
+    const actualAmount = actualRaw === "" ? undefined : parseFloat(actualRaw);
+    const minimumDue =
+      minRaw === "" ? null : parseFloat(minRaw);
+
+    if (actualAmount !== undefined && (!Number.isFinite(actualAmount) || actualAmount < 0)) {
+      return;
+    }
+    if (
+      minimumDue != null &&
+      (!Number.isFinite(minimumDue) || minimumDue < 0)
+    ) {
+      return;
+    }
+    if (actualAmount === undefined && minRaw === "") return;
+
+    setSavingRow(stmt.id);
+    try {
+      const body: { actualAmount?: number; minimumDue?: number | null } = {};
+      if (actualAmount !== undefined) body.actualAmount = actualAmount;
+      if (minRaw !== "" || stmt.minimumDue != null) body.minimumDue = minimumDue;
+
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/credit-cards/statements/${stmt.id}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      console.info("[TabCards] saved statement row", { id: stmt.id, body });
+      await reloadStatements({ silent: true });
+      snackbar.show("Statement saved");
+    } catch (e) {
+      console.error("[TabCards] save statement row failed", e);
+      snackbar.show(
+        e instanceof Error ? e.message : "Failed to save statement",
+        { error: true }
+      );
+    } finally {
+      setSavingRow(null);
+    }
   };
 
   const runAdvisor = () => {
@@ -170,33 +393,64 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
       preference
     );
     setRecommendation(rec);
-    console.log("[TabCards] recommend", {
-      spendAmount,
-      spendCategory,
-      preference,
-      rec,
-    });
+    console.log("[TabCards] recommend", { spendAmount, spendCategory, preference, rec });
   };
 
-  const finishEditing = () => {
-    setEditing(false);
-    console.log("[TabCards] edit mode off");
+  const startEditing = () => {
+    setEditDraft(ensureCreditCardIds([...creditCards]));
+    setEditing(true);
+    console.log("[TabCards] edit mode on");
   };
+
+  const finishEditing = async () => {
+    if (!editDraft) {
+      setEditing(false);
+      return;
+    }
+    setSavingConfig(true);
+    try {
+      const next = ensureCreditCardIds(editDraft);
+      if (cardsApi?.configured) {
+        await cardsApi.saveCards(next);
+      } else {
+        setState((prev) => ({ ...prev, creditCards: next }));
+      }
+      if (statementsEnabled) {
+        await reloadStatements({ silent: true });
+      }
+      snackbar.show("Card configuration saved");
+      setEditing(false);
+      setEditDraft(null);
+      console.log("[TabCards] edit mode off, saved");
+    } catch (e) {
+      console.error("[TabCards] save config failed", e);
+      snackbar.show(
+        e instanceof Error ? e.message : "Failed to save cards",
+        { error: true }
+      );
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  if (statementsEnabled && !initialLoadDone) {
+    return (
+      <section className="panel on">
+        <p className="loading">Loading credit cards and statements…</p>
+      </section>
+    );
+  }
 
   return (
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Pick cards from the Singapore catalog (indicative as of {CATALOG_AS_OF}) to
-        auto-fill miles/cashback rules. Statement amounts and due dates appear on{" "}
-        <b>This Month</b>. Confirm current T&Cs on your bank site before large spends.
+        Pick cards from the Singapore catalog (indicative as of {CATALOG_AS_OF}).
+        Enter statement amount and minimum due for each card, then record payment from a
+        cash account. Unpaid balances after the due date carry forward with daily interest.
       </div>
 
-      <div className="grid g3" style={{ marginBottom: 16 }}>
-        <div className="stat accent">
-          <div className="lbl">Statement balances (all cards)</div>
-          <div className="val">{fmt(stmtTotal)}</div>
-        </div>
+      <div className="grid g2" style={{ marginBottom: 16 }}>
         <div className="stat">
           <div className="lbl">Cards tracked</div>
           <div className="val">{creditCards.length}</div>
@@ -205,27 +459,96 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
             {rewardCounts.hybrid > 0 ? ` · ${rewardCounts.hybrid} hybrid` : ""}
           </div>
         </div>
-        <div className="stat">
-          <div className="lbl">Salary credit day</div>
-          <div className="val">Day {S.salaryCreditDay}</div>
-          <div className="note">Salary on ME tab</div>
-        </div>
+        {statementsEnabled && bundle.openCycles.length > 0 && (
+          <div className="stat accent">
+            <div className="lbl">Est. next statements (all cards)</div>
+            <div className="val">
+              {fmt2(
+                bundle.openCycles.reduce((s, o) => s + o.estimatedTotal, 0)
+              )}
+            </div>
+            <div className="note">
+              <button
+                type="button"
+                className="btn ghost sm"
+                style={{ marginTop: 4 }}
+                onClick={() => setShowOpenCycleDetail((v) => !v)}
+              >
+                {showOpenCycleDetail ? "Hide" : "View"} open-cycle estimates
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
+      {statementsEnabled && showOpenCycleDetail && bundle.openCycles.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ marginTop: 0 }}>Open-cycle estimates</h3>
+          <div className="grid g3 card-open-cycle-grid">
+            {bundle.openCycles.map((o) => (
+              <div className="stat" key={o.creditCardId}>
+                <div className="lbl">{o.cardName}</div>
+                <div className="val">{fmt2(o.estimatedTotal)}</div>
+                <div className="note">
+                  Stmt {fmtDate(o.statementCloseDate)} · {o.daysLeftInCycle}d left
+                  <br />
+                  Spend {fmt2(o.newSpend)}
+                  {o.carriedForward > 0 ? ` · Carried ${fmt2(o.carriedForward)}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="table-scroll" style={{ marginTop: 12 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Card</th>
+                  <th>Next statement</th>
+                  <th>Carried</th>
+                  <th>New spend</th>
+                  <th>Interest</th>
+                  <th>Est. total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bundle.openCycles.map((o) => (
+                  <tr key={o.creditCardId}>
+                    <td>{o.cardName}</td>
+                    <td>
+                      {fmtDate(o.statementCloseDate)}
+                      <div className="note">{o.daysLeftInCycle} days left</div>
+                    </td>
+                    <td className="num">{fmt2(o.carriedForward)}</td>
+                    <td className="num">{fmt2(o.newSpend)}</td>
+                    <td className="num">{fmt2(o.interestEstimate)}</td>
+                    <td className="num">
+                      <b>{fmt2(o.estimatedTotal)}</b>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="section-head">
-        <h2>Credit cards</h2>
+        <h2>Card configuration</h2>
         {editing ? (
-          <button type="button" className="btn sm" onClick={finishEditing}>
-            Done
+          <button
+            type="button"
+            className="btn sm"
+            disabled={savingConfig}
+            onClick={() => void finishEditing()}
+          >
+            {savingConfig ? "Saving…" : "Done"}
           </button>
         ) : (
           <button
             type="button"
             className="btn ghost sm"
-            onClick={() => {
-              setEditing(true);
-              console.log("[TabCards] edit mode on");
-            }}
+            disabled={savingRow !== null}
+            onClick={startEditing}
           >
             Edit
           </button>
@@ -234,12 +557,13 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
 
       {editing ? (
         <div className="card">
-          {creditCards.length === 0 ? (
+          <fieldset disabled={savingConfig} style={{ border: 0, margin: 0, padding: 0 }}>
+          {cardsInEdit.length === 0 ? (
             <p style={{ color: "var(--muted)", fontStyle: "italic", marginBottom: 12 }}>
               No cards yet. Add one below.
             </p>
           ) : (
-            creditCards.map((c, i) => (
+            cardsInEdit.map((c, i) => (
               <div key={i} className="card-edit-block">
                 <div className="catalog-select-row">
                   <label>
@@ -287,31 +611,41 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                     placeholder="Display name"
                     onChange={(e) => updateCard(i, { name: e.target.value })}
                   />
-                  <NumInput
-                    value={c.statementDay}
-                    min={1}
-                    max={31}
-                    onChange={(v) =>
-                      updateCard(i, {
-                        statementDay: Math.min(31, Math.max(1, Math.round(v))),
-                      })
-                    }
-                  />
-                  <NumInput
-                    value={c.paymentDueDay}
-                    min={1}
-                    max={31}
-                    onChange={(v) =>
-                      updateCard(i, {
-                        paymentDueDay: Math.min(31, Math.max(1, Math.round(v))),
-                      })
-                    }
-                  />
-                  <NumInput
-                    value={c.statementAmount}
-                    step={0.01}
-                    onChange={(v) => updateCard(i, { statementAmount: v })}
-                  />
+                  <label className="note" style={{ display: "flex", flexDirection: "column" }}>
+                    Stmt day
+                    <NumInput
+                      value={c.statementDay}
+                      min={1}
+                      max={31}
+                      onChange={(v) =>
+                        updateCard(i, {
+                          statementDay: Math.min(31, Math.max(1, Math.round(v))),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="note" style={{ display: "flex", flexDirection: "column" }}>
+                    Due day
+                    <NumInput
+                      value={c.paymentDueDay}
+                      min={1}
+                      max={31}
+                      onChange={(v) =>
+                        updateCard(i, {
+                          paymentDueDay: Math.min(31, Math.max(1, Math.round(v))),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="note" style={{ display: "flex", flexDirection: "column" }}>
+                    Interest % p.a.
+                    <NumInput
+                      value={c.interestRateApr ?? 0}
+                      step={0.01}
+                      min={0}
+                      onChange={(v) => updateCard(i, { interestRateApr: v })}
+                    />
+                  </label>
                   <button
                     type="button"
                     className="btn del sm"
@@ -320,22 +654,6 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                     del
                   </button>
                 </div>
-                <label className="card-outstanding-toggle">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(c.includeOutstandingOnStatement)}
-                    onChange={(e) => {
-                      updateCard(i, {
-                        includeOutstandingOnStatement: e.target.checked,
-                      });
-                      console.log("[TabCards] include outstanding", {
-                        card: c.name,
-                        on: e.target.checked,
-                      });
-                    }}
-                  />
-                  Include plan outstanding on statement breakdown (monthly + outstanding)
-                </label>
                 {c.rewardHeadline && (
                   <p className="note card-edit-reward">{c.rewardHeadline}</p>
                 )}
@@ -343,10 +661,11 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
             ))
           )}
           <div className="toolbar">
-            <button type="button" className="btn ghost sm" onClick={addCard}>
+            <button type="button" className="btn ghost sm" onClick={addCard} disabled={savingConfig}>
               + Add card
             </button>
           </div>
+          </fieldset>
         </div>
       ) : (
         <div className="card table-scroll">
@@ -361,10 +680,9 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                   <th>Card</th>
                   <th>Bank</th>
                   <th>Rewards</th>
+                  <th>Interest %</th>
                   <th>Stmt day</th>
                   <th>Due day</th>
-                  <th>Statement</th>
-                  <th>+ Outstanding</th>
                 </tr>
               </thead>
               <tbody>
@@ -381,31 +699,14 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                           <div className="note" style={{ marginTop: 4 }}>
                             {c.rewardHeadline}
                           </div>
-                          {c.rewardRules && c.rewardRules.length > 0 && (
-                            <details className="reward-details">
-                              <summary>Category rates</summary>
-                              <ul>
-                                {c.rewardRules.map((rule, ri) => (
-                                  <li key={ri}>
-                                    <b>{SPEND_CATEGORY_LABELS[rule.category as SpendCategory] ?? rule.category}</b>:{" "}
-                                    {rule.earn}
-                                    {rule.cap ? ` (${rule.cap})` : ""}
-                                  </li>
-                                ))}
-                              </ul>
-                            </details>
-                          )}
                         </>
                       ) : (
                         <span style={{ color: "var(--muted)" }}>—</span>
                       )}
                     </td>
+                    <td className="num">{(c.interestRateApr ?? 0).toFixed(2)}</td>
                     <td className="num">Day {c.statementDay}</td>
                     <td className="num">Day {c.paymentDueDay}</td>
-                    <td className="num">
-                      {c.statementAmount > 0 ? fmt2(c.statementAmount) : "—"}
-                    </td>
-                    <td>{c.includeOutstandingOnStatement ? "Yes" : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -414,127 +715,174 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
         </div>
       )}
 
-      {statementBreakdowns.length > 0 && (
+      {statementsEnabled && (
         <>
-          <h2 style={{ marginTop: 24 }}>Statement breakdown</h2>
-          <p className="note" style={{ marginBottom: 12 }}>
-            By default, instalments use each plan&apos;s <b>monthly</b> charge from{" "}
-            <b>Debts &amp; Loans</b>. Tick <b>Include plan outstanding</b> on a card
-            (Edit) to add linked plan outstanding as well. Revolving spend = statement
-            minus that total.
+          <h2 style={{ marginTop: 24 }}>Statements</h2>
+          <p className="note" style={{ marginBottom: 8 }}>
+            Latest closed cycle per card. Enter amounts from your bank statement, then save
+            and record payment.
           </p>
-          <div className="grid g2 card-breakdown-grid">
-            {statementBreakdowns.map((b) => (
-              <div className="card" key={b.cardId}>
-                <h3 className="card-breakdown-title">{b.cardName}</h3>
-                <div className="grid g2" style={{ marginBottom: 12 }}>
-                  <div className="stat">
-                    <div className="lbl">Statement</div>
-                    <div className="val">{fmt2(b.statementAmount)}</div>
-                  </div>
-                  <div className="stat accent">
-                    <div className="lbl">Revolving spend</div>
-                    <div className="val">{fmt2(b.revolvingSpend)}</div>
-                  </div>
-                  <div className="stat warn">
-                    <div className="lbl">
-                      {b.includesOutstanding
-                        ? "Instalments + outstanding"
-                        : "Instalments (this month)"}
-                    </div>
-                    <div className="val">{fmt2(b.instalmentOnStatement)}</div>
-                  </div>
-                </div>
-                {b.statementAmount > 0 || b.instalmentOnStatement > 0 ? (
-                  <ChartBox
-                    type="doughnut"
-                    data={{
-                      labels: [
-                        "Revolving spend",
-                        b.includesOutstanding
-                          ? "Instalments + outstanding"
-                          : "Instalments (this month)",
-                      ],
-                      datasets: [
-                        {
-                          data: [b.revolvingSpend, b.instalmentOnStatement],
-                          backgroundColor: ["#2f5d3a", "#b5482e"],
-                          borderColor: "#11201a",
-                          borderWidth: 1.5,
-                        },
-                      ],
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: { position: "bottom" },
-                        tooltip: {
-                          callbacks: {
-                            label: (ctx) =>
-                              `${ctx.label}: ${fmt2(Number(ctx.raw))}`,
-                          },
-                        },
-                      },
-                    }}
-                  />
-                ) : null}
-                {b.loans.length > 0 && (
-                  <ul className="card-breakdown-loans">
-                    {b.loans.map((loan) => (
-                      <li key={loan.name}>
-                        {loan.name}: {fmt2(loan.monthly)}/mo on statement
-                        {loan.out > 0 ? ` · ${fmt2(loan.out)} still outstanding` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {b.instalmentOnStatement > b.statementAmount && (
-                  <p className="note" style={{ color: "var(--rust)", marginTop: 8 }}>
-                    Monthly instalments exceed statement — check statement amount or
-                    monthly figures on linked plans.
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          {statementBreakdowns.length > 1 && (
-            <div className="card" style={{ marginTop: 16 }}>
-              <h3 className="card-breakdown-title">All cards (summary)</h3>
-              <ChartBox
-                type="bar"
-                data={{
-                  labels: ["Revolving spend", "Instalments (this month)"],
-                  datasets: [
-                    {
-                      label: "SGD",
-                      data: [
-                        totalRevolvingOnStatements(statementBreakdowns),
-                        totalInstalmentOnStatements(statementBreakdowns),
-                      ],
-                      backgroundColor: ["#2f5d3a", "#b5482e"],
-                      borderColor: "#11201a",
-                      borderWidth: 1.5,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: {
-                        callback: (v) => "$" + Number(v).toLocaleString(),
-                      },
-                    },
-                  },
-                }}
-              />
+          {creditCards.length === 0 ? (
+            <p className="note" style={{ fontStyle: "italic" }}>
+              Add a card above to track statements.
+            </p>
+          ) : (
+            <div className="card table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Card</th>
+                    <th>Statement</th>
+                    <th>Due</th>
+                    <th>Statement amt</th>
+                    <th>Min due</th>
+                    <th>Outstanding</th>
+                    <th>Tracked</th>
+                    <th>Untracked</th>
+                    <th>Paid</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {creditCards.map((c) => {
+                    const cardKey = c.id ?? c.name;
+                    const stmt = statementByCardKey.get(cardKey);
+                    const rowSaving = stmt != null && savingRow === stmt.id;
+
+                    return (
+                      <tr
+                        key={cardKey}
+                        className={stmt?.isOverdue ? "row-overdue" : undefined}
+                      >
+                        <td>
+                          {c.name}
+                          {stmt ? (
+                            <div className="note">
+                              {fmtDate(stmt.cycleStartDate)} –{" "}
+                              {fmtDate(stmt.cycleEndDate)}
+                              {stmt.carriedForwardIn > 0
+                                ? ` · carried ${fmt2(stmt.carriedForwardIn)}`
+                                : ""}
+                            </div>
+                          ) : (
+                            <div className="note">Syncing statement…</div>
+                          )}
+                        </td>
+                        <td>{stmt ? fmtDate(stmt.statementCloseDate) : "—"}</td>
+                        <td>{stmt ? fmtDate(stmt.paymentDueDate) : `Day ${c.paymentDueDay}`}</td>
+                        <td className="num">
+                          {stmt && !stmt.paidAt ? (
+                            <input
+                              type="number"
+                              step={0.01}
+                              min={0}
+                              style={{ width: 88 }}
+                              disabled={rowSaving}
+                              value={
+                                draftActual[stmt.id] ??
+                                (stmt.actualAmount != null
+                                  ? String(stmt.actualAmount)
+                                  : "")
+                              }
+                              placeholder="Add"
+                              onChange={(e) =>
+                                setDraftActual((prev) => ({
+                                  ...prev,
+                                  [stmt.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : stmt ? (
+                            fmt2(stmt.actualAmount ?? 0)
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="num">
+                          {stmt && !stmt.paidAt ? (
+                            <input
+                              type="number"
+                              step={0.01}
+                              min={0}
+                              style={{ width: 88 }}
+                              disabled={rowSaving}
+                              value={
+                                draftMinDue[stmt.id] ??
+                                (stmt.minimumDue != null
+                                  ? String(stmt.minimumDue)
+                                  : "")
+                              }
+                              placeholder="Add"
+                              onChange={(e) =>
+                                setDraftMinDue((prev) => ({
+                                  ...prev,
+                                  [stmt.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : stmt?.minimumDue != null ? (
+                            fmt2(stmt.minimumDue)
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="num">
+                          {stmt ? fmt2(stmt.outstandingBalance) : "—"}
+                        </td>
+                        <td className="num">
+                          {stmt ? fmt2(stmt.trackedAmount) : "—"}
+                        </td>
+                        <td className="num">
+                          {stmt?.untrackedAmount != null
+                            ? fmt2(stmt.untrackedAmount)
+                            : "—"}
+                        </td>
+                        <td>
+                          {stmt?.paidAt
+                            ? `Yes ${fmt2(stmt.amountPaid)}`
+                            : stmt && stmt.amountPaid > 0
+                              ? `Partial ${fmt2(stmt.amountPaid)}`
+                              : "No"}
+                        </td>
+                        <td>
+                          {stmt && !stmt.paidAt ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <button
+                                type="button"
+                                className="btn ghost sm"
+                                disabled={rowSaving || savingConfig}
+                                onClick={() => void saveStatementRow(stmt)}
+                              >
+                                {rowSaving ? "Saving…" : "Save"}
+                              </button>
+                              {stmt.outstandingBalance > 0 ||
+                              (stmt.actualAmount != null && stmt.actualAmount > 0) ? (
+                                <button
+                                  type="button"
+                                  className="btn sm"
+                                  disabled={rowSaving || savingConfig}
+                                  onClick={() => setPayStatement(stmt)}
+                                >
+                                  Pay
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </>
+      )}
+
+      {!statementsEnabled && (
+        <p className="note" style={{ marginTop: 16 }}>
+          Sign in with cloud sync to use statement cycles, tracked spend, and payments.
+        </p>
       )}
 
       <h2 style={{ marginTop: 24 }}>Which card to use?</h2>
@@ -546,19 +894,13 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
         <div className="card-advisor-form">
           <label>
             Spend amount (SGD)
-            <NumInput
-              value={spendAmount}
-              step={10}
-              onChange={setSpendAmount}
-            />
+            <NumInput value={spendAmount} step={10} onChange={setSpendAmount} />
           </label>
           <label>
             Category
             <select
               value={spendCategory}
-              onChange={(e) =>
-                setSpendCategory(e.target.value as SpendCategory)
-              }
+              onChange={(e) => setSpendCategory(e.target.value as SpendCategory)}
             >
               {SPEND_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -571,9 +913,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
             Prefer
             <select
               value={preference}
-              onChange={(e) =>
-                setPreference(e.target.value as RewardPreference)
-              }
+              onChange={(e) => setPreference(e.target.value as RewardPreference)}
             >
               <option value="best">Best value (miles vs cashback)</option>
               <option value="miles">Miles</option>
@@ -616,6 +956,24 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
           </p>
         )}
       </div>
+
+      {payStatement && (
+        <CardPaymentModal
+          statement={payStatement}
+          onClose={() => setPayStatement(null)}
+          onPaid={async () => {
+            await reloadStatements({ silent: true });
+            snackbar.show("Payment recorded");
+          }}
+        />
+      )}
+
+      <Snackbar
+        message={snackbar.message}
+        variant={snackbar.variant}
+        durationMs={snackbar.durationMs}
+        onDismiss={snackbar.dismiss}
+      />
     </section>
   );
 }

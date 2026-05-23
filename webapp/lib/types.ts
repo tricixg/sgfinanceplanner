@@ -31,6 +31,8 @@ export type CreditCard = {
   statementDay: number;
   paymentDueDay: number;
   statementAmount: number;
+  /** Annual interest rate % p.a. for revolving balance after due date. */
+  interestRateApr?: number;
   /** When true, statement breakdown counts linked plan outstanding (out), not only monthly. */
   includeOutstandingOnStatement?: boolean;
   /** Link to [sg-card-catalog] entry; rewards snapshot stored below. */

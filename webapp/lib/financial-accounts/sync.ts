@@ -142,6 +142,7 @@ export async function syncCreditCardFinancialAccounts(
     statementDay: c.statementDay ?? 1,
     paymentDueDay: c.paymentDueDay ?? 1,
     statementAmount: c.statementAmount ?? 0,
+    interestRateApr: c.interestRateApr ?? 0,
     includeOutstandingOnStatement: Boolean(c.includeOutstandingOnStatement),
     catalogId: c.catalogId ?? null,
     bank: c.bank ?? null,

@@ -8,6 +8,7 @@ export type DbCreditCard = {
   statementDay: number;
   paymentDueDay: number;
   statementAmount: number;
+  interestRateApr: number;
   includeOutstandingOnStatement: boolean;
   catalogId: string | null;
   bank: string | null;
@@ -33,6 +34,7 @@ export function mapCreditCard(row: Record<string, unknown>): DbCreditCard {
     statementDay: Number(row.statement_day ?? 1),
     paymentDueDay: Number(row.payment_due_day ?? 1),
     statementAmount: Number(row.statement_amount ?? 0),
+    interestRateApr: Number(row.interest_rate_apr ?? 0),
     includeOutstandingOnStatement: Boolean(row.include_outstanding_on_statement),
     catalogId: row.catalog_id ? String(row.catalog_id) : null,
     bank: row.bank ? String(row.bank) : null,
@@ -53,6 +55,7 @@ export function toCreditCard(row: DbCreditCard): CreditCard {
     statementDay: row.statementDay,
     paymentDueDay: row.paymentDueDay,
     statementAmount: row.statementAmount,
+    interestRateApr: row.interestRateApr,
     includeOutstandingOnStatement: row.includeOutstandingOnStatement,
     catalogId: row.catalogId ?? undefined,
     bank: row.bank ?? undefined,

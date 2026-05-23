@@ -138,6 +138,7 @@ export function normalizeCreditCard(raw: Partial<CreditCard>): CreditCard {
     statementDay: raw.statementDay ?? 1,
     paymentDueDay: raw.paymentDueDay ?? 21,
     statementAmount: raw.statementAmount ?? 0,
+    interestRateApr: raw.interestRateApr ?? 0,
     includeOutstandingOnStatement: raw.includeOutstandingOnStatement ?? false,
     catalogId: raw.catalogId,
     bank: raw.bank,
@@ -154,6 +155,7 @@ export function normalizeCreditCard(raw: Partial<CreditCard>): CreditCard {
         statementDay: base.statementDay,
         paymentDueDay: base.paymentDueDay,
         statementAmount: base.statementAmount,
+        interestRateApr: base.interestRateApr,
         includeOutstandingOnStatement: base.includeOutstandingOnStatement,
       };
     }

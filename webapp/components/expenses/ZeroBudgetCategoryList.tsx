@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
+import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -11,6 +12,7 @@ type Props = {
     amount: number;
     spentAt: string;
     note: string;
+    financialAccountId?: string;
   }) => Promise<void>;
   onDeleteExpense: (id: string) => Promise<void>;
 };
@@ -23,6 +25,7 @@ export function ZeroBudgetCategoryItem({
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [spentAt, setSpentAt] = useState(new Date().toISOString().slice(0, 10));
+  const [financialAccountId, setFinancialAccountId] = useState("");
   const [saving, setSaving] = useState(false);
 
   const rows = [
@@ -53,6 +56,7 @@ export function ZeroBudgetCategoryItem({
         amount: amt,
         spentAt,
         note,
+        financialAccountId: financialAccountId || undefined,
       });
       setAmount("");
       setNote("");
@@ -86,6 +90,10 @@ export function ZeroBudgetCategoryItem({
             placeholder="Note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
+          />
+          <PayFromAccountSelect
+            value={financialAccountId}
+            onChange={setFinancialAccountId}
           />
           <button type="submit" className="btn ghost sm" disabled={saving}>
             {saving ? "…" : "Add"}

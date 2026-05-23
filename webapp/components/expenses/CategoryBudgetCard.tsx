@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
+import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -12,6 +13,7 @@ type Props = {
     amount: number;
     spentAt: string;
     note: string;
+    financialAccountId?: string;
   }) => Promise<void>;
   onDeleteExpense: (id: string) => Promise<void>;
 };
@@ -30,6 +32,7 @@ export function CategoryBudgetCard({
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [spentAt, setSpentAt] = useState(new Date().toISOString().slice(0, 10));
+  const [financialAccountId, setFinancialAccountId] = useState("");
   const [saving, setSaving] = useState(false);
 
   const over = category.allocated > 0 && category.spent > category.allocated;
@@ -46,6 +49,7 @@ export function CategoryBudgetCard({
         amount: amt,
         spentAt,
         note,
+        financialAccountId: financialAccountId || undefined,
       });
       setAmount("");
       setNote("");
@@ -128,6 +132,13 @@ export function CategoryBudgetCard({
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
         ) : null}
+        <label>
+          Pay from
+          <PayFromAccountSelect
+            value={financialAccountId}
+            onChange={setFinancialAccountId}
+          />
+        </label>
         <button type="submit" className="btn sm" disabled={saving}>
           {saving ? "Adding…" : "Add"}
         </button>

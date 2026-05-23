@@ -63,6 +63,7 @@ export async function saveCreditCards(
       statement_day: c.statementDay ?? 1,
       payment_due_day: c.paymentDueDay ?? 1,
       statement_amount: c.statementAmount ?? 0,
+      interest_rate_apr: c.interestRateApr ?? 0,
       include_outstanding_on_statement: Boolean(c.includeOutstandingOnStatement),
       catalog_id: c.catalogId ?? null,
       bank: c.bank ?? null,
