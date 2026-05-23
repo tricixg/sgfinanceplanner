@@ -4,7 +4,7 @@ import { LoginClient } from "./LoginClient";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in or create an account with a magic link",
+  description: "Sign in with a magic link — new accounts are created automatically",
 };
 
 export default function LoginPage() {

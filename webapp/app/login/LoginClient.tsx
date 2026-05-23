@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MagicLinkAuth, type AuthMode } from "@/components/MagicLinkAuth";
+import { MagicLinkAuth } from "@/components/MagicLinkAuth";
 import { fetchJson } from "@/lib/fetch-json";
 import { appConfig } from "@/lib/config";
 
@@ -34,8 +34,6 @@ export function LoginClient() {
   );
   const authCode = searchParams.get("auth");
   const initialError = useMemo(() => authErrorMessage(authCode), [authCode]);
-  const defaultMode: AuthMode =
-    searchParams.get("mode") === "signup" ? "signup" : "login";
 
   const [checking, setChecking] = useState(true);
   const [configured, setConfigured] = useState(false);
@@ -75,10 +73,9 @@ export function LoginClient() {
     if (!authCode) return;
     const qs = new URLSearchParams();
     if (next !== "/") qs.set("next", next);
-    if (defaultMode === "signup") qs.set("mode", "signup");
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     window.history.replaceState({}, "", `/login${suffix}`);
-  }, [authCode, next, defaultMode]);
+  }, [authCode, next]);
 
   if (checking) {
     return (
@@ -107,10 +104,6 @@ export function LoginClient() {
   }
 
   return (
-    <MagicLinkAuth
-      redirectNext={next}
-      initialError={initialError}
-      defaultMode={defaultMode}
-    />
+    <MagicLinkAuth redirectNext={next} initialError={initialError} />
   );
 }

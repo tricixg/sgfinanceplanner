@@ -65,7 +65,7 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    npm run dev
    ```
 
-   Without Supabase configured, the app still runs using browser `localStorage` only (no sign-in). With Supabase configured, open [`/login`](http://localhost:3000/login) to sign in or create an account via magic link; each account gets its own `dashboard_state` row (protected by RLS). Use `/login?mode=signup` to open the create-account tab directly.
+   Without Supabase configured, the app still runs using browser `localStorage` only (no sign-in). With Supabase configured, open [`/login`](http://localhost:3000/login), enter your email, and open the magic link — new accounts are created automatically. Each user gets their own `dashboard_state` row (protected by RLS).
 
    **Couples / shared savings:** In **ME → Settings → Partner**, invite your partner by email. Shared savings pools and shared goals appear on **Savings & Goals**. Budget, debts, investments, and expenses stay private per person. On overview tabs, use **Include joint savings** to add shared pool balances to net worth, cashflow, and projections (off by default).
 

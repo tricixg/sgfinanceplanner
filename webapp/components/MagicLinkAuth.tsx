@@ -4,42 +4,20 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { appConfig } from "@/lib/config";
 
-export type AuthMode = "login" | "signup";
-
 type Props = {
   /** Path to open after the magic link (passed through /auth/callback). */
   redirectNext?: string;
   initialError?: string;
-  defaultMode?: AuthMode;
 };
-
-const COPY = {
-  login: {
-    title: "Sign in",
-    lead: "Welcome back. Enter your email and we’ll send a magic link — no password needed.",
-    submit: "Send sign-in link",
-    sent: "Check your email for a sign-in link to",
-  },
-  signup: {
-    title: "Create account",
-    lead: "New here? Enter your email to create your account. We’ll send a magic link — no password needed.",
-    submit: "Send sign-up link",
-    sent: "Check your email to finish creating your account at",
-  },
-} as const;
 
 export function MagicLinkAuth({
   redirectNext = "/",
   initialError = "",
-  defaultMode = "login",
 }: Props) {
-  const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(initialError);
   const [submitting, setSubmitting] = useState(false);
-
-  const copy = COPY[mode];
 
   const sendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,14 +37,12 @@ export function MagicLinkAuth({
       if (signInError) {
         setError(signInError.message);
         console.warn("[MagicLinkAuth] magic link failed", {
-          mode,
           message: signInError.message,
         });
         return;
       }
       setSent(true);
       console.info("[MagicLinkAuth] magic link sent", {
-        mode,
         email: email.trim(),
         redirectNext: next,
       });
@@ -82,47 +58,16 @@ export function MagicLinkAuth({
     <div className="wrap pin-screen">
       <div className="pin-card card auth-card">
         <div className="kicker">{appConfig.kicker}</div>
-        <h1 className="pin-title">{copy.title}</h1>
-
-        <div className="auth-mode-tabs" role="tablist" aria-label="Sign in or sign up">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "login"}
-            className={mode === "login" ? "auth-mode-tab on" : "auth-mode-tab"}
-            onClick={() => {
-              setMode("login");
-              setError("");
-              setSent(false);
-              console.info("[MagicLinkAuth] switched to login");
-            }}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "signup"}
-            className={mode === "signup" ? "auth-mode-tab on" : "auth-mode-tab"}
-            onClick={() => {
-              setMode("signup");
-              setError("");
-              setSent(false);
-              console.info("[MagicLinkAuth] switched to signup");
-            }}
-          >
-            Create account
-          </button>
-        </div>
+        <h1 className="pin-title">Continue with email</h1>
 
         {sent ? (
           <>
             <p className="sub" style={{ marginBottom: 12 }}>
-              {copy.sent} <strong>{email}</strong>.
+              Check your email for a magic link to <strong>{email}</strong>.
             </p>
             <p className="note" style={{ marginBottom: 16 }}>
-              The link opens this app and keeps you signed in on this device. First-time
-              sign-up uses the same link — your dashboard is created when you open it.
+              Open the link on this device to sign in. If you are new, your account and
+              dashboard are created automatically — no separate sign-up step.
             </p>
             <button
               type="button"
@@ -139,7 +84,8 @@ export function MagicLinkAuth({
         ) : (
           <>
             <p className="sub" style={{ marginBottom: 20 }}>
-              {copy.lead}
+              Enter your email and we will send a magic link. No password needed. If you
+              do not have an account yet, one will be created when you open the link.
             </p>
             <form onSubmit={sendMagicLink}>
               <label className="pin-label auth-label">
@@ -165,7 +111,7 @@ export function MagicLinkAuth({
                 className="btn"
                 disabled={submitting || !email.trim()}
               >
-                {submitting ? "Sending…" : copy.submit}
+                {submitting ? "Sending…" : "Send magic link"}
               </button>
             </form>
           </>
