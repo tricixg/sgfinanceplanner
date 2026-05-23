@@ -936,6 +936,55 @@ select:focus {
   cursor: pointer;
 }
 
+.tx-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.tx-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tx-filter-label {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tx-filters select {
+  width: auto;
+  min-width: 0;
+  max-width: 128px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+}
+
+.tx-filters-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .tx-filters-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
 .split {
   display: grid;
   grid-template-columns: 1fr 1fr;

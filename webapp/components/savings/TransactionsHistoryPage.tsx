@@ -146,22 +146,6 @@ export function TransactionsHistoryPage() {
     return "";
   }, [financialAccountId, accountId, financialAccounts]);
 
-  const filterLabel = useMemo(() => {
-    if (financialAccountId) {
-      const name = financialAccounts.find((a) => a.id === financialAccountId)?.name;
-      return name ? `Account: ${name}` : "Account filter";
-    }
-    if (accountId) {
-      const fa = financialAccounts.find((a) => a.savingsAccountId === accountId);
-      return fa ? `Cash: ${fa.name}` : "Savings account filter";
-    }
-    if (poolId) {
-      const name = pools.find((p) => p.id === poolId)?.name;
-      return name ? `Pool: ${name}` : "Pool filter";
-    }
-    return null;
-  }, [financialAccountId, accountId, poolId, financialAccounts, pools]);
-
   const setFilters = (next: {
     accountId?: string;
     poolId?: string;
@@ -238,20 +222,9 @@ export function TransactionsHistoryPage() {
 
   return (
     <>
-      {filterLabel ? (
-        <p className="note" style={{ marginBottom: 12 }}>
-          Showing: <strong>{filterLabel}</strong>
-        </p>
-      ) : null}
-
-      <div
-        className="toolbar"
-        style={{ flexWrap: "wrap", marginBottom: 16, gap: 10, alignItems: "flex-end" }}
-      >
-        <label className="ctrl" style={{ fontSize: 13 }}>
-          <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
-            Account
-          </span>
+      <div className="tx-filters">
+        <label className="tx-filter">
+          <span className="tx-filter-label">Account</span>
           <select
             value={selectedAccountValue}
             onChange={(e) => {
@@ -269,9 +242,8 @@ export function TransactionsHistoryPage() {
                 setFilters({ financialAccountId: "", accountId: "", poolId: "" });
               }
             }}
-            style={{ minWidth: 180 }}
           >
-            <option value="">All accounts</option>
+            <option value="">All</option>
             {financialAccounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -282,10 +254,8 @@ export function TransactionsHistoryPage() {
         </label>
 
         {pools.length > 0 ? (
-          <label className="ctrl" style={{ fontSize: 13 }}>
-            <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
-              Shared pool
-            </span>
+          <label className="tx-filter">
+            <span className="tx-filter-label">Pool</span>
             <select
               value={poolId}
               onChange={(e) =>
@@ -295,9 +265,8 @@ export function TransactionsHistoryPage() {
                   financialAccountId: "",
                 })
               }
-              style={{ minWidth: 160 }}
             >
-              <option value="">All pools</option>
+              <option value="">All</option>
               {pools.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name || "Pool"}
@@ -307,15 +276,9 @@ export function TransactionsHistoryPage() {
           </label>
         ) : null}
 
-        <label className="ctrl" style={{ fontSize: 13 }}>
-          <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
-            Savings type
-          </span>
-          <select
-            value={kind}
-            onChange={(e) => setFilters({ kind: e.target.value })}
-            style={{ minWidth: 130 }}
-          >
+        <label className="tx-filter">
+          <span className="tx-filter-label">Savings</span>
+          <select value={kind} onChange={(e) => setFilters({ kind: e.target.value })}>
             <option value="">Any</option>
             <option value="deposit">Deposit</option>
             <option value="withdrawal">Withdrawal</option>
@@ -323,14 +286,11 @@ export function TransactionsHistoryPage() {
           </select>
         </label>
 
-        <label className="ctrl" style={{ fontSize: 13 }}>
-          <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
-            Budget type
-          </span>
+        <label className="tx-filter">
+          <span className="tx-filter-label">Budget</span>
           <select
             value={transactionType}
             onChange={(e) => setFilters({ transactionType: e.target.value })}
-            style={{ minWidth: 130 }}
           >
             <option value="">Any</option>
             <option value="expense">Expense</option>
@@ -339,45 +299,40 @@ export function TransactionsHistoryPage() {
           </select>
         </label>
 
-        <label className="ctrl" style={{ fontSize: 13 }}>
-          <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
-            Source
-          </span>
-          <select
-            value={source}
-            onChange={(e) => setFilters({ source: e.target.value })}
-            style={{ minWidth: 120 }}
-          >
+        <label className="tx-filter">
+          <span className="tx-filter-label">Source</span>
+          <select value={source} onChange={(e) => setFilters({ source: e.target.value })}>
             <option value="all">All</option>
-            <option value="savings">Savings ledger</option>
-            <option value="budget">Budget import</option>
+            <option value="savings">Ledger</option>
+            <option value="budget">Import</option>
           </select>
         </label>
 
-        {hasFilters ? (
-          <button type="button" className="btn ghost sm" onClick={clearFilters}>
-            Clear filters
+        <div className="tx-filters-actions">
+          {hasFilters ? (
+            <button type="button" className="btn ghost sm" onClick={clearFilters}>
+              Clear
+            </button>
+          ) : null}
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onImportFile(f);
+            }}
+          />
+          <button
+            type="button"
+            className="btn sm"
+            disabled={importing}
+            onClick={() => fileRef.current?.click()}
+          >
+            {importing ? "Importing…" : "Import CSV"}
           </button>
-        ) : null}
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".csv,text/csv"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void onImportFile(f);
-          }}
-        />
-        <button
-          type="button"
-          className="btn sm"
-          disabled={importing}
-          onClick={() => fileRef.current?.click()}
-        >
-          {importing ? "Importing…" : "Import CSV"}
-        </button>
+        </div>
       </div>
 
       {importMsg ? (
