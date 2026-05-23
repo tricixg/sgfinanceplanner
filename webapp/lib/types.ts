@@ -2,7 +2,10 @@ import type { BTOSchemeSelection } from "./finance/bto-schemes";
 
 export type Loan = {
   name: string;
+  /** Display label — kept in sync with linked credit card name. */
   card: string;
+  /** Links to CreditCard.id (Debts & Loans → Credit Cards). */
+  cardId?: string;
   monthly: number;
   out: number;
   end: string;
@@ -17,10 +20,14 @@ export type CreditCardRewardRule = {
 };
 
 export type CreditCard = {
+  /** Stable key for linking instalment plans from Debts & Loans. */
+  id?: string;
   name: string;
   statementDay: number;
   paymentDueDay: number;
   statementAmount: number;
+  /** When true, statement breakdown counts linked plan outstanding (out), not only monthly. */
+  includeOutstandingOnStatement?: boolean;
   /** Link to [sg-card-catalog] entry; rewards snapshot stored below. */
   catalogId?: string;
   bank?: string;

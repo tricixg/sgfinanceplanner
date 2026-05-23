@@ -17,6 +17,13 @@ import {
   type CardRecommendation,
   type RewardPreference,
 } from "@/lib/finance/card-rewards";
+import { ChartBox } from "@/components/ChartBox";
+import {
+  ensureCreditCardIds,
+  getAllCardStatementBreakdowns,
+  totalInstalmentOnStatements,
+  totalRevolvingOnStatements,
+} from "@/lib/finance/card-linking";
 import { totalStatementAmount } from "@/lib/finance/calendar";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 
@@ -69,6 +76,10 @@ export function TabCards({ state: S, setState }: Props) {
   );
 
   const stmtTotal = totalStatementAmount(S);
+  const statementBreakdowns = useMemo(
+    () => getAllCardStatementBreakdowns(S),
+    [S.creditCards, S.loans]
+  );
   const rewardCounts = useMemo(
     () => countCardsByRewardType(S.creditCards),
     [S.creditCards]
@@ -113,9 +124,8 @@ export function TabCards({ state: S, setState }: Props) {
   };
 
   const addCard = () => {
-    setState((prev) => ({
-      ...prev,
-      creditCards: [
+    setState((prev) => {
+      const creditCards = ensureCreditCardIds([
         ...prev.creditCards,
         {
           name: "New card",
@@ -123,9 +133,10 @@ export function TabCards({ state: S, setState }: Props) {
           paymentDueDay: 21,
           statementAmount: 0,
         },
-      ],
-    }));
-    console.log("[TabCards] added card");
+      ]);
+      console.log("[TabCards] added card");
+      return { ...prev, creditCards };
+    });
   };
 
   const removeCard = (i: number) => {
@@ -294,6 +305,22 @@ export function TabCards({ state: S, setState }: Props) {
                     del
                   </button>
                 </div>
+                <label className="card-outstanding-toggle">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(c.includeOutstandingOnStatement)}
+                    onChange={(e) => {
+                      updateCard(i, {
+                        includeOutstandingOnStatement: e.target.checked,
+                      });
+                      console.log("[TabCards] include outstanding", {
+                        card: c.name,
+                        on: e.target.checked,
+                      });
+                    }}
+                  />
+                  Include plan outstanding on statement breakdown (monthly + outstanding)
+                </label>
                 {c.rewardHeadline && (
                   <p className="note card-edit-reward">{c.rewardHeadline}</p>
                 )}
@@ -322,6 +349,7 @@ export function TabCards({ state: S, setState }: Props) {
                   <th>Stmt day</th>
                   <th>Due day</th>
                   <th>Statement</th>
+                  <th>+ Outstanding</th>
                 </tr>
               </thead>
               <tbody>
@@ -362,12 +390,136 @@ export function TabCards({ state: S, setState }: Props) {
                     <td className="num">
                       {c.statementAmount > 0 ? fmt2(c.statementAmount) : "—"}
                     </td>
+                    <td>{c.includeOutstandingOnStatement ? "Yes" : "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </div>
+      )}
+
+      {statementBreakdowns.length > 0 && (
+        <>
+          <h2 style={{ marginTop: 24 }}>Statement breakdown</h2>
+          <p className="note" style={{ marginBottom: 12 }}>
+            By default, instalments use each plan&apos;s <b>monthly</b> charge from{" "}
+            <b>Debts &amp; Loans</b>. Tick <b>Include plan outstanding</b> on a card
+            (Edit) to add linked plan outstanding as well. Revolving spend = statement
+            minus that total.
+          </p>
+          <div className="grid g2 card-breakdown-grid">
+            {statementBreakdowns.map((b) => (
+              <div className="card" key={b.cardId}>
+                <h3 className="card-breakdown-title">{b.cardName}</h3>
+                <div className="grid g2" style={{ marginBottom: 12 }}>
+                  <div className="stat">
+                    <div className="lbl">Statement</div>
+                    <div className="val">{fmt2(b.statementAmount)}</div>
+                  </div>
+                  <div className="stat accent">
+                    <div className="lbl">Revolving spend</div>
+                    <div className="val">{fmt2(b.revolvingSpend)}</div>
+                  </div>
+                  <div className="stat warn">
+                    <div className="lbl">
+                      {b.includesOutstanding
+                        ? "Instalments + outstanding"
+                        : "Instalments (this month)"}
+                    </div>
+                    <div className="val">{fmt2(b.instalmentOnStatement)}</div>
+                  </div>
+                </div>
+                {b.statementAmount > 0 || b.instalmentOnStatement > 0 ? (
+                  <ChartBox
+                    type="doughnut"
+                    data={{
+                      labels: [
+                        "Revolving spend",
+                        b.includesOutstanding
+                          ? "Instalments + outstanding"
+                          : "Instalments (this month)",
+                      ],
+                      datasets: [
+                        {
+                          data: [b.revolvingSpend, b.instalmentOnStatement],
+                          backgroundColor: ["#2f5d3a", "#b5482e"],
+                          borderColor: "#11201a",
+                          borderWidth: 1.5,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { position: "bottom" },
+                        tooltip: {
+                          callbacks: {
+                            label: (ctx) =>
+                              `${ctx.label}: ${fmt2(Number(ctx.raw))}`,
+                          },
+                        },
+                      },
+                    }}
+                  />
+                ) : null}
+                {b.loans.length > 0 && (
+                  <ul className="card-breakdown-loans">
+                    {b.loans.map((loan) => (
+                      <li key={loan.name}>
+                        {loan.name}: {fmt2(loan.monthly)}/mo on statement
+                        {loan.out > 0 ? ` · ${fmt2(loan.out)} still outstanding` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {b.instalmentOnStatement > b.statementAmount && (
+                  <p className="note" style={{ color: "var(--rust)", marginTop: 8 }}>
+                    Monthly instalments exceed statement — check statement amount or
+                    monthly figures on linked plans.
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          {statementBreakdowns.length > 1 && (
+            <div className="card" style={{ marginTop: 16 }}>
+              <h3 className="card-breakdown-title">All cards (summary)</h3>
+              <ChartBox
+                type="bar"
+                data={{
+                  labels: ["Revolving spend", "Instalments (this month)"],
+                  datasets: [
+                    {
+                      label: "SGD",
+                      data: [
+                        totalRevolvingOnStatements(statementBreakdowns),
+                        totalInstalmentOnStatements(statementBreakdowns),
+                      ],
+                      backgroundColor: ["#2f5d3a", "#b5482e"],
+                      borderColor: "#11201a",
+                      borderWidth: 1.5,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        callback: (v) => "$" + Number(v).toLocaleString(),
+                      },
+                    },
+                  },
+                }}
+              />
+            </div>
+          )}
+        </>
       )}
 
       <h2 style={{ marginTop: 24 }}>Which card to use?</h2>
