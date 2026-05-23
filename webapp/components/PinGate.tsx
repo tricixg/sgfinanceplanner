@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { consumeForceLock } from "@/lib/auth/pin-client";
 import { Dashboard } from "@/components/Dashboard";
+import { fetchJson } from "@/lib/fetch-json";
 
 export function PinGate() {
   const [checking, setChecking] = useState(true);
@@ -21,15 +22,22 @@ export function PinGate() {
       return;
     }
     try {
-      const res = await fetch("/api/auth/pin", { credentials: "include" });
-      const json = await res.json();
+      const { data: json } = await fetchJson<{ enabled?: boolean; ok?: boolean }>(
+        "/api/auth/pin",
+        { credentials: "include" }
+      );
       setEnabled(Boolean(json.enabled));
       setUnlocked(Boolean(json.ok));
       console.info("[PinGate] session check", json);
     } catch (e) {
       console.error("[PinGate] session check failed", e);
       setEnabled(false);
-      setUnlocked(true);
+      setUnlocked(false);
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not reach the server. Is `npm run dev` running?"
+      );
     } finally {
       setChecking(false);
     }
@@ -44,13 +52,15 @@ export function PinGate() {
     setError("");
     setSubmitting(true);
     try {
-      const res = await fetch("/api/auth/pin", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin }),
-      });
-      const json = await res.json();
+      const { res, data: json } = await fetchJson<{ error?: string }>(
+        "/api/auth/pin",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin }),
+        }
+      );
       if (!res.ok) {
         setError(json.error ?? "Incorrect PIN");
         setPin("");
@@ -71,6 +81,27 @@ export function PinGate() {
     return (
       <div className="wrap pin-screen">
         <p className="loading">Checking access…</p>
+      </div>
+    );
+  }
+
+  if (error && !unlocked) {
+    return (
+      <div className="wrap pin-screen">
+        <div className="pin-card card">
+          <div className="kicker">Private dashboard</div>
+          <h1 className="pin-title">Cannot reach server</h1>
+          <p className="pin-error" role="alert">
+            {error}
+          </p>
+          <p className="note" style={{ marginBottom: 16 }}>
+            If you are developing locally, stop any old dev server and run{" "}
+            <code>npm run dev</code> from the <code>webapp</code> folder (Node 20+).
+          </p>
+          <button type="button" className="btn" onClick={() => checkSession()}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

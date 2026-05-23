@@ -9,6 +9,7 @@ import {
   quoteSymbolsFromHoldings,
 } from "@/lib/finance/holdings";
 import { portfolioValue } from "@/lib/finance/wealth";
+import { fetchJson } from "@/lib/fetch-json";
 
 type QuoteMap = Record<string, { price: number; updatedAt: string }>;
 
@@ -59,15 +60,14 @@ export function useLiveQuotes(
     console.log("[useLiveQuotes] refreshing via Yahoo", symbols);
 
     try {
-      const res = await fetch("/api/quotes", {
+      const { res, data } = await fetchJson<{
+        error?: string;
+        quotes?: QuoteMap;
+      }>("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbols }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        quotes?: QuoteMap;
-      };
 
       if (!res.ok) {
         throw new Error(data.error ?? `HTTP ${res.status}`);

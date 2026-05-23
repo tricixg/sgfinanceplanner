@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { fetchJson } from "@/lib/fetch-json";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import type { DashboardState } from "@/lib/types";
 
@@ -41,9 +42,15 @@ export function usePersistedState() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/state", { credentials: "include" });
-      if (!res.ok) throw new Error(`Failed to load (${res.status})`);
-      const json = await res.json();
+      const { res, data: json } = await fetchJson<{
+        data?: Partial<DashboardState>;
+        updatedAt?: string | null;
+        source?: string;
+        error?: string;
+      }>("/api/state", { credentials: "include" });
+      if (!res.ok) {
+        throw new Error(json.error ?? `Failed to load (${res.status})`);
+      }
       const merged = mergeWithDefaults(json.data ?? {});
 
       if (json.source === "database") {
@@ -89,13 +96,17 @@ export function usePersistedState() {
       writeLocalDraft(next);
 
       try {
-        const res = await fetch("/api/state", {
+        const { res, data: json } = await fetchJson<{
+          updatedAt?: string;
+          source?: string;
+          warning?: string;
+          error?: string;
+        }>("/api/state", {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: next }),
         });
-        const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Save failed");
         setLastSaved(json.updatedAt ?? new Date().toISOString());
         if (json.warning) {
