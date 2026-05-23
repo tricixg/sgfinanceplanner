@@ -61,8 +61,8 @@ export function TabMe({
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [editingSalary, setEditingSalary] = useState(false);
   const [savingSalary, setSavingSalary] = useState(false);
-  const [salaryDirty, setSalaryDirty] = useState(false);
   const [salaryDraft, setSalaryDraft] = useState({
     monthlySal: S.monthlySal,
     comms: S.comms,
@@ -71,14 +71,34 @@ export function TabMe({
   const insuranceTotal = computedInsuranceMonthly(S);
 
   useEffect(() => {
-    if (!salaryDirty) {
+    if (!editingSalary) {
       setSalaryDraft({
         monthlySal: S.monthlySal,
         comms: S.comms,
         salaryCreditDay: S.salaryCreditDay,
       });
     }
-  }, [S.monthlySal, S.comms, S.salaryCreditDay, salaryDirty]);
+  }, [S.monthlySal, S.comms, S.salaryCreditDay, editingSalary]);
+
+  const startSalaryEdit = () => {
+    setSalaryDraft({
+      monthlySal: S.monthlySal,
+      comms: S.comms,
+      salaryCreditDay: S.salaryCreditDay,
+    });
+    setEditingSalary(true);
+    console.log("[TabMe] salary edit on");
+  };
+
+  const cancelSalaryEdit = () => {
+    setSalaryDraft({
+      monthlySal: S.monthlySal,
+      comms: S.comms,
+      salaryCreditDay: S.salaryCreditDay,
+    });
+    setEditingSalary(false);
+    console.log("[TabMe] salary edit cancelled");
+  };
 
   const handleLogout = async () => {
     setSigningOut(true);
@@ -118,7 +138,7 @@ export function TabMe({
         setState((prev) => ({ ...prev, ...salaryDraft }));
         console.info("[TabMe] salary saved to local state", salaryDraft);
       }
-      setSalaryDirty(false);
+      setEditingSalary(false);
       onSaveNow();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save salary";
@@ -199,71 +219,102 @@ export function TabMe({
         Your salary and non-ILP insurance live here. When signed in, savings balances are on{" "}
         <b>Savings &amp; Goals</b>; legacy accounts below still apply if you use browser-only mode.
         Insurance premiums total <b>{fmt(insuranceTotal)}/mo</b> and flow to <b>Budget</b>. CPF is on{" "}
-        <b>CPF Outlook</b>; ILP is on <b>Investment</b>. Use <b>Save</b> below for salary and comms;
-        other ME settings auto-save when signed in.
+        <b>CPF Outlook</b>; ILP is on <b>Investment</b>. Click <b>Edit</b> on Salary to change
+        take-home inputs; insurance auto-saves when edited.
       </div>
 
       <div className="section-head">
         <h2>Salary</h2>
-        <button
-          type="button"
-          className="btn sm"
-          disabled={!salaryDirty || savingSalary}
-          onClick={() => void saveSalary()}
-        >
-          {savingSalary ? "Saving…" : "Save"}
-        </button>
+        {editingSalary ? (
+          <>
+            <button
+              type="button"
+              className="btn ghost sm"
+              disabled={savingSalary}
+              onClick={cancelSalaryEdit}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              disabled={savingSalary}
+              onClick={() => void saveSalary()}
+            >
+              {savingSalary ? "Saving…" : "Save"}
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn ghost sm" onClick={startSalaryEdit}>
+            Edit
+          </button>
+        )}
       </div>
       <div className="card">
-        <div className="editrow head">
-          <span>Item</span>
-          <span>Amount</span>
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div className="editrow">
-          <span>Monthly gross salary</span>
-          <NumInput
-            value={salaryDraft.monthlySal}
-            onChange={(v) => {
-              setSalaryDraft((d) => ({ ...d, monthlySal: v }));
-              setSalaryDirty(true);
-            }}
-          />
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div className="editrow">
-          <span>Comms allowance / mo (non-CPF)</span>
-          <NumInput
-            value={salaryDraft.comms}
-            onChange={(v) => {
-              setSalaryDraft((d) => ({ ...d, comms: v }));
-              setSalaryDirty(true);
-            }}
-          />
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div className="editrow">
-          <span>Salary credit day (1–31)</span>
-          <NumInput
-            value={salaryDraft.salaryCreditDay}
-            onChange={(v) => {
-              setSalaryDraft((d) => ({
-                ...d,
-                salaryCreditDay: Math.min(31, Math.max(1, Math.round(v))),
-              }));
-              setSalaryDirty(true);
-            }}
-          />
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
+        {editingSalary ? (
+          <>
+            <div className="editrow head">
+              <span>Item</span>
+              <span>Amount</span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div className="editrow">
+              <span>Monthly gross salary</span>
+              <NumInput
+                value={salaryDraft.monthlySal}
+                onChange={(v) => setSalaryDraft((d) => ({ ...d, monthlySal: v }))}
+              />
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div className="editrow">
+              <span>Comms allowance / mo (non-CPF)</span>
+              <NumInput
+                value={salaryDraft.comms}
+                onChange={(v) => setSalaryDraft((d) => ({ ...d, comms: v }))}
+              />
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div className="editrow">
+              <span>Salary credit day (1–31)</span>
+              <NumInput
+                value={salaryDraft.salaryCreditDay}
+                onChange={(v) =>
+                  setSalaryDraft((d) => ({
+                    ...d,
+                    salaryCreditDay: Math.min(31, Math.max(1, Math.round(v))),
+                  }))
+                }
+              />
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="minirow">
+              <span className="k">Monthly gross salary</span>
+              <span className="v">{fmt2(S.monthlySal)}</span>
+            </div>
+            <div className="minirow">
+              <span className="k">Comms allowance / mo (non-CPF)</span>
+              <span className="v">{fmt2(S.comms)}</span>
+            </div>
+            <div className="minirow">
+              <span className="k">Salary credit day</span>
+              <span className="v">{S.salaryCreditDay || "—"}</span>
+            </div>
+            <p className="note" style={{ marginTop: 8, marginBottom: 0 }}>
+              Feeds cashflow and budget take-home · click Edit to change
+            </p>
+          </>
+        )}
       </div>
 
       <div className="section-head">
