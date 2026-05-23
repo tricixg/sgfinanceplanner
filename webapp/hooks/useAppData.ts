@@ -28,6 +28,7 @@ export function useAppDataProvider(enabled: boolean) {
     DashboardState["portfolioHistory"]
   >([]);
   const [prefs, setPrefs] = useState<DashboardState["prefs"]>({});
+  const [otherLoans, setOtherLoans] = useState<DashboardState["otherLoans"]>([]);
 
   const snapshotRef = useRef({
     profileBundle,
@@ -37,6 +38,7 @@ export function useAppDataProvider(enabled: boolean) {
     holdings,
     portfolioHistory,
     prefs,
+    otherLoans,
   });
   snapshotRef.current = {
     profileBundle,
@@ -46,6 +48,7 @@ export function useAppDataProvider(enabled: boolean) {
     holdings,
     portfolioHistory,
     prefs,
+    otherLoans,
   };
 
   const buildState = useCallback((): DashboardState => {
@@ -63,6 +66,7 @@ export function useAppDataProvider(enabled: boolean) {
       creditCards: s.creditCards,
       holdings: s.holdings,
       portfolioHistory: s.portfolioHistory,
+      otherLoans: s.otherLoans,
       accounts: [],
       goals: [],
     });
@@ -75,7 +79,7 @@ export function useAppDataProvider(enabled: boolean) {
     }
     setLoading(true);
     try {
-      const [prefsRes, profRes, loansRes, budgetRes, cardsRes, holdRes, snapRes] =
+      const [prefsRes, profRes, loansRes, otherLoansRes, budgetRes, cardsRes, holdRes, snapRes] =
         await Promise.all([
           fetchJson<{ data?: { prefs?: DashboardState["prefs"] }; configured?: boolean }>(
             "/api/state",
@@ -86,6 +90,10 @@ export function useAppDataProvider(enabled: boolean) {
           }),
           fetchJson<{ loans?: DashboardState["loans"]; configured?: boolean }>(
             "/api/loans",
+            { credentials: "include" }
+          ),
+          fetchJson<{ otherLoans?: DashboardState["otherLoans"]; configured?: boolean }>(
+            "/api/other-loans",
             { credentials: "include" }
           ),
           fetchJson<{ budget?: DashboardState["budget"]; configured?: boolean }>(
@@ -118,6 +126,7 @@ export function useAppDataProvider(enabled: boolean) {
         });
       }
       if (loansRes.res.ok) setLoans(loansRes.data.loans ?? []);
+      if (otherLoansRes.res.ok) setOtherLoans(otherLoansRes.data.otherLoans ?? []);
       if (budgetRes.res.ok) setBudget(budgetRes.data.budget ?? []);
       if (cardsRes.res.ok) setCreditCards(cardsRes.data.cards ?? []);
       if (holdRes.res.ok) setHoldings(holdRes.data.holdings ?? []);
@@ -149,10 +158,11 @@ export function useAppDataProvider(enabled: boolean) {
       creditCards,
       holdings,
       portfolioHistory,
+      otherLoans,
       accounts: [],
       goals: [],
     });
-  }, [profileBundle, loans, budget, creditCards, holdings, portfolioHistory, prefs]);
+  }, [profileBundle, loans, budget, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
 
   const patchProfile = useCallback(
     async (patch: Partial<FinanceProfile>) => {
@@ -279,6 +289,9 @@ export function useAppDataProvider(enabled: boolean) {
       if (next.prefs !== prev.prefs) {
         setPrefs(next.prefs);
         void savePrefs(next.prefs);
+      }
+      if (next.otherLoans !== prev.otherLoans) {
+        setOtherLoans(next.otherLoans ?? []);
       }
 
       const profilePatch: Partial<FinanceProfile> = {};

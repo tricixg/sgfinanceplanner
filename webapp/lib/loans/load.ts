@@ -7,32 +7,8 @@ export async function loadLoans(
   supabase: SupabaseClient,
   userId: string
 ): Promise<Loan[]> {
-  const { data, error } = await supabase
-    .from("loans")
-    .select("*, credit_cards(card_key)")
-    .eq("user_id", userId)
-    .order("sort_order", { ascending: true });
-  if (error) throw new Error(error.message);
-
-  return (data ?? []).map((row) => {
-    const cc = row.credit_cards as { card_key?: string } | null;
-    return {
-      id: String(row.id),
-      name: String(row.name ?? ""),
-      card: String(row.card_label ?? ""),
-      cardId: cc?.card_key ?? undefined,
-      monthly: Number(row.monthly ?? 0),
-      out: Number(row.outstanding ?? 0),
-      end: String(row.end_ym ?? ""),
-      deductionDay:
-        typeof row.deduction_day === "number" && row.deduction_day >= 1
-          ? row.deduction_day
-          : undefined,
-      defaultFinancialAccountId: row.default_financial_account_id
-        ? String(row.default_financial_account_id)
-        : undefined,
-    };
-  });
+  const { loadInstalmentLoans } = await import("@/lib/other-loans/load");
+  return loadInstalmentLoans(supabase, userId);
 }
 
 async function cardKeyToUuid(
@@ -55,6 +31,7 @@ export async function saveLoans(
   userId: string,
   incoming: Loan[]
 ): Promise<Loan[]> {
+  const instalmentOnly = incoming.filter((l) => l.monthly > 0);
   const keyToUuid = await cardKeyToUuid(supabase, userId);
 
   const { data: existing } = await supabase
@@ -64,8 +41,8 @@ export async function saveLoans(
 
   const keepIds = new Set<string>();
 
-  for (let i = 0; i < incoming.length; i++) {
-    const l = incoming[i];
+  for (let i = 0; i < instalmentOnly.length; i++) {
+    const l = instalmentOnly[i];
     const creditCardId = l.cardId ? keyToUuid.get(l.cardId) ?? null : null;
     const payload = {
       user_id: userId,
@@ -100,7 +77,10 @@ export async function saveLoans(
     }
   }
 
-  console.info("[loans] saved", { userId, count: incoming.length });
+  console.info("[loans] saved instalment plans", {
+    userId,
+    count: instalmentOnly.length,
+  });
   return loadLoans(supabase, userId);
 }
 

@@ -1,4 +1,5 @@
-import type { DashboardState } from "@/lib/types";
+import type { DashboardState, Loan } from "@/lib/types";
+import type { OtherLoan } from "@/lib/other-loans/types";
 import { defaultBudgetTemplate, migrateBudget } from "./budget";
 import { migrateInsurancePolicies } from "./insurance";
 import { migrateIlpPolicies } from "./ilp";
@@ -31,6 +32,7 @@ export const EMPTY_STATE: DashboardState = {
   budget: [],
   goals: [],
   loans: [],
+  otherLoans: [],
   creditCards: [],
 };
 
@@ -51,6 +53,7 @@ export function createDummyState(): DashboardState {
   const linkedDummy = migrateCardLoanLinks({
     creditCards: dummy.creditCards.map((c) => normalizeCreditCard(c)),
     loans: dummy.loans,
+    otherLoans: dummy.otherLoans,
   });
   dummy.creditCards = linkedDummy.creditCards;
   dummy.loans = linkedDummy.loans;
@@ -106,7 +109,7 @@ export const DEFAULTS: DashboardState = {
   moo: 25185.5,
   margin: 3953.91,
   cash: 2000,
-  ccDebt: 622.58,
+  ccDebt: 0,
   cashflowStartYm: "2026-06",
   holdings: [
     {
@@ -233,12 +236,19 @@ export const DEFAULTS: DashboardState = {
       out: 474.5,
       end: "2026-10",
     },
+  ],
+  otherLoans: [
     {
       name: "Woman's World — Balance Transfer 0%",
-      card: "WW Mastercard",
-      monthly: 0,
-      out: 622.58,
-      end: "2026-07",
+      loanType: "balance_transfer",
+      principal: 622.58,
+      outstanding: 622.58,
+      interestRateApr: 0,
+      tenureMonths: 6,
+      feesPaid: 0,
+      amountPaid: 0,
+      dueDate: "2026-07-07",
+      sourceCreditCardId: "dbs-ww-mastercard",
     },
   ],
   creditCards: [
@@ -290,13 +300,66 @@ type LegacySaved = Partial<DashboardState> & {
   acc?: number;
 };
 
+function migrateLegacyNonInstalmentLoans(
+  loans: Loan[],
+  cards: DashboardState["creditCards"],
+  existingOther: OtherLoan[]
+): { loans: Loan[]; otherLoans: OtherLoan[] } {
+  if (existingOther.length > 0) {
+    return {
+      loans: loans.filter((l) => l.monthly > 0),
+      otherLoans: existingOther,
+    };
+  }
+  const legacy = loans.filter((l) => l.monthly <= 0 && l.out > 0);
+  const instalment = loans.filter((l) => !(l.monthly <= 0 && l.out > 0));
+  if (legacy.length === 0) {
+    return { loans: instalment, otherLoans: [] };
+  }
+  const cardsWithIds = cards;
+  const otherLoans: OtherLoan[] = legacy.map((l) => {
+    const isBt = /balance\s*transfer|bt\b/i.test(l.name);
+    const cardId =
+      l.cardId ??
+      (l.card
+        ? cardsWithIds.find(
+            (c) =>
+              c.name.toLowerCase().includes(l.card.toLowerCase()) ||
+              l.card.toLowerCase().includes(c.name.toLowerCase())
+          )?.id
+        : undefined);
+    return {
+      name: l.name,
+      loanType: isBt ? "balance_transfer" : "personal",
+      principal: l.out,
+      outstanding: l.out,
+      interestRateApr: 0,
+      feesPaid: 0,
+      amountPaid: 0,
+      dueDate: l.end?.length >= 7 ? `${l.end.slice(0, 7)}-07` : undefined,
+      sourceCreditCardId: isBt ? cardId : undefined,
+      defaultFinancialAccountId: l.defaultFinancialAccountId,
+    };
+  });
+  console.log("[mergeWithDefaults] migrated legacy non-instalment loans", {
+    count: otherLoans.length,
+  });
+  return { loans: instalment, otherLoans };
+}
+
 export function mergeWithDefaults(saved: LegacySaved): DashboardState {
   const monthlySal = saved.monthlySal ?? saved.newSal ?? 0;
   const normalizedCards = (saved.creditCards ?? []).map((c) => normalizeCreditCard(c));
   const linked = migrateCardLoanLinks({
     creditCards: normalizedCards,
     loans: saved.loans ?? [],
+    otherLoans: saved.otherLoans ?? [],
   });
+  const { loans, otherLoans } = migrateLegacyNonInstalmentLoans(
+    linked.loans,
+    linked.creditCards,
+    saved.otherLoans ?? []
+  );
   const merged: DashboardState = {
     ...createEmptyState(),
     ...saved,
@@ -312,7 +375,8 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
       : [],
     budget: migrateBudget(saved),
     goals: saved.goals ?? [],
-    loans: linked.loans,
+    loans,
+    otherLoans,
     creditCards: linked.creditCards,
     ilpPolicies: migrateIlpPolicies(saved),
     insurancePolicies: migrateInsurancePolicies(saved),

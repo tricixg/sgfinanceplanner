@@ -7,6 +7,7 @@ import {
   todayYmd,
 } from "@/lib/cards/interest-accrual";
 import { sumCardSpendByDay } from "@/lib/cards/statement-spend";
+import { interestFreeBalanceTransferPrincipal } from "@/lib/other-loans/interest-free";
 import type { DbCardStatement } from "./mappers";
 
 export async function recomputeInterestForStatement(
@@ -20,11 +21,19 @@ export async function recomputeInterestForStatement(
   if (card.interestRateApr <= 0 || !financialAccountId) return stmt.interestAccrued;
   if (stmt.paidAt) return 0;
 
-  const principal = principalAtDue({
+  let principal = principalAtDue({
     carriedForwardIn: stmt.carriedForwardIn,
     actualAmount: stmt.actualAmount,
     amountPaid: stmt.amountPaid,
   });
+
+  const btFree = await interestFreeBalanceTransferPrincipal(
+    supabase,
+    userId,
+    card.id,
+    today
+  );
+  principal = Math.max(0, principal - btFree);
 
   if (principal <= 0 || today <= stmt.paymentDueDate) {
     return 0;

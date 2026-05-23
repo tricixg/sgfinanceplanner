@@ -145,7 +145,7 @@ export function getDummyEnrichment(): Partial<DashboardState> {
     moo: 25185.5,
     margin: 3953.91,
     cash: 11320,
-    ccDebt: 622.58,
+    ccDebt: 0,
     holdings,
     portfolioHistory: buildPortfolioHistory(holdings),
     ilpPolicies: [
@@ -258,18 +258,25 @@ export function getDummyEnrichment(): Partial<DashboardState> {
         end: "2026-10",
       },
       {
-        name: "Woman's World — Balance Transfer 0%",
-        card: "WW Mastercard",
-        monthly: 0,
-        out: 622.58,
-        end: "2026-07",
-      },
-      {
         name: "PPP 002 — Closed plan",
         card: "Altitude",
         monthly: 0,
         out: 0,
         end: addMonthsYm(currentYm(), -2),
+      },
+    ],
+    otherLoans: [
+      {
+        name: "Woman's World — Balance Transfer 0%",
+        loanType: "balance_transfer",
+        principal: 622.58,
+        outstanding: 622.58,
+        interestRateApr: 0,
+        tenureMonths: 6,
+        feesPaid: 0,
+        amountPaid: 0,
+        dueDate: "2026-07-07",
+        sourceCreditCardId: "dbs-ww-mastercard",
       },
     ],
     creditCards: [

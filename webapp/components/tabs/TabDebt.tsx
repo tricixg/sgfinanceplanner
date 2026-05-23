@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { DashboardState, Loan } from "@/lib/types";
 import {
   activeLoanOutstanding,
+  activeOtherLoansOutstanding,
   creditCardLabel,
   debtBurnDown,
   ensureCreditCardIds,
@@ -12,7 +13,10 @@ import {
 import type { EnrichedLoan } from "@/lib/finance/debt";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { OtherLoansPanel } from "@/components/debt/OtherLoansPanel";
+import { Snackbar } from "@/components/Snackbar";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
+import { useSnackbar } from "@/hooks/useSnackbar";
 
 type Props = {
   state: DashboardState;
@@ -40,8 +44,10 @@ function NumInput({
 
 export function TabDebt({ state: S, setState }: Props) {
   const [editing, setEditing] = useState(false);
+  const snackbar = useSnackbar();
   const { labels, data } = debtBurnDown(S);
   const totalOut = activeLoanOutstanding(S);
+  const otherOut = activeOtherLoansOutstanding(S);
   const { active: activeLoans, archived: archivedLoans } = partitionLoans(S);
 
   const cardsWithIds = ensureCreditCardIds(S.creditCards);
@@ -87,7 +93,7 @@ export function TabDebt({ state: S, setState }: Props) {
             name: "New instalment plan",
             card: defaultLabel,
             cardId: defaultCardId,
-            monthly: 0,
+            monthly: 100,
             out: 0,
             end: "2027-01",
           },
@@ -103,11 +109,6 @@ export function TabDebt({ state: S, setState }: Props) {
       loans: prev.loans.filter((_, j) => j !== i),
     }));
     console.log("[TabDebt] removed loan", i);
-  };
-
-  const patchCcDebt = (val: number) => {
-    setState((prev) => ({ ...prev, ccDebt: val }));
-    console.log("[TabDebt] updated ccDebt", val);
   };
 
   const finishEditing = () => {
@@ -196,10 +197,11 @@ export function TabDebt({ state: S, setState }: Props) {
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Instalment plans feed cashflow, calendar, and debt burn-down charts. Link each
-        plan to a <b>credit card</b> — those amounts appear on the Credit Cards tab
-        statement breakdown. Click <b>Edit</b> to change plans and card/BT balance.
-        Margin loan is edited on <b>Investment</b> (holdings section).
+        Monthly instalment plans feed cashflow, calendar, and debt burn-down charts.
+        Link each plan to a <b>credit card</b> — those amounts appear on the Credit
+        Cards tab statement breakdown. Balance transfers and other non-monthly loans
+        live in <b>Other loans</b> below. Margin loan is edited on{" "}
+        <b>Investment</b>.
       </div>
 
       <div className="grid g3">
@@ -212,16 +214,16 @@ export function TabDebt({ state: S, setState }: Props) {
           <div className="val">{fmt(S.margin)}</div>
         </div>
         <div className="stat">
-          <div className="lbl">Card / BT remaining</div>
-          <div className="val">{fmt(S.ccDebt)}</div>
-          {!editing && (
-            <div className="note">Edit with instalment plans below</div>
+          <div className="lbl">Other loans outstanding</div>
+          <div className="val">{fmt(otherOut)}</div>
+          {!editing && otherOut > 0 && (
+            <div className="note">Balance transfers, personal loans</div>
           )}
         </div>
       </div>
 
       <div className="section-head">
-        <h2>Instalment plans &amp; loans</h2>
+        <h2>Instalment plans</h2>
         {editing ? (
           <button type="button" className="btn sm" onClick={finishEditing}>
             Done
@@ -242,17 +244,6 @@ export function TabDebt({ state: S, setState }: Props) {
 
       {editing ? (
         <div className="card">
-          <div className="editrow">
-            <span>Card / BT remaining</span>
-            <NumInput
-              value={S.ccDebt}
-              step={0.01}
-              onChange={patchCcDebt}
-            />
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
           <div className="editrow head loans">
             <span>Plan</span>
             <span>Card</span>
@@ -280,7 +271,7 @@ export function TabDebt({ state: S, setState }: Props) {
           )}
           <div className="toolbar">
             <button type="button" className="btn ghost sm" onClick={addLoan}>
-              + Add loan
+              + Add instalment plan
             </button>
           </div>
         </div>
@@ -318,6 +309,18 @@ export function TabDebt({ state: S, setState }: Props) {
         </>
       )}
 
+
+      <div className="section-head">
+        <h2>Other loans</h2>
+      </div>
+      <OtherLoansPanel
+        state={S}
+        setState={setState}
+        editing={editing}
+        onSaved={(msg) => snackbar.show(msg)}
+        onError={(msg) => snackbar.show(msg, { error: true })}
+      />
+
       <h2>Debt burn-down</h2>
       <div className="card">
         <ChartBox
@@ -349,6 +352,13 @@ export function TabDebt({ state: S, setState }: Props) {
           }}
         />
       </div>
+
+      <Snackbar
+        message={snackbar.message}
+        variant={snackbar.variant}
+        durationMs={snackbar.durationMs}
+        onDismiss={snackbar.dismiss}
+      />
     </section>
   );
 }

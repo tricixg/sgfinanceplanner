@@ -177,6 +177,7 @@ export type DashboardState = {
   budget: BudgetItem[];
   goals: Goal[];
   loans: Loan[];
+  otherLoans: import("./other-loans/types").OtherLoan[];
   creditCards: CreditCard[];
   btoPlanner?: BtoPlannerPrefs;
 };

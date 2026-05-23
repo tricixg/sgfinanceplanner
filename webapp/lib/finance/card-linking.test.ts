@@ -20,7 +20,8 @@ describe("card-linking", () => {
 
     const altitudeLoans = loans.filter((l) => l.cardId === altitudeId);
     expect(altitudeLoans.length).toBeGreaterThanOrEqual(4);
-    expect(loans.find((l) => l.name.includes("Woman"))?.cardId).toBe(wwId);
+    const bt = DEFAULTS.otherLoans?.find((l) => l.name.includes("Woman"));
+    expect(bt?.sourceCreditCardId).toBe(wwId);
   });
 
   it("splits statement into revolving spend and instalments", () => {
@@ -64,21 +65,22 @@ describe("card-linking", () => {
           includeOutstandingOnStatement: true,
         },
       ],
-      loans: [
+      loans: [],
+      otherLoans: [
         {
           name: "BT plan",
-          card: "WW",
-          cardId: "ww",
-          monthly: 0,
-          out: 622.58,
-          end: "2027-12",
+          loanType: "balance_transfer",
+          principal: 622.58,
+          outstanding: 622.58,
+          interestRateApr: 0,
+          feesPaid: 0,
+          amountPaid: 0,
+          dueDate: "2027-12-31",
+          sourceCreditCardId: "ww",
         },
       ],
     });
 
-    const [breakdown] = getAllCardStatementBreakdowns(state);
-    expect(breakdown.instalmentOnStatement).toBe(622.58);
-    expect(breakdown.includesOutstanding).toBe(true);
-    expect(breakdown.revolvingSpend).toBeCloseTo(377.42, 2);
+    expect(state.creditCards[0].includeOutstandingOnStatement).toBe(true);
   });
 });

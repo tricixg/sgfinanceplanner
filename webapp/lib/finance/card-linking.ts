@@ -1,4 +1,5 @@
 import type { CreditCard, DashboardState, Loan } from "@/lib/types";
+import type { OtherLoan } from "@/lib/other-loans/types";
 import { currentYm, monIdx } from "./helpers";
 
 export type CardStatementBreakdown = {
@@ -127,16 +128,38 @@ export function migrateLoanCardLinks(
   });
 }
 
-function suggestIncludeOutstanding(card: CreditCard, loans: Loan[]): boolean {
+function activeBalanceTransferOnCard(
+  otherLoans: OtherLoan[] | undefined,
+  cardId: string
+): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  return (otherLoans ?? []).some(
+    (l) =>
+      l.loanType === "balance_transfer" &&
+      l.sourceCreditCardId === cardId &&
+      !l.paidAt &&
+      l.outstanding > 0 &&
+      (!l.dueDate || today <= l.dueDate)
+  );
+}
+
+function suggestIncludeOutstanding(
+  card: CreditCard,
+  loans: Loan[],
+  otherLoans?: OtherLoan[]
+): boolean {
   if (!card.id) return false;
+  if (activeBalanceTransferOnCard(otherLoans, card.id)) return true;
   return loansForCard(loans, card.id).some((l) => l.monthly === 0 && l.out > 0);
 }
 
-export function migrateCardLoanLinks(state: Pick<DashboardState, "creditCards" | "loans">) {
+export function migrateCardLoanLinks(
+  state: Pick<DashboardState, "creditCards" | "loans" | "otherLoans">
+) {
   const loans = migrateLoanCardLinks(state.loans, ensureCreditCardIds(state.creditCards));
   const creditCards = ensureCreditCardIds(state.creditCards).map((card) => {
     if (card.includeOutstandingOnStatement) return card;
-    if (!suggestIncludeOutstanding(card, loans)) return card;
+    if (!suggestIncludeOutstanding(card, loans, state.otherLoans)) return card;
     console.log("[card-linking] auto-enabled include outstanding", card.name);
     return { ...card, includeOutstandingOnStatement: true };
   });

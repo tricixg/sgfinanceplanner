@@ -36,7 +36,9 @@ export function enrichLoan(l: Loan, nowYm: string, index: number): EnrichedLoan 
 
 export function partitionLoans(S: DashboardState, nowYm?: string) {
   const ym = nowYm ?? currentYm();
-  const rows = S.loans.map((l, i) => enrichLoan(l, ym, i));
+  const rows = S.loans
+    .map((l, i) => enrichLoan(l, ym, i))
+    .filter((l) => l.monthly > 0);
   const byEnd = (a: EnrichedLoan, b: EnrichedLoan) => monIdx(a.end) - monIdx(b.end);
   return {
     active: rows.filter((l) => !l.isEnded).sort(byEnd),
@@ -49,8 +51,15 @@ export function activeLoanOutstanding(S: DashboardState, nowYm?: string): number
   const ym = nowYm ?? currentYm();
   const nowIdx = monIdx(ym);
   return S.loans
-    .filter((l) => monIdx(l.end) >= nowIdx)
+    .filter((l) => l.monthly > 0 && monIdx(l.end) >= nowIdx)
     .reduce((s, l) => s + l.out, 0);
+}
+
+/** Outstanding on other loans (personal, balance transfer) not yet marked paid. */
+export function activeOtherLoansOutstanding(S: DashboardState): number {
+  return (S.otherLoans ?? [])
+    .filter((l) => !l.paidAt && l.outstanding > 0)
+    .reduce((s, l) => s + l.outstanding, 0);
 }
 
 export function debtBurnDown(S: DashboardState) {

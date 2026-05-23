@@ -4,6 +4,7 @@ import { cashAccountsTotal } from "./accounts";
 import { effectiveCash, netWorthPersonalCash } from "./savings-totals";
 import { holdingMarketValue, normalizeHolding, type LegacyHolding } from "./holdings";
 import { ilpValueByLock } from "./ilp";
+import { activeOtherLoansOutstanding } from "./debt";
 
 export { normalizeHolding, portfolioTotals, holdingGain } from "./holdings";
 
@@ -91,7 +92,8 @@ export function wealthSummary(
   const { total: ilpVal, spendable: ilpSpendable, locked: ilpLocked } =
     ilpValueByLock(S);
   const invTotal = port + ilpVal;
-  const liab = S.margin + S.ccDebt;
+  const otherDebt = activeOtherLoansOutstanding(S);
+  const liab = S.margin + otherDebt + (otherDebt > 0 ? 0 : S.ccDebt);
   const { cash, personal, joint } = resolveDashboardCash(S, savings);
   const personalSavings =
     savings?.personalSavingsCash ?? savings?.personalCash ?? personal;
