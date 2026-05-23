@@ -754,6 +754,207 @@ tfoot td {
   margin-top: 6px;
   cursor: pointer;
 }
+.category-budget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.category-budget-card {
+  margin-bottom: 0;
+}
+.category-budget-card--compact {
+  padding: 12px 14px;
+}
+.category-budget-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+.category-budget-title {
+  display: inline;
+  margin: 0 8px 0 0;
+  font-size: 1.05rem;
+}
+.category-budget-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  font-size: 13px;
+}
+.category-budget-stats .lbl {
+  color: var(--muted);
+  margin-right: 4px;
+}
+.category-budget-progress-wrap {
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.category-budget-progress {
+  height: 100%;
+  background: var(--moss);
+  border-radius: 4px;
+  min-width: 2px;
+}
+.category-budget-progress--over {
+  background: var(--rust, #b54a32);
+}
+.category-budget-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.category-budget-add label {
+  font-size: 12px;
+}
+.category-budget-table {
+  width: 100%;
+  font-size: 13px;
+}
+.category-budget-zero {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.category-budget-zero summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  list-style: none;
+  user-select: none;
+}
+.category-budget-zero summary::-webkit-details-marker {
+  display: none;
+}
+.category-budget-zero summary::before {
+  content: "▸ ";
+  font-size: 10px;
+  opacity: 0.7;
+}
+.category-budget-zero[open] summary::before {
+  content: "▾ ";
+}
+.zero-budget-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.zero-budget-item {
+  border-radius: 6px;
+  font-size: 13px;
+}
+.zero-budget-item-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--muted);
+  list-style: none;
+}
+.zero-budget-item-summary::-webkit-details-marker {
+  display: none;
+}
+.zero-budget-item[open] .zero-budget-item-summary {
+  color: var(--ink);
+}
+.zero-budget-item-name {
+  font-weight: 500;
+}
+.zero-budget-item-meta {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.zero-budget-item-body {
+  padding: 0 8px 8px;
+}
+.zero-budget-item-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.zero-budget-item-add input[type="date"],
+.zero-budget-item-add input[type="number"],
+.zero-budget-item-add input[type="text"] {
+  font-size: 12px;
+  padding: 4px 6px;
+  max-width: 110px;
+}
+.zero-budget-item-add input[type="text"] {
+  flex: 1;
+  min-width: 80px;
+  max-width: none;
+}
+.zero-budget-item-txs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+.zero-budget-item-txs li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 3px 0;
+  border-top: 1px solid var(--line);
+}
+.zero-budget-item-tx-date {
+  color: var(--muted);
+  min-width: 2.5rem;
+}
+.zero-budget-item-tx-amt {
+  font-variant-numeric: tabular-nums;
+}
+.zero-budget-item-tx-note {
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zero-budget-item-del {
+  margin-left: auto;
+  padding: 0 6px;
+  min-width: 0;
+  line-height: 1.2;
+}
+.budget-zero-section {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+.budget-zero-section summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 4px;
+  list-style: none;
+}
+.budget-zero-section summary::-webkit-details-marker {
+  display: none;
+}
+.budget-zero-section summary::before {
+  content: "▸ ";
+  font-size: 10px;
+  opacity: 0.7;
+}
+.budget-zero-section[open] summary::before {
+  content: "▾ ";
+}
 .computed-line {
   opacity: 0.92;
   border-bottom: 1px dashed var(--line);

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import {
+  isExpenseBudgetType,
+  mapDbBudgetLine,
+  resolveBudgetLineId,
+} from "@/lib/expenses/budget-match";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -75,7 +80,13 @@ export async function POST(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { user } = auth;
 
-  let body: { amount?: number; category?: string; spentAt?: string; note?: string };
+  let body: {
+    amount?: number;
+    category?: string;
+    budgetLineId?: string;
+    spentAt?: string;
+    note?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -93,12 +104,39 @@ export async function POST(req: NextRequest) {
       : new Date().toISOString().slice(0, 10);
 
   const supabase = await createAuthedSupabaseClient();
+
+  const { data: budgetRows } = await supabase
+    .from("budget_lines")
+    .select("*")
+    .eq("user_id", user.id);
+
+  const budgetLines = (budgetRows ?? []).map((r) => mapDbBudgetLine(r));
+
+  const budgetLineId = resolveBudgetLineId(
+    budgetLines,
+    body.category ?? "",
+    body.budgetLineId ?? null
+  );
+
+  if (!budgetLineId) {
+    return NextResponse.json(
+      { error: "budgetLineId or matching budget category required" },
+      { status: 400 }
+    );
+  }
+
+  const budgetLine = budgetLines.find((l) => l.id === budgetLineId);
+  if (!budgetLine || !isExpenseBudgetType(budgetLine.lineType)) {
+    return NextResponse.json({ error: "Invalid budget category" }, { status: 400 });
+  }
+
   const { data: row, error } = await supabase
     .from("expenses")
     .insert({
       user_id: user.id,
       amount,
-      category: body.category ?? "",
+      category: budgetLine.category,
+      budget_line_id: budgetLineId,
       spent_at: spentAt,
       note: body.note ?? "",
     })
@@ -110,6 +148,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  console.info("[api/expenses] POST ok", { userId: user.id, amount, spentAt });
+  console.info("[api/expenses] POST ok", {
+    userId: user.id,
+    amount,
+    spentAt,
+    budgetLineId,
+  });
   return NextResponse.json({ item: mapExpense(row) });
 }

@@ -74,6 +74,7 @@ export function computedDebtMonthly(S: DashboardState, ym?: string): number {
 
 export function normalizeBudgetItem(b: Partial<BudgetItem>): BudgetItem {
   return {
+    id: typeof b.id === "string" ? b.id : undefined,
     cat:
       typeof b.cat === "string"
         ? b.cat

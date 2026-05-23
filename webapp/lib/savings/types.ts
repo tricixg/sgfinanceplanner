@@ -111,6 +111,7 @@ export type Expense = {
   userId: string;
   amount: number;
   category: string;
+  budgetLineId: string | null;
   spentAt: string;
   note: string;
   createdAt: string;

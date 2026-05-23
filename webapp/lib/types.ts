@@ -91,6 +91,7 @@ export type InsurancePolicy = {
 };
 
 export type BudgetItem = {
+  id?: string;
   cat: string;
   amt: number;
   type: "fixed" | "spend" | "save" | "invest";

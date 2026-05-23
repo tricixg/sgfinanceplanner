@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { BudgetItem, DashboardState } from "@/lib/types";
 import {
   budgetProjection,
@@ -10,7 +10,10 @@ import {
 } from "@/lib/finance";
 import { effectiveMonthlySave } from "@/lib/finance/savings-totals";
 import type { SavingsSnapshot } from "@/lib/savings/types";
-import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { fmt, fmt2, currentYm } from "@/lib/finance/helpers";
+import { fetchJson } from "@/lib/fetch-json";
+import type { BudgetExpenseSummary, CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
+import { normalizeCategoryKey } from "@/lib/expenses/budget-match";
 import { ChartBox } from "@/components/ChartBox";
 import {
   COMPUTED_DEBT_LABEL,
@@ -63,6 +66,32 @@ const TYPE_TAG: Record<BudgetItem["type"], string> = {
   invest: "t-live",
 };
 
+type BudgetRow = { b: BudgetItem; i: number };
+
+function lookupCategorySpend(
+  summary: BudgetExpenseSummary | null,
+  line: BudgetItem
+): CategoryBudgetSummary | null {
+  if (!summary || (line.type !== "fixed" && line.type !== "spend")) return null;
+  const all = [...summary.categories, ...summary.zeroAllocated];
+  if (line.id) {
+    return all.find((c) => c.budgetLineId === line.id) ?? null;
+  }
+  const key = normalizeCategoryKey(line.cat ?? "");
+  return all.find((c) => normalizeCategoryKey(c.category) === key) ?? null;
+}
+
+function splitBudgetRows(budget: BudgetItem[]): {
+  allocated: BudgetRow[];
+  zeroAllocated: BudgetRow[];
+} {
+  const withIndex = budget.map((b, i) => ({ b, i }));
+  return {
+    allocated: withIndex.filter(({ b }) => b.amt > 0),
+    zeroAllocated: withIndex.filter(({ b }) => b.amt <= 0),
+  };
+}
+
 export function TabBudgetSavings({
   state: S,
   setState,
@@ -71,6 +100,26 @@ export function TabBudgetSavings({
   const [budRet, setBudRet] = useState(6);
   const [budYrs, setBudYrs] = useState(10);
   const [editingAllocation, setEditingAllocation] = useState(false);
+  const [expenseSummary, setExpenseSummary] = useState<BudgetExpenseSummary | null>(null);
+
+  useEffect(() => {
+    if (editingAllocation) return;
+    void (async () => {
+      try {
+        const ym = currentYm();
+        const { res, data } = await fetchJson<BudgetExpenseSummary & { error?: string }>(
+          `/api/expenses/summary?ym=${ym}`,
+          { credentials: "include" }
+        );
+        if (res.ok) {
+          setExpenseSummary(data);
+          console.info("[TabBudgetSavings] expense summary loaded", { ym });
+        }
+      } catch (e) {
+        console.warn("[TabBudgetSavings] expense summary failed", e);
+      }
+    })();
+  }, [editingAllocation, S.budget]);
 
   const income = stableTakeHome(S);
   const debt = computedDebtMonthly(S);
@@ -82,7 +131,70 @@ export function TabBudgetSavings({
     savings != null ? effectiveMonthlySave(savings, false) : 0;
   const proj = budgetProjection(S, monthlyInv, monthlySave, budRet, budYrs, savings);
   const budgetLines = S.budget.filter((b) => b.type !== "save");
+  const { allocated: allocatedRows, zeroAllocated: zeroRows } = splitBudgetRows(S.budget);
   const balanceLbl = budgetBalanceLabel(left);
+
+  const renderBudgetEditItem = ({ b, i }: BudgetRow) => (
+    <div className="budget-item" key={i} style={{ marginBottom: 14 }}>
+      <div className="editrow budget-line">
+        <input
+          type="text"
+          value={b.cat ?? ""}
+          placeholder="Category name"
+          onChange={(ev) => updateBudget(i, { cat: ev.target.value })}
+        />
+        <select
+          value={b.type}
+          onChange={(ev) =>
+            updateBudget(i, { type: ev.target.value as BudgetItem["type"] })
+          }
+        >
+          {BUDGET_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <span className="num">{fmt2(b.amt)}</span>
+        <button type="button" className="btn del sm" onClick={() => removeBudgetLine(i)}>
+          del
+        </button>
+      </div>
+      <input
+        type="range"
+        className="budget-slider"
+        min={0}
+        max={Math.round(income) || 1}
+        step={10}
+        value={b.amt}
+        onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
+      />
+    </div>
+  );
+
+  const renderBudgetViewRow = ({ b, i }: BudgetRow) => {
+    const spend = lookupCategorySpend(expenseSummary, b);
+    return (
+      <tr key={i}>
+        <td>{b.cat?.trim() || "Unnamed"}</td>
+        <td>
+          <span className={`tag ${TYPE_TAG[b.type]}`}>{b.type}</span>
+        </td>
+        <td className="num">{fmt2(b.amt)}</td>
+        {spend ? (
+          <>
+            <td className="num">{fmt2(spend.spent)}</td>
+            <td className={`num ${spend.remaining < 0 ? "neg" : ""}`}>{fmt2(spend.remaining)}</td>
+          </>
+        ) : (
+          <>
+            <td className="num">—</td>
+            <td className="num">—</td>
+          </>
+        )}
+      </tr>
+    );
+  };
 
   const updateBudget = (i: number, patchItem: Partial<BudgetItem>) => {
     setState((prev) => ({
@@ -290,47 +402,13 @@ export function TabBudgetSavings({
               <span className="num">{fmt2(ilpPrem)}</span>
               <span></span>
             </div>
-            {S.budget.map((b, i) => (
-              <div key={i} className="budget-item" style={{ marginBottom: 14 }}>
-                <div className="editrow budget-line">
-                  <input
-                    type="text"
-                    value={b.cat ?? ""}
-                    placeholder="Category name"
-                    onChange={(ev) => updateBudget(i, { cat: ev.target.value })}
-                  />
-                  <select
-                    value={b.type}
-                    onChange={(ev) =>
-                      updateBudget(i, { type: ev.target.value as BudgetItem["type"] })
-                    }
-                  >
-                    {BUDGET_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="num">{fmt2(b.amt)}</span>
-                  <button
-                    type="button"
-                    className="btn del sm"
-                    onClick={() => removeBudgetLine(i)}
-                  >
-                    del
-                  </button>
-                </div>
-                <input
-                  type="range"
-                  className="budget-slider"
-                  min={0}
-                  max={Math.round(income) || 1}
-                  step={10}
-                  value={b.amt}
-                  onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
-                />
-              </div>
-            ))}
+            {allocatedRows.map(renderBudgetEditItem)}
+            {zeroRows.length > 0 ? (
+              <details className="budget-zero-section">
+                <summary>$0 budget · {zeroRows.length} categories</summary>
+                {zeroRows.map(renderBudgetEditItem)}
+              </details>
+            ) : null}
             <div className="toolbar">
               <button type="button" className="btn ghost sm" onClick={addBudgetLine}>
                 + Add category
@@ -359,6 +437,8 @@ export function TabBudgetSavings({
                   <th>Category</th>
                   <th>Type</th>
                   <th>Amount / month</th>
+                  <th>Spent (month)</th>
+                  <th>Remaining</th>
                 </tr>
               </thead>
               <tbody>
@@ -368,6 +448,9 @@ export function TabBudgetSavings({
                     <span className="tag t-soon">auto</span>
                   </td>
                   <td className="num">{fmt2(debt)}</td>
+                  <td colSpan={2} className="note">
+                    —
+                  </td>
                 </tr>
                 <tr className="computed-row">
                   <td>{COMPUTED_INSURANCE_LABEL}</td>
@@ -375,6 +458,9 @@ export function TabBudgetSavings({
                     <span className="tag t-soon">auto</span>
                   </td>
                   <td className="num">{fmt2(insurancePrem)}</td>
+                  <td colSpan={2} className="note">
+                    —
+                  </td>
                 </tr>
                 <tr className="computed-row">
                   <td>{COMPUTED_ILP_LABEL}</td>
@@ -382,16 +468,23 @@ export function TabBudgetSavings({
                     <span className="tag t-soon">auto</span>
                   </td>
                   <td className="num">{fmt2(ilpPrem)}</td>
+                  <td colSpan={2} className="note">
+                    —
+                  </td>
                 </tr>
-                {S.budget.map((b, i) => (
-                  <tr key={i}>
-                    <td>{b.cat?.trim() || "Unnamed"}</td>
-                    <td>
-                      <span className={`tag ${TYPE_TAG[b.type]}`}>{b.type}</span>
+                {allocatedRows.map(renderBudgetViewRow)}
+                {zeroRows.length > 0 ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <details className="budget-zero-section">
+                        <summary>$0 budget · {zeroRows.length} categories</summary>
+                        <table>
+                          <tbody>{zeroRows.map(renderBudgetViewRow)}</tbody>
+                        </table>
+                      </details>
                     </td>
-                    <td className="num">{fmt2(b.amt)}</td>
                   </tr>
-                ))}
+                ) : null}
               </tbody>
             </table>
             <div className="minirow tot" style={{ marginTop: 12 }}>

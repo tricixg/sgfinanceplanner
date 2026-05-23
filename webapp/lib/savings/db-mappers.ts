@@ -75,6 +75,7 @@ export function mapExpense(row: Record<string, unknown>): Expense {
     userId: String(row.user_id),
     amount: Number(row.amount ?? 0),
     category: String(row.category ?? ""),
+    budgetLineId: row.budget_line_id ? String(row.budget_line_id) : null,
     spentAt: String(row.spent_at),
     note: String(row.note ?? ""),
     createdAt: String(row.created_at),

@@ -15,6 +15,7 @@ export async function loadBudgetLines(
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => ({
+    id: String(row.id),
     cat: String(row.category ?? ""),
     amt: Number(row.amount ?? 0),
     type: (row.line_type ?? "fixed") as BudgetItem["type"],
@@ -45,12 +46,18 @@ export async function saveBudgetLines(
       updated_at: new Date().toISOString(),
     };
 
-    const match = (existing ?? []).find(
-      (e) =>
-        e.category === b.cat &&
-        e.line_type === b.type &&
-        !keepIds.has(String(e.id))
-    );
+    const matchById =
+      b.id && UUID_RE.test(b.id)
+        ? (existing ?? []).find((e) => String(e.id) === b.id && !keepIds.has(String(e.id)))
+        : undefined;
+    const match =
+      matchById ??
+      (existing ?? []).find(
+        (e) =>
+          e.category === b.cat &&
+          e.line_type === b.type &&
+          !keepIds.has(String(e.id))
+      );
     if (match?.id && UUID_RE.test(String(match.id))) {
       keepIds.add(String(match.id));
       await supabase.from("budget_lines").update(payload).eq("id", match.id);
