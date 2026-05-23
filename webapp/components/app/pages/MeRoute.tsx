@@ -16,7 +16,7 @@ function MeContent({
   setState: Parameters<typeof TabMe>[0]["setState"];
 }) {
   const user = useAppSession();
-  const household = useHousehold(Boolean(user?.id));
+  const household = useHousehold();
   const { savingsApi, accountsApi } = usePageSavings(user?.id, state);
   const [saveMsg, setSaveMsg] = useState("");
 

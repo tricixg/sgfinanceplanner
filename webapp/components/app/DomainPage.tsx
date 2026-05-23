@@ -13,10 +13,10 @@ type Props = {
   }) => React.ReactNode;
 };
 
-/** Loads normalized domain APIs once for a route tab. */
+/** Domain tab content — reads session-cached app data from AppDataProvider. */
 export function DomainPage({ children }: Props) {
   const user = useAppSession();
-  const { state, setState, loading, cardsApi } = useAppData(Boolean(user?.id));
+  const { state, setState, loading, cardsApi } = useAppData();
 
   if (loading) {
     return <p className="loading">Loading your financial data…</p>;

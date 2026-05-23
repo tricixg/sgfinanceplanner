@@ -9,10 +9,10 @@ import { buildSavingsSnapshot } from "@/lib/finance/savings-totals";
 import { localAccountsAsUserSavings, localAccountTotals } from "@/lib/finance/accounts";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 
-/** Savings totals for chart/overview tabs — only when userId is set. */
-export function usePageSavings(userId: string | undefined, state: DashboardState) {
-  const savingsApi = useSavings(Boolean(userId));
-  const accountsApi = useAccounts(Boolean(userId));
+/** Savings totals for chart/overview tabs — reads session-cached savings data. */
+export function usePageSavings(_userId: string | undefined, state: DashboardState) {
+  const savingsApi = useSavings();
+  const accountsApi = useAccounts();
 
   const savingsTotals = useMemo((): SavingsSnapshot | null => {
     if (accountsApi.configured && accountsApi.totals && savingsApi.configured) {

@@ -14,9 +14,9 @@ import { TabWealth } from "./tabs/TabWealth";
 import { TabBudgetSavings } from "./tabs/TabBudgetSavings";
 import { TabSavings } from "./tabs/TabSavings";
 import { TabExpenses } from "./tabs/TabExpenses";
-import { useSavings } from "@/hooks/useSavings";
-import { useAccounts } from "@/hooks/useAccounts";
-import { useHousehold } from "@/hooks/useHousehold";
+import { useSavingsProvider } from "@/hooks/useSavings";
+import { useAccountsProvider } from "@/hooks/useAccounts";
+import { useHouseholdProvider } from "@/hooks/useHousehold";
 import { mergeSavingsSnapshots } from "@/lib/savings/load-bundle";
 import { buildSavingsSnapshot } from "@/lib/finance/savings-totals";
 import { localAccountsAsUserSavings, localAccountTotals } from "@/lib/finance/accounts";
@@ -151,9 +151,9 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
   const [navOpen, setNavOpen] = useState(false);
   const { state, setState, loading, saveMsg, flash, saveNow, reload } =
     usePersistedState(userId);
-  const savingsApi = useSavings(Boolean(userId));
-  const accountsApi = useAccounts(Boolean(userId));
-  const household = useHousehold(Boolean(userId));
+  const savingsApi = useSavingsProvider(Boolean(userId));
+  const accountsApi = useAccountsProvider(Boolean(userId));
+  const household = useHouseholdProvider(Boolean(userId));
 
   const savingsTotals = useMemo((): SavingsSnapshot | null => {
     if (accountsApi.configured && accountsApi.totals && savingsApi.configured) {

@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { HouseholdMember, PartnerInvite } from "@/lib/savings/types";
+import { HouseholdContext } from "@/contexts/app-data-contexts";
 
-export function useHousehold(enabled: boolean) {
+export function useHouseholdProvider(enabled: boolean) {
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [paired, setPaired] = useState(false);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
@@ -104,4 +105,12 @@ export function useHousehold(enabled: boolean) {
     sendInvite,
     respondInvite,
   };
+}
+
+export function useHousehold() {
+  const ctx = useContext(HouseholdContext);
+  if (!ctx) {
+    throw new Error("useHousehold must be used within AppDataProvider");
+  }
+  return ctx;
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { SavingsBundle, SavingsGoal, SavingsPool } from "@/lib/savings/types";
+import { SavingsContext } from "@/contexts/app-data-contexts";
 
 const emptyTotals: SavingsBundle["totals"] = {
   personalSavingsCash: 0,
@@ -23,7 +24,7 @@ const emptyBundle: SavingsBundle = {
   paired: false,
 };
 
-export function useSavings(enabled: boolean) {
+export function useSavingsProvider(enabled: boolean) {
   const [bundle, setBundle] = useState<SavingsBundle>(emptyBundle);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
@@ -183,4 +184,12 @@ export function useSavings(enabled: boolean) {
     recordGoalDeposit,
     recordPoolTransaction,
   };
+}
+
+export function useSavings() {
+  const ctx = useContext(SavingsContext);
+  if (!ctx) {
+    throw new Error("useSavings must be used within AppDataProvider");
+  }
+  return ctx;
 }

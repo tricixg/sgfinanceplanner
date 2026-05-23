@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fetchJson } from "@/lib/fetch-json";
 import type { DashboardState, PortfolioSnapshot } from "@/lib/types";
 import type { FinanceProfile } from "@/lib/profile/load";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 
 type ProfileBundle = {
   profile: FinanceProfile;
@@ -15,7 +16,7 @@ type ProfileBundle = {
 /**
  * Composes DashboardState from normalized domain APIs (no monolithic /api/state).
  */
-export function useAppData(enabled: boolean) {
+export function useAppDataProvider(enabled: boolean) {
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
   const [profileBundle, setProfileBundle] = useState<ProfileBundle | null>(null);
@@ -370,4 +371,12 @@ export function useAppData(enabled: boolean) {
       ? { cards: creditCards, saveCards, configured: true as const }
       : undefined,
   };
+}
+
+export function useAppData() {
+  const ctx = useContext(AppDataContext);
+  if (!ctx) {
+    throw new Error("useAppData must be used within AppDataProvider");
+  }
+  return ctx;
 }

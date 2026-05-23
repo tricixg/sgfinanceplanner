@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { AccountsBundle, UserSavingsAccount } from "@/lib/savings/types";
+import { AccountsContext } from "@/contexts/app-data-contexts";
 
-export function useAccounts(enabled: boolean) {
+export function useAccountsProvider(enabled: boolean) {
   const [accounts, setAccounts] = useState<UserSavingsAccount[]>([]);
   const [totals, setTotals] = useState<AccountsBundle["totals"] | null>(null);
   const [loading, setLoading] = useState(enabled);
@@ -105,4 +106,12 @@ export function useAccounts(enabled: boolean) {
     saveAccounts,
     recordAccountTransaction,
   };
+}
+
+export function useAccounts() {
+  const ctx = useContext(AccountsContext);
+  if (!ctx) {
+    throw new Error("useAccounts must be used within AppDataProvider");
+  }
+  return ctx;
 }

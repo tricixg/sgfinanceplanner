@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { SavingsPool } from "@/lib/savings/types";
-import type { FinancialAccount, UnifiedTransaction } from "@/lib/transactions/types";
+import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
+import { useSavings } from "@/hooks/useSavings";
+import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 
 const PAGE_SIZE = 50;
 
@@ -40,8 +41,6 @@ export function TransactionsHistoryPage() {
   const transactionType = searchParams.get("transactionType") ?? "";
   const source = searchParams.get("source") ?? "all";
 
-  const [financialAccounts, setFinancialAccounts] = useState<FinancialAccount[]>([]);
-  const [pools, setPools] = useState<SavingsPool[]>([]);
   const [items, setItems] = useState<UnifiedTransaction[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -50,33 +49,10 @@ export function TransactionsHistoryPage() {
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [faRes, savingsRes] = await Promise.all([
-          fetchJson<{ accounts?: FinancialAccount[] }>("/api/financial-accounts", {
-            credentials: "include",
-          }),
-          fetchJson<{ pools?: SavingsPool[] }>("/api/savings", {
-            credentials: "include",
-          }),
-        ]);
-        if (cancelled) return;
-        if (faRes.res.ok) setFinancialAccounts(faRes.data.accounts ?? []);
-        if (savingsRes.res.ok) setPools(savingsRes.data.pools ?? []);
-        console.info("[TransactionsHistoryPage] filters loaded", {
-          accounts: faRes.data.accounts?.length ?? 0,
-          pools: savingsRes.data.pools?.length ?? 0,
-        });
-      } catch (e) {
-        console.warn("[TransactionsHistoryPage] filter options failed", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { bundle: savingsBundle } = useSavings();
+  const { accounts: financialAccounts, reload: reloadFinancialAccounts } =
+    useFinancialAccounts();
+  const pools = savingsBundle.pools;
 
   const load = useCallback(
     async (append: boolean) => {
@@ -205,11 +181,7 @@ export function TransactionsHistoryPage() {
       console.info("[TransactionsHistoryPage] import done", data);
       setOffset(0);
       void load(false);
-      const faRes = await fetchJson<{ accounts?: FinancialAccount[] }>(
-        "/api/financial-accounts",
-        { credentials: "include" }
-      );
-      if (faRes.res.ok) setFinancialAccounts(faRes.data.accounts ?? []);
+      await reloadFinancialAccounts();
     } catch (e) {
       const err = e instanceof Error ? e.message : "Import failed";
       setImportMsg(err);
