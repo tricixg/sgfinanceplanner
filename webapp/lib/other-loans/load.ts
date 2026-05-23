@@ -22,6 +22,7 @@ function mapRow(row: Record<string, unknown>, cardKey?: string): OtherLoan {
       : undefined,
     amountPaid: Number(row.amount_paid ?? 0),
     paidAt: row.paid_at ? String(row.paid_at) : null,
+    excludeFromNetWorth: Boolean(row.exclude_from_net_worth),
   };
 }
 
@@ -191,6 +192,8 @@ export async function saveOtherLoans(
       default_financial_account_id: o.defaultFinancialAccountId ?? null,
       amount_paid: o.amountPaid ?? 0,
       paid_at: o.paidAt ?? null,
+      exclude_from_net_worth:
+        o.loanType === "personal" ? Boolean(o.excludeFromNetWorth) : false,
       sort_order: i,
       updated_at: new Date().toISOString(),
     };

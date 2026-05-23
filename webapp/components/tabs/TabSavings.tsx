@@ -90,7 +90,7 @@ export function TabSavings({
     setSavingPools(true);
     try {
       await savePools(pools);
-      snackbar.show("Pools saved");
+      snackbar.show("Pools saved successfully");
       setEditingPools(false);
     } catch (e) {
       snackbar.show(e instanceof Error ? e.message : "Save failed", { error: true });
@@ -99,13 +99,20 @@ export function TabSavings({
     }
   };
 
-  const persistGoals = async () => {
+  const persistGoals = async (which: "personal" | "shared") => {
     setSavingGoals(true);
     try {
       await saveGoals(goals);
-      snackbar.show("Goals saved");
-      setEditingPersonalGoals(false);
-      setEditingSharedGoals(false);
+      snackbar.show(
+        which === "personal"
+          ? "Your goals saved successfully"
+          : "Shared goals saved successfully"
+      );
+      if (which === "personal") {
+        setEditingPersonalGoals(false);
+      } else {
+        setEditingSharedGoals(false);
+      }
     } catch (e) {
       snackbar.show(e instanceof Error ? e.message : "Save failed", { error: true });
     } finally {
@@ -113,7 +120,7 @@ export function TabSavings({
     }
   };
 
-  if (loading || !configured) {
+  if (loading && !configured) {
     return (
       <section className="panel on">
         <p className="loading">Loading your financial data…</p>
@@ -283,7 +290,7 @@ export function TabSavings({
             type="button"
             className="btn sm"
             disabled={savingGoals}
-            onClick={() => void persistGoals()}
+            onClick={() => void persistGoals("personal")}
           >
             {savingGoals ? "Saving…" : "Save"}
           </button>
@@ -320,7 +327,7 @@ export function TabSavings({
                 type="button"
                 className="btn sm"
                 disabled={savingGoals}
-                onClick={() => void persistGoals()}
+                onClick={() => void persistGoals("shared")}
               >
                 {savingGoals ? "Saving…" : "Save"}
               </button>
@@ -435,7 +442,7 @@ function GoalsSection({
         name: scope === "shared" ? "New shared goal" : "New goal",
         targetAmount: 5000,
         savedAmount: 0,
-        targetDate: "2028-01-01",
+        targetDate: null,
         monthlyContribution: 0,
         whereLabel: "",
         linkedAccountId: null,
@@ -490,11 +497,25 @@ function GoalsSection({
                     <td>
                       <input
                         type="month"
-                        value={g.targetDate?.slice(0, 7) ?? "2028-01"}
+                        value={g.targetDate?.slice(0, 7) ?? ""}
                         onChange={(e) =>
-                          update(i, { targetDate: `${e.target.value}-01` })
+                          update(i, {
+                            targetDate: e.target.value
+                              ? `${e.target.value}-01`
+                              : null,
+                          })
                         }
                       />
+                      {g.targetDate ? (
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          style={{ marginLeft: 4 }}
+                          onClick={() => update(i, { targetDate: null })}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
                     </td>
                     <td className="num">
                       <NumInput
@@ -578,7 +599,9 @@ function GoalsSection({
                     </td>
                     <td className="num">{fmt2(g.savedAmount)}</td>
                     <td className="num">{fmt(g.targetAmount)}</td>
-                    <td className="num">{row ? fmt(row.need) : "—"}</td>
+                    <td className="num">
+                      {g.targetDate && row ? fmt(row.need) : "—"}
+                    </td>
                     <td>{g.targetDate ? g.targetDate.slice(0, 7) : "—"}</td>
                     <td className="note" style={{ fontSize: 12 }}>
                       {linked ?? jarHint}

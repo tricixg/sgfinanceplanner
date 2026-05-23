@@ -59,6 +59,7 @@ export function activeLoanOutstanding(S: DashboardState, nowYm?: string): number
 export function activeOtherLoansOutstanding(S: DashboardState): number {
   return (S.otherLoans ?? [])
     .filter((l) => !l.paidAt && l.outstanding > 0)
+    .filter((l) => !(l.loanType === "personal" && l.excludeFromNetWorth))
     .reduce((s, l) => s + l.outstanding, 0);
 }
 

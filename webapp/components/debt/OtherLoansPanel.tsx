@@ -247,6 +247,7 @@ export function OtherLoansPanel({
               <span>Tenure (mo)</span>
               <span>Fees paid</span>
               <span>Pay from</span>
+              <span>Net worth</span>
               <span></span>
             </div>
             {loans.length === 0 ? (
@@ -342,6 +343,24 @@ export function OtherLoansPanel({
                       </option>
                     ))}
                   </select>
+                  {l.loanType === "personal" ? (
+                    <label
+                      className="note"
+                      style={{ display: "flex", alignItems: "center", gap: 4, margin: 0 }}
+                      title="Outstanding still shown here; omitted from ME net worth only"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(l.excludeFromNetWorth)}
+                        onChange={(e) =>
+                          patchLoan(i, { excludeFromNetWorth: e.target.checked })
+                        }
+                      />
+                      Exclude
+                    </label>
+                  ) : (
+                    <span>—</span>
+                  )}
                   <button
                     type="button"
                     className="btn del sm"
@@ -386,6 +405,7 @@ export function OtherLoansPanel({
                 <th>Outstanding</th>
                 <th>Interest %</th>
                 <th>Fees paid</th>
+                <th>Net worth</th>
                 <th></th>
               </tr>
             </thead>
@@ -407,6 +427,11 @@ export function OtherLoansPanel({
                   <td className="num">{fmt2(l.outstanding)}</td>
                   <td className="num">{l.interestRateApr.toFixed(2)}</td>
                   <td className="num">{fmt2(l.feesPaid)}</td>
+                  <td>
+                    {l.loanType === "personal" && l.excludeFromNetWorth
+                      ? "Excluded"
+                      : "Included"}
+                  </td>
                   <td>
                     {l.outstanding > 0 && l.id && (
                       <button type="button" className="btn sm" onClick={() => setPayLoan(l)}>

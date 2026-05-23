@@ -1,6 +1,6 @@
 import type { RecurringSubscription } from "@/lib/types";
 
-export const COMPUTED_SUBSCRIPTION_LABEL = "Subscriptions & recurring";
+export const COMPUTED_SUBSCRIPTION_LABEL = "Subscriptions";
 
 export function computedSubscriptionMonthly(subscriptions: RecurringSubscription[]): number {
   return subscriptions.reduce((s, sub) => s + sub.amount, 0);

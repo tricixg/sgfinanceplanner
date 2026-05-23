@@ -1,6 +1,7 @@
 import type { BudgetItem, DashboardState } from "@/lib/types";
-import type { SavingsSnapshot } from "@/lib/savings/types";
+import type { SavingsGoal, SavingsSnapshot } from "@/lib/savings/types";
 import { effectiveMonthlySave } from "./savings-totals";
+import { monthlySavingNeeded } from "./goals";
 import { resolveDashboardCash } from "./wealth";
 import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
@@ -12,6 +13,7 @@ import { computedIlpMonthly, ilpTotalValue } from "./ilp";
 import { portfolioInvestmentValue } from "./wealth";
 
 export const COMPUTED_DEBT_LABEL = "Loans & debt (from Debts & Loans)";
+export const COMPUTED_SAVINGS_LABEL = "Savings (from Savings & Goals)";
 export { COMPUTED_INSURANCE_LABEL, computedInsuranceMonthly } from "./insurance";
 export { COMPUTED_ILP_LABEL, computedIlpMonthly } from "./ilp";
 export {
@@ -75,6 +77,17 @@ export function monthlySaveContribution(S: DashboardState): number {
 /** Instalment load from Debts & Loans — not stored in budget. */
 export function computedDebtMonthly(S: DashboardState, ym?: string): number {
   return loanLoadForMonth(S.loans, ym ?? S.cashflowStartYm ?? currentYm());
+}
+
+/** Sum of monthly saving needed for goals with a target date. */
+export function computedSavingsMonthly(
+  goals: SavingsGoal[],
+  nowYm?: string
+): number {
+  return goals.reduce((sum, g) => {
+    const need = monthlySavingNeeded(g, nowYm);
+    return sum + (need ?? 0);
+  }, 0);
 }
 
 export function normalizeBudgetItem(b: Partial<BudgetItem>): BudgetItem {
@@ -155,18 +168,23 @@ export function budgetBalanceLabel(left: number): string {
   return left < -1 ? "Over-allocated" : "Remaining";
 }
 
-export function budgetVerdict(S: DashboardState, ym?: string) {
+export function budgetVerdict(
+  S: DashboardState,
+  ym?: string,
+  savingsMonthly?: number
+) {
   const income = stableTakeHome(S);
   const alloc = S.budget.reduce((s, b) => s + b.amt, 0);
   const debt = computedDebtMonthly(S, ym);
   const ilp = computedIlpMonthly(S);
   const insurance = computedInsuranceMonthly(S);
-  const left = income - alloc - debt - ilp - insurance;
+  const savings = savingsMonthly ?? 0;
+  const left = income - alloc - debt - ilp - insurance - savings;
   const inv = monthlyInvestContribution(S);
   const sav = monthlySaveContribution(S);
   const invPct = income > 0 ? (inv / income) * 100 : 0;
   const savePct = income > 0 ? (sav / income) * 100 : 0;
-  return { income, alloc, debt, ilp, insurance, left, inv, sav, invPct, savePct };
+  return { income, alloc, debt, ilp, insurance, savings, left, inv, sav, invPct, savePct };
 }
 
 export function budgetProjection(
@@ -175,13 +193,18 @@ export function budgetProjection(
   monthlySave: number,
   retPct: number,
   yrs: number,
-  savings?: SavingsSnapshot | null
+  savings?: SavingsSnapshot | null,
+  computedSave?: number
 ) {
   const ret = retPct / 100;
   let invPot = portfolioInvestmentValue(S) + ilpTotalValue(S);
   let cashPot = resolveDashboardCash(S, savings).cash;
   const monthlySaveEff =
-    savings != null ? effectiveMonthlySave(savings, false) : monthlySave;
+    computedSave != null
+      ? computedSave
+      : savings != null
+        ? effectiveMonthlySave(savings, false)
+        : monthlySave;
   const labels = ["Now"];
   const invSeries = [invPot];
   const cashSeries = [cashPot];

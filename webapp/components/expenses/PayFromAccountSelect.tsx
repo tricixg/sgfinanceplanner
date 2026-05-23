@@ -2,16 +2,27 @@
 
 import { useEffect } from "react";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import type { FinancialAccount } from "@/lib/transactions/types";
 
 type Props = {
   value: string;
   onChange: (financialAccountId: string) => void;
   /** When true, empty selection is allowed (budget-only tracking). */
   optional?: boolean;
+  /** When provided (e.g. from expense summary), skips context loading UI. */
+  accounts?: FinancialAccount[];
 };
 
-export function PayFromAccountSelect({ value, onChange, optional = false }: Props) {
-  const { accounts, loading, configured } = useFinancialAccounts();
+export function PayFromAccountSelect({
+  value,
+  onChange,
+  optional = false,
+  accounts: accountsProp,
+}: Props) {
+  const ctx = useFinancialAccounts();
+  const accounts = accountsProp ?? ctx.accounts;
+  const configured = accountsProp != null ? true : ctx.configured;
+  const loading = accountsProp != null ? false : ctx.loading;
 
   useEffect(() => {
     if (!value && accounts.length > 0) {
@@ -28,8 +39,12 @@ export function PayFromAccountSelect({ value, onChange, optional = false }: Prop
     );
   }
 
-  if (loading) {
-    return <p className="note" style={{ margin: 0 }}>Loading accounts…</p>;
+  if (loading && accounts.length === 0) {
+    return (
+      <select disabled aria-label="Pay from account">
+        <option>Loading accounts…</option>
+      </select>
+    );
   }
 
   if (accounts.length === 0) {

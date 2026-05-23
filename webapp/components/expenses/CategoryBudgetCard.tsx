@@ -4,9 +4,11 @@ import { useState } from "react";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
+import type { FinancialAccount } from "@/lib/transactions/types";
 
 type Props = {
   category: CategoryBudgetSummary;
+  financialAccounts?: FinancialAccount[];
   compact?: boolean;
   onAddExpense: (payload: {
     budgetLineId: string;
@@ -25,6 +27,7 @@ function progressPct(spent: number, allocated: number): number {
 
 export function CategoryBudgetCard({
   category,
+  financialAccounts,
   compact = false,
   onAddExpense,
   onDeleteExpense,
@@ -137,6 +140,7 @@ export function CategoryBudgetCard({
           <PayFromAccountSelect
             value={financialAccountId}
             onChange={setFinancialAccountId}
+            accounts={financialAccounts}
           />
         </label>
         <button type="submit" className="btn sm" disabled={saving}>

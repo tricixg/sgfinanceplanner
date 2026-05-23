@@ -16,4 +16,6 @@ export type OtherLoan = {
   defaultFinancialAccountId?: string;
   amountPaid: number;
   paidAt?: string | null;
+  /** When true (personal loans only), outstanding is omitted from net worth debt. */
+  excludeFromNetWorth?: boolean;
 };

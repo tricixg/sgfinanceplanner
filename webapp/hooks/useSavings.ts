@@ -24,51 +24,67 @@ const emptyBundle: SavingsBundle = {
   paired: false,
 };
 
+function bundleFromResponse(
+  data: SavingsBundle & { configured?: boolean }
+): SavingsBundle {
+  return {
+    pools: data.pools ?? [],
+    goals: data.goals ?? [],
+    totals: data.totals ?? emptyTotals,
+    householdId: data.householdId ?? null,
+    paired: Boolean(data.paired),
+  };
+}
+
 export function useSavingsProvider(enabled: boolean) {
   const [bundle, setBundle] = useState<SavingsBundle>(emptyBundle);
   const [loading, setLoading] = useState(enabled);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const { res, data } = await fetchJson<
-        SavingsBundle & { configured?: boolean; error?: string }
-      >("/api/savings", { credentials: "include" });
-      if (!res.ok) {
-        throw new Error(data.error ?? `Failed to load savings (${res.status})`);
-      }
-      if (data.configured === false) {
-        setConfigured(false);
-        setBundle(emptyBundle);
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!enabled) {
+        setLoading(false);
         return;
       }
-      setConfigured(true);
-      setBundle({
-        pools: data.pools ?? [],
-        goals: data.goals ?? [],
-        totals: data.totals ?? emptyTotals,
-        householdId: data.householdId ?? null,
-        paired: Boolean(data.paired),
-      });
-      console.info("[useSavings] loaded", {
-        pools: data.pools?.length,
-        goals: data.goals?.length,
-      });
-    } catch (e) {
-      console.error("[useSavings] load failed", e);
-      setError(e instanceof Error ? e.message : "Failed to load savings");
-      setConfigured(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [enabled]);
+      if (!opts?.silent) {
+        setLoading(true);
+      }
+      setError("");
+      try {
+        const { res, data } = await fetchJson<
+          SavingsBundle & { configured?: boolean; error?: string }
+        >("/api/savings", { credentials: "include" });
+        if (!res.ok) {
+          throw new Error(data.error ?? `Failed to load savings (${res.status})`);
+        }
+        if (data.configured === false) {
+          setConfigured(false);
+          setBundle(emptyBundle);
+          return;
+        }
+        setConfigured(true);
+        setBundle(bundleFromResponse(data));
+        setHasLoaded(true);
+        console.info("[useSavings] loaded", {
+          silent: Boolean(opts?.silent),
+          pools: data.pools?.length,
+          goals: data.goals?.length,
+        });
+      } catch (e) {
+        console.error("[useSavings] load failed", e);
+        setError(e instanceof Error ? e.message : "Failed to load savings");
+        setConfigured(false);
+      } finally {
+        if (!opts?.silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [enabled]
+  );
 
   useEffect(() => {
     load();
@@ -86,39 +102,28 @@ export function useSavingsProvider(enabled: boolean) {
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Failed to save pools");
-      setBundle((b) => ({
-        ...b,
-        pools: data.pools ?? pools,
-        totals: data.totals ?? b.totals,
-      }));
+      setBundle(bundleFromResponse(data));
+      setHasLoaded(true);
       console.info("[useSavings] pools saved");
-      await load();
     },
-    [load]
+    []
   );
 
-  const saveGoals = useCallback(
-    async (goals: SavingsGoal[]) => {
-      const { res, data } = await fetchJson<SavingsBundle & { error?: string }>(
-        "/api/savings",
-        {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ goals }),
-        }
-      );
-      if (!res.ok) throw new Error(data.error ?? "Failed to save goals");
-      setBundle((b) => ({
-        ...b,
-        goals: data.goals ?? goals,
-        totals: data.totals ?? b.totals,
-      }));
-      console.info("[useSavings] goals saved");
-      await load();
-    },
-    [load]
-  );
+  const saveGoals = useCallback(async (goals: SavingsGoal[]) => {
+    const { res, data } = await fetchJson<SavingsBundle & { error?: string }>(
+      "/api/savings",
+      {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goals }),
+      }
+    );
+    if (!res.ok) throw new Error(data.error ?? "Failed to save goals");
+    setBundle(bundleFromResponse(data));
+    setHasLoaded(true);
+    console.info("[useSavings] goals saved");
+  }, []);
 
   const recordGoalDeposit = useCallback(
     async (
@@ -141,7 +146,7 @@ export function useSavingsProvider(enabled: boolean) {
       );
       if (!res.ok) throw new Error(data.error ?? "Deposit failed");
       console.info("[useSavings] goal deposit", { goalId, ...payload });
-      await load();
+      await load({ silent: true });
     },
     [load]
   );
@@ -168,7 +173,7 @@ export function useSavingsProvider(enabled: boolean) {
       );
       if (!res.ok) throw new Error(data.error ?? "Transaction failed");
       console.info("[useSavings] pool transaction", { poolId, ...payload });
-      await load();
+      await load({ silent: true });
     },
     [load]
   );
@@ -176,6 +181,7 @@ export function useSavingsProvider(enabled: boolean) {
   return {
     bundle,
     loading,
+    hasLoaded,
     configured,
     error,
     reload: load,

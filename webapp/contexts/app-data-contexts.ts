@@ -33,9 +33,10 @@ export type AppDataContextValue = {
 export type SavingsContextValue = {
   bundle: SavingsBundle;
   loading: boolean;
+  hasLoaded: boolean;
   configured: boolean;
   error: string;
-  reload: () => Promise<void>;
+  reload: (opts?: { silent?: boolean }) => Promise<void>;
   savePools: (pools: SavingsPool[]) => Promise<void>;
   saveGoals: (goals: SavingsGoal[]) => Promise<void>;
   recordGoalDeposit: (

@@ -4,9 +4,11 @@ import { useState } from "react";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
+import type { FinancialAccount } from "@/lib/transactions/types";
 
 type Props = {
   category: CategoryBudgetSummary;
+  financialAccounts?: FinancialAccount[];
   onAddExpense: (payload: {
     budgetLineId: string;
     amount: number;
@@ -19,6 +21,7 @@ type Props = {
 
 export function ZeroBudgetCategoryItem({
   category,
+  financialAccounts,
   onAddExpense,
   onDeleteExpense,
 }: Props) {
@@ -94,6 +97,7 @@ export function ZeroBudgetCategoryItem({
           <PayFromAccountSelect
             value={financialAccountId}
             onChange={setFinancialAccountId}
+            accounts={financialAccounts}
           />
           <button type="submit" className="btn ghost sm" disabled={saving}>
             {saving ? "…" : "Add"}
@@ -127,10 +131,12 @@ export function ZeroBudgetCategoryItem({
 
 export function ZeroBudgetCategoryList({
   categories,
+  financialAccounts,
   onAddExpense,
   onDeleteExpense,
 }: {
   categories: CategoryBudgetSummary[];
+  financialAccounts?: FinancialAccount[];
   onAddExpense: Props["onAddExpense"];
   onDeleteExpense: Props["onDeleteExpense"];
 }) {
@@ -146,6 +152,7 @@ export function ZeroBudgetCategoryList({
           <ZeroBudgetCategoryItem
             key={cat.budgetLineId}
             category={cat}
+            financialAccounts={financialAccounts}
             onAddExpense={onAddExpense}
             onDeleteExpense={onDeleteExpense}
           />

@@ -3,14 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { CategoryBudgetCard } from "@/components/expenses/CategoryBudgetCard";
 import { ZeroBudgetCategoryList } from "@/components/expenses/ZeroBudgetCategoryList";
-import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 
 export function TabExpenses({ enabled }: { enabled: boolean }) {
-  const { reload: reloadFinancialAccounts } = useFinancialAccounts();
   const [viewYm, setViewYm] = useState(currentYm);
   const [summary, setSummary] = useState<BudgetExpenseSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,10 +41,6 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
   useEffect(() => {
     void loadSummary();
   }, [loadSummary]);
-
-  useEffect(() => {
-    if (enabled) void reloadFinancialAccounts();
-  }, [enabled, reloadFinancialAccounts]);
 
   const addExpense = async (payload: {
     budgetLineId: string;
@@ -155,6 +149,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
               <CategoryBudgetCard
                 key={cat.budgetLineId}
                 category={cat}
+                financialAccounts={summary.financialAccounts}
                 onAddExpense={addExpense}
                 onDeleteExpense={deleteExpense}
               />
@@ -163,6 +158,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
 
           <ZeroBudgetCategoryList
             categories={summary.zeroAllocated}
+            financialAccounts={summary.financialAccounts}
             onAddExpense={addExpense}
             onDeleteExpense={deleteExpense}
           />

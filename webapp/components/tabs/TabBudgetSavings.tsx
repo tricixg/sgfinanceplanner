@@ -8,8 +8,8 @@ import {
   monthlyInvestContribution,
   stableTakeHome,
 } from "@/lib/finance";
-import { effectiveMonthlySave } from "@/lib/finance/savings-totals";
 import type { SavingsSnapshot } from "@/lib/savings/types";
+import { useSavings } from "@/hooks/useSavings";
 import { fmt, fmt2, currentYm } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary, CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
@@ -24,7 +24,9 @@ import {
   computedInsuranceMonthly,
   COMPUTED_ILP_LABEL,
   computedIlpMonthly,
+  COMPUTED_SAVINGS_LABEL,
   COMPUTED_SUBSCRIPTION_LABEL,
+  computedSavingsMonthly,
   defaultBudgetTemplate,
 } from "@/lib/finance/budget";
 
@@ -106,6 +108,8 @@ export function TabBudgetSavings({
   setState,
   savings,
 }: Props) {
+  const { bundle: savingsBundle } = useSavings();
+  const savingsGoals = savingsBundle.goals;
   const [budRet, setBudRet] = useState(6);
   const [budYrs, setBudYrs] = useState(10);
   const [editingAllocation, setEditingAllocation] = useState(false);
@@ -136,11 +140,18 @@ export function TabBudgetSavings({
   const ilpPrem = computedIlpMonthly(S);
   const subPrem =
     lookupComputedSpend(expenseSummary, "subscription")?.allocated ?? 0;
-  const { alloc, left, invPct } = budgetVerdict(S);
+  const savingsPrem = computedSavingsMonthly(savingsGoals);
+  const { alloc, left, invPct } = budgetVerdict(S, undefined, savingsPrem);
   const monthlyInv = monthlyInvestContribution(S);
-  const monthlySave =
-    savings != null ? effectiveMonthlySave(savings, false) : 0;
-  const proj = budgetProjection(S, monthlyInv, monthlySave, budRet, budYrs, savings);
+  const proj = budgetProjection(
+    S,
+    monthlyInv,
+    0,
+    budRet,
+    budYrs,
+    savings,
+    savingsPrem
+  );
   const budgetLines = S.budget.filter((b) => b.type !== "save");
   const { allocated: allocatedRows, zeroAllocated: zeroRows } = splitBudgetRows(S.budget);
   const balanceLbl = budgetBalanceLabel(left);
@@ -181,6 +192,22 @@ export function TabBudgetSavings({
         onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
       />
     </div>
+  );
+
+  const renderComputedAllocationRow = (
+    key: string,
+    label: string,
+    allocated: number
+  ) => (
+    <tr className="computed-row" key={key}>
+      <td>{label}</td>
+      <td>
+        <span className="tag t-soon">auto</span>
+      </td>
+      <td className="num">{fmt2(allocated)}</td>
+      <td className="num">—</td>
+      <td className="num">—</td>
+    </tr>
   );
 
   const renderComputedViewRow = (
@@ -272,8 +299,8 @@ export function TabBudgetSavings({
   } else {
     verdict = "Balanced plan. ";
   }
-  if (monthlySave > 0) {
-    verdict += ` Goal contributions total ${fmt(monthlySave)}/month (Savings tab).`;
+  if (savingsPrem > 0) {
+    verdict += ` Savings goals need ${fmt(savingsPrem)}/month (by target dates on Savings tab).`;
   }
   verdict += ` Directing ${invPct.toFixed(0)}% of take-home to investing via budget lines.`;
 
@@ -336,7 +363,7 @@ export function TabBudgetSavings({
       <div className="callout tip">
         Take-home: <b>{fmt(income)}</b>. <b>Remaining</b> (or over-allocated) = take-home − your
         categories − loans ({fmt(debt)}) − insurance ({fmt(insurancePrem)}) − ILP (
-        {fmt(ilpPrem)}).
+        {fmt(ilpPrem)}) − savings ({fmt(savingsPrem)}).
       </div>
 
       {S.budget.length === 0 && !editingAllocation ? (
@@ -370,6 +397,13 @@ export function TabBudgetSavings({
                   <span className="tag t-soon">auto</span>
                 </td>
                 <td className="num">{fmt2(ilpPrem)}</td>
+              </tr>
+              <tr className="computed-row">
+                <td>{COMPUTED_SAVINGS_LABEL}</td>
+                <td>
+                  <span className="tag t-soon">auto</span>
+                </td>
+                <td className="num">{fmt2(savingsPrem)}</td>
               </tr>
             </tbody>
           </table>
@@ -426,6 +460,12 @@ export function TabBudgetSavings({
               <span>{COMPUTED_ILP_LABEL}</span>
               <span className="tag t-soon">auto</span>
               <span className="num">{fmt2(ilpPrem)}</span>
+              <span></span>
+            </div>
+            <div className="editrow budget-line computed-line">
+              <span>{COMPUTED_SAVINGS_LABEL}</span>
+              <span className="tag t-soon">auto</span>
+              <span className="num">{fmt2(savingsPrem)}</span>
               <span></span>
             </div>
             {allocatedRows.map(renderBudgetEditItem)}
@@ -485,6 +525,11 @@ export function TabBudgetSavings({
                 {renderComputedViewRow("insurance", COMPUTED_INSURANCE_LABEL, insurancePrem)}
                 {renderComputedViewRow("ilp", COMPUTED_ILP_LABEL, ilpPrem)}
                 {renderComputedViewRow("subscription", COMPUTED_SUBSCRIPTION_LABEL, subPrem)}
+                {renderComputedAllocationRow(
+                  "computed-savings",
+                  COMPUTED_SAVINGS_LABEL,
+                  savingsPrem
+                )}
                 {allocatedRows.map(renderBudgetViewRow)}
                 {zeroRows.length > 0 ? (
                   <tr>
@@ -587,8 +632,8 @@ export function TabBudgetSavings({
       <div className="callout tip" style={{ marginTop: 16 }}>
         <span className="ico">Savings</span>
         Track accounts, shared pools, and goals on the <b>Savings &amp; Goals</b> tab.
-        {monthlySave > 0
-          ? ` Projections above assume ${fmt(monthlySave)}/month from goal contributions.`
+        {savingsPrem > 0
+          ? ` Projections above assume ${fmt(savingsPrem)}/month from savings goals (by target dates).`
           : ""}
       </div>
     </section>

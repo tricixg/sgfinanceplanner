@@ -8,6 +8,12 @@ import { loadRecurringSubscriptions } from "@/lib/recurring/load";
 import { computedSubscriptionMonthly } from "@/lib/finance/budget";
 import { loanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
+import { loadCreditCards } from "@/lib/credit-cards/load";
+import {
+  loadFinancialAccounts,
+  syncCashFinancialAccounts,
+  syncCreditCardFinancialAccountsFromRows,
+} from "@/lib/financial-accounts/sync";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
@@ -102,6 +108,21 @@ export async function GET(req: NextRequest) {
     computedAlloc
   );
 
+  let financialAccounts: Awaited<ReturnType<typeof loadFinancialAccounts>> = [];
+  try {
+    await syncCashFinancialAccounts(supabase, user.id);
+    const cardRows = await loadCreditCards(supabase, user.id);
+    if (cardRows.length) {
+      await syncCreditCardFinancialAccountsFromRows(supabase, user.id, cardRows);
+    }
+    financialAccounts = await loadFinancialAccounts(supabase, user.id);
+    console.info("[api/expenses/summary] financial accounts loaded", {
+      count: financialAccounts.length,
+    });
+  } catch (e) {
+    console.error("[api/expenses/summary] financial accounts load failed", e);
+  }
+
   console.info("[api/expenses/summary] GET", {
     userId: user.id,
     ym,
@@ -112,7 +133,8 @@ export async function GET(req: NextRequest) {
       spent: c.spent,
     })),
     uncategorizedSpent: summary.uncategorized.spent,
+    accountCount: financialAccounts.length,
   });
 
-  return NextResponse.json({ configured: true, ...summary });
+  return NextResponse.json({ configured: true, ...summary, financialAccounts });
 }

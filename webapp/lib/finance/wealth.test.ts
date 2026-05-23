@@ -44,6 +44,29 @@ describe("portfolioInvestmentValue", () => {
     expect(slices.find((s) => s.label === "Cash accounts")?.value).toBe(2500);
   });
 
+  it("net worth omits personal loans excluded from net worth", () => {
+    const withLoan = {
+      ...DEFAULTS,
+      margin: 0,
+      ccDebt: 0,
+      otherLoans: [
+        {
+          name: "Personal",
+          loanType: "personal" as const,
+          principal: 5000,
+          outstanding: 5000,
+          interestRateApr: 0,
+          feesPaid: 0,
+          amountPaid: 0,
+          excludeFromNetWorth: true,
+        },
+      ],
+    };
+    const { lnw, liab } = wealthSummary(withLoan);
+    expect(liab).toBe(0);
+    expect(lnw).toBeCloseTo(wealthSummary(DEFAULTS).lnw, 2);
+  });
+
   it("net worth includes accounts excluded from savings totals", () => {
     const savings = {
       personalSavingsCash: 0,

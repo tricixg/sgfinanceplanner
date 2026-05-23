@@ -9,7 +9,7 @@ export function SavingsRoute() {
   const user = useAppSession();
   const { savingsApi, accountsApi } = usePageSavings(user?.id, createEmptyState());
 
-  if (!user?.id || savingsApi.loading) {
+  if (!user?.id || (savingsApi.loading && !savingsApi.hasLoaded)) {
     return <p className="loading">Loading your financial data…</p>;
   }
 
