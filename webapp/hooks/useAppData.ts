@@ -320,7 +320,10 @@ export function useAppDataProvider(enabled: boolean) {
                 ilpPolicies: [],
               }
         );
-        void patchProfile(profilePatch);
+        void patchProfile(profilePatch).catch((e) => {
+          console.error("[useAppData] profile save failed", e);
+          void load();
+        });
       }
 
       if (
@@ -367,6 +370,7 @@ export function useAppDataProvider(enabled: boolean) {
       savePrefs,
       patchProfile,
       appendSnapshot,
+      load,
     ]
   );
 

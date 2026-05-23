@@ -76,31 +76,56 @@ export function profileFromState(state: DashboardState): FinanceProfile {
   };
 }
 
+/** Merge a partial profile patch onto existing values (PATCH must not zero omitted fields). */
+export function mergeFinanceProfile(
+  current: FinanceProfile,
+  patch: Partial<FinanceProfile>
+): FinanceProfile {
+  const monthlySal = patch.monthlySal ?? current.monthlySal;
+  const oa = patch.oa ?? current.oa;
+  return {
+    ...current,
+    ...patch,
+    btoPlanner:
+      patch.btoPlanner !== undefined
+        ? normalizeBtoPlannerPrefs(patch.btoPlanner, { monthlySal, oa })
+        : current.btoPlanner,
+  };
+}
+
 export async function saveFinanceProfile(
   supabase: SupabaseClient,
   userId: string,
-  profile: Partial<FinanceProfile>
+  patch: Partial<FinanceProfile>
 ): Promise<FinanceProfile> {
+  const current = await loadFinanceProfile(supabase, userId);
+  const merged = mergeFinanceProfile(current, patch);
+
   const payload = {
     user_id: userId,
-    monthly_sal: profile.monthlySal ?? 0,
-    comms: profile.comms ?? 0,
-    salary_credit_day: profile.salaryCreditDay ?? 25,
-    oa: profile.oa ?? 0,
-    sa: profile.sa ?? 0,
-    ma: profile.ma ?? 0,
-    moo: profile.moo ?? 0,
-    margin: profile.margin ?? 0,
-    cash: profile.cash ?? 0,
-    cc_debt: profile.ccDebt ?? 0,
-    cashflow_start_ym: profile.cashflowStartYm ?? "",
-    bto_planner: profile.btoPlanner ?? {},
+    monthly_sal: merged.monthlySal,
+    comms: merged.comms,
+    salary_credit_day: merged.salaryCreditDay,
+    oa: merged.oa,
+    sa: merged.sa,
+    ma: merged.ma,
+    moo: merged.moo,
+    margin: merged.margin,
+    cash: merged.cash,
+    cc_debt: merged.ccDebt,
+    cashflow_start_ym: merged.cashflowStartYm,
+    bto_planner: merged.btoPlanner ?? {},
     updated_at: new Date().toISOString(),
   };
 
   const { error } = await supabase.from("user_finance_profile").upsert(payload);
   if (error) throw new Error(error.message);
-  console.info("[profile] saved", { userId });
+  console.info("[profile] saved", {
+    userId,
+    keys: Object.keys(patch),
+    monthlySal: merged.monthlySal,
+    comms: merged.comms,
+  });
   return loadFinanceProfile(supabase, userId);
 }
 
