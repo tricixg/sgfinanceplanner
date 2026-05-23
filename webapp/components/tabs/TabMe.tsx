@@ -560,7 +560,7 @@ export function TabMe({
                           </td>
                           <td className="num">{fmt2(a.balance)}</td>
                           <td>
-                            {a.includeInSavings ? "Yes" : "Net worth only"}
+                            {a.includeInSavings ? "Yes" : "Free cash only"}
                           </td>
                           <td className="note" style={{ fontSize: 12 }}>
                             {a.notes || "—"}
@@ -670,7 +670,7 @@ export function TabMe({
                   <tr key={i}>
                     <td>{a.name || "—"}</td>
                     <td className="num">{fmt2(a.balance)}</td>
-                    <td>{a.includeInSavings !== false ? "Yes" : "Net worth only"}</td>
+                    <td>{a.includeInSavings !== false ? "Yes" : "Free cash only"}</td>
                     <td>{a.notes || "—"}</td>
                   </tr>
                 ))}
@@ -680,18 +680,18 @@ export function TabMe({
         )}
         <div className="account-totals">
           <div className="account-totals-stat">
-            <span className="account-totals-lbl">Net worth cash</span>
+            <span className="account-totals-lbl">Free cash</span>
             <span className="account-totals-val">{fmt2(cashTotal)}</span>
           </div>
           <div className="account-totals-stat">
-            <span className="account-totals-lbl">Savings tab</span>
+            <span className="account-totals-lbl">Savings</span>
             <span className="account-totals-val">{fmt2(savingsCashTotal)}</span>
           </div>
           {!editingAccounts ? (
             <p className="ui-hint account-totals-hint">
               {useCloudAccounts
-                ? "All accounts count toward net worth. Uncheck Include in savings to omit from Savings tab only."
-                : "All accounts count toward net worth. “In savings?” controls Savings tab rollup when signed in."}
+                ? "All accounts count toward free cash. Uncheck Include in savings to omit from Savings only."
+                : "All accounts count toward free cash. “In savings?” controls Savings rollup when signed in."}
             </p>
           ) : null}
         </div>

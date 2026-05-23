@@ -15,7 +15,7 @@ import {
   ilpProfit,
   wealthSummary,
 } from "@/lib/finance";
-import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { fmt, fmt2, formatSnapshotDate } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import type { ChartOptions } from "chart.js";
@@ -176,7 +176,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
       a.recordedAt.localeCompare(b.recordedAt)
     );
     return {
-      labels: sorted.map((s) => s.recordedAt),
+      labels: sorted.map((s) => formatSnapshotDate(s.recordedAt)),
       datasets: [
         {
           label: "Market value",
@@ -228,7 +228,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
     <section className="panel on">
       {savings && personalCash > 0 ? (
         <p className="ui-hint" style={{ marginBottom: 12 }}>
-          Net worth cash uses your personal accounts (ME tab). Joint pools stay on Savings
+          Free cash uses your personal accounts (ME tab). Joint pools stay on Savings
           &amp; Goals.
         </p>
       ) : null}

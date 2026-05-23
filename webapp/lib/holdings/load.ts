@@ -91,7 +91,7 @@ export async function loadPortfolioSnapshots(
     .limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => ({
-    recordedAt: String(row.recorded_at),
+    recordedAt: String(row.recorded_at).slice(0, 10),
     totalValue: Number(row.total_value ?? 0),
     totalCost: Number(row.total_cost ?? 0),
   }));

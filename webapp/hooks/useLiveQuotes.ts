@@ -87,7 +87,8 @@ export function useLiveQuotes(
           return {
             ...h,
             lastPrice: q.price,
-            lastPriceAt: q.updatedAt,
+            // Use fetch time for staleness — Yahoo regularMarketTime can be days old.
+            lastPriceAt: refreshedAt,
           };
         });
         const moo = portfolioValue(nextHoldings);

@@ -18,6 +18,26 @@ export function formatMonthLabel(ym: string): string {
   return d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
 }
 
+/** Chart label for portfolio snapshot — date only, no time. */
+export function formatSnapshotDate(recordedAt: string): string {
+  const iso = recordedAt.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "2-digit",
+    });
+  }
+  const dt = new Date(recordedAt);
+  if (Number.isNaN(dt.getTime())) return recordedAt.slice(0, 10);
+  return dt.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "2-digit",
+  });
+}
+
 export function currentYm(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
