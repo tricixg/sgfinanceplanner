@@ -17,10 +17,17 @@ function formatInviteDate(iso: string): string {
   }
 }
 
-export function PartnerCard({ household }: { household: HouseholdApi }) {
+export function PartnerCard({
+  household,
+  onPartnerUnlinked,
+}: {
+  household: HouseholdApi;
+  onPartnerUnlinked?: () => void | Promise<void>;
+}) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [confirmUnlink, setConfirmUnlink] = useState(false);
 
   if (!household.configured) {
     return null;
@@ -57,6 +64,20 @@ export function PartnerCard({ household }: { household: HouseholdApi }) {
       setEmail("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send invite");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unlink = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      await household.unlinkPartner();
+      setConfirmUnlink(false);
+      await onPartnerUnlinked?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to unlink partner");
     } finally {
       setBusy(false);
     }
@@ -123,15 +144,55 @@ export function PartnerCard({ household }: { household: HouseholdApi }) {
       ) : null}
 
       {household.paired ? (
-        <p className="note" style={{ marginTop: 0 }}>
-          You are linked with{" "}
-          {partnerEmail ? (
-            <strong>{partnerEmail}</strong>
+        <>
+          <p className="note" style={{ marginTop: 0 }}>
+            You are linked with{" "}
+            {partnerEmail ? (
+              <strong>{partnerEmail}</strong>
+            ) : (
+              "your partner"
+            )}
+            . Shared savings pools and shared goals are available on the Savings tab.
+          </p>
+          {confirmUnlink ? (
+            <div className="card" style={{ marginTop: 12, padding: "12px 14px" }}>
+              <p style={{ margin: "0 0 10px" }}>
+                Unlinking will <strong>permanently delete</strong> all shared pools, shared
+                goals, and pool transaction history for both of you. Personal accounts and
+                individual goals are kept. You can invite a new partner later — old shared data
+                will not return.
+              </p>
+              <div className="toolbar">
+                <button
+                  type="button"
+                  className="btn del sm"
+                  disabled={busy}
+                  onClick={() => void unlink()}
+                >
+                  {busy ? "Unlinking…" : "Confirm unlink"}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  disabled={busy}
+                  onClick={() => setConfirmUnlink(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           ) : (
-            "your partner"
+            <button
+              type="button"
+              className="btn ghost sm"
+              style={{ marginTop: 8 }}
+              disabled={busy}
+              onClick={() => setConfirmUnlink(true)}
+            >
+              Unlink partner
+            </button>
           )}
-          . Shared savings pools and shared goals are available on the Savings tab.
-        </p>
+        </>
       ) : (
         <>
           <p className="note" style={{ marginTop: 0, marginBottom: 12 }}>

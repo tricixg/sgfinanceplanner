@@ -89,6 +89,7 @@ export type HouseholdContextValue = {
   reload: () => Promise<void>;
   sendInvite: (email: string) => Promise<void>;
   respondInvite: (id: string, action: "accept" | "decline" | "cancel") => Promise<void>;
+  unlinkPartner: () => Promise<void>;
 };
 
 export type FinancialAccountsContextValue = {

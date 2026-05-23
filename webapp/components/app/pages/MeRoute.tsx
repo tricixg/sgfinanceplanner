@@ -31,6 +31,11 @@ function MeContent({
     console.info("[MeRoute] reset to empty state");
   };
 
+  const onPartnerUnlinked = useCallback(async () => {
+    await Promise.all([savingsApi.reload(), accountsApi.reload()]);
+    console.info("[MeRoute] reloaded savings after partner unlink");
+  }, [savingsApi, accountsApi]);
+
   return (
     <TabMe
       state={state}
@@ -53,6 +58,7 @@ function MeContent({
           : undefined
       }
       savingsGoals={savingsApi.configured ? savingsApi.bundle.goals : undefined}
+      onPartnerUnlinked={onPartnerUnlinked}
     />
   );
 }

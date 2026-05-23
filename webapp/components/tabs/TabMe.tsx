@@ -44,6 +44,7 @@ type Props = {
   household?: ReturnType<typeof useHousehold>;
   accountsApi?: CloudAccountsApi;
   savingsGoals?: SavingsGoal[];
+  onPartnerUnlinked?: () => void | Promise<void>;
 };
 
 function NumInput({
@@ -76,6 +77,7 @@ export function TabMe({
   household,
   accountsApi,
   savingsGoals = [],
+  onPartnerUnlinked,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
@@ -698,7 +700,9 @@ export function TabMe({
       </div>
 
       <h2>Settings</h2>
-      {household ? <PartnerCard household={household} /> : null}
+      {household ? (
+        <PartnerCard household={household} onPartnerUnlinked={onPartnerUnlinked} />
+      ) : null}
       {userEmail ? (
         <div className="card settings-account">
           <h3 className="settings-account-title">Account</h3>

@@ -93,6 +93,18 @@ export function useHouseholdProvider(enabled: boolean) {
     [load]
   );
 
+  const unlinkPartner = useCallback(async () => {
+    const { res, data } = await fetchJson<{ error?: string }>("/api/partner/unlink", {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      throw new Error(data.error ?? "Failed to unlink partner");
+    }
+    console.info("[useHousehold] partner unlinked");
+    await load();
+  }, [load]);
+
   return {
     householdId,
     paired,
@@ -104,6 +116,7 @@ export function useHouseholdProvider(enabled: boolean) {
     reload: load,
     sendInvite,
     respondInvite,
+    unlinkPartner,
   };
 }
 
