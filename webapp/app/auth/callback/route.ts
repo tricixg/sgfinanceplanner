@@ -5,7 +5,7 @@ import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 export async function GET(request: Request) {
   if (!isSupabaseAuthConfigured()) {
     console.warn("[auth/callback] Supabase not configured");
-    return NextResponse.redirect(new URL("/?auth=unconfigured", request.url));
+    return NextResponse.redirect(new URL("/login?auth=unconfigured", request.url));
   }
 
   const { searchParams, origin } = new URL(request.url);
@@ -24,5 +24,11 @@ export async function GET(request: Request) {
     console.warn("[auth/callback] missing code param");
   }
 
-  return NextResponse.redirect(new URL("/?auth=error", request.url));
+  const failNext = searchParams.get("next");
+  const failUrl = new URL("/login", request.url);
+  failUrl.searchParams.set("auth", "error");
+  if (failNext?.startsWith("/") && !failNext.startsWith("//")) {
+    failUrl.searchParams.set("next", failNext);
+  }
+  return NextResponse.redirect(failUrl);
 }

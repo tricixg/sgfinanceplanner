@@ -64,7 +64,7 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    npm run dev
    ```
 
-   Without Supabase configured, the app still runs using browser `localStorage` only (no sign-in). With Supabase configured, users sign in via email magic link and each account gets its own `dashboard_state` row (protected by RLS).
+   Without Supabase configured, the app still runs using browser `localStorage` only (no sign-in). With Supabase configured, open [`/login`](http://localhost:3000/login) to sign in or create an account via magic link; each account gets its own `dashboard_state` row (protected by RLS). Use `/login?mode=signup` to open the create-account tab directly.
 
 6. **Tests**
 

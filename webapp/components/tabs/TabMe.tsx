@@ -488,7 +488,7 @@ export function TabMe({
                 } catch (e) {
                   console.warn("[TabMe] sign out API error", e);
                 }
-                window.location.href = "/";
+                window.location.href = "/login";
                 console.log("[TabMe] signed out");
               }}
             >
