@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { stripSaveBudgetLines } from "@/lib/finance/budget";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
-import {
-  migrateSavingsFromDashboardJson,
-  needsSavingsMigration,
-} from "@/lib/savings/migrate-from-dashboard";
+import { migrateAllDomainsFromDashboard } from "@/lib/migrate-all-domains";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import {
-  isPersistedDashboardSnapshot,
-  isValidDashboardState,
-} from "@/lib/validate-state";
+import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
+import type { DashboardState } from "@/lib/types";
+
+type PrefsPayload = {
+  prefs?: DashboardState["prefs"];
+  _migrated_v2?: boolean;
+};
+
+function prefsOnlyFromRaw(raw: unknown): PrefsPayload {
+  if (!raw || typeof raw !== "object") return { prefs: {} };
+  const d = raw as Record<string, unknown>;
+  return {
+    prefs: (d.prefs as DashboardState["prefs"]) ?? {},
+    _migrated_v2: Boolean(d._migrated_v2),
+  };
+}
 
 export async function GET() {
   if (!isSupabaseAuthConfigured()) {
-    console.info("[api/state] GET — Supabase not configured, returning defaults");
+    console.info("[api/state] GET — Supabase not configured, returning prefs defaults");
     return NextResponse.json({
-      data: createEmptyState(),
+      data: { prefs: {} },
       updatedAt: null,
       source: "defaults",
     });
@@ -41,45 +49,60 @@ export async function GET() {
   }
 
   const raw = row?.data;
-  const hasData = isPersistedDashboardSnapshot(raw);
-
-  let state = hasData
-    ? mergeWithDefaults(raw as Partial<ReturnType<typeof createEmptyState>>)
-    : createEmptyState();
+  const rawObj =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const alreadyV2 = Boolean(rawObj?._migrated_v2);
+  const hasLegacyBlob = isPersistedDashboardSnapshot(raw);
 
   await ensureUserHousehold(supabase, user.id);
 
-  if (hasData && needsSavingsMigration(raw)) {
-    const migrated = await migrateSavingsFromDashboardJson(
+  if (alreadyV2) {
+    const slim = prefsOnlyFromRaw(raw);
+    return NextResponse.json({
+      data: slim,
+      updatedAt: row?.updated_at ?? null,
+      source: "database",
+    });
+  }
+
+  if (hasLegacyBlob) {
+    const full = mergeWithDefaults(raw as Partial<DashboardState>);
+    const migrated = await migrateAllDomainsFromDashboard(
       supabase,
       user.id,
-      state
+      full,
+      raw
     );
-    state = mergeWithDefaults(migrated);
+    const slim: PrefsPayload = {
+      prefs: migrated.prefs ?? {},
+      _migrated_v2: true,
+    };
     const { error: migErr } = await supabase.from("dashboard_state").upsert({
       user_id: user.id,
-      data: state,
+      data: slim,
       updated_at: new Date().toISOString(),
     });
     if (migErr) {
-      console.error("[api/state] migration persist failed", migErr.message);
+      console.error("[api/state] v2 migration persist failed", migErr.message);
     } else {
-      console.info("[api/state] savings v1 migration persisted", { userId: user.id });
+      console.info("[api/state] v2 migration persisted", { userId: user.id });
     }
+
+    return NextResponse.json({
+      data: slim,
+      updatedAt: new Date().toISOString(),
+      source: "database",
+      migrated: true,
+    });
   }
 
-  const payloadSize = JSON.stringify(state).length;
-  console.info("[api/state] GET ok", {
-    userId: user.id,
-    updatedAt: row?.updated_at ?? null,
-    payloadBytes: payloadSize,
-    source: hasData ? "database" : "defaults",
-  });
+  const slim = prefsOnlyFromRaw(raw);
+  console.info("[api/state] GET ok (prefs only)", { userId: user.id });
 
   return NextResponse.json({
-    data: state,
+    data: slim,
     updatedAt: row?.updated_at ?? null,
-    source: hasData ? "database" : "defaults",
+    source: row ? "database" : "defaults",
   });
 }
 
@@ -91,20 +114,17 @@ export async function PUT(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
-
     const incoming =
       body && typeof body === "object" && "data" in (body as object)
         ? (body as { data: unknown }).data
         : body;
-
-    if (!isValidDashboardState(incoming)) {
-      return NextResponse.json({ error: "Invalid dashboard state" }, { status: 400 });
-    }
-
-    const state = mergeWithDefaults(incoming);
-    console.info("[api/state] PUT — Supabase not configured, accepted in-memory only");
+    const prefs =
+      incoming && typeof incoming === "object" && "prefs" in (incoming as object)
+        ? (incoming as PrefsPayload).prefs
+        : {};
+    console.info("[api/state] PUT — Supabase not configured, prefs only");
     return NextResponse.json({
-      data: state,
+      data: { prefs: prefs ?? {} },
       updatedAt: new Date().toISOString(),
       source: "memory",
       warning: "Supabase not configured — data not persisted",
@@ -127,18 +147,12 @@ export async function PUT(req: NextRequest) {
       ? (body as { data: unknown }).data
       : body;
 
-  if (!isValidDashboardState(incoming)) {
-    return NextResponse.json({ error: "Invalid dashboard state" }, { status: 400 });
-  }
+  const prefs =
+    incoming && typeof incoming === "object" && "prefs" in (incoming as object)
+      ? (incoming as PrefsPayload).prefs ?? {}
+      : {};
 
-  const merged = mergeWithDefaults(incoming);
-  const state = {
-    ...merged,
-    accounts: [],
-    goals: [],
-    budget: stripSaveBudgetLines(merged.budget),
-  };
-  const payloadSize = JSON.stringify(state).length;
+  const slim: PrefsPayload = { prefs, _migrated_v2: true };
 
   const supabase = await createAuthedSupabaseClient();
   await ensureUserHousehold(supabase, user.id);
@@ -146,7 +160,7 @@ export async function PUT(req: NextRequest) {
     .from("dashboard_state")
     .upsert({
       user_id: user.id,
-      data: state,
+      data: slim,
       updated_at: new Date().toISOString(),
     })
     .select("updated_at")
@@ -157,14 +171,10 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  console.info("[api/state] PUT ok", {
-    userId: user.id,
-    updatedAt: row.updated_at,
-    payloadBytes: payloadSize,
-  });
+  console.info("[api/state] PUT ok (prefs only)", { userId: user.id });
 
   return NextResponse.json({
-    data: state,
+    data: slim,
     updatedAt: row.updated_at,
     source: "database",
   });

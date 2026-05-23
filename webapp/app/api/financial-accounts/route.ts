@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { loadCreditCards } from "@/lib/credit-cards/load";
 import {
   loadFinancialAccounts,
   syncCashFinancialAccounts,
-  syncCreditCardFinancialAccounts,
+  syncCreditCardFinancialAccountsFromRows,
 } from "@/lib/financial-accounts/sync";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
-import type { CreditCard } from "@/lib/types";
 
 export async function GET() {
   if (!isSupabaseAuthConfigured()) {
@@ -23,16 +22,9 @@ export async function GET() {
     const supabase = await createAuthedSupabaseClient();
     await syncCashFinancialAccounts(supabase, user.id);
 
-    const { data: stateRow } = await supabase
-      .from("dashboard_state")
-      .select("data")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const raw = stateRow?.data;
-    if (isPersistedDashboardSnapshot(raw) && Array.isArray((raw as { creditCards?: CreditCard[] }).creditCards)) {
-      const cards = (raw as { creditCards: CreditCard[] }).creditCards;
-      await syncCreditCardFinancialAccounts(supabase, user.id, cards);
+    const cardRows = await loadCreditCards(supabase, user.id);
+    if (cardRows.length) {
+      await syncCreditCardFinancialAccountsFromRows(supabase, user.id, cardRows);
     }
 
     const accounts = await loadFinancialAccounts(supabase, user.id);

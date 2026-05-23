@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CreditCard } from "@/lib/types";
+import type { DbCreditCard } from "@/lib/credit-cards/mappers";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { mapFinancialAccount } from "@/lib/financial-accounts/mappers";
 
@@ -64,38 +65,26 @@ export async function syncCashFinancialAccounts(
   });
 }
 
-/** Upsert credit_card financial_accounts from dashboard creditCards. */
-export async function syncCreditCardFinancialAccounts(
+/** Upsert credit_card financial_accounts from credit_cards table rows. */
+export async function syncCreditCardFinancialAccountsFromRows(
   supabase: SupabaseClient,
   userId: string,
-  cards: CreditCard[]
+  rows: DbCreditCard[]
 ): Promise<void> {
   let sort = 1000;
-  for (const card of cards) {
-    const name = String(card.name ?? "").trim();
-    if (!name) continue;
-    const cardKey = card.id ? String(card.id) : name.toLowerCase().replace(/\s+/g, "-");
+  for (const card of rows) {
+    const name = card.name.trim() || "Card";
+    const cardKey = card.cardKey;
 
-    const { data: byKey } = card.id
-      ? await supabase
-          .from("financial_accounts")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("card_key", cardKey)
-          .maybeSingle()
-      : { data: null };
+    const { data: byKey } = await supabase
+      .from("financial_accounts")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("card_key", cardKey)
+      .maybeSingle();
 
-    const { data: byName } = !byKey?.id
-      ? await supabase
-          .from("financial_accounts")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("name", name)
-          .eq("account_type", "credit_card")
-          .maybeSingle()
-      : { data: byKey };
-
-    const existingId = byName?.id;
+    const existingId = byKey?.id;
+    const now = new Date().toISOString();
 
     if (existingId) {
       await supabase
@@ -105,24 +94,64 @@ export async function syncCreditCardFinancialAccounts(
           card_key: cardKey,
           account_type: "credit_card",
           sort_order: sort++,
-          updated_at: new Date().toISOString(),
+          updated_at: now,
         })
         .eq("id", existingId);
+      await supabase
+        .from("credit_cards")
+        .update({ financial_account_id: existingId, updated_at: now })
+        .eq("id", card.id);
     } else {
-      await supabase.from("financial_accounts").insert({
-        user_id: userId,
-        name,
-        account_type: "credit_card",
-        card_key: cardKey,
-        sort_order: sort++,
-      });
+      const { data: inserted } = await supabase
+        .from("financial_accounts")
+        .insert({
+          user_id: userId,
+          name,
+          account_type: "credit_card",
+          card_key: cardKey,
+          sort_order: sort++,
+        })
+        .select("id")
+        .single();
+      if (inserted?.id) {
+        await supabase
+          .from("credit_cards")
+          .update({ financial_account_id: inserted.id, updated_at: now })
+          .eq("id", card.id);
+      }
     }
   }
 
-  console.info("[financial-accounts] card sync done", {
+  console.info("[financial-accounts] card sync from table", {
     userId,
-    count: cards.length,
+    count: rows.length,
   });
+}
+
+/** @deprecated Use syncCreditCardFinancialAccountsFromRows after loading credit_cards table. */
+export async function syncCreditCardFinancialAccounts(
+  supabase: SupabaseClient,
+  userId: string,
+  cards: CreditCard[]
+): Promise<void> {
+  const rows: DbCreditCard[] = cards.map((c, i) => ({
+    id: "",
+    userId,
+    cardKey: c.id ?? `card-${i}`,
+    name: c.name ?? "",
+    statementDay: c.statementDay ?? 1,
+    paymentDueDay: c.paymentDueDay ?? 1,
+    statementAmount: c.statementAmount ?? 0,
+    includeOutstandingOnStatement: Boolean(c.includeOutstandingOnStatement),
+    catalogId: c.catalogId ?? null,
+    bank: c.bank ?? null,
+    rewardType: c.rewardType ?? null,
+    rewardHeadline: c.rewardHeadline ?? null,
+    rewardRules: c.rewardRules ?? [],
+    sortOrder: i,
+    financialAccountId: null,
+  }));
+  await syncCreditCardFinancialAccountsFromRows(supabase, userId, rows);
 }
 
 export async function loadFinancialAccounts(

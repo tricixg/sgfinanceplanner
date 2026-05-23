@@ -1,0 +1,66 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { createEmptyState } from "@/lib/finance/defaults";
+import { DomainPage } from "@/components/app/DomainPage";
+import { TabMe } from "@/components/tabs/TabMe";
+import { useAppSession } from "@/contexts/AppSessionContext";
+import { useHousehold } from "@/hooks/useHousehold";
+import { usePageSavings } from "@/hooks/usePageSavings";
+
+function MeContent({
+  state,
+  setState,
+}: {
+  state: Parameters<typeof TabMe>[0]["state"];
+  setState: Parameters<typeof TabMe>[0]["setState"];
+}) {
+  const user = useAppSession();
+  const household = useHousehold(Boolean(user?.id));
+  const { savingsApi, accountsApi } = usePageSavings(user?.id, state);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  const flash = useCallback((msg: string) => {
+    setSaveMsg(msg);
+    setTimeout(() => setSaveMsg(""), 2500);
+  }, []);
+
+  const handleReset = () => {
+    setState(createEmptyState());
+    flash("Reset to blank (all zeros)");
+    console.info("[MeRoute] reset to empty state");
+  };
+
+  return (
+    <TabMe
+      state={state}
+      setState={setState}
+      onApply={() => flash("Charts updated")}
+      onSaveNow={() => flash("Saved")}
+      onReset={handleReset}
+      saveMsg={saveMsg}
+      userEmail={user?.email ?? undefined}
+      household={household}
+      accountsApi={
+        accountsApi.configured
+          ? {
+              accounts: accountsApi.accounts,
+              totals: accountsApi.totals,
+              saveAccounts: accountsApi.saveAccounts,
+              recordAccountTransaction: accountsApi.recordAccountTransaction,
+              reload: accountsApi.reload,
+            }
+          : undefined
+      }
+      savingsGoals={savingsApi.configured ? savingsApi.bundle.goals : undefined}
+    />
+  );
+}
+
+export function MeRoute() {
+  return (
+    <DomainPage>
+      {({ state, setState }) => <MeContent state={state} setState={setState} />}
+    </DomainPage>
+  );
+}

@@ -27,9 +27,17 @@ import {
 import { totalStatementAmount } from "@/lib/finance/calendar";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 
+type CardsApi = {
+  cards: CreditCard[];
+  saveCards: (next: CreditCard[]) => Promise<void>;
+  configured: boolean;
+};
+
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
+  /** When set, cards are loaded/saved via /api/credit-cards instead of dashboard_state. */
+  cardsApi?: CardsApi;
 };
 
 const SPEND_CATEGORIES = Object.keys(SPEND_CATEGORY_LABELS) as SpendCategory[];
@@ -66,7 +74,22 @@ function rewardTagClass(type?: CreditCard["rewardType"]): string {
   return "tag";
 }
 
-export function TabCards({ state: S, setState }: Props) {
+export function TabCards({ state: S, setState, cardsApi }: Props) {
+  const creditCards = cardsApi?.configured ? cardsApi.cards : S.creditCards;
+  const viewState = useMemo(
+    () => ({ ...S, creditCards }),
+    [S, creditCards]
+  );
+
+  const setCreditCards = (updater: (prev: CreditCard[]) => CreditCard[]) => {
+    const next = ensureCreditCardIds(updater(creditCards));
+    if (cardsApi?.configured) {
+      void cardsApi.saveCards(next);
+    } else {
+      setState((prev) => ({ ...prev, creditCards: next }));
+    }
+  };
+
   const [editing, setEditing] = useState(false);
   const [spendAmount, setSpendAmount] = useState(500);
   const [spendCategory, setSpendCategory] = useState<SpendCategory>("dining");
@@ -75,21 +98,20 @@ export function TabCards({ state: S, setState }: Props) {
     null
   );
 
-  const stmtTotal = totalStatementAmount(S);
+  const stmtTotal = totalStatementAmount(viewState);
   const statementBreakdowns = useMemo(
-    () => getAllCardStatementBreakdowns(S),
-    [S.creditCards, S.loans]
+    () => getAllCardStatementBreakdowns(viewState),
+    [viewState]
   );
   const rewardCounts = useMemo(
-    () => countCardsByRewardType(S.creditCards),
-    [S.creditCards]
+    () => countCardsByRewardType(creditCards),
+    [creditCards]
   );
 
   const updateCard = (i: number, patch: Partial<CreditCard>) => {
-    setState((prev) => ({
-      ...prev,
-      creditCards: prev.creditCards.map((c, j) => (j === i ? { ...c, ...patch } : c)),
-    }));
+    setCreditCards((prev) =>
+      prev.map((c, j) => (j === i ? { ...c, ...patch } : c))
+    );
     console.log("[TabCards] updated card", i, patch);
   };
 
@@ -106,9 +128,8 @@ export function TabCards({ state: S, setState }: Props) {
     }
     const entry = getCatalogEntry(catalogId);
     if (!entry) return;
-    setState((prev) => ({
-      ...prev,
-      creditCards: prev.creditCards.map((c, j) =>
+    setCreditCards((prev) =>
+      prev.map((c, j) =>
         j === i
           ? {
               ...c,
@@ -118,38 +139,32 @@ export function TabCards({ state: S, setState }: Props) {
               statementAmount: c.statementAmount,
             }
           : c
-      ),
-    }));
+      )
+    );
     console.log("[TabCards] applied catalog", catalogId);
   };
 
   const addCard = () => {
-    setState((prev) => {
-      const creditCards = ensureCreditCardIds([
-        ...prev.creditCards,
-        {
-          name: "New card",
-          statementDay: 1,
-          paymentDueDay: 21,
-          statementAmount: 0,
-        },
-      ]);
-      console.log("[TabCards] added card");
-      return { ...prev, creditCards };
-    });
+    setCreditCards((prev) => [
+      ...prev,
+      {
+        name: "New card",
+        statementDay: 1,
+        paymentDueDay: 21,
+        statementAmount: 0,
+      },
+    ]);
+    console.log("[TabCards] added card");
   };
 
   const removeCard = (i: number) => {
-    setState((prev) => ({
-      ...prev,
-      creditCards: prev.creditCards.filter((_, j) => j !== i),
-    }));
+    setCreditCards((prev) => prev.filter((_, j) => j !== i));
     console.log("[TabCards] removed card", i);
   };
 
   const runAdvisor = () => {
     const rec = recommendCardForSpend(
-      S.creditCards,
+      creditCards,
       spendAmount,
       spendCategory,
       preference
@@ -184,7 +199,7 @@ export function TabCards({ state: S, setState }: Props) {
         </div>
         <div className="stat">
           <div className="lbl">Cards tracked</div>
-          <div className="val">{S.creditCards.length}</div>
+          <div className="val">{creditCards.length}</div>
           <div className="note">
             {rewardCounts.miles} miles · {rewardCounts.cashback} cashback
             {rewardCounts.hybrid > 0 ? ` · ${rewardCounts.hybrid} hybrid` : ""}
@@ -219,12 +234,12 @@ export function TabCards({ state: S, setState }: Props) {
 
       {editing ? (
         <div className="card">
-          {S.creditCards.length === 0 ? (
+          {creditCards.length === 0 ? (
             <p style={{ color: "var(--muted)", fontStyle: "italic", marginBottom: 12 }}>
               No cards yet. Add one below.
             </p>
           ) : (
-            S.creditCards.map((c, i) => (
+            creditCards.map((c, i) => (
               <div key={i} className="card-edit-block">
                 <div className="catalog-select-row">
                   <label>
@@ -335,7 +350,7 @@ export function TabCards({ state: S, setState }: Props) {
         </div>
       ) : (
         <div className="card table-scroll">
-          {S.creditCards.length === 0 ? (
+          {creditCards.length === 0 ? (
             <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
               No credit cards configured. Click Edit to add one.
             </p>
@@ -353,7 +368,7 @@ export function TabCards({ state: S, setState }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {S.creditCards.map((c, i) => (
+                {creditCards.map((c, i) => (
                   <tr key={i}>
                     <td>{c.name}</td>
                     <td>{c.bank ?? "—"}</td>
@@ -595,7 +610,7 @@ export function TabCards({ state: S, setState }: Props) {
           </div>
         ) : (
           <p className="note" style={{ marginBottom: 0 }}>
-            {S.creditCards.some((c) => c.catalogId)
+            {creditCards.some((c) => c.catalogId)
               ? "Enter amount and category, then suggest."
               : "Edit your cards and select products from the catalog to enable suggestions."}
           </p>

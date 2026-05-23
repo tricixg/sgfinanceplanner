@@ -47,6 +47,12 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    3. [`supabase/migrations/003_couples_and_ledger.sql`](supabase/migrations/003_couples_and_ledger.sql) — per-user savings accounts, shared pools, goals, expenses, and partner linking
    4. [`supabase/migrations/004_accounts_ledger.sql`](supabase/migrations/004_accounts_ledger.sql) — `include_in_savings` flags, deposit ledger (`savings_transactions`), and balance sync
    5. [`supabase/migrations/005_financial_accounts_budget.sql`](supabase/migrations/005_financial_accounts_budget.sql) — unified `financial_accounts` (cash + credit cards) and `budget_transactions` for CSV import
+   6. [`supabase/migrations/006_credit_cards.sql`](supabase/migrations/006_credit_cards.sql) — credit cards table (migrated from `dashboard_state` JSON)
+   7. [`supabase/migrations/007_loans_budget.sql`](supabase/migrations/007_loans_budget.sql) — loans and budget lines
+   8. [`supabase/migrations/008_holdings_portfolio.sql`](supabase/migrations/008_holdings_portfolio.sql) — holdings and portfolio snapshots
+   9. [`supabase/migrations/009_profile_insurance.sql`](supabase/migrations/009_profile_insurance.sql) — finance profile, insurance, and ILP policies
+
+   After deploy, the app uses route-based pages (`/this-month`, `/savings`, `/transactions`, etc.). Legacy `dashboard_state` JSON is migrated automatically on first load; only UI preferences remain in that blob.
 
 4. **Supabase Auth (magic link)**
 

@@ -240,7 +240,7 @@ export function TransactionsHistoryPage() {
   return (
     <div className="wrap">
       <header style={{ marginBottom: 20 }}>
-        <Link href="/" className="note" style={{ display: "inline-block", marginBottom: 8 }}>
+        <Link href="/this-month" className="note" style={{ display: "inline-block", marginBottom: 8 }}>
           ← Back to dashboard
         </Link>
         <h1 style={{ margin: "0 0 6px", fontSize: 22 }}>Transaction history</h1>
