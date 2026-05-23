@@ -61,9 +61,14 @@ export function buildSavingsSnapshot(
   };
 }
 
+/** Personal cash accounts included in net worth (all accounts, not savings-flag only). */
+export function netWorthPersonalCash(snapshot: SavingsSnapshot): number {
+  return snapshot.personalNetWorthCash ?? 0;
+}
+
 export function effectiveCash(snapshot: SavingsSnapshot, includeJoint: boolean): number {
-  const personal = snapshot.personalNetWorthCash ?? snapshot.personalCash;
-  const joint = snapshot.jointNetWorthCash ?? snapshot.jointCash;
+  const personal = netWorthPersonalCash(snapshot);
+  const joint = snapshot.jointNetWorthCash ?? snapshot.jointCash ?? 0;
   return personal + (includeJoint ? joint : 0);
 }
 

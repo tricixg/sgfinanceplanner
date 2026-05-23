@@ -10,9 +10,10 @@ import type {
 } from "@/lib/savings/types";
 import { goalsFromSavingsGoals, goalsSummary } from "@/lib/finance/goals";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
-import { ChartBox } from "@/components/ChartBox";
-import { RecordSavingsForm } from "@/components/savings/RecordSavingsForm";
-import { TransactionList } from "@/components/savings/TransactionList";
+import { SavingsLedgerModal } from "@/components/savings/SavingsLedgerModal";
+import { GoalsProgressBar } from "@/components/savings/GoalsProgressBar";
+import { Snackbar } from "@/components/Snackbar";
+import { useSnackbar } from "@/hooks/useSnackbar";
 
 type Props = {
   savings: SavingsBundle;
@@ -20,16 +21,12 @@ type Props = {
   personalAccounts: UserSavingsAccount[];
   savePools: (pools: SavingsPool[]) => Promise<void>;
   saveGoals: (goals: SavingsGoal[]) => Promise<void>;
-  recordGoalDeposit: (
-    goalId: string,
-    payload: { amount: number; occurredAt?: string; note?: string }
-  ) => Promise<void>;
   recordPoolTransaction: (
     poolId: string,
     payload: {
       amount: number;
       occurredAt?: string;
-      kind?: "deposit" | "withdrawal";
+      kind?: "deposit" | "withdrawal" | "adjustment";
       note?: string;
       goalId?: string;
     }
@@ -59,7 +56,6 @@ export function TabSavings({
   personalAccounts,
   savePools,
   saveGoals,
-  recordGoalDeposit,
   recordPoolTransaction,
 }: Props) {
   const [pools, setPools] = useState(savings.pools);
@@ -69,8 +65,9 @@ export function TabSavings({
   const [editingSharedGoals, setEditingSharedGoals] = useState(false);
   const [savingPools, setSavingPools] = useState(false);
   const [savingGoals, setSavingGoals] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [poolTxKey, setPoolTxKey] = useState(0);
+  const snackbar = useSnackbar();
+  const [txRefresh, setTxRefresh] = useState(0);
+  const [ledgerPoolId, setLedgerPoolId] = useState<string | null>(null);
 
   useEffect(() => {
     setPools(savings.pools);
@@ -89,13 +86,12 @@ export function TabSavings({
 
   const persistPools = async () => {
     setSavingPools(true);
-    setMsg("");
     try {
       await savePools(pools);
-      setMsg("Pools saved");
+      snackbar.show("Pools saved");
       setEditingPools(false);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Save failed");
+      snackbar.show(e instanceof Error ? e.message : "Save failed", { error: true });
     } finally {
       setSavingPools(false);
     }
@@ -103,14 +99,13 @@ export function TabSavings({
 
   const persistGoals = async () => {
     setSavingGoals(true);
-    setMsg("");
     try {
       await saveGoals(goals);
-      setMsg("Goals saved");
+      snackbar.show("Goals saved");
       setEditingPersonalGoals(false);
       setEditingSharedGoals(false);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Save failed");
+      snackbar.show(e instanceof Error ? e.message : "Save failed", { error: true });
     } finally {
       setSavingGoals(false);
     }
@@ -131,11 +126,9 @@ export function TabSavings({
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        <b>Personal cash</b> is on the ME tab. Here you manage joint pools and savings
-        goals. Record deposits to keep balances and goal progress in sync.
+        <b>Personal cash</b> is on the ME tab. Click a shared pool to record transactions.
+        Goals below are progress stats — use Edit to change targets and timelines.
       </div>
-      {msg ? <p className="note">{msg}</p> : null}
-
       {savings.paired ? (
         <>
           <div className="section-head">
@@ -231,33 +224,30 @@ export function TabSavings({
             ) : pools.length === 0 ? (
               <p className="note">No shared pools yet. Click Edit to add one.</p>
             ) : (
-              pools.map((p) => (
-                <div key={p.id} style={{ marginBottom: 16 }}>
-                  <div className="minirow">
-                    <span className="k">{p.name}</span>
-                    <span className="v">{fmt2(p.balance)}</span>
-                  </div>
-                  <RecordSavingsForm
-                    label="Record deposit"
-                    onSubmit={async ({ amount, occurredAt, note }) => {
-                      await recordPoolTransaction(p.id, {
-                        amount,
-                        occurredAt,
-                        kind: "deposit",
-                        note,
-                      });
-                      setPoolTxKey((k) => k + 1);
+              <>
+                <p className="ui-hint">Click a pool to record transactions and view history.</p>
+                {savings.pools.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="account-ledger-row"
+                    onClick={() => {
+                      setLedgerPoolId(p.id);
+                      console.info("[TabSavings] opened pool ledger", { id: p.id });
                     }}
-                  />
-                  <details style={{ marginTop: 8 }}>
-                    <summary className="note">Transaction history</summary>
-                    <TransactionList
-                      fetchUrl={`/api/savings/pools/${p.id}/transactions?limit=10`}
-                      refreshKey={poolTxKey}
-                    />
-                  </details>
-                </div>
-              ))
+                  >
+                    <span>
+                      <strong>{p.name}</strong>
+                      {p.notes ? (
+                        <span className="note" style={{ display: "block", marginTop: 2 }}>
+                          {p.notes}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="num">{fmt2(p.balance)}</span>
+                  </button>
+                ))}
+              </>
             )}
             <p className="note" style={{ marginTop: 8 }}>
               Joint savings total: {fmt2(savings.totals.jointSavingsCash ?? savings.totals.jointCash)}
@@ -300,8 +290,7 @@ export function TabSavings({
         scope="individual"
         summary={personalSummary}
         personalAccounts={personalAccounts}
-        pools={pools}
-        recordGoalDeposit={recordGoalDeposit}
+        pools={savings.pools}
       />
 
       {savings.paired ? (
@@ -338,13 +327,53 @@ export function TabSavings({
             scope="shared"
             summary={sharedSummary}
             personalAccounts={personalAccounts}
-            pools={pools}
-            recordGoalDeposit={recordGoalDeposit}
+            pools={savings.pools}
           />
         </>
       ) : null}
+
+      {(() => {
+        const pool =
+          ledgerPoolId && !editingPools
+            ? (savings.pools.find((p) => p.id === ledgerPoolId) ?? null)
+            : null;
+        if (!pool) return null;
+        return (
+          <SavingsLedgerModal
+            target={{ variant: "pool", pool }}
+            txRefresh={txRefresh}
+            goalOptions={sharedGoals.map((g) => ({ id: g.id, name: g.name }))}
+            onClose={() => setLedgerPoolId(null)}
+            onRecord={async (payload) => {
+              await recordPoolTransaction(pool.id, payload);
+              setTxRefresh((k) => k + 1);
+            }}
+          />
+        );
+      })()}
+
+      <Snackbar
+        message={snackbar.message}
+        variant={snackbar.variant}
+        durationMs={snackbar.durationMs}
+        onDismiss={snackbar.dismiss}
+      />
     </section>
   );
+}
+
+function goalLinkedLabel(
+  g: SavingsGoal,
+  personalAccounts: UserSavingsAccount[],
+  pools: SavingsPool[]
+): string | null {
+  if (g.linkedAccountId) {
+    return personalAccounts.find((a) => a.id === g.linkedAccountId)?.name ?? null;
+  }
+  if (g.linkedPoolId) {
+    return pools.find((p) => p.id === g.linkedPoolId)?.name ?? null;
+  }
+  return null;
 }
 
 function GoalsSection({
@@ -356,7 +385,6 @@ function GoalsSection({
   summary,
   personalAccounts,
   pools,
-  recordGoalDeposit,
 }: {
   editing: boolean;
   goals: SavingsGoal[];
@@ -366,7 +394,6 @@ function GoalsSection({
   summary: ReturnType<typeof goalsSummary>;
   personalAccounts: UserSavingsAccount[];
   pools: SavingsPool[];
-  recordGoalDeposit: Props["recordGoalDeposit"];
 }) {
   const { rows, totT, totMonthly } = summary;
 
@@ -413,126 +440,150 @@ function GoalsSection({
     <div className="card">
       {editing ? (
         <>
-          {goals.map((g, i) => (
-            <div key={g.id} className="toolbar" style={{ flexWrap: "wrap", marginBottom: 8 }}>
-              <input
-                type="text"
-                value={g.name}
-                onChange={(e) => update(i, { name: e.target.value })}
-              />
-              <NumInput
-                value={g.targetAmount}
-                onChange={(n) => update(i, { targetAmount: n })}
-              />
-              <input
-                type="month"
-                value={g.targetDate?.slice(0, 7) ?? "2028-01"}
-                onChange={(e) => update(i, { targetDate: `${e.target.value}-01` })}
-              />
-              <NumInput
-                value={g.monthlyContribution}
-                onChange={(n) => update(i, { monthlyContribution: n })}
-              />
-              <select
-                value={
-                  scope === "shared"
-                    ? (g.linkedPoolId ?? "")
-                    : (g.linkedAccountId ?? "")
-                }
-                onChange={(e) => {
-                  const v = e.target.value || null;
-                  if (scope === "shared") {
-                    update(i, { linkedPoolId: v, linkedAccountId: null });
-                  } else {
-                    update(i, { linkedAccountId: v, linkedPoolId: null });
-                  }
-                }}
-              >
-                <option value="">No linked jar</option>
-                {linkOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
+          <div className="table-scroll">
+            <table className="goals-table">
+              <thead>
+                <tr>
+                  <th>Goal</th>
+                  <th className="num">Target</th>
+                  <th>By</th>
+                  <th className="num">Plan/mo</th>
+                  <th>{scope === "shared" ? "Pool" : "Account"}</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {goals.map((g, i) => (
+                  <tr key={g.id}>
+                    <td>
+                      <input
+                        type="text"
+                        value={g.name}
+                        onChange={(e) => update(i, { name: e.target.value })}
+                        style={{ width: "100%", minWidth: 120 }}
+                      />
+                    </td>
+                    <td className="num">
+                      <NumInput
+                        value={g.targetAmount}
+                        onChange={(n) => update(i, { targetAmount: n })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="month"
+                        value={g.targetDate?.slice(0, 7) ?? "2028-01"}
+                        onChange={(e) =>
+                          update(i, { targetDate: `${e.target.value}-01` })
+                        }
+                      />
+                    </td>
+                    <td className="num">
+                      <NumInput
+                        value={g.monthlyContribution}
+                        onChange={(n) => update(i, { monthlyContribution: n })}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={
+                          scope === "shared"
+                            ? (g.linkedPoolId ?? "")
+                            : (g.linkedAccountId ?? "")
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value || null;
+                          if (scope === "shared") {
+                            update(i, { linkedPoolId: v, linkedAccountId: null });
+                          } else {
+                            update(i, { linkedAccountId: v, linkedPoolId: null });
+                          }
+                        }}
+                        style={{ width: "100%", minWidth: 100 }}
+                      >
+                        <option value="">—</option>
+                        {linkOptions.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn del sm"
+                        onClick={() => setGoals(allGoals.filter((x) => x.id !== g.id))}
+                      >
+                        del
+                      </button>
+                    </td>
+                  </tr>
                 ))}
-              </select>
-              <button
-                type="button"
-                className="btn del sm"
-                onClick={() => setGoals(allGoals.filter((x) => x.id !== g.id))}
-              >
-                del
-              </button>
-            </div>
-          ))}
-          <button type="button" className="btn ghost sm" onClick={add}>
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            className="btn ghost sm"
+            style={{ marginTop: 8 }}
+            onClick={add}
+          >
             + Goal
           </button>
         </>
       ) : goals.length === 0 ? (
         <p className="note">No goals yet. Click Edit to add one.</p>
       ) : (
-        goals.map((g) => {
-          const row = rows.find((r) => r.name === g.name);
-          return (
-            <div key={g.id} style={{ marginBottom: 16 }}>
-              <div className="minirow">
-                <span className="k">{g.name}</span>
-                <span className="v">
-                  {fmt2(g.savedAmount)} / {fmt(g.targetAmount)}
-                  {row ? ` · ${fmt(row.need)}/mo needed` : ""}
-                </span>
-              </div>
-              {(scope === "shared" && g.linkedPoolId) ||
-              (scope === "individual" && g.linkedAccountId) ? (
-                <RecordSavingsForm
-                  label="Record savings toward this goal"
-                  onSubmit={async (payload) => {
-                    await recordGoalDeposit(g.id, payload);
-                  }}
-                />
-              ) : (
-                <p className="note">
-                  Link a {scope === "shared" ? "shared pool" : "personal account"} in Edit
-                  to record savings that update balances.
-                </p>
-              )}
-            </div>
-          );
-        })
+        <div className="table-scroll">
+          <table className="goals-table">
+            <thead>
+              <tr>
+                <th>Goal</th>
+                <th className="num">Saved</th>
+                <th className="num">Target</th>
+                <th className="num">Need/mo</th>
+                <th>By</th>
+                <th>{scope === "shared" ? "Pool" : "Account"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {goals.map((g) => {
+                const row = rows.find((r) => r.name === g.name);
+                const linked = goalLinkedLabel(g, personalAccounts, pools);
+                const jarHint =
+                  scope === "shared" ? "Use pool above" : "Use ME account";
+                return (
+                  <tr key={g.id}>
+                    <td>
+                      <strong>{g.name || "—"}</strong>
+                    </td>
+                    <td className="num">{fmt2(g.savedAmount)}</td>
+                    <td className="num">{fmt(g.targetAmount)}</td>
+                    <td className="num">{row ? fmt(row.need) : "—"}</td>
+                    <td>{g.targetDate ? g.targetDate.slice(0, 7) : "—"}</td>
+                    <td className="note" style={{ fontSize: 12 }}>
+                      {linked ?? jarHint}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>
+                  <strong>Total</strong>
+                </td>
+                <td className="num">{fmt2(rows.reduce((s, r) => s + r.saved, 0))}</td>
+                <td className="num">{fmt(totT)}</td>
+                <td className="num">{fmt(totMonthly)}/mo</td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
-      <div className="minirow tot" style={{ marginTop: 8 }}>
-        <span className="k">Total target / need per month</span>
-        <span className="v">
-          {fmt(totT)} · {fmt(totMonthly)}/mo
-        </span>
-      </div>
-      {rows.length > 0 && !editing ? (
-        <ChartBox
-          type="bar"
-          data={{
-            labels: rows.map((g) => g.name),
-            datasets: [
-              {
-                label: "Saved",
-                data: rows.map((g) => g.saved),
-                backgroundColor: "#2f5d3a",
-              },
-              {
-                label: "Remaining",
-                data: rows.map((g) => Math.max(0, g.target - g.saved)),
-                backgroundColor: "#d8cfb4",
-              },
-            ],
-          }}
-          options={{
-            indexAxis: "y",
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-          }}
-          height={200}
-        />
-      ) : null}
+      {!editing && goals.length > 0 ? <GoalsProgressBar goals={goals} /> : null}
     </div>
   );
 }

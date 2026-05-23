@@ -9,10 +9,9 @@ import {
   stableTakeHome,
 } from "@/lib/finance";
 import { effectiveMonthlySave } from "@/lib/finance/savings-totals";
-import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
+import type { SavingsSnapshot } from "@/lib/savings/types";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
-import { IncludeJointSavingsToggle } from "@/components/IncludeJointSavingsToggle";
 import {
   COMPUTED_DEBT_LABEL,
   budgetBalanceLabel,
@@ -28,7 +27,6 @@ type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
-  savingsBundle?: SavingsBundle | null;
 };
 
 function NumInput({
@@ -69,7 +67,6 @@ export function TabBudgetSavings({
   state: S,
   setState,
   savings,
-  savingsBundle,
 }: Props) {
   const [budRet, setBudRet] = useState(6);
   const [budYrs, setBudYrs] = useState(10);
@@ -81,11 +78,8 @@ export function TabBudgetSavings({
   const ilpPrem = computedIlpMonthly(S);
   const { alloc, left, invPct } = budgetVerdict(S);
   const monthlyInv = monthlyInvestContribution(S);
-  const includeJoint = Boolean(S.prefs?.includeJointSavings);
   const monthlySave =
-    savings != null
-      ? effectiveMonthlySave(savings, includeJoint)
-      : 0;
+    savings != null ? effectiveMonthlySave(savings, false) : 0;
   const proj = budgetProjection(S, monthlyInv, monthlySave, budRet, budYrs, savings);
   const budgetLines = S.budget.filter((b) => b.type !== "save");
   const balanceLbl = budgetBalanceLabel(left);
@@ -170,15 +164,6 @@ export function TabBudgetSavings({
         <b>Savings &amp; Goals</b>. Loans, insurance, and ILP premiums are auto from{" "}
         <b>Debts &amp; Loans</b>, <b>ME</b>, and <b>Investment</b>.
       </div>
-
-      {savingsBundle ? (
-        <IncludeJointSavingsToggle
-          state={S}
-          setState={setState}
-          savings={savingsBundle}
-          className="card"
-        />
-      ) : null}
 
       <div className="grid g3">
         <div className="stat accent">

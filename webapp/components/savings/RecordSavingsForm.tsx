@@ -2,24 +2,46 @@
 
 import { useState } from "react";
 
+export type RecordTransactionKind = "deposit" | "withdrawal";
+
 type Props = {
-  label?: string;
+  /** Label on the button that opens the form (default: Add). */
+  addLabel?: string;
+  /** When true, user can choose deposit or withdrawal (ME cash accounts). */
+  allowWithdrawal?: boolean;
   onSubmit: (payload: {
     amount: number;
     occurredAt: string;
     note: string;
+    kind: RecordTransactionKind;
   }) => Promise<void>;
 };
 
 export function RecordSavingsForm({
-  label = "Record savings",
+  addLabel = "Add",
+  allowWithdrawal = false,
   onSubmit,
 }: Props) {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<RecordTransactionKind>("deposit");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const resetFields = () => {
+    setAmount("");
+    setNote("");
+    setDate(new Date().toISOString().slice(0, 16));
+    setKind("deposit");
+    setError("");
+  };
+
+  const close = () => {
+    setOpen(false);
+    resetFields();
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,9 +57,10 @@ export function RecordSavingsForm({
         amount: n,
         occurredAt: new Date(date).toISOString(),
         note: note.trim(),
+        kind: allowWithdrawal ? kind : "deposit",
       });
-      setAmount("");
-      setNote("");
+      console.info("[RecordSavingsForm] recorded", { kind, amount: n });
+      close();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to record");
     } finally {
@@ -45,11 +68,51 @@ export function RecordSavingsForm({
     }
   };
 
+  if (!open) {
+    return (
+      <div className="toolbar" style={{ marginTop: 8 }}>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => {
+            setOpen(true);
+            console.info("[RecordSavingsForm] opened");
+          }}
+        >
+          {addLabel}
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={(e) => void submit(e)} className="toolbar" style={{ flexWrap: "wrap" }}>
-      <span className="note" style={{ width: "100%", marginBottom: 4 }}>
-        {label}
-      </span>
+    <form
+      onSubmit={(e) => void submit(e)}
+      className="toolbar"
+      style={{ flexWrap: "wrap", marginTop: 8 }}
+    >
+      {allowWithdrawal ? (
+        <div className="toolbar" style={{ width: "100%", gap: 8 }}>
+          <label className="ctrl" style={{ fontSize: 13 }}>
+            <input
+              type="radio"
+              name={`tx-kind-${addLabel}`}
+              checked={kind === "deposit"}
+              onChange={() => setKind("deposit")}
+            />
+            Deposit
+          </label>
+          <label className="ctrl" style={{ fontSize: 13 }}>
+            <input
+              type="radio"
+              name={`tx-kind-${addLabel}`}
+              checked={kind === "withdrawal"}
+              onChange={() => setKind("withdrawal")}
+            />
+            Withdrawal
+          </label>
+        </div>
+      ) : null}
       <input
         type="number"
         step="0.01"
@@ -57,6 +120,7 @@ export function RecordSavingsForm({
         placeholder="Amount"
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
+        autoFocus
       />
       <input
         type="datetime-local"
@@ -70,7 +134,15 @@ export function RecordSavingsForm({
         onChange={(e) => setNote(e.target.value)}
       />
       <button type="submit" className="btn sm" disabled={busy}>
-        {busy ? "Saving…" : "Add"}
+        {busy ? "Saving…" : "Save"}
+      </button>
+      <button
+        type="button"
+        className="btn ghost sm"
+        disabled={busy}
+        onClick={close}
+      >
+        Cancel
       </button>
       {error ? (
         <p className="pin-error" role="alert" style={{ width: "100%" }}>

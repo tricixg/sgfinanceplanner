@@ -39,8 +39,28 @@ describe("portfolioInvestmentValue", () => {
     expect(inclCpf).toContain("CPF");
   });
 
-  it("net worth cash slice uses personal savings", () => {
+  it("net worth cash slice includes all cash accounts", () => {
     const slices = netWorthSlices(DEFAULTS, false);
-    expect(slices.find((s) => s.label === "Personal savings")?.value).toBe(2500);
+    expect(slices.find((s) => s.label === "Cash accounts")?.value).toBe(2500);
+  });
+
+  it("net worth includes accounts excluded from savings totals", () => {
+    const savings = {
+      personalSavingsCash: 0,
+      personalNetWorthCash: 800,
+      personalCash: 0,
+      jointCash: 0,
+      jointSavingsCash: 0,
+      jointNetWorthCash: 0,
+      personalMonthlySave: 0,
+      jointMonthlySave: 0,
+    };
+    const { cash, personalCash } = wealthSummary(DEFAULTS, savings);
+    expect(cash).toBe(800);
+    expect(personalCash).toBe(800);
+    const slice = netWorthSlices(DEFAULTS, false, savings).find(
+      (s) => s.label === "Cash accounts"
+    );
+    expect(slice?.value).toBe(800);
   });
 });

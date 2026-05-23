@@ -10,7 +10,7 @@ import {
   totalStatementAmount,
 } from "@/lib/finance/calendar";
 import { netWorthSlices, netWorthTotal, wealthSummary } from "@/lib/finance";
-import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
+import type { SavingsSnapshot } from "@/lib/savings/types";
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 
@@ -18,7 +18,6 @@ type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
-  savingsBundle?: SavingsBundle | null;
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -37,9 +36,7 @@ export function TabThisMonth({ state: S, setState, savings }: Props) {
         jointMonthlySave: 0,
       }
     : null;
-  const { liab, lnw, personalCash } = wealthSummary(S, personalOnlySavings);
-  const personalSavings =
-    savings?.personalSavingsCash ?? savings?.personalCash ?? personalCash;
+  const { liab, lnw } = wealthSummary(S, personalOnlySavings);
   const totalNw = netWorthTotal(S, includeCpf, personalOnlySavings);
   const nwSlices = netWorthSlices(S, includeCpf, personalOnlySavings);
 
@@ -57,9 +54,6 @@ export function TabThisMonth({ state: S, setState, savings }: Props) {
     <section className="panel on">
       <h2>Net worth</h2>
       <div className="card net-worth-card" style={{ marginBottom: 16 }}>
-        <p className="note" style={{ marginTop: 8 }}>
-          Personal savings (your accounts): {fmt2(personalSavings)}
-        </p>
         <label className="ctrl">
           <input
             type="checkbox"

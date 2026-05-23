@@ -2,21 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardState } from "@/lib/types";
-import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
+import type { SavingsSnapshot } from "@/lib/savings/types";
 import { monthlyInvestContribution, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
-import { IncludeJointSavingsToggle } from "@/components/IncludeJointSavingsToggle";
 import type { ChartOptions } from "chart.js";
 
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
-  savingsBundle?: SavingsBundle | null;
 };
 
-export function TabYear({ state: S, setState, savings, savingsBundle }: Props) {
+export function TabYear({ state: S, setState, savings }: Props) {
   const [growth, setGrowth] = useState(3.5);
   const [invRet, setInvRet] = useState(6);
   const [showMargin, setShowMargin] = useState(true);
@@ -84,14 +82,6 @@ export function TabYear({ state: S, setState, savings, savingsBundle }: Props) {
 
   return (
     <section className="panel on">
-      {savingsBundle ? (
-        <IncludeJointSavingsToggle
-          state={S}
-          setState={setState}
-          savings={savingsBundle}
-          className="card"
-        />
-      ) : null}
       <div className="callout tip">
         <span className="ico">Tip</span>
         Monthly invest contribution defaults from <b>Budget</b> (your investing

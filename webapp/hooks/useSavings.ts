@@ -122,7 +122,12 @@ export function useSavings(enabled: boolean) {
   const recordGoalDeposit = useCallback(
     async (
       goalId: string,
-      payload: { amount: number; occurredAt?: string; note?: string }
+      payload: {
+        amount: number;
+        occurredAt?: string;
+        note?: string;
+        kind?: "deposit" | "withdrawal" | "adjustment";
+      }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(
         `/api/savings/goals/${goalId}/deposits`,
@@ -146,7 +151,7 @@ export function useSavings(enabled: boolean) {
       payload: {
         amount: number;
         occurredAt?: string;
-        kind?: "deposit" | "withdrawal";
+        kind?: "deposit" | "withdrawal" | "adjustment";
         note?: string;
         goalId?: string;
       }

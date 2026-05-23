@@ -1,7 +1,7 @@
 import type { DashboardState, Holding } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import { cashAccountsTotal } from "./accounts";
-import { effectiveCash } from "./savings-totals";
+import { effectiveCash, netWorthPersonalCash } from "./savings-totals";
 import { holdingMarketValue, normalizeHolding, type LegacyHolding } from "./holdings";
 import { ilpValueByLock } from "./ilp";
 
@@ -63,20 +63,24 @@ export function resolveDashboardCash(
   S: DashboardState,
   savings: SavingsSnapshot | null | undefined
 ) {
-  const includeJoint = Boolean(S.prefs?.includeJointSavings);
   if (savings) {
-    const personal =
-      savings.personalNetWorthCash ?? savings.personalCash;
-    const joint = savings.jointNetWorthCash ?? savings.jointCash;
+    let personal = netWorthPersonalCash(savings);
+    const localCash = cashAccountsTotal(S);
+    if (personal <= 0 && localCash > 0) {
+      personal = localCash;
+      console.info("[resolveDashboardCash] using local accounts for net worth cash", {
+        localCash,
+      });
+    }
+    const joint = savings.jointNetWorthCash ?? savings.jointCash ?? 0;
     return {
       personal,
       joint,
-      cash: effectiveCash(savings, includeJoint),
-      includeJoint,
+      cash: effectiveCash(savings, false) || personal,
     };
   }
   const personal = cashAccountsTotal(S);
-  return { personal, joint: 0, cash: personal, includeJoint };
+  return { personal, joint: 0, cash: personal };
 }
 
 export function wealthSummary(
@@ -88,10 +92,7 @@ export function wealthSummary(
     ilpValueByLock(S);
   const invTotal = port + ilpVal;
   const liab = S.margin + S.ccDebt;
-  const { cash, personal, joint, includeJoint } = resolveDashboardCash(
-    S,
-    savings
-  );
+  const { cash, personal, joint } = resolveDashboardCash(S, savings);
   const personalSavings =
     savings?.personalSavingsCash ?? savings?.personalCash ?? personal;
   const lnw = invTotal + cash - liab;
@@ -108,7 +109,6 @@ export function wealthSummary(
     cash,
     personalCash: personal,
     jointCash: joint,
-    includeJointSavings: includeJoint,
   };
 }
 
@@ -126,16 +126,12 @@ export function netWorthSlices(
   includeCpf: boolean,
   savings?: SavingsSnapshot | null
 ): NetWorthSlice[] {
-  const { port, ilpVal, personalCash, jointCash, includeJointSavings, cpf } =
-    wealthSummary(S, savings);
+  const { port, ilpVal, personalCash, cpf } = wealthSummary(S, savings);
   const slices: NetWorthSlice[] = [
     { label: "Stock holdings", value: port, color: "#3d6b8e" },
     { label: "ILP", value: ilpVal, color: "#6b5a8e" },
-    { label: "Personal savings", value: personalCash, color: "#c08a2e" },
+    { label: "Cash accounts", value: personalCash, color: "#c08a2e" },
   ];
-  if (includeJointSavings && jointCash > 0) {
-    slices.push({ label: "Joint savings", value: jointCash, color: "#d4a574" });
-  }
   if (includeCpf && cpf > 0) {
     slices.push({ label: "CPF", value: cpf, color: "#2f5d3a" });
   }

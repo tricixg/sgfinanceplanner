@@ -39,6 +39,7 @@ export function mapTransaction(row: Record<string, unknown>): SavingsTransaction
     accountId: row.account_id ? String(row.account_id) : null,
     poolId: row.pool_id ? String(row.pool_id) : null,
     goalId: row.goal_id ? String(row.goal_id) : null,
+    goalName: null,
     kind: (row.kind === "withdrawal" || row.kind === "adjustment"
       ? row.kind
       : "deposit") as SavingsTransaction["kind"],

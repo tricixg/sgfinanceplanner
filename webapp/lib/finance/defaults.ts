@@ -11,7 +11,7 @@ import { currentYm } from "./helpers";
 
 /** Blank slate — used for reset and when no saved data exists. */
 export const EMPTY_STATE: DashboardState = {
-  prefs: { includeJointSavings: false },
+  prefs: {},
   monthlySal: 0,
   comms: 0,
   salaryCreditDay: 0,
@@ -301,7 +301,6 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
     ...createEmptyState(),
     ...saved,
     prefs: {
-      includeJointSavings: false,
       ...saved.prefs,
     },
     monthlySal,

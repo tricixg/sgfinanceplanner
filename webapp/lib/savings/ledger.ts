@@ -100,12 +100,25 @@ export async function applyTransaction(
   if (input.goalId) {
     const { data: goal, error: goalErr } = await supabase
       .from("savings_goals")
-      .select("id, saved_amount")
+      .select("id, saved_amount, scope, owner_user_id, household_id")
       .eq("id", input.goalId)
       .maybeSingle();
 
     if (goalErr || !goal) {
       throw new Error(goalErr?.message ?? "Goal not found");
+    }
+
+    if (input.accountId) {
+      if (goal.scope !== "individual" || goal.owner_user_id !== input.userId) {
+        throw new Error("Choose a personal savings goal");
+      }
+    } else if (input.poolId) {
+      if (
+        goal.scope !== "shared" ||
+        goal.household_id !== input.householdId
+      ) {
+        throw new Error("Choose a shared savings goal");
+      }
     }
 
     const newSaved = Math.max(0, Number(goal.saved_amount) + amount);
@@ -151,7 +164,47 @@ export async function applyTransaction(
     balanceAfter,
   });
 
-  return mapTransaction(row);
+  const mapped = mapTransaction(row);
+  if (input.goalId) {
+    const { data: goalRow } = await supabase
+      .from("savings_goals")
+      .select("name")
+      .eq("id", input.goalId)
+      .maybeSingle();
+    return { ...mapped, goalName: goalRow?.name ? String(goalRow.name) : null };
+  }
+  return mapped;
+}
+
+async function enrichTransactionsWithGoalNames(
+  supabase: SupabaseClient,
+  items: SavingsTransaction[]
+): Promise<SavingsTransaction[]> {
+  const goalIds = [
+    ...new Set(items.map((t) => t.goalId).filter((id): id is string => Boolean(id))),
+  ];
+  if (!goalIds.length) {
+    return items.map((t) => ({ ...t, goalName: t.goalName ?? null }));
+  }
+
+  const { data: goals, error } = await supabase
+    .from("savings_goals")
+    .select("id, name")
+    .in("id", goalIds);
+
+  if (error) {
+    console.warn("[ledger] goal name lookup failed", error.message);
+    return items;
+  }
+
+  const names = new Map(
+    (goals ?? []).map((g) => [String(g.id), String(g.name ?? "").trim() || "Goal"])
+  );
+
+  return items.map((t) => ({
+    ...t,
+    goalName: t.goalId ? names.get(t.goalId) ?? null : null,
+  }));
 }
 
 export async function listAccountTransactions(
@@ -171,8 +224,13 @@ export async function listAccountTransactions(
 
   if (error) throw new Error(error.message);
 
+  const items = await enrichTransactionsWithGoalNames(
+    supabase,
+    (data ?? []).map((r) => mapTransaction(r))
+  );
+
   return {
-    items: (data ?? []).map((r) => mapTransaction(r)),
+    items,
     total: count ?? 0,
     nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
   };
@@ -195,8 +253,42 @@ export async function listPoolTransactions(
 
   if (error) throw new Error(error.message);
 
+  const items = await enrichTransactionsWithGoalNames(
+    supabase,
+    (data ?? []).map((r) => mapTransaction(r))
+  );
+
   return {
-    items: (data ?? []).map((r) => mapTransaction(r)),
+    items,
+    total: count ?? 0,
+    nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
+  };
+}
+
+export async function listGoalTransactions(
+  supabase: SupabaseClient,
+  goalId: string,
+  opts: { limit?: number; offset?: number } = {}
+) {
+  const limit = opts.limit ?? 20;
+  const offset = opts.offset ?? 0;
+
+  const { data, error, count } = await supabase
+    .from("savings_transactions")
+    .select("*", { count: "exact" })
+    .eq("goal_id", goalId)
+    .order("occurred_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(error.message);
+
+  const items = await enrichTransactionsWithGoalNames(
+    supabase,
+    (data ?? []).map((r) => mapTransaction(r))
+  );
+
+  return {
+    items,
     total: count ?? 0,
     nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
   };

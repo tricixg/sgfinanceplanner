@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { DashboardState, InsurancePolicy, SavingsAccount } from "@/lib/types";
-import type { AccountsBundle, UserSavingsAccount } from "@/lib/savings/types";
+import type { AccountsBundle, SavingsGoal, UserSavingsAccount } from "@/lib/savings/types";
 import {
   cashAccountsTotal,
   computedInsuranceMonthly,
@@ -13,8 +13,7 @@ import {
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { PartnerCard } from "@/components/PartnerCard";
-import { RecordSavingsForm } from "@/components/savings/RecordSavingsForm";
-import { TransactionList } from "@/components/savings/TransactionList";
+import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
 import type { useHousehold } from "@/hooks/useHousehold";
 
 type CloudAccountsApi = {
@@ -26,8 +25,9 @@ type CloudAccountsApi = {
     payload: {
       amount: number;
       occurredAt?: string;
-      kind?: "deposit" | "withdrawal";
+      kind?: "deposit" | "withdrawal" | "adjustment";
       note?: string;
+      goalId?: string;
     }
   ) => Promise<void>;
   reload: () => Promise<void>;
@@ -43,6 +43,7 @@ type Props = {
   userEmail?: string;
   household?: ReturnType<typeof useHousehold>;
   accountsApi?: CloudAccountsApi;
+  savingsGoals?: SavingsGoal[];
 };
 
 function NumInput({
@@ -74,6 +75,7 @@ export function TabMe({
   userEmail,
   household,
   accountsApi,
+  savingsGoals = [],
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
@@ -83,6 +85,7 @@ export function TabMe({
   const [accountsSaving, setAccountsSaving] = useState(false);
   const [accountsMsg, setAccountsMsg] = useState("");
   const [txRefresh, setTxRefresh] = useState(0);
+  const [ledgerAccountId, setLedgerAccountId] = useState<string | null>(null);
   const insuranceTotal = computedInsuranceMonthly(S);
   const useCloudAccounts = Boolean(accountsApi);
 
@@ -110,6 +113,11 @@ export function TabMe({
   const savingsCashTotal = useCloudAccounts
     ? (accountsApi?.totals?.personalSavingsCash ?? 0)
     : localAccountTotals(S).personalSavingsCash;
+
+  const ledgerAccount =
+    ledgerAccountId && accountsApi
+      ? (accountsApi.accounts.find((x) => x.id === ledgerAccountId) ?? null)
+      : null;
 
   useEffect(() => {
     if (editingAccounts && accountsApi) {
@@ -518,47 +526,52 @@ export function TabMe({
             ) : accountsApi.accounts.length === 0 ? (
               <p className="note">No cash accounts yet. Click Edit to add one.</p>
             ) : (
-              accountsApi.accounts.map((a) => (
-                <div key={a.id} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid var(--line)" }}>
-                  <div className="minirow">
-                    <span className="k">
-                      {a.name || "—"}
+              <>
+                <p className="ui-hint" style={{ marginBottom: 6 }}>
+                  Click an account to add transactions or view history.
+                </p>
+                {accountsApi.accounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="account-ledger-row"
+                    onClick={() => {
+                      setLedgerAccountId(a.id);
+                      console.info("[TabMe] opened account ledger", { id: a.id });
+                    }}
+                  >
+                    <span>
+                      <strong>{a.name || "—"}</strong>
                       {!a.includeInSavings ? (
                         <span className="note"> (net worth only)</span>
                       ) : null}
+                      {a.notes ? (
+                        <span className="note" style={{ display: "block", marginTop: 2 }}>
+                          {a.notes}
+                        </span>
+                      ) : null}
                     </span>
-                    <span className="v">{fmt2(a.balance)}</span>
-                  </div>
-                  {a.notes ? <p className="note">{a.notes}</p> : null}
-                  <RecordSavingsForm
-                    label="Record deposit"
-                    onSubmit={async (payload) => {
-                      await accountsApi.recordAccountTransaction(a.id, {
-                        ...payload,
-                        kind: "deposit",
-                      });
+                    <span className="num">{fmt2(a.balance)}</span>
+                  </button>
+                ))}
+                {ledgerAccount ? (
+                  <AccountLedgerModal
+                    account={ledgerAccount}
+                    txRefresh={txRefresh}
+                    goalOptions={savingsGoals
+                      .filter((g) => g.scope === "individual")
+                      .map((g) => ({ id: g.id, name: g.name }))}
+                    onClose={() => setLedgerAccountId(null)}
+                    onRecord={async (payload) => {
+                      await accountsApi.recordAccountTransaction(
+                        ledgerAccount.id,
+                        payload
+                      );
                       setTxRefresh((k) => k + 1);
                     }}
                   />
-                  <RecordSavingsForm
-                    label="Record withdrawal"
-                    onSubmit={async (payload) => {
-                      await accountsApi.recordAccountTransaction(a.id, {
-                        ...payload,
-                        kind: "withdrawal",
-                      });
-                      setTxRefresh((k) => k + 1);
-                    }}
-                  />
-                  <details>
-                    <summary className="note">Transaction history</summary>
-                    <TransactionList
-                      fetchUrl={`/api/accounts/${a.id}/transactions?limit=10`}
-                      refreshKey={txRefresh}
-                    />
-                  </details>
-                </div>
-              ))
+                ) : null}
+              </>
             )}
           </>
         ) : editingAccounts ? (
@@ -649,18 +662,22 @@ export function TabMe({
             </table>
           </div>
         )}
-        <div className="minirow tot" style={{ marginTop: 12 }}>
-          <span className="k">Total cash (net worth)</span>
-          <span className="v">{fmt2(cashTotal)}</span>
-          <span className="k">In savings totals</span>
-          <span className="v">{fmt2(savingsCashTotal)}</span>
-          {!editingAccounts && (
-            <span className="note" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
+        <div className="account-totals">
+          <div className="account-totals-stat">
+            <span className="account-totals-lbl">Net worth cash</span>
+            <span className="account-totals-val">{fmt2(cashTotal)}</span>
+          </div>
+          <div className="account-totals-stat">
+            <span className="account-totals-lbl">Savings tab</span>
+            <span className="account-totals-val">{fmt2(savingsCashTotal)}</span>
+          </div>
+          {!editingAccounts ? (
+            <p className="ui-hint account-totals-hint">
               {useCloudAccounts
-                ? "Balances update when you record deposits. Uncheck “Include in savings” to exclude from Savings tab only."
-                : "Used in net worth and projections; “In savings?” controls Savings tab rollup when signed in."}
-            </span>
-          )}
+                ? "All accounts count toward net worth. Uncheck Include in savings to omit from Savings tab only."
+                : "All accounts count toward net worth. “In savings?” controls Savings tab rollup when signed in."}
+            </p>
+          ) : null}
         </div>
       </div>
 

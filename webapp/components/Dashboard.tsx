@@ -174,7 +174,10 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
     const accounts = localAccountsAsUserSavings(state);
     const local = localAccountTotals(state);
     if (savingsApi.configured) {
-      return mergeSavingsSnapshots(local, savingsApi.bundle);
+      if (accounts.length > 0) {
+        return mergeSavingsSnapshots(local, savingsApi.bundle);
+      }
+      return savingsApi.bundle.totals;
     }
     if (accounts.length === 0) return null;
     return buildSavingsSnapshot(accounts, [], []);
@@ -272,7 +275,6 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             state={state}
             setState={setState}
             savings={savingsTotals}
-            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
           />
         </div>
         <div style={{ display: active === "budget" ? "block" : "none" }}>
@@ -280,7 +282,6 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             state={state}
             setState={setState}
             savings={savingsTotals}
-            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
           />
         </div>
         <div style={{ display: active === "savings" ? "block" : "none" }}>
@@ -290,7 +291,6 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             personalAccounts={accountsApi.configured ? accountsApi.accounts : []}
             savePools={savingsApi.savePools}
             saveGoals={savingsApi.saveGoals}
-            recordGoalDeposit={savingsApi.recordGoalDeposit}
             recordPoolTransaction={savingsApi.recordPoolTransaction}
           />
         </div>
@@ -308,7 +308,6 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             state={state}
             setState={setState}
             savings={savingsTotals}
-            savingsBundle={savingsApi.bundle}
           />
         </div>
         <div style={{ display: active === "cpf" ? "block" : "none" }}>
@@ -319,7 +318,6 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             state={state}
             setState={setState}
             savings={savingsTotals}
-            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
           />
         </div>
         <div style={{ display: active === "year" ? "block" : "none" }}>
@@ -327,7 +325,6 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             state={state}
             setState={setState}
             savings={savingsTotals}
-            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
           />
         </div>
         <div style={{ display: active === "bto" ? "block" : "none" }}>
@@ -353,6 +350,9 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
                     reload: accountsApi.reload,
                   }
                 : undefined
+            }
+            savingsGoals={
+              savingsApi.configured ? savingsApi.bundle.goals : undefined
             }
           />
         </div>

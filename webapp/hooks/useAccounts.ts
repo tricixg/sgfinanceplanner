@@ -73,9 +73,9 @@ export function useAccounts(enabled: boolean) {
       payload: {
         amount: number;
         occurredAt?: string;
-        kind?: "deposit" | "withdrawal";
+        kind?: "deposit" | "withdrawal" | "adjustment";
         note?: string;
-        goalId?: string;
+        goalId?: string | null;
       }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(

@@ -175,12 +175,7 @@ export function budgetProjection(
   let invPot = portfolioInvestmentValue(S) + ilpTotalValue(S);
   let cashPot = resolveDashboardCash(S, savings).cash;
   const monthlySaveEff =
-    savings != null
-      ? effectiveMonthlySave(
-          savings,
-          Boolean(S.prefs?.includeJointSavings)
-        )
-      : monthlySave;
+    savings != null ? effectiveMonthlySave(savings, false) : monthlySave;
   const labels = ["Now"];
   const invSeries = [invPot];
   const cashSeries = [cashPot];

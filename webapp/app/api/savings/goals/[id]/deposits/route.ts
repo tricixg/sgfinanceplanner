@@ -17,7 +17,12 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { user } = auth;
   const { id: goalId } = await params;
 
-  let body: { amount?: number; occurredAt?: string; note?: string };
+  let body: {
+    amount?: number;
+    occurredAt?: string;
+    note?: string;
+    kind?: "deposit" | "withdrawal" | "adjustment";
+  };
   try {
     body = await req.json();
   } catch {
@@ -59,6 +64,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
+  const kind = body.kind ?? (amount > 0 ? "deposit" : "withdrawal");
+  let signedAmount = amount;
+  if (kind === "withdrawal" && signedAmount > 0) signedAmount = -signedAmount;
+  if (kind === "deposit" && signedAmount < 0) signedAmount = -signedAmount;
+
   try {
     const item = await applyTransaction(supabase, {
       userId: user.id,
@@ -66,9 +76,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       accountId,
       poolId,
       goalId,
-      amount: amount > 0 ? amount : amount,
+      amount: signedAmount,
       occurredAt: body.occurredAt,
-      kind: amount > 0 ? "deposit" : "withdrawal",
+      kind,
       note: body.note ?? "Goal savings",
     });
     console.info("[api/savings/goals/deposits] recorded", {

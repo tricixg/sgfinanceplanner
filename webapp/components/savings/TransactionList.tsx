@@ -51,7 +51,7 @@ export function TransactionList({ fetchUrl, refreshKey = 0 }: Props) {
     return <p className="note">Loading history…</p>;
   }
   if (!items.length) {
-    return <p className="note">No deposits recorded yet.</p>;
+    return <p className="note">No transactions yet.</p>;
   }
 
   return (
@@ -64,10 +64,19 @@ export function TransactionList({ fetchUrl, refreshKey = 0 }: Props) {
             borderBottom: "1px solid var(--line)",
           }}
         >
+          <span style={{ textTransform: "capitalize", opacity: 0.85 }}>
+            {tx.kind}
+          </span>
+          {" · "}
           <strong>{tx.amount > 0 ? "+" : ""}{fmt2(tx.amount)}</strong>
           {" · "}
           {formatWhen(tx.occurredAt)}
           {tx.note ? ` — ${tx.note}` : ""}
+          {tx.goalName ? (
+            <span style={{ display: "block", opacity: 0.85, marginTop: 2 }}>
+              Goal: <strong>{tx.goalName}</strong>
+            </span>
+          ) : null}
           {tx.balanceAfter != null ? (
             <span style={{ display: "block", opacity: 0.8 }}>
               Balance after: {fmt2(tx.balanceAfter)}

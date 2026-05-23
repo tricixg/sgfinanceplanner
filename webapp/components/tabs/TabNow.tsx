@@ -1,8 +1,7 @@
 "use client";
 
 import type { DashboardState } from "@/lib/types";
-import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
-import { IncludeJointSavingsToggle } from "@/components/IncludeJointSavingsToggle";
+import type { SavingsSnapshot } from "@/lib/savings/types";
 import {
   buildMonths,
   stableTakeHome,
@@ -24,10 +23,9 @@ type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
-  savingsBundle?: SavingsBundle | null;
 };
 
-export function TabNow({ state: S, setState, savings, savingsBundle }: Props) {
+export function TabNow({ state: S, setState, savings }: Props) {
   const startYm = S.cashflowStartYm;
   const rows = buildMonths(S, startYm, 5, savings);
   const newCash = stableTakeHome(S);
@@ -135,14 +133,6 @@ export function TabNow({ state: S, setState, savings, savingsBundle }: Props) {
 
   return (
     <section className="panel on">
-      {savingsBundle ? (
-        <IncludeJointSavingsToggle
-          state={S}
-          setState={setState}
-          savings={savingsBundle}
-          className="card"
-        />
-      ) : null}
       <div className="ctrl">
         <label>
           Start month

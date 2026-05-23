@@ -19,14 +19,12 @@ import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import type { ChartOptions } from "chart.js";
-import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
-import { IncludeJointSavingsToggle } from "@/components/IncludeJointSavingsToggle";
+import type { SavingsSnapshot } from "@/lib/savings/types";
 
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
-  savingsBundle?: SavingsBundle | null;
 };
 
 function NumInput({
@@ -54,10 +52,10 @@ function priceStale(lastPriceAt?: string): boolean {
   return age > 24 * 60 * 60 * 1000;
 }
 
-export function TabWealth({ state: S, setState, savings, savingsBundle }: Props) {
+export function TabWealth({ state: S, setState, savings }: Props) {
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
-  const { port, invTotal, ilpVal, ilpLocked, personalCash, jointCash } = wealthSummary(
+  const { port, invTotal, ilpVal, ilpLocked, personalCash } = wealthSummary(
     S,
     savings
   );
@@ -228,18 +226,10 @@ export function TabWealth({ state: S, setState, savings, savingsBundle }: Props)
 
   return (
     <section className="panel on">
-      {savingsBundle ? (
-        <IncludeJointSavingsToggle
-          state={S}
-          setState={setState}
-          savings={savingsBundle}
-          className="card"
-        />
-      ) : null}
-      {savings && (personalCash > 0 || jointCash > 0) ? (
-        <p className="note" style={{ marginBottom: 12 }}>
-          Cash in net worth: personal {fmt2(personalCash)}
-          {jointCash > 0 ? ` · joint ${fmt2(jointCash)}` : ""} (balances on Savings tab)
+      {savings && personalCash > 0 ? (
+        <p className="ui-hint" style={{ marginBottom: 12 }}>
+          Net worth cash uses your personal accounts (ME tab). Joint pools stay on Savings
+          &amp; Goals.
         </p>
       ) : null}
       <div className="callout tip">

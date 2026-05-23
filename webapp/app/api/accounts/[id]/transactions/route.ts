@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   let body: {
     amount?: number;
     occurredAt?: string;
-    kind?: "deposit" | "withdrawal";
+    kind?: "deposit" | "withdrawal" | "adjustment";
     note?: string;
     goalId?: string;
   };
@@ -81,9 +81,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const kind = body.kind ?? "deposit";
   let amount = rawAmount;
-  if (body.kind === "withdrawal" && amount > 0) amount = -amount;
-  if (body.kind === "deposit" && amount < 0) amount = -amount;
+  if (kind === "adjustment") {
+    // Signed delta applied as-is.
+  } else if (kind === "withdrawal" && amount > 0) {
+    amount = -amount;
+  } else if (kind === "deposit" && amount < 0) {
+    amount = -amount;
+  }
 
   try {
     const item = await applyTransaction(supabase, {
@@ -91,7 +97,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       accountId,
       amount,
       occurredAt: body.occurredAt,
-      kind: body.kind === "withdrawal" ? "withdrawal" : "deposit",
+      kind,
       note: body.note,
       goalId: body.goalId ?? null,
     });
