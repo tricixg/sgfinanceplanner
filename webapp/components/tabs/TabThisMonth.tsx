@@ -10,21 +10,28 @@ import {
   totalStatementAmount,
 } from "@/lib/finance/calendar";
 import { netWorthSlices, netWorthTotal, wealthSummary } from "@/lib/finance";
+import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { IncludeJointSavingsToggle } from "@/components/IncludeJointSavingsToggle";
 
-type Props = { state: DashboardState };
+type Props = {
+  state: DashboardState;
+  setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
+  savings?: SavingsSnapshot | null;
+  savingsBundle?: SavingsBundle | null;
+};
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function TabThisMonth({ state: S }: Props) {
+export function TabThisMonth({ state: S, setState, savings, savingsBundle }: Props) {
   const [viewYm, setViewYm] = useState(currentYm);
   const [includeCpf, setIncludeCpf] = useState(false);
   const todayYm = currentYm();
   const todayDay = new Date().getDate();
-  const { liab, lnw } = wealthSummary(S);
-  const totalNw = netWorthTotal(S, includeCpf);
-  const nwSlices = netWorthSlices(S, includeCpf);
+  const { liab, lnw, personalCash, jointCash } = wealthSummary(S, savings);
+  const totalNw = netWorthTotal(S, includeCpf, savings);
+  const nwSlices = netWorthSlices(S, includeCpf, savings);
 
   const events = useMemo(
     () => getCalendarEvents(S, viewYm),
@@ -40,6 +47,17 @@ export function TabThisMonth({ state: S }: Props) {
     <section className="panel on">
       <h2>Net worth</h2>
       <div className="card net-worth-card" style={{ marginBottom: 16 }}>
+        {savingsBundle ? (
+          <IncludeJointSavingsToggle
+            state={S}
+            setState={setState}
+            savings={savingsBundle}
+          />
+        ) : null}
+        <p className="note" style={{ marginTop: 8 }}>
+          Personal savings: {fmt2(personalCash)}
+          {jointCash > 0 ? ` · Joint: ${fmt2(jointCash)}` : ""}
+        </p>
         <label className="ctrl">
           <input
             type="checkbox"

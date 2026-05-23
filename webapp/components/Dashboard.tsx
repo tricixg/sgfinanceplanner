@@ -11,6 +11,10 @@ import { TabCards } from "./tabs/TabCards";
 import { TabYear } from "./tabs/TabYear";
 import { TabWealth } from "./tabs/TabWealth";
 import { TabBudgetSavings } from "./tabs/TabBudgetSavings";
+import { TabSavings } from "./tabs/TabSavings";
+import { TabExpenses } from "./tabs/TabExpenses";
+import { useSavings } from "@/hooks/useSavings";
+import { useHousehold } from "@/hooks/useHousehold";
 import { TabBTO } from "./tabs/TabBTO";
 import { TabCPF } from "./tabs/TabCPF";
 import { TabDebt } from "./tabs/TabDebt";
@@ -19,6 +23,8 @@ import { TabMe } from "./tabs/TabMe";
 type TabId =
   | "thisMonth"
   | "budget"
+  | "savings"
+  | "expenses"
   | "debt"
   | "cards"
   | "wealth"
@@ -51,9 +57,20 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
     tabs: [
       {
         id: "budget",
-        label: "Budget & Savings",
+        label: "Budget",
         summary:
-          "Take-home pay vs budget categories, auto-linked loans and insurance, and savings goals.",
+          "Take-home pay vs budget categories; loans and insurance auto-linked from other tabs.",
+      },
+      {
+        id: "savings",
+        label: "Savings & Goals",
+        summary:
+          "Personal and shared savings accounts, goals, and progress (separate from budget).",
+      },
+      {
+        id: "expenses",
+        label: "Expenses",
+        summary: "Private expense log — loaded separately, not with the main dashboard.",
       },
       {
         id: "now",
@@ -118,11 +135,19 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
 
 const TABS = NAV_GROUPS.flatMap((g) => g.tabs);
 
-export function Dashboard() {
+type DashboardProps = {
+  userId?: string;
+  userEmail?: string;
+};
+
+export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
   const [active, setActive] = useState<TabId>("thisMonth");
   const [navOpen, setNavOpen] = useState(false);
   const { state, setState, loading, saveMsg, flash, saveNow, reload } =
-    usePersistedState();
+    usePersistedState(userId);
+  const savingsApi = useSavings(Boolean(userId));
+  const household = useHousehold(Boolean(userId));
+  const savingsTotals = savingsApi.configured ? savingsApi.bundle.totals : null;
   const activeTab = TABS.find((t) => t.id === active) ?? TABS[0];
 
   const handleReset = () => {
@@ -212,10 +237,30 @@ export function Dashboard() {
         </header>
 
         <div style={{ display: active === "thisMonth" ? "block" : "none" }}>
-          <TabThisMonth state={state} />
+          <TabThisMonth
+            state={state}
+            setState={setState}
+            savings={savingsTotals}
+            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
+          />
         </div>
         <div style={{ display: active === "budget" ? "block" : "none" }}>
-          <TabBudgetSavings state={state} setState={setState} />
+          <TabBudgetSavings
+            state={state}
+            setState={setState}
+            savings={savingsTotals}
+            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
+          />
+        </div>
+        <div style={{ display: active === "savings" ? "block" : "none" }}>
+          <TabSavings
+            savings={savingsApi.bundle}
+            configured={savingsApi.configured}
+            onSave={savingsApi.save}
+          />
+        </div>
+        <div style={{ display: active === "expenses" ? "block" : "none" }}>
+          <TabExpenses enabled={Boolean(userId)} />
         </div>
         <div style={{ display: active === "debt" ? "block" : "none" }}>
           <TabDebt state={state} setState={setState} />
@@ -224,16 +269,31 @@ export function Dashboard() {
           <TabCards state={state} setState={setState} />
         </div>
         <div style={{ display: active === "wealth" ? "block" : "none" }}>
-          <TabWealth state={state} setState={setState} />
+          <TabWealth
+            state={state}
+            setState={setState}
+            savings={savingsTotals}
+            savingsBundle={savingsApi.bundle}
+          />
         </div>
         <div style={{ display: active === "cpf" ? "block" : "none" }}>
           <TabCPF state={state} setState={setState} />
         </div>
         <div style={{ display: active === "now" ? "block" : "none" }}>
-          <TabNow state={state} setState={setState} />
+          <TabNow
+            state={state}
+            setState={setState}
+            savings={savingsTotals}
+            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
+          />
         </div>
         <div style={{ display: active === "year" ? "block" : "none" }}>
-          <TabYear state={state} />
+          <TabYear
+            state={state}
+            setState={setState}
+            savings={savingsTotals}
+            savingsBundle={savingsApi.configured ? savingsApi.bundle : null}
+          />
         </div>
         <div style={{ display: active === "bto" ? "block" : "none" }}>
           <TabBTO state={state} setState={setState} />
@@ -246,6 +306,8 @@ export function Dashboard() {
             onSaveNow={saveNow}
             onReset={handleReset}
             saveMsg={saveMsg}
+            userEmail={userEmail}
+            household={household}
           />
         </div>
 

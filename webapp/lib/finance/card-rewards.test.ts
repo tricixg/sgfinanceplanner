@@ -1,9 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { getCatalogEntry } from "@/lib/cards/sg-card-catalog";
 import type { CreditCard } from "@/lib/types";
-import { applyCatalogEntry, recommendCardForSpend } from "./card-rewards";
+import {
+  applyCatalogEntry,
+  normalizeCreditCard,
+  recommendCardForSpend,
+} from "./card-rewards";
 
 describe("card-rewards", () => {
+  it("normalizeCreditCard preserves stable card id", () => {
+    const normalized = normalizeCreditCard({
+      id: "card-abc",
+      name: "DBS Altitude",
+      statementDay: 5,
+      paymentDueDay: 20,
+      statementAmount: 1200,
+      catalogId: "dbs-altitude-visa",
+    });
+    expect(normalized.id).toBe("card-abc");
+  });
+
   it("applyCatalogEntry copies catalog snapshot", () => {
     const entry = getCatalogEntry("dbs-altitude-visa");
     expect(entry).toBeDefined();

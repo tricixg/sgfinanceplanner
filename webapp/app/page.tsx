@@ -1,5 +1,5 @@
-import { PinGate } from "@/components/PinGate";
+import { AuthGate } from "@/components/AuthGate";
 
 export default function Home() {
-  return <PinGate />;
+  return <AuthGate />;
 }

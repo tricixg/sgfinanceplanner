@@ -126,7 +126,13 @@ export type BtoPlannerPrefs = {
   schemes: BTOSchemeSelection;
 };
 
+export type DashboardPrefs = {
+  /** When true, wealth/cashflow/projections include joint savings pools + shared goal contributions. */
+  includeJointSavings?: boolean;
+};
+
 export type DashboardState = {
+  prefs?: DashboardPrefs;
   monthlySal: number;
   comms: number;
   salaryCreditDay: number;

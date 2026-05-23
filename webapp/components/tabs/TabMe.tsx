@@ -8,9 +8,10 @@ import {
   defaultInsurancePolicy,
   defaultSavingsAccount,
 } from "@/lib/finance";
-import { requestAppLock } from "@/lib/auth/pin-client";
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { PartnerCard } from "@/components/PartnerCard";
+import type { useHousehold } from "@/hooks/useHousehold";
 
 type Props = {
   state: DashboardState;
@@ -19,6 +20,8 @@ type Props = {
   onSaveNow: () => void;
   onReset: () => void;
   saveMsg: string;
+  userEmail?: string;
+  household?: ReturnType<typeof useHousehold>;
 };
 
 function NumInput({
@@ -47,11 +50,33 @@ export function TabMe({
   onSaveNow,
   onReset,
   saveMsg,
+  userEmail,
+  household,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
   const [editingAccounts, setEditingAccounts] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const insuranceTotal = computedInsuranceMonthly(S);
+
+  const handleLogout = async () => {
+    setSigningOut(true);
+    try {
+      const res = await fetch("/api/auth/signout", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        console.warn("[TabMe] sign out API failed", res.status);
+      } else {
+        console.info("[TabMe] signed out");
+      }
+    } catch (e) {
+      console.warn("[TabMe] sign out API error", e);
+    } finally {
+      window.location.href = "/login";
+    }
+  };
   const cashTotal = cashAccountsTotal(S);
 
   const patch = <K extends keyof DashboardState>(key: K, val: DashboardState[K]) => {
@@ -150,9 +175,9 @@ export function TabMe({
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Your salary, savings accounts, and non-ILP insurance live here. Account balances
-        total <b>{fmt(cashTotal)}</b> (used for net worth and cashflow). Insurance premiums
-        total <b>{fmt(insuranceTotal)}/mo</b> and flow to <b>Budget &amp; Savings</b>. CPF is on{" "}
+        Your salary and non-ILP insurance live here. When signed in, savings balances are on{" "}
+        <b>Savings &amp; Goals</b>; legacy accounts below still apply if you use browser-only mode.
+        Insurance premiums total <b>{fmt(insuranceTotal)}/mo</b> and flow to <b>Budget</b>. CPF is on{" "}
         <b>CPF Outlook</b>; ILP is on <b>Investment</b>. Changes auto-save to Supabase and this browser.
       </div>
 
@@ -431,6 +456,24 @@ export function TabMe({
       </div>
 
       <h2>Settings</h2>
+      {household ? <PartnerCard household={household} /> : null}
+      {userEmail ? (
+        <div className="card settings-account">
+          <h3 className="settings-account-title">Account</h3>
+          <p className="note" style={{ marginTop: 0, marginBottom: 12 }}>
+            Signed in as <strong>{userEmail}</strong>. Your dashboard syncs to the cloud
+            while you are signed in.
+          </p>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={signingOut}
+            onClick={handleLogout}
+          >
+            {signingOut ? "Signing out…" : "Log out"}
+          </button>
+        </div>
+      ) : null}
       <div className="card">
         <p className="note" style={{ marginTop: 0 }}>
           Export or import your full dashboard JSON. Dummy data fills every tab — salary,
@@ -469,30 +512,6 @@ export function TabMe({
           />
           <span className="save-status">{saveMsg}</span>
         </div>
-        <p className="note" style={{ marginTop: 14, marginBottom: 0 }}>
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={async () => {
-              requestAppLock();
-              try {
-                const res = await fetch("/api/auth/pin", {
-                  method: "DELETE",
-                  credentials: "include",
-                });
-                if (!res.ok) {
-                  console.warn("[TabMe] lock API failed", res.status);
-                }
-              } catch (e) {
-                console.warn("[TabMe] lock API error", e);
-              }
-              window.location.href = "/";
-              console.log("[TabMe] locked app");
-            }}
-          >
-            Lock app (require PIN again)
-          </button>
-        </p>
       </div>
     </section>
   );

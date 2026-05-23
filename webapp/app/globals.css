@@ -986,6 +986,52 @@ footer {
   width: 100%;
 }
 
+.auth-card {
+  max-width: 420px;
+}
+
+.auth-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.auth-mode-tab {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.auth-mode-tab.on {
+  background: var(--accent-soft, rgba(47, 93, 58, 0.12));
+  border-color: var(--accent, #2f5d3a);
+  color: var(--ink);
+}
+
+.auth-label input {
+  font-size: 16px;
+  letter-spacing: normal;
+  text-align: left;
+}
+
+.settings-account {
+  margin-bottom: 16px;
+}
+
+.settings-account-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .pin-title {
   font-size: 32px;
   margin: 8px 0 4px;

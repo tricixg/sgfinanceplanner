@@ -1,6 +1,7 @@
 import type { DashboardState } from "@/lib/types";
+import type { SavingsSnapshot } from "@/lib/savings/types";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
-import { cashAccountsTotal } from "./accounts";
+import { resolveDashboardCash } from "./wealth";
 import { computedInsuranceMonthly } from "./insurance";
 import { computedIlpMonthly } from "./ilp";
 import { formatMonthLabel } from "./helpers";
@@ -40,7 +41,8 @@ function addMonths(ym: string, n: number): string {
 export function buildMonths(
   S: DashboardState,
   startYm: string,
-  count = 5
+  count = 5,
+  savings?: SavingsSnapshot | null
 ): MonthRow[] {
   const income = stableTakeHome(S);
   const fixed = budgetFixedTotal(S);
@@ -59,7 +61,7 @@ export function buildMonths(
     };
   });
 
-  let running = cashAccountsTotal(S);
+  let running = resolveDashboardCash(S, savings).cash;
   return months.map((o) => {
     const loans = loanLoadForMonth(S.loans, o.ym);
     const net = o.income - o.fixed - o.spend - loans - ilpPrem - insurance;
