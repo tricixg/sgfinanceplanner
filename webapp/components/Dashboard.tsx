@@ -120,6 +120,7 @@ const TABS = NAV_GROUPS.flatMap((g) => g.tabs);
 
 export function Dashboard() {
   const [active, setActive] = useState<TabId>("thisMonth");
+  const [navOpen, setNavOpen] = useState(false);
   const { state, setState, loading, saveMsg, flash, saveNow, reload } =
     usePersistedState();
   const activeTab = TABS.find((t) => t.id === active) ?? TABS[0];
@@ -141,13 +142,28 @@ export function Dashboard() {
 
   return (
     <div className="wrap app-layout">
-      <aside className="sidebar" aria-label="Main navigation">
+      {navOpen ? (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label="Close menu"
+          onClick={() => {
+            setNavOpen(false);
+            console.log("[dashboard] nav closed via backdrop");
+          }}
+        />
+      ) : null}
+
+      <aside
+        className={`sidebar ${navOpen ? "sidebar--open" : ""}`}
+        aria-label="Main navigation"
+      >
         <div className="sidebar-brand">
           <div className="kicker">{appConfig.kicker}</div>
           <h1 className="sidebar-title">{appConfig.title}</h1>
           <div className="asof">{appConfig.asOf}</div>
         </div>
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" id="sidebar-nav">
           {NAV_GROUPS.map((group) => (
             <div key={group.category} className="sidebar-group">
               <div className="sidebar-category">{group.category}</div>
@@ -158,6 +174,7 @@ export function Dashboard() {
                   className={`tab sidebar-tab ${active === t.id ? "on" : ""}`}
                   onClick={() => {
                     setActive(t.id);
+                    setNavOpen(false);
                     console.log("[dashboard] tab", t.id, group.category);
                   }}
                 >
@@ -171,8 +188,27 @@ export function Dashboard() {
 
       <div className="app-main">
         <header className="app-main-header">
-          <h2 className="app-main-title">{activeTab.label}</h2>
-          <p className="sub app-main-summary">{activeTab.summary}</p>
+          <button
+            type="button"
+            className="nav-toggle"
+            aria-label={navOpen ? "Close menu" : "Open menu"}
+            aria-expanded={navOpen}
+            aria-controls="sidebar-nav"
+            onClick={() => {
+              setNavOpen((open) => {
+                console.log("[dashboard] nav toggle", !open);
+                return !open;
+              });
+            }}
+          >
+            <span className="nav-toggle-bar" />
+            <span className="nav-toggle-bar" />
+            <span className="nav-toggle-bar" />
+          </button>
+          <div className="app-main-header-text">
+            <h2 className="app-main-title">{activeTab.label}</h2>
+            <p className="sub app-main-summary">{activeTab.summary}</p>
+          </div>
         </header>
 
         <div style={{ display: active === "thisMonth" ? "block" : "none" }}>
