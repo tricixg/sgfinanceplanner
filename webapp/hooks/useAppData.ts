@@ -374,12 +374,30 @@ export function useAppDataProvider(enabled: boolean) {
     ]
   );
 
+  const saveProfile = useCallback(
+    async (patch: Partial<FinanceProfile>) => {
+      setProfileBundle((pb) =>
+        pb
+          ? { ...pb, profile: { ...pb.profile, ...patch } }
+          : {
+              profile: { ...createEmptyState(), ...patch } as FinanceProfile,
+              insurancePolicies: [],
+              ilpPolicies: [],
+            }
+      );
+      await patchProfile(patch);
+      console.info("[useAppData] saveProfile ok", { keys: Object.keys(patch) });
+    },
+    [patchProfile]
+  );
+
   return {
     state,
     setState,
     loading,
     configured,
     reload: load,
+    saveProfile,
     saveLoans,
     saveBudget,
     saveCards,

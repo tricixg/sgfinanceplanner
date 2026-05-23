@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import type { DashboardState, InsurancePolicy } from "@/lib/types";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 import {
   computedInsuranceMonthly,
   defaultInsurancePolicy,
@@ -22,6 +23,7 @@ type Props = {
   userEmail?: string;
   household?: ReturnType<typeof useHousehold>;
   onPartnerUnlinked?: () => void | Promise<void>;
+  onSaveError?: (message: string) => void;
 };
 
 function NumInput({
@@ -53,11 +55,30 @@ export function TabMe({
   userEmail,
   household,
   onPartnerUnlinked,
+  onSaveError,
 }: Props) {
+  const appData = useContext(AppDataContext);
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [savingSalary, setSavingSalary] = useState(false);
+  const [salaryDirty, setSalaryDirty] = useState(false);
+  const [salaryDraft, setSalaryDraft] = useState({
+    monthlySal: S.monthlySal,
+    comms: S.comms,
+    salaryCreditDay: S.salaryCreditDay,
+  });
   const insuranceTotal = computedInsuranceMonthly(S);
+
+  useEffect(() => {
+    if (!salaryDirty) {
+      setSalaryDraft({
+        monthlySal: S.monthlySal,
+        comms: S.comms,
+        salaryCreditDay: S.salaryCreditDay,
+      });
+    }
+  }, [S.monthlySal, S.comms, S.salaryCreditDay, salaryDirty]);
 
   const handleLogout = async () => {
     setSigningOut(true);
@@ -81,6 +102,31 @@ export function TabMe({
   const patch = <K extends keyof DashboardState>(key: K, val: DashboardState[K]) => {
     setState((prev) => ({ ...prev, [key]: val }));
     console.log("[TabMe] patched", key, val);
+  };
+
+  const saveSalary = async () => {
+    setSavingSalary(true);
+    try {
+      if (appData?.configured) {
+        await appData.saveProfile({
+        monthlySal: salaryDraft.monthlySal,
+        comms: salaryDraft.comms,
+        salaryCreditDay: salaryDraft.salaryCreditDay,
+        });
+        console.info("[TabMe] salary saved to profile", salaryDraft);
+      } else {
+        setState((prev) => ({ ...prev, ...salaryDraft }));
+        console.info("[TabMe] salary saved to local state", salaryDraft);
+      }
+      setSalaryDirty(false);
+      onSaveNow();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to save salary";
+      console.error("[TabMe] salary save failed", e);
+      onSaveError?.(msg);
+    } finally {
+      setSavingSalary(false);
+    }
   };
 
   const updatePolicy = (i: number, patchPolicy: Partial<InsurancePolicy>) => {
@@ -153,10 +199,21 @@ export function TabMe({
         Your salary and non-ILP insurance live here. When signed in, savings balances are on{" "}
         <b>Savings &amp; Goals</b>; legacy accounts below still apply if you use browser-only mode.
         Insurance premiums total <b>{fmt(insuranceTotal)}/mo</b> and flow to <b>Budget</b>. CPF is on{" "}
-        <b>CPF Outlook</b>; ILP is on <b>Investment</b>. Changes auto-save to Supabase and this browser.
+        <b>CPF Outlook</b>; ILP is on <b>Investment</b>. Use <b>Save</b> below for salary and comms;
+        other ME settings auto-save when signed in.
       </div>
 
-      <h2>Salary</h2>
+      <div className="section-head">
+        <h2>Salary</h2>
+        <button
+          type="button"
+          className="btn sm"
+          disabled={!salaryDirty || savingSalary}
+          onClick={() => void saveSalary()}
+        >
+          {savingSalary ? "Saving…" : "Save"}
+        </button>
+      </div>
       <div className="card">
         <div className="editrow head">
           <span>Item</span>
@@ -167,14 +224,26 @@ export function TabMe({
         </div>
         <div className="editrow">
           <span>Monthly gross salary</span>
-          <NumInput value={S.monthlySal} onChange={(v) => patch("monthlySal", v)} />
+          <NumInput
+            value={salaryDraft.monthlySal}
+            onChange={(v) => {
+              setSalaryDraft((d) => ({ ...d, monthlySal: v }));
+              setSalaryDirty(true);
+            }}
+          />
           <span></span>
           <span></span>
           <span></span>
         </div>
         <div className="editrow">
           <span>Comms allowance / mo (non-CPF)</span>
-          <NumInput value={S.comms} onChange={(v) => patch("comms", v)} />
+          <NumInput
+            value={salaryDraft.comms}
+            onChange={(v) => {
+              setSalaryDraft((d) => ({ ...d, comms: v }));
+              setSalaryDirty(true);
+            }}
+          />
           <span></span>
           <span></span>
           <span></span>
@@ -182,10 +251,14 @@ export function TabMe({
         <div className="editrow">
           <span>Salary credit day (1–31)</span>
           <NumInput
-            value={S.salaryCreditDay}
-            onChange={(v) =>
-              patch("salaryCreditDay", Math.min(31, Math.max(1, Math.round(v))))
-            }
+            value={salaryDraft.salaryCreditDay}
+            onChange={(v) => {
+              setSalaryDraft((d) => ({
+                ...d,
+                salaryCreditDay: Math.min(31, Math.max(1, Math.round(v))),
+              }));
+              setSalaryDirty(true);
+            }}
           />
           <span></span>
           <span></span>

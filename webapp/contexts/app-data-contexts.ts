@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext } from "react";
+import type { FinanceProfile } from "@/lib/profile/load";
 import type { DashboardState } from "@/lib/types";
 import type {
   AccountsBundle,
@@ -21,6 +22,7 @@ export type AppDataContextValue = {
   loading: boolean;
   configured: boolean;
   reload: () => Promise<void>;
+  saveProfile: (patch: Partial<FinanceProfile>) => Promise<void>;
   saveLoans: (next: DashboardState["loans"]) => Promise<void>;
   saveBudget: (next: DashboardState["budget"]) => Promise<void>;
   saveCards: (next: DashboardState["creditCards"]) => Promise<void>;

@@ -25,6 +25,11 @@ function MeContent({
     setTimeout(() => setSaveMsg(""), 2500);
   }, []);
 
+  const flashError = useCallback((msg: string) => {
+    setSaveMsg(msg);
+    setTimeout(() => setSaveMsg(""), 4000);
+  }, []);
+
   const handleReset = () => {
     setState(createEmptyState());
     flash("Reset to blank (all zeros)");
@@ -41,7 +46,8 @@ function MeContent({
       state={state}
       setState={setState}
       onApply={() => flash("Charts updated")}
-      onSaveNow={() => flash("Saved")}
+      onSaveNow={() => flash("Salary saved")}
+      onSaveError={flashError}
       onReset={handleReset}
       saveMsg={saveMsg}
       userEmail={user?.email ?? undefined}
