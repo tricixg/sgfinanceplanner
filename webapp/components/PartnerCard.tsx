@@ -66,6 +66,11 @@ export function PartnerCard({ household }: { household: HouseholdApi }) {
     (i) => i.status === "pending"
   );
   const pendingSent = household.sentInvites.filter((i) => i.status === "pending");
+  const partner = household.members.find((m) => !m.isYou);
+  const partnerEmail =
+    partner?.email?.trim() ||
+    household.sentInvites.find((i) => i.status === "accepted")?.inviteeEmail?.trim() ||
+    null;
 
   return (
     <div className="card settings-account">
@@ -119,8 +124,13 @@ export function PartnerCard({ household }: { household: HouseholdApi }) {
 
       {household.paired ? (
         <p className="note" style={{ marginTop: 0 }}>
-          You are linked with a partner. Shared savings pools and shared goals are available on
-          the Savings tab.
+          You are linked with{" "}
+          {partnerEmail ? (
+            <strong>{partnerEmail}</strong>
+          ) : (
+            "your partner"
+          )}
+          . Shared savings pools and shared goals are available on the Savings tab.
         </p>
       ) : (
         <>

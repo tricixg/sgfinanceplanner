@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
-import { enrichInviterEmails } from "@/lib/household/invite-emails";
+import { enrichInviterEmails, lookupUserEmails } from "@/lib/household/invite-emails";
 import { mapInvite } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -48,6 +48,19 @@ export async function GET() {
 
   const paired = (members?.length ?? 0) > 1;
 
+  const memberRows = (members ?? []).map((m) => ({
+    userId: m.user_id,
+    role: m.role,
+    joinedAt: m.joined_at,
+    isYou: m.user_id === user.id,
+    email: null as string | null,
+  }));
+  const memberEmails = await lookupUserEmails(memberRows.map((m) => m.userId));
+  const membersWithEmail = memberRows.map((m) => ({
+    ...m,
+    email: memberEmails.get(m.userId) ?? null,
+  }));
+
   const sent = await enrichInviterEmails((sentInvites ?? []).map((r) => mapInvite(r)));
   const received = await enrichInviterEmails(
     (receivedInvites ?? []).map((r) => mapInvite(r))
@@ -65,12 +78,7 @@ export async function GET() {
     configured: true,
     householdId,
     paired,
-    members: (members ?? []).map((m) => ({
-      userId: m.user_id,
-      role: m.role,
-      joinedAt: m.joined_at,
-      isYou: m.user_id === user.id,
-    })),
+    members: membersWithEmail,
     sentInvites: sent,
     receivedInvites: received,
   });

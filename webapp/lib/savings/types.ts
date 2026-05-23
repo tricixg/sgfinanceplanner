@@ -56,6 +56,8 @@ export type HouseholdMember = {
   userId: string;
   role: string;
   email: string | null;
+  joinedAt?: string;
+  isYou?: boolean;
 };
 
 export type PartnerInvite = {
