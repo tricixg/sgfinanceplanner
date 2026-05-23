@@ -9,14 +9,15 @@ export function SavingsRoute() {
   const user = useAppSession();
   const { savingsApi, accountsApi } = usePageSavings(user?.id, createEmptyState());
 
-  if (!user?.id) {
-    return <p className="note">Sign in to manage savings.</p>;
+  if (!user?.id || savingsApi.loading) {
+    return <p className="loading">Loading your financial data…</p>;
   }
 
   return (
     <TabSavings
       savings={savingsApi.bundle}
       configured={savingsApi.configured}
+      loading={savingsApi.loading}
       personalAccounts={accountsApi.configured ? accountsApi.accounts : []}
       savePools={savingsApi.savePools}
       saveGoals={savingsApi.saveGoals}

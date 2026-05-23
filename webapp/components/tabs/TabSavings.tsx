@@ -18,6 +18,7 @@ import { useSnackbar } from "@/hooks/useSnackbar";
 type Props = {
   savings: SavingsBundle;
   configured: boolean;
+  loading?: boolean;
   personalAccounts: UserSavingsAccount[];
   savePools: (pools: SavingsPool[]) => Promise<void>;
   saveGoals: (goals: SavingsGoal[]) => Promise<void>;
@@ -53,6 +54,7 @@ function NumInput({
 export function TabSavings({
   savings,
   configured,
+  loading = false,
   personalAccounts,
   savePools,
   saveGoals,
@@ -111,13 +113,10 @@ export function TabSavings({
     }
   };
 
-  if (!configured) {
+  if (loading || !configured) {
     return (
       <section className="panel on">
-        <p className="note">
-          Sign in with Supabase to use shared pools and goals. Personal cash accounts
-          are on the <b>ME</b> tab.
-        </p>
+        <p className="loading">Loading your financial data…</p>
       </section>
     );
   }

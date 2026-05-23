@@ -301,6 +301,7 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
           <TabSavings
             savings={savingsApi.bundle}
             configured={savingsApi.configured}
+            loading={savingsApi.loading}
             personalAccounts={accountsApi.configured ? accountsApi.accounts : []}
             savePools={savingsApi.savePools}
             saveGoals={savingsApi.saveGoals}

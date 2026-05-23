@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { SavingsPool } from "@/lib/savings/types";
@@ -238,22 +237,12 @@ export function TransactionsHistoryPage() {
   };
 
   return (
-    <div className="wrap">
-      <header style={{ marginBottom: 20 }}>
-        <Link href="/this-month" className="note" style={{ display: "inline-block", marginBottom: 8 }}>
-          ← Back to dashboard
-        </Link>
-        <h1 style={{ margin: "0 0 6px", fontSize: 22 }}>Transaction history</h1>
-        <p className="sub" style={{ margin: 0 }}>
-          Savings ledger moves and budget imports (expenses, subscriptions, income) across cash
-          accounts and credit cards.
+    <>
+      {filterLabel ? (
+        <p className="note" style={{ marginBottom: 12 }}>
+          Showing: <strong>{filterLabel}</strong>
         </p>
-        {filterLabel ? (
-          <p className="note" style={{ marginTop: 8 }}>
-            Showing: <strong>{filterLabel}</strong>
-          </p>
-        ) : null}
-      </header>
+      ) : null}
 
       <div
         className="toolbar"
@@ -468,6 +457,6 @@ export function TransactionsHistoryPage() {
           </p>
         ) : null}
       </section>
-    </div>
+    </>
   );
 }
