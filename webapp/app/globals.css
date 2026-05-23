@@ -1020,6 +1020,18 @@ footer {
   text-align: left;
 }
 
+.settings-account {
+  margin-bottom: 16px;
+}
+
+.settings-account-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .pin-title {
   font-size: 32px;
   margin: 8px 0 4px;

@@ -2,7 +2,8 @@ import type { DashboardState } from "@/lib/types";
 import { ALLOC_MA, ALLOC_OA, ALLOC_SA, cpfEmp, cpfTotal } from "./cpf";
 import { stableTakeHome } from "./cashflow";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
-import { cashAccountsTotal } from "./accounts";
+import type { SavingsSnapshot } from "@/lib/savings/types";
+import { resolveDashboardCash } from "./wealth";
 import { ilpTotalValue } from "./ilp";
 import { portfolioInvestmentValue } from "./wealth";
 import { monIdx } from "./helpers";
@@ -28,7 +29,8 @@ export type ProjectionParams = {
 
 export function simulate5y(
   S: DashboardState,
-  params: ProjectionParams
+  params: ProjectionParams,
+  savings?: SavingsSnapshot | null
 ): ProjectionRow[] {
   const growth = params.growth / 100;
   const invAdd = params.invAdd;
@@ -38,7 +40,7 @@ export function simulate5y(
   let sa = S.sa;
   let ma = S.ma;
   let inv = ilpTotalValue(S) + portfolioInvestmentValue(S);
-  let cash = cashAccountsTotal(S);
+  let cash = resolveDashboardCash(S, savings).cash;
   let margin = useMargin ? S.margin : 0;
   let sal = S.monthlySal;
   const loanState = S.loans.map((l) => ({ ...l, bal: l.out }));

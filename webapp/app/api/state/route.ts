@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { stripSaveBudgetLines } from "@/lib/finance/budget";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
-import { createClient } from "@/lib/supabase/server";
+import { ensureUserHousehold } from "@/lib/household/bootstrap";
+import {
+  migrateSavingsFromDashboardJson,
+  needsSavingsMigration,
+} from "@/lib/savings/migrate-from-dashboard";
+import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import {
   isPersistedDashboardSnapshot,
@@ -22,7 +28,7 @@ export async function GET() {
   if ("response" in auth) return auth.response;
   const { user } = auth;
 
-  const supabase = await createClient();
+  const supabase = await createAuthedSupabaseClient();
   const { data: row, error } = await supabase
     .from("dashboard_state")
     .select("data, updated_at")
@@ -37,9 +43,30 @@ export async function GET() {
   const raw = row?.data;
   const hasData = isPersistedDashboardSnapshot(raw);
 
-  const state = hasData
+  let state = hasData
     ? mergeWithDefaults(raw as Partial<ReturnType<typeof createEmptyState>>)
     : createEmptyState();
+
+  await ensureUserHousehold(supabase, user.id);
+
+  if (hasData && needsSavingsMigration(raw)) {
+    const migrated = await migrateSavingsFromDashboardJson(
+      supabase,
+      user.id,
+      state
+    );
+    state = mergeWithDefaults(migrated);
+    const { error: migErr } = await supabase.from("dashboard_state").upsert({
+      user_id: user.id,
+      data: state,
+      updated_at: new Date().toISOString(),
+    });
+    if (migErr) {
+      console.error("[api/state] migration persist failed", migErr.message);
+    } else {
+      console.info("[api/state] savings v1 migration persisted", { userId: user.id });
+    }
+  }
 
   const payloadSize = JSON.stringify(state).length;
   console.info("[api/state] GET ok", {
@@ -104,10 +131,17 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Invalid dashboard state" }, { status: 400 });
   }
 
-  const state = mergeWithDefaults(incoming);
+  const merged = mergeWithDefaults(incoming);
+  const state = {
+    ...merged,
+    accounts: [],
+    goals: [],
+    budget: stripSaveBudgetLines(merged.budget),
+  };
   const payloadSize = JSON.stringify(state).length;
 
-  const supabase = await createClient();
+  const supabase = await createAuthedSupabaseClient();
+  await ensureUserHousehold(supabase, user.id);
   const { data: row, error } = await supabase
     .from("dashboard_state")
     .upsert({

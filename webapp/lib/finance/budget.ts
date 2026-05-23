@@ -1,5 +1,7 @@
 import type { BudgetItem, DashboardState } from "@/lib/types";
-import { cashAccountsTotal } from "./accounts";
+import type { SavingsSnapshot } from "@/lib/savings/types";
+import { effectiveMonthlySave } from "./savings-totals";
+import { resolveDashboardCash } from "./wealth";
 import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
 import { stableTakeHome } from "./income";
@@ -31,9 +33,13 @@ export function defaultBudgetTemplate(): BudgetItem[] {
     { cat: "Family allowance", amt: 0, type: "fixed" },
     { cat: "Household", amt: 0, type: "fixed" },
     { cat: "Living & variable spend", amt: 0, type: "spend" },
-    { cat: "Emergency / cash savings", amt: 0, type: "save" },
     { cat: "Investing", amt: 0, type: "invest" },
   ];
+}
+
+/** Savings moved to Savings tab — strip legacy save lines from budget. */
+export function stripSaveBudgetLines(items: BudgetItem[]): BudgetItem[] {
+  return items.filter((b) => b.type !== "save");
 }
 
 export function budgetFixedTotal(S: DashboardState): number {
@@ -94,14 +100,16 @@ type LegacyBudgetSaved = {
 
 export function migrateBudget(saved: LegacyBudgetSaved): BudgetItem[] {
   if (saved.budget?.length) {
-    const migrated = saved.budget
-      .map((b) => normalizeBudgetItem(b))
-      .filter(
-        (b) =>
-          !isIlpBudgetCategory(b.cat) &&
-          !isInsuranceBudgetCategory(b.cat) &&
-          !isDebtBudgetCategory(b.cat)
-      );
+    const migrated = stripSaveBudgetLines(
+      saved.budget
+        .map((b) => normalizeBudgetItem(b))
+        .filter(
+          (b) =>
+            !isIlpBudgetCategory(b.cat) &&
+            !isInsuranceBudgetCategory(b.cat) &&
+            !isDebtBudgetCategory(b.cat)
+        )
+    );
     const dropped = saved.budget.length - migrated.length;
     if (dropped > 0) {
       console.log("[budget] migrateBudget dropped duplicate computed lines", dropped);
@@ -160,11 +168,19 @@ export function budgetProjection(
   monthlyInv: number,
   monthlySave: number,
   retPct: number,
-  yrs: number
+  yrs: number,
+  savings?: SavingsSnapshot | null
 ) {
   const ret = retPct / 100;
   let invPot = portfolioInvestmentValue(S) + ilpTotalValue(S);
-  let cashPot = cashAccountsTotal(S);
+  let cashPot = resolveDashboardCash(S, savings).cash;
+  const monthlySaveEff =
+    savings != null
+      ? effectiveMonthlySave(
+          savings,
+          Boolean(S.prefs?.includeJointSavings)
+        )
+      : monthlySave;
   const labels = ["Now"];
   const invSeries = [invPot];
   const cashSeries = [cashPot];
@@ -173,7 +189,7 @@ export function budgetProjection(
   for (let y = 1; y <= yrs; y++) {
     for (let m = 0; m < 12; m++) {
       invPot = invPot * (1 + ret / 12) + monthlyInv;
-      cashPot += monthlySave;
+      cashPot += monthlySaveEff;
     }
     labels.push("Y" + y);
     invSeries.push(invPot);

@@ -1,0 +1,71 @@
+import type {
+  Expense,
+  PartnerInvite,
+  SavingsGoal,
+  SavingsPool,
+  UserSavingsAccount,
+} from "@/lib/savings/types";
+
+export function mapAccount(row: Record<string, unknown>): UserSavingsAccount {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    name: String(row.name ?? ""),
+    balance: Number(row.balance ?? 0),
+    notes: String(row.notes ?? ""),
+    sortOrder: Number(row.sort_order ?? 0),
+  };
+}
+
+export function mapPool(row: Record<string, unknown>): SavingsPool {
+  return {
+    id: String(row.id),
+    householdId: String(row.household_id),
+    name: String(row.name ?? ""),
+    balance: Number(row.balance ?? 0),
+    notes: String(row.notes ?? ""),
+    sortOrder: Number(row.sort_order ?? 0),
+  };
+}
+
+export function mapGoal(row: Record<string, unknown>): SavingsGoal {
+  return {
+    id: String(row.id),
+    scope: row.scope === "shared" ? "shared" : "individual",
+    ownerUserId: row.owner_user_id ? String(row.owner_user_id) : null,
+    householdId: row.household_id ? String(row.household_id) : null,
+    name: String(row.name ?? ""),
+    targetAmount: Number(row.target_amount ?? 0),
+    savedAmount: Number(row.saved_amount ?? 0),
+    targetDate: row.target_date ? String(row.target_date) : null,
+    monthlyContribution: Number(row.monthly_contribution ?? 0),
+    whereLabel: String(row.where_label ?? ""),
+    linkedAccountId: row.linked_account_id ? String(row.linked_account_id) : null,
+    linkedPoolId: row.linked_pool_id ? String(row.linked_pool_id) : null,
+    sortOrder: Number(row.sort_order ?? 0),
+  };
+}
+
+export function mapExpense(row: Record<string, unknown>): Expense {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    amount: Number(row.amount ?? 0),
+    category: String(row.category ?? ""),
+    spentAt: String(row.spent_at),
+    note: String(row.note ?? ""),
+    createdAt: String(row.created_at),
+  };
+}
+
+export function mapInvite(row: Record<string, unknown>): PartnerInvite {
+  return {
+    id: String(row.id),
+    householdId: String(row.household_id),
+    inviterId: String(row.inviter_id),
+    inviterEmail: row.inviter_email ? String(row.inviter_email) : null,
+    inviteeEmail: String(row.invitee_email),
+    status: String(row.status),
+    createdAt: String(row.created_at),
+  };
+}

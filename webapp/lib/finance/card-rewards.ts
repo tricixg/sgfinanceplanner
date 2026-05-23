@@ -133,6 +133,7 @@ export function recommendCardForSpend(
 
 export function normalizeCreditCard(raw: Partial<CreditCard>): CreditCard {
   const base: CreditCard = {
+    id: raw.id,
     name: raw.name ?? "New card",
     statementDay: raw.statementDay ?? 1,
     paymentDueDay: raw.paymentDueDay ?? 21,

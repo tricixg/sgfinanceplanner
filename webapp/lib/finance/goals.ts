@@ -1,5 +1,16 @@
-import type { DashboardState } from "@/lib/types";
+import type { DashboardState, Goal } from "@/lib/types";
+import type { SavingsGoal } from "@/lib/savings/types";
 import { monIdx } from "./helpers";
+
+export function goalsFromSavingsGoals(goals: SavingsGoal[]): Goal[] {
+  return goals.map((g) => ({
+    name: g.name,
+    target: g.targetAmount,
+    saved: g.savedAmount,
+    by: g.targetDate?.slice(0, 7) ?? "2028-01",
+    where: g.whereLabel,
+  }));
+}
 
 const NOW_YM = "2026-05";
 

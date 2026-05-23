@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import type { BudgetItem, DashboardState, Goal } from "@/lib/types";
+import type { BudgetItem, DashboardState } from "@/lib/types";
 import {
   budgetProjection,
   budgetVerdict,
-  goalsSummary,
   monthlyInvestContribution,
-  monthlySaveContribution,
   stableTakeHome,
 } from "@/lib/finance";
+import { effectiveMonthlySave } from "@/lib/finance/savings-totals";
+import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { IncludeJointSavingsToggle } from "@/components/IncludeJointSavingsToggle";
 import {
   COMPUTED_DEBT_LABEL,
   budgetBalanceLabel,
@@ -26,6 +27,8 @@ import {
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
+  savings?: SavingsSnapshot | null;
+  savingsBundle?: SavingsBundle | null;
 };
 
 function NumInput({
@@ -47,12 +50,11 @@ function NumInput({
   );
 }
 
-const BUDGET_TYPES: BudgetItem["type"][] = ["fixed", "spend", "save", "invest"];
+const BUDGET_TYPES: BudgetItem["type"][] = ["fixed", "spend", "invest"];
 
 const palette: Record<string, string> = {
   fixed: "#a89a76",
   spend: "#c08a2e",
-  save: "#3d6b8e",
   invest: "#2f5d3a",
 };
 
@@ -63,22 +65,29 @@ const TYPE_TAG: Record<BudgetItem["type"], string> = {
   invest: "t-live",
 };
 
-export function TabBudgetSavings({ state: S, setState }: Props) {
+export function TabBudgetSavings({
+  state: S,
+  setState,
+  savings,
+  savingsBundle,
+}: Props) {
   const [budRet, setBudRet] = useState(6);
   const [budYrs, setBudYrs] = useState(10);
   const [editingAllocation, setEditingAllocation] = useState(false);
-  const [editingGoals, setEditingGoals] = useState(false);
 
   const income = stableTakeHome(S);
   const debt = computedDebtMonthly(S);
   const insurancePrem = computedInsuranceMonthly(S);
   const ilpPrem = computedIlpMonthly(S);
-  const { alloc, left, invPct, savePct } = budgetVerdict(S);
+  const { alloc, left, invPct } = budgetVerdict(S);
   const monthlyInv = monthlyInvestContribution(S);
-  const monthlySave = monthlySaveContribution(S);
-  const proj = budgetProjection(S, monthlyInv, monthlySave, budRet, budYrs);
-  const { rows, totT, totS, totMonthly } = goalsSummary(S);
-  const invSave = monthlyInv + monthlySave;
+  const includeJoint = Boolean(S.prefs?.includeJointSavings);
+  const monthlySave =
+    savings != null
+      ? effectiveMonthlySave(savings, includeJoint)
+      : 0;
+  const proj = budgetProjection(S, monthlyInv, monthlySave, budRet, budYrs, savings);
+  const budgetLines = S.budget.filter((b) => b.type !== "save");
   const balanceLbl = budgetBalanceLabel(left);
 
   const updateBudget = (i: number, patchItem: Partial<BudgetItem>) => {
@@ -116,39 +125,6 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
     console.log("[TabBudgetSavings] initialized budget template");
   };
 
-  const updateGoal = (i: number, key: keyof Goal, val: string | number) => {
-    setState((prev) => ({
-      ...prev,
-      goals: prev.goals.map((g, j) => (j === i ? { ...g, [key]: val } : g)),
-    }));
-    console.log("[TabBudgetSavings] updated goal", i, key, val);
-  };
-
-  const addGoal = () => {
-    setState((prev) => ({
-      ...prev,
-      goals: [
-        ...prev.goals,
-        {
-          name: "New goal",
-          target: 5000,
-          saved: 0,
-          by: "2028-01",
-          where: "Savings account",
-        },
-      ],
-    }));
-    console.log("[TabBudgetSavings] added goal");
-  };
-
-  const removeGoal = (i: number) => {
-    setState((prev) => ({
-      ...prev,
-      goals: prev.goals.filter((_, j) => j !== i),
-    }));
-    console.log("[TabBudgetSavings] removed goal", i);
-  };
-
   let verdict = "";
   if (Math.abs(left) > 20) {
     verdict =
@@ -158,23 +134,19 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
   } else {
     verdict = "Balanced plan. ";
   }
-  verdict += ` Directing ${invPct.toFixed(0)}% to investing and ${savePct.toFixed(0)}% to savings.`;
-
-  let glVerdict: string;
-  if (totMonthly <= invSave) {
-    glVerdict = `Goals need ${fmt(totMonthly)}/month; budget directs ${fmt(invSave)}/month — covered with ${fmt(invSave - totMonthly)} spare.`;
-  } else {
-    glVerdict = `Shortfall of ${fmt(totMonthly - invSave)}/month vs saving+investing allocation.`;
+  if (monthlySave > 0) {
+    verdict += ` Goal contributions total ${fmt(monthlySave)}/month (Savings tab).`;
   }
+  verdict += ` Directing ${invPct.toFixed(0)}% of take-home to investing via budget lines.`;
 
-  const allocationChart = S.budget.length > 0 && (
+  const allocationChart = budgetLines.length > 0 && (
     <ChartBox
       type="doughnut"
       data={{
-        labels: S.budget.map((b) => b.cat?.trim() || "Unnamed"),
+        labels: budgetLines.map((b) => b.cat?.trim() || "Unnamed"),
         datasets: [{
-          data: S.budget.map((b) => b.amt),
-          backgroundColor: S.budget.map((b) => palette[b.type] ?? "#999"),
+          data: budgetLines.map((b) => b.amt),
+          backgroundColor: budgetLines.map((b) => palette[b.type] ?? "#999"),
           borderColor: "#fffdf6",
           borderWidth: 2,
         }],
@@ -194,10 +166,19 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Click <b>Edit</b> to change categories. Cash balances live on <b>ME</b> (savings
-        accounts). Loans, insurance, and ILP premiums are auto from <b>Debts &amp; Loans</b>,{" "}
-        <b>ME</b>, and <b>Investment</b>.
+        Click <b>Edit</b> to change categories. Savings accounts and goals live on{" "}
+        <b>Savings &amp; Goals</b>. Loans, insurance, and ILP premiums are auto from{" "}
+        <b>Debts &amp; Loans</b>, <b>ME</b>, and <b>Investment</b>.
       </div>
+
+      {savingsBundle ? (
+        <IncludeJointSavingsToggle
+          state={S}
+          setState={setState}
+          savings={savingsBundle}
+          className="card"
+        />
+      ) : null}
 
       <div className="grid g3">
         <div className="stat accent">
@@ -516,219 +497,12 @@ export function TabBudgetSavings({ state: S, setState }: Props) {
         </div>
       </div>
 
-      <div className="grid g3" style={{ marginTop: 8 }}>
-        <div className="stat accent">
-          <div className="lbl">Total savings target</div>
-          <div className="val">{fmt(totT)}</div>
-        </div>
-        <div className="stat">
-          <div className="lbl">Goal progress (tracked)</div>
-          <div className="val">{fmt(totS)}</div>
-          <div className="note">Cash balances are on ME tab</div>
-        </div>
-        <div className="stat warn">
-          <div className="lbl">Still to save</div>
-          <div className="val">{fmt(Math.max(0, totT - totS))}</div>
-        </div>
-      </div>
-
-      <div className="section-head">
-        <h2>Savings goals</h2>
-        {editingGoals ? (
-          <button
-            type="button"
-            className="btn sm"
-            onClick={() => {
-              setEditingGoals(false);
-              console.log("[TabBudgetSavings] goals edit off");
-            }}
-          >
-            Done
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingGoals(true);
-              console.log("[TabBudgetSavings] goals edit on");
-            }}
-          >
-            Edit
-          </button>
-        )}
-      </div>
-
-      {editingGoals ? (
-        <div className="card">
-          <table>
-            <thead>
-              <tr>
-                <th>Goal</th>
-                <th>Target</th>
-                <th>Progress</th>
-                <th>By</th>
-                <th>Where</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {S.goals.map((g, i) => (
-                <tr key={i}>
-                  <td>
-                    <input
-                      type="text"
-                      value={g.name}
-                      onChange={(ev) => updateGoal(i, "name", ev.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={g.target}
-                      onChange={(ev) => updateGoal(i, "target", +ev.target.value)}
-                      style={{ width: 90 }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={g.saved}
-                      onChange={(ev) => updateGoal(i, "saved", +ev.target.value)}
-                      style={{ width: 80 }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={g.by}
-                      onChange={(ev) => updateGoal(i, "by", ev.target.value)}
-                      style={{ width: 90 }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={g.where}
-                      onChange={(ev) => updateGoal(i, "where", ev.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn del sm"
-                      onClick={() => removeGoal(i)}
-                    >
-                      del
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="toolbar">
-            <button type="button" className="btn ghost sm" onClick={addGoal}>
-              + Add goal
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="card">
-          {S.goals.length === 0 ? (
-            <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-              No savings goals. Click Edit to add one.
-            </p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Goal</th>
-                  <th>Target</th>
-                  <th>Progress</th>
-                  <th>Gap</th>
-                  <th>By</th>
-                  <th>Need / mo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((g, i) => (
-                  <tr key={i}>
-                    <td>{g.name}</td>
-                    <td className="num">{fmt(g.target)}</td>
-                    <td className="num">{fmt(g.saved)}</td>
-                    <td className={`num ${g.gap > 0 ? "neg" : "pos"}`}>
-                      {g.gap > 0 ? fmt(g.gap) : "done"}
-                    </td>
-                    <td className="num">{g.by}</td>
-                    <td className="num">
-                      <b>{fmt(g.need)}</b>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      <div className="split">
-        <div className="card">
-          <ChartBox
-            type="bar"
-            data={{
-              labels: S.goals.map((g) =>
-                g.name.length > 22 ? g.name.slice(0, 20) + "…" : g.name
-              ),
-              datasets: [
-                {
-                  label: "Progress",
-                  data: S.goals.map((g) => g.saved),
-                  backgroundColor: "#2f5d3a",
-                  stack: "a",
-                },
-                {
-                  label: "Needed",
-                  data: S.goals.map((g) => Math.max(0, g.target - g.saved)),
-                  backgroundColor: "#d8cfb4",
-                  stack: "a",
-                },
-              ],
-            }}
-            options={{
-              indexAxis: "y",
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
-              scales: {
-                x: {
-                  stacked: true,
-                  grid: { color: "#e6dfca" },
-                  ticks: { callback: (v) => "$" + (Number(v) / 1000).toFixed(0) + "k" },
-                },
-                y: { stacked: true, grid: { display: false } },
-              },
-            }}
-            height={260}
-          />
-        </div>
-        <div className="card">
-          {rows.map((g) => (
-            <div className="minirow" key={g.name}>
-              <span className="k">{g.name}</span>
-              <span className="v">{fmt(g.need)}/mo</span>
-            </div>
-          ))}
-          <div className="minirow tot">
-            <span className="k">Total / month</span>
-            <span className="v">{fmt(totMonthly)}</span>
-          </div>
-          <div className="callout" style={{ marginTop: 12, marginBottom: 0 }}>
-            <span className="ico" style={{ color: "var(--gold)" }}>
-              Reality check
-            </span>
-            {glVerdict}
-          </div>
-        </div>
+      <div className="callout tip" style={{ marginTop: 16 }}>
+        <span className="ico">Savings</span>
+        Track accounts, shared pools, and goals on the <b>Savings &amp; Goals</b> tab.
+        {monthlySave > 0
+          ? ` Projections above assume ${fmt(monthlySave)}/month from goal contributions.`
+          : ""}
       </div>
     </section>
   );

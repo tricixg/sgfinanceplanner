@@ -7,6 +7,9 @@ import { fetchJson } from "@/lib/fetch-json";
 
 type SessionUser = { id: string; email: string | null };
 
+const devBypass =
+  process.env.NEXT_PUBLIC_AUTH_BYPASS_DEV === "true";
+
 export function AuthGate() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
@@ -52,6 +55,7 @@ export function AuthGate() {
 
   useEffect(() => {
     if (checking || checkFailed || !configured || user) return;
+    if (devBypass) return;
     const next = encodeURIComponent(
       typeof window !== "undefined"
         ? `${window.location.pathname}${window.location.search}`
@@ -90,7 +94,7 @@ export function AuthGate() {
     );
   }
 
-  if (!configured || user) {
+  if (devBypass || !configured || user) {
     return <Dashboard userId={user?.id} userEmail={user?.email ?? undefined} />;
   }
 

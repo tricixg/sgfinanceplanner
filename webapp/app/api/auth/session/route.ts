@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
+import { getDevBypassUserId, isDevAuthBypass } from "@/lib/auth/dev-bypass";
 import { getSessionUser } from "@/lib/auth/require-user";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
 export async function GET() {
+  if (isDevAuthBypass()) {
+    const id = getDevBypassUserId();
+    console.info("[api/auth/session] GET — dev bypass", { userId: id ?? null });
+    return NextResponse.json({
+      configured: true,
+      bypass: true,
+      user: id
+        ? { id, email: "dev-bypass@local" }
+        : null,
+    });
+  }
+
   const configured = isSupabaseAuthConfigured();
   if (!configured) {
     console.info("[api/auth/session] GET — auth not configured");

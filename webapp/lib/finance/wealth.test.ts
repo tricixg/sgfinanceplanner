@@ -39,8 +39,8 @@ describe("portfolioInvestmentValue", () => {
     expect(inclCpf).toContain("CPF");
   });
 
-  it("net worth cash slice uses savings accounts", () => {
+  it("net worth cash slice uses personal savings", () => {
     const slices = netWorthSlices(DEFAULTS, false);
-    expect(slices.find((s) => s.label === "Savings accounts")?.value).toBe(2500);
+    expect(slices.find((s) => s.label === "Personal savings")?.value).toBe(2500);
   });
 });
