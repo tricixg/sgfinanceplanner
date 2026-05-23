@@ -118,11 +118,16 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
 
 const TABS = NAV_GROUPS.flatMap((g) => g.tabs);
 
-export function Dashboard() {
+type DashboardProps = {
+  userId?: string;
+  userEmail?: string;
+};
+
+export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
   const [active, setActive] = useState<TabId>("thisMonth");
   const [navOpen, setNavOpen] = useState(false);
   const { state, setState, loading, saveMsg, flash, saveNow, reload } =
-    usePersistedState();
+    usePersistedState(userId);
   const activeTab = TABS.find((t) => t.id === active) ?? TABS[0];
 
   const handleReset = () => {
@@ -246,6 +251,7 @@ export function Dashboard() {
             onSaveNow={saveNow}
             onReset={handleReset}
             saveMsg={saveMsg}
+            userEmail={userEmail}
           />
         </div>
 

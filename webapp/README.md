@@ -28,9 +28,8 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    |----------|--------|
    | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
-   | `SUPABASE_SERVICE_ROLE_KEY` | service_role (server only) |
-   | `DASHBOARD_PIN` | PIN to unlock the app (min 4 chars) |
-   | `SESSION_SECRET` | Random string to sign the unlock cookie |
+   | `NEXT_PUBLIC_SITE_URL` | Your deployed URL (for magic links in production) |
+   | `SUPABASE_SERVICE_ROLE_KEY` | Optional — service_role for admin tasks only |
 
    Optional branding:
 
@@ -39,29 +38,35 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    - `NEXT_PUBLIC_APP_SUBTITLE`
    - `NEXT_PUBLIC_APP_ASOF`
 
-   Optional write protection:
-
-   - `DASHBOARD_SECRET` — require header `x-dashboard-secret` on PUT requests
-
 3. **Database migration**
 
-   In Supabase SQL Editor, run:
+   In Supabase SQL Editor, run in order:
 
-   [`supabase/migrations/001_dashboard_state.sql`](supabase/migrations/001_dashboard_state.sql)
+   1. [`supabase/migrations/001_dashboard_state.sql`](supabase/migrations/001_dashboard_state.sql) (fresh projects only)
+   2. [`supabase/migrations/002_per_user_auth.sql`](supabase/migrations/002_per_user_auth.sql)
 
-4. **Run dev server**
+4. **Supabase Auth (magic link)**
+
+   In Supabase → **Authentication** → **Providers** → **Email**:
+
+   - Enable Email provider
+   - Enable **Confirm email** if you want verified addresses (optional for personal use)
+   - Magic link / OTP is used by default
+
+   In **Authentication** → **URL configuration**, add redirect URLs:
+
+   - `http://localhost:3000/auth/callback` (local)
+   - `https://your-app.vercel.app/auth/callback` (production)
+
+5. **Run dev server**
 
    ```bash
    npm run dev
    ```
 
-   Without Supabase configured, the app still runs using browser `localStorage` fallback. Without `DASHBOARD_PIN`, the PIN screen is skipped (local dev only).
+   Without Supabase configured, the app still runs using browser `localStorage` only (no sign-in). With Supabase configured, users sign in via email magic link and each account gets its own `dashboard_state` row (protected by RLS).
 
-## PIN protection
-
-Set `DASHBOARD_PIN` and `SESSION_SECRET` on Vercel. Visitors must enter the PIN before the dashboard or APIs load. Data continues to auto-save to Supabase (single `dashboard_state` row) while you are unlocked.
-
-5. **Tests**
+6. **Tests**
 
    ```bash
    npm run test

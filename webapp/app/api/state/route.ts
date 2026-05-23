@@ -1,31 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isUnlockedRequest } from "@/lib/auth/pin";
+import { requireSessionUser } from "@/lib/auth/require-user";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
-import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import {
   isPersistedDashboardSnapshot,
   isValidDashboardState,
 } from "@/lib/validate-state";
 
-const ROW_ID = "default";
-
-function checkWriteSecret(req: NextRequest): boolean {
-  const secret = process.env.DASHBOARD_SECRET;
-  if (!secret) return true;
-  return req.headers.get("x-dashboard-secret") === secret;
-}
-
-async function requirePin(req: NextRequest) {
-  if (!(await isUnlockedRequest(req))) {
-    return NextResponse.json({ error: "PIN required" }, { status: 401 });
-  }
-  return null;
-}
-
-export async function GET(req: NextRequest) {
-  const denied = await requirePin(req);
-  if (denied) return denied;
-  if (!isSupabaseConfigured()) {
+export async function GET() {
+  if (!isSupabaseAuthConfigured()) {
     console.info("[api/state] GET — Supabase not configured, returning defaults");
     return NextResponse.json({
       data: createEmptyState(),
@@ -34,11 +18,15 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const supabase = createAdminClient()!;
+  const auth = await requireSessionUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
+
+  const supabase = await createClient();
   const { data: row, error } = await supabase
     .from("dashboard_state")
     .select("data, updated_at")
-    .eq("id", ROW_ID)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (error) {
@@ -55,6 +43,7 @@ export async function GET(req: NextRequest) {
 
   const payloadSize = JSON.stringify(state).length;
   console.info("[api/state] GET ok", {
+    userId: user.id,
     updatedAt: row?.updated_at ?? null,
     payloadBytes: payloadSize,
     source: hasData ? "database" : "defaults",
@@ -68,13 +57,36 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = await requirePin(req);
-  if (denied) return denied;
+  if (!isSupabaseAuthConfigured()) {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
 
-  if (!checkWriteSecret(req)) {
-    console.warn("[api/state] PUT rejected — invalid secret");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const incoming =
+      body && typeof body === "object" && "data" in (body as object)
+        ? (body as { data: unknown }).data
+        : body;
+
+    if (!isValidDashboardState(incoming)) {
+      return NextResponse.json({ error: "Invalid dashboard state" }, { status: 400 });
+    }
+
+    const state = mergeWithDefaults(incoming);
+    console.info("[api/state] PUT — Supabase not configured, accepted in-memory only");
+    return NextResponse.json({
+      data: state,
+      updatedAt: new Date().toISOString(),
+      source: "memory",
+      warning: "Supabase not configured — data not persisted",
+    });
   }
+
+  const auth = await requireSessionUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
 
   let body: unknown;
   try {
@@ -95,23 +107,11 @@ export async function PUT(req: NextRequest) {
   const state = mergeWithDefaults(incoming);
   const payloadSize = JSON.stringify(state).length;
 
-  if (!isSupabaseConfigured()) {
-    console.info("[api/state] PUT — Supabase not configured, accepted in-memory only", {
-      payloadBytes: payloadSize,
-    });
-    return NextResponse.json({
-      data: state,
-      updatedAt: new Date().toISOString(),
-      source: "memory",
-      warning: "Supabase not configured — data not persisted",
-    });
-  }
-
-  const supabase = createAdminClient()!;
+  const supabase = await createClient();
   const { data: row, error } = await supabase
     .from("dashboard_state")
     .upsert({
-      id: ROW_ID,
+      user_id: user.id,
       data: state,
       updated_at: new Date().toISOString(),
     })
@@ -124,6 +124,7 @@ export async function PUT(req: NextRequest) {
   }
 
   console.info("[api/state] PUT ok", {
+    userId: user.id,
     updatedAt: row.updated_at,
     payloadBytes: payloadSize,
   });

@@ -13,9 +13,9 @@ export function createAdminClient() {
   });
 }
 
+import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+
+/** @deprecated Use isSupabaseAuthConfigured for app persistence. */
 export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  return isSupabaseAuthConfigured();
 }

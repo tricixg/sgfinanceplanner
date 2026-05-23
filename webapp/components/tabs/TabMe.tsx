@@ -8,7 +8,6 @@ import {
   defaultInsurancePolicy,
   defaultSavingsAccount,
 } from "@/lib/finance";
-import { requestAppLock } from "@/lib/auth/pin-client";
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 
@@ -19,6 +18,7 @@ type Props = {
   onSaveNow: () => void;
   onReset: () => void;
   saveMsg: string;
+  userEmail?: string;
 };
 
 function NumInput({
@@ -47,6 +47,7 @@ export function TabMe({
   onSaveNow,
   onReset,
   saveMsg,
+  userEmail,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
@@ -469,30 +470,32 @@ export function TabMe({
           />
           <span className="save-status">{saveMsg}</span>
         </div>
-        <p className="note" style={{ marginTop: 14, marginBottom: 0 }}>
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={async () => {
-              requestAppLock();
-              try {
-                const res = await fetch("/api/auth/pin", {
-                  method: "DELETE",
-                  credentials: "include",
-                });
-                if (!res.ok) {
-                  console.warn("[TabMe] lock API failed", res.status);
+        {userEmail ? (
+          <p className="note" style={{ marginTop: 14, marginBottom: 0 }}>
+            Signed in as {userEmail}.{" "}
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/auth/signout", {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  if (!res.ok) {
+                    console.warn("[TabMe] sign out API failed", res.status);
+                  }
+                } catch (e) {
+                  console.warn("[TabMe] sign out API error", e);
                 }
-              } catch (e) {
-                console.warn("[TabMe] lock API error", e);
-              }
-              window.location.href = "/";
-              console.log("[TabMe] locked app");
-            }}
-          >
-            Lock app (require PIN again)
-          </button>
-        </p>
+                window.location.href = "/";
+                console.log("[TabMe] signed out");
+              }}
+            >
+              Sign out
+            </button>
+          </p>
+        ) : null}
       </div>
     </section>
   );

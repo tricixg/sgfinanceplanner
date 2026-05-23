@@ -4,12 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import type { DashboardState } from "@/lib/types";
 
-const LOCAL_KEY = "sgfinance_dashboard";
+const LOCAL_KEY_PREFIX = "sgfinance_dashboard";
+
 const DEBOUNCE_MS = 800;
 
-function readLocalDraft(): DashboardState | null {
+function localStorageKey(userId?: string) {
+  return userId ? `${LOCAL_KEY_PREFIX}:${userId}` : LOCAL_KEY_PREFIX;
+}
+
+function readLocalDraft(userId?: string): DashboardState | null {
   try {
-    const local = localStorage.getItem(LOCAL_KEY);
+    const local = localStorage.getItem(localStorageKey(userId));
     if (!local) return null;
     return mergeWithDefaults(JSON.parse(local));
   } catch {
@@ -17,15 +22,15 @@ function readLocalDraft(): DashboardState | null {
   }
 }
 
-function writeLocalDraft(state: DashboardState) {
+function writeLocalDraft(state: DashboardState, userId?: string) {
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+    localStorage.setItem(localStorageKey(userId), JSON.stringify(state));
   } catch (e) {
     console.warn("[dashboard] localStorage save failed", e);
   }
 }
 
-export function usePersistedState() {
+export function usePersistedState(userId?: string) {
   const [state, setState] = useState<DashboardState>(createEmptyState);
   const [loading, setLoading] = useState(true);
   const [saveMsg, setSaveMsg] = useState("");
@@ -49,12 +54,12 @@ export function usePersistedState() {
       if (json.source === "database") {
         setState(merged);
         setLastSaved(json.updatedAt ?? null);
-        writeLocalDraft(merged);
+        writeLocalDraft(merged, userId);
         console.info("[dashboard] loaded from Supabase", {
           updatedAt: json.updatedAt,
         });
       } else {
-        const local = readLocalDraft();
+        const local = readLocalDraft(userId);
         if (local) {
           setState(local);
           flash("Loaded from browser (no cloud snapshot yet)");
@@ -78,7 +83,7 @@ export function usePersistedState() {
       setLoading(false);
       skipSaveRef.current = false;
     }
-  }, [flash]);
+  }, [flash, userId]);
 
   useEffect(() => {
     load();
@@ -86,7 +91,7 @@ export function usePersistedState() {
 
   const persist = useCallback(
     async (next: DashboardState) => {
-      writeLocalDraft(next);
+      writeLocalDraft(next, userId);
 
       try {
         const res = await fetch("/api/state", {
