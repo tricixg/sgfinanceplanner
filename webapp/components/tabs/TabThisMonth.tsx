@@ -13,7 +13,6 @@ import { netWorthSlices, netWorthTotal, wealthSummary } from "@/lib/finance";
 import type { SavingsBundle, SavingsSnapshot } from "@/lib/savings/types";
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
-import { IncludeJointSavingsToggle } from "@/components/IncludeJointSavingsToggle";
 
 type Props = {
   state: DashboardState;
@@ -24,14 +23,25 @@ type Props = {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function TabThisMonth({ state: S, setState, savings, savingsBundle }: Props) {
+export function TabThisMonth({ state: S, setState, savings }: Props) {
   const [viewYm, setViewYm] = useState(currentYm);
   const [includeCpf, setIncludeCpf] = useState(false);
   const todayYm = currentYm();
   const todayDay = new Date().getDate();
-  const { liab, lnw, personalCash, jointCash } = wealthSummary(S, savings);
-  const totalNw = netWorthTotal(S, includeCpf, savings);
-  const nwSlices = netWorthSlices(S, includeCpf, savings);
+  const personalOnlySavings = savings
+    ? {
+        ...savings,
+        jointCash: 0,
+        jointNetWorthCash: 0,
+        jointSavingsCash: 0,
+        jointMonthlySave: 0,
+      }
+    : null;
+  const { liab, lnw, personalCash } = wealthSummary(S, personalOnlySavings);
+  const personalSavings =
+    savings?.personalSavingsCash ?? savings?.personalCash ?? personalCash;
+  const totalNw = netWorthTotal(S, includeCpf, personalOnlySavings);
+  const nwSlices = netWorthSlices(S, includeCpf, personalOnlySavings);
 
   const events = useMemo(
     () => getCalendarEvents(S, viewYm),
@@ -47,16 +57,8 @@ export function TabThisMonth({ state: S, setState, savings, savingsBundle }: Pro
     <section className="panel on">
       <h2>Net worth</h2>
       <div className="card net-worth-card" style={{ marginBottom: 16 }}>
-        {savingsBundle ? (
-          <IncludeJointSavingsToggle
-            state={S}
-            setState={setState}
-            savings={savingsBundle}
-          />
-        ) : null}
         <p className="note" style={{ marginTop: 8 }}>
-          Personal savings: {fmt2(personalCash)}
-          {jointCash > 0 ? ` · Joint: ${fmt2(jointCash)}` : ""}
+          Personal savings (your accounts): {fmt2(personalSavings)}
         </p>
         <label className="ctrl">
           <input

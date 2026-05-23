@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildSavingsSnapshot } from "@/lib/finance/savings-totals";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
-import type { SavingsBundle } from "@/lib/savings/types";
-import { mapAccount, mapGoal, mapPool } from "@/lib/savings/db-mappers";
+import type { SavingsBundle, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
+import { mapGoal, mapPool } from "@/lib/savings/db-mappers";
 
+/** Pools + goals only; personal accounts come from loadAccountsBundle. */
 export async function loadSavingsBundle(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  accounts: UserSavingsAccount[] = []
 ): Promise<SavingsBundle> {
   const householdId = await ensureUserHousehold(supabase, userId);
 
@@ -16,17 +18,6 @@ export async function loadSavingsBundle(
     .eq("household_id", householdId);
 
   const paired = (members?.length ?? 0) > 1;
-
-  const { data: accountRows, error: acctErr } = await supabase
-    .from("user_savings_accounts")
-    .select("*")
-    .eq("user_id", userId)
-    .order("sort_order", { ascending: true });
-
-  if (acctErr) {
-    console.error("[savings] load accounts failed", acctErr.message);
-    throw acctErr;
-  }
 
   const { data: poolRows, error: poolErr } = await supabase
     .from("savings_pools")
@@ -63,7 +54,6 @@ export async function loadSavingsBundle(
     throw g2Err;
   }
 
-  const accounts = (accountRows ?? []).map((r) => mapAccount(r));
   const pools = (poolRows ?? []).map((r) => mapPool(r));
   const goals = [...(individualGoals ?? []), ...(sharedGoals ?? [])].map((r) =>
     mapGoal(r)
@@ -74,17 +64,27 @@ export async function loadSavingsBundle(
     userId,
     householdId,
     paired,
-    accounts: accounts.length,
     pools: pools.length,
     goals: goals.length,
   });
 
   return {
-    accounts,
     pools,
     goals,
     totals,
     householdId,
     paired,
+  };
+}
+
+export function mergeSavingsSnapshots(
+  accountTotals: Pick<SavingsSnapshot, "personalSavingsCash" | "personalNetWorthCash">,
+  savingsBundle: SavingsBundle
+): SavingsSnapshot {
+  return {
+    ...savingsBundle.totals,
+    personalSavingsCash: accountTotals.personalSavingsCash,
+    personalNetWorthCash: accountTotals.personalNetWorthCash,
+    personalCash: accountTotals.personalSavingsCash,
   };
 }

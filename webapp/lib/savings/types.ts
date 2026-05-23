@@ -1,4 +1,4 @@
-/** Personal cash jar (user_savings_accounts). */
+/** Personal cash jar (user_savings_accounts) — managed on ME tab. */
 export type UserSavingsAccount = {
   id: string;
   userId: string;
@@ -6,6 +6,8 @@ export type UserSavingsAccount = {
   balance: number;
   notes: string;
   sortOrder: number;
+  /** When false, balance counts toward net worth but not savings-tab totals. */
+  includeInSavings: boolean;
 };
 
 /** Joint cash pool (savings_pools) for a household. */
@@ -16,6 +18,29 @@ export type SavingsPool = {
   balance: number;
   notes: string;
   sortOrder: number;
+  includeInSavings: boolean;
+};
+
+export type SavingsTransactionKind = "deposit" | "withdrawal" | "adjustment";
+
+export type SavingsTransaction = {
+  id: string;
+  userId: string;
+  householdId: string | null;
+  accountId: string | null;
+  poolId: string | null;
+  goalId: string | null;
+  kind: SavingsTransactionKind;
+  amount: number;
+  balanceAfter: number | null;
+  note: string;
+  occurredAt: string;
+  createdAt: string;
+};
+
+export type AccountsBundle = {
+  accounts: UserSavingsAccount[];
+  totals: Pick<SavingsSnapshot, "personalSavingsCash" | "personalNetWorthCash">;
 };
 
 export type SavingsGoalScope = "individual" | "shared";
@@ -37,14 +62,20 @@ export type SavingsGoal = {
 };
 
 export type SavingsSnapshot = {
+  /** Sum of personal accounts with includeInSavings. */
+  personalSavingsCash: number;
+  /** Sum of all personal account balances (net worth). */
+  personalNetWorthCash: number;
+  /** @deprecated use personalSavingsCash */
   personalCash: number;
   jointCash: number;
+  jointSavingsCash: number;
+  jointNetWorthCash: number;
   personalMonthlySave: number;
   jointMonthlySave: number;
 };
 
 export type SavingsBundle = {
-  accounts: UserSavingsAccount[];
   pools: SavingsPool[];
   goals: SavingsGoal[];
   totals: SavingsSnapshot;

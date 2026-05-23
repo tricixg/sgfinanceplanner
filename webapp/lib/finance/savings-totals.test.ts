@@ -6,14 +6,45 @@ import {
 } from "./savings-totals";
 
 describe("savings-totals", () => {
-  it("effectiveCash excludes joint by default", () => {
+  it("effectiveCash uses net-worth cash and excludes joint by default", () => {
     const snap = buildSavingsSnapshot(
-      [{ id: "1", userId: "u", name: "A", balance: 1000, notes: "", sortOrder: 0 }],
-      [{ id: "p", householdId: "h", name: "Joint", balance: 500, notes: "", sortOrder: 0 }],
+      [
+        {
+          id: "1",
+          userId: "u",
+          name: "Savings",
+          balance: 1000,
+          notes: "",
+          sortOrder: 0,
+          includeInSavings: true,
+        },
+        {
+          id: "2",
+          userId: "u",
+          name: "Wallet",
+          balance: 300,
+          notes: "",
+          sortOrder: 1,
+          includeInSavings: false,
+        },
+      ],
+      [
+        {
+          id: "p",
+          householdId: "h",
+          name: "Joint",
+          balance: 500,
+          notes: "",
+          sortOrder: 0,
+          includeInSavings: true,
+        },
+      ],
       []
     );
-    expect(effectiveCash(snap, false)).toBe(1000);
-    expect(effectiveCash(snap, true)).toBe(1500);
+    expect(snap.personalSavingsCash).toBe(1000);
+    expect(snap.personalNetWorthCash).toBe(1300);
+    expect(effectiveCash(snap, false)).toBe(1300);
+    expect(effectiveCash(snap, true)).toBe(1800);
   });
 
   it("effectiveMonthlySave sums goal contributions by scope", () => {
@@ -35,6 +66,7 @@ describe("savings-totals", () => {
           linkedAccountId: null,
           linkedPoolId: null,
           sortOrder: 0,
+          includeInSavings: true,
         },
         {
           id: "g2",

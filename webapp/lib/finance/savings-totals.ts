@@ -1,11 +1,28 @@
-import type { SavingsGoal, SavingsPool, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
+import type {
+  SavingsGoal,
+  SavingsPool,
+  SavingsSnapshot,
+  UserSavingsAccount,
+} from "@/lib/savings/types";
 
 export function sumAccountBalances(accounts: UserSavingsAccount[]): number {
   return accounts.reduce((s, a) => s + a.balance, 0);
 }
 
+export function sumSavingsAccountBalances(accounts: UserSavingsAccount[]): number {
+  return accounts
+    .filter((a) => a.includeInSavings)
+    .reduce((s, a) => s + a.balance, 0);
+}
+
 export function sumPoolBalances(pools: SavingsPool[]): number {
   return pools.reduce((s, p) => s + p.balance, 0);
+}
+
+export function sumSavingsPoolBalances(pools: SavingsPool[]): number {
+  return pools
+    .filter((p) => p.includeInSavings)
+    .reduce((s, p) => s + p.balance, 0);
 }
 
 export function sumGoalMonthlyContributions(
@@ -17,21 +34,37 @@ export function sumGoalMonthlyContributions(
     .reduce((s, g) => s + (g.monthlyContribution > 0 ? g.monthlyContribution : 0), 0);
 }
 
+export function buildAccountTotals(accounts: UserSavingsAccount[]) {
+  const personalNetWorthCash = sumAccountBalances(accounts);
+  const personalSavingsCash = sumSavingsAccountBalances(accounts);
+  return { personalSavingsCash, personalNetWorthCash };
+}
+
 export function buildSavingsSnapshot(
   accounts: UserSavingsAccount[],
   pools: SavingsPool[],
   goals: SavingsGoal[]
 ): SavingsSnapshot {
+  const personalNetWorthCash = sumAccountBalances(accounts);
+  const personalSavingsCash = sumSavingsAccountBalances(accounts);
+  const jointNetWorthCash = sumPoolBalances(pools);
+  const jointSavingsCash = sumSavingsPoolBalances(pools);
   return {
-    personalCash: sumAccountBalances(accounts),
-    jointCash: sumPoolBalances(pools),
+    personalSavingsCash,
+    personalNetWorthCash,
+    personalCash: personalSavingsCash,
+    jointCash: jointSavingsCash,
+    jointSavingsCash,
+    jointNetWorthCash,
     personalMonthlySave: sumGoalMonthlyContributions(goals, "individual"),
     jointMonthlySave: sumGoalMonthlyContributions(goals, "shared"),
   };
 }
 
 export function effectiveCash(snapshot: SavingsSnapshot, includeJoint: boolean): number {
-  return snapshot.personalCash + (includeJoint ? snapshot.jointCash : 0);
+  const personal = snapshot.personalNetWorthCash ?? snapshot.personalCash;
+  const joint = snapshot.jointNetWorthCash ?? snapshot.jointCash;
+  return personal + (includeJoint ? joint : 0);
 }
 
 export function effectiveMonthlySave(

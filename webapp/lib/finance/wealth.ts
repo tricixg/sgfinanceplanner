@@ -65,8 +65,9 @@ export function resolveDashboardCash(
 ) {
   const includeJoint = Boolean(S.prefs?.includeJointSavings);
   if (savings) {
-    const personal = savings.personalCash;
-    const joint = savings.jointCash;
+    const personal =
+      savings.personalNetWorthCash ?? savings.personalCash;
+    const joint = savings.jointNetWorthCash ?? savings.jointCash;
     return {
       personal,
       joint,
@@ -87,7 +88,12 @@ export function wealthSummary(
     ilpValueByLock(S);
   const invTotal = port + ilpVal;
   const liab = S.margin + S.ccDebt;
-  const { cash, personal, joint, includeJoint } = resolveDashboardCash(S, savings);
+  const { cash, personal, joint, includeJoint } = resolveDashboardCash(
+    S,
+    savings
+  );
+  const personalSavings =
+    savings?.personalSavingsCash ?? savings?.personalCash ?? personal;
   const lnw = invTotal + cash - liab;
   const cpf = S.oa + S.sa + S.ma;
   return {

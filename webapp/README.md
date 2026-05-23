@@ -45,6 +45,7 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
    1. [`supabase/migrations/001_dashboard_state.sql`](supabase/migrations/001_dashboard_state.sql) (fresh projects only)
    2. [`supabase/migrations/002_per_user_auth.sql`](supabase/migrations/002_per_user_auth.sql)
    3. [`supabase/migrations/003_couples_and_ledger.sql`](supabase/migrations/003_couples_and_ledger.sql) — per-user savings accounts, shared pools, goals, expenses, and partner linking
+   4. [`supabase/migrations/004_accounts_ledger.sql`](supabase/migrations/004_accounts_ledger.sql) — `include_in_savings` flags, deposit ledger (`savings_transactions`), and balance sync
 
 4. **Supabase Auth (magic link)**
 
@@ -67,7 +68,7 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
 
    Without Supabase configured, the app still runs using browser `localStorage` only (no sign-in). With Supabase configured, open [`/login`](http://localhost:3000/login), enter your email, and open the magic link — new accounts are created automatically. Each user gets their own `dashboard_state` row (protected by RLS).
 
-   **Couples / shared savings:** In **ME → Settings → Partner**, invite your partner by email. Shared savings pools and shared goals appear on **Savings & Goals**. Budget, debts, investments, and expenses stay private per person. On overview tabs, use **Include joint savings** to add shared pool balances to net worth, cashflow, and projections (off by default).
+   **Couples / shared savings:** In **ME → Settings → Partner**, invite your partner by email. Personal cash accounts live on **ME**; shared pools and goals on **Savings & Goals**. Record deposits to update balances and goal progress. On Wealth and projection tabs, use **Include joint savings** to add shared pool balances (off by default). **This Month** shows personal savings only.
 
 6. **Tests**
 

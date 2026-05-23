@@ -1,7 +1,9 @@
 import type { DashboardState, Goal, SavingsAccount } from "@/lib/types";
+import type { UserSavingsAccount } from "@/lib/savings/types";
+import { buildAccountTotals } from "./savings-totals";
 
 export function defaultSavingsAccount(): SavingsAccount {
-  return { name: "", balance: 0, notes: "" };
+  return { name: "", balance: 0, notes: "", includeInSavings: true };
 }
 
 /** Total cash across all savings accounts (net worth, cashflow, projections). */
@@ -23,7 +25,25 @@ function normalizeAccount(raw: Partial<SavingsAccount>): SavingsAccount {
     name: typeof raw.name === "string" ? raw.name : base.name,
     balance: typeof raw.balance === "number" ? raw.balance : 0,
     notes: typeof raw.notes === "string" ? raw.notes : "",
+    includeInSavings: raw.includeInSavings !== false,
   };
+}
+
+/** Map local JSON accounts for savings-totals helpers. */
+export function localAccountsAsUserSavings(S: DashboardState): UserSavingsAccount[] {
+  return (S.accounts ?? []).map((a, i) => ({
+    id: `local-${i}`,
+    userId: "",
+    name: a.name,
+    balance: a.balance,
+    notes: a.notes ?? "",
+    sortOrder: i,
+    includeInSavings: a.includeInSavings !== false,
+  }));
+}
+
+export function localAccountTotals(S: DashboardState) {
+  return buildAccountTotals(localAccountsAsUserSavings(S));
 }
 
 export function migrateAccounts(saved: LegacyAccountsSaved): SavingsAccount[] {

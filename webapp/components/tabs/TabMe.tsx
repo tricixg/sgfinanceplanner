@@ -1,17 +1,37 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DashboardState, InsurancePolicy, SavingsAccount } from "@/lib/types";
+import type { AccountsBundle, UserSavingsAccount } from "@/lib/savings/types";
 import {
   cashAccountsTotal,
   computedInsuranceMonthly,
   defaultInsurancePolicy,
   defaultSavingsAccount,
+  localAccountTotals,
 } from "@/lib/finance";
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { PartnerCard } from "@/components/PartnerCard";
+import { RecordSavingsForm } from "@/components/savings/RecordSavingsForm";
+import { TransactionList } from "@/components/savings/TransactionList";
 import type { useHousehold } from "@/hooks/useHousehold";
+
+type CloudAccountsApi = {
+  accounts: UserSavingsAccount[];
+  totals: AccountsBundle["totals"] | null;
+  saveAccounts: (accounts: UserSavingsAccount[]) => Promise<void>;
+  recordAccountTransaction: (
+    accountId: string,
+    payload: {
+      amount: number;
+      occurredAt?: string;
+      kind?: "deposit" | "withdrawal";
+      note?: string;
+    }
+  ) => Promise<void>;
+  reload: () => Promise<void>;
+};
 
 type Props = {
   state: DashboardState;
@@ -22,6 +42,7 @@ type Props = {
   saveMsg: string;
   userEmail?: string;
   household?: ReturnType<typeof useHousehold>;
+  accountsApi?: CloudAccountsApi;
 };
 
 function NumInput({
@@ -52,12 +73,18 @@ export function TabMe({
   saveMsg,
   userEmail,
   household,
+  accountsApi,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
   const [editingAccounts, setEditingAccounts] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [cloudDraft, setCloudDraft] = useState<UserSavingsAccount[]>([]);
+  const [accountsSaving, setAccountsSaving] = useState(false);
+  const [accountsMsg, setAccountsMsg] = useState("");
+  const [txRefresh, setTxRefresh] = useState(0);
   const insuranceTotal = computedInsuranceMonthly(S);
+  const useCloudAccounts = Boolean(accountsApi);
 
   const handleLogout = async () => {
     setSigningOut(true);
@@ -77,7 +104,18 @@ export function TabMe({
       window.location.href = "/login";
     }
   };
-  const cashTotal = cashAccountsTotal(S);
+  const cashTotal = useCloudAccounts
+    ? (accountsApi?.totals?.personalNetWorthCash ?? 0)
+    : cashAccountsTotal(S);
+  const savingsCashTotal = useCloudAccounts
+    ? (accountsApi?.totals?.personalSavingsCash ?? 0)
+    : localAccountTotals(S).personalSavingsCash;
+
+  useEffect(() => {
+    if (editingAccounts && accountsApi) {
+      setCloudDraft(accountsApi.accounts);
+    }
+  }, [editingAccounts, accountsApi?.accounts]);
 
   const patch = <K extends keyof DashboardState>(key: K, val: DashboardState[K]) => {
     setState((prev) => ({ ...prev, [key]: val }));
@@ -342,17 +380,36 @@ export function TabMe({
       </div>
 
       <div className="section-head">
-        <h2>Savings accounts</h2>
+        <h2>Cash accounts</h2>
         {editingAccounts ? (
           <button
             type="button"
             className="btn sm"
+            disabled={accountsSaving}
             onClick={() => {
-              setEditingAccounts(false);
-              console.log("[TabMe] accounts edit off");
+              if (useCloudAccounts && accountsApi) {
+                void (async () => {
+                  setAccountsSaving(true);
+                  setAccountsMsg("");
+                  try {
+                    await accountsApi.saveAccounts(cloudDraft);
+                    setEditingAccounts(false);
+                    console.log("[TabMe] cloud accounts saved");
+                  } catch (e) {
+                    setAccountsMsg(
+                      e instanceof Error ? e.message : "Failed to save accounts"
+                    );
+                  } finally {
+                    setAccountsSaving(false);
+                  }
+                })();
+              } else {
+                setEditingAccounts(false);
+                console.log("[TabMe] accounts edit off");
+              }
             }}
           >
-            Done
+            {accountsSaving ? "Saving…" : "Save"}
           </button>
         ) : (
           <button
@@ -367,8 +424,144 @@ export function TabMe({
           </button>
         )}
       </div>
+      {accountsMsg ? <p className="pin-error">{accountsMsg}</p> : null}
       <div className="card">
-        {editingAccounts ? (
+        {useCloudAccounts && accountsApi ? (
+          <>
+            {editingAccounts ? (
+              <>
+                {cloudDraft.length === 0 ? (
+                  <p className="note">Add bank accounts or cash jars. Set opening balance on new rows only.</p>
+                ) : null}
+                {cloudDraft.map((a, i) => {
+                  const isNew = !/^[0-9a-f-]{36}$/i.test(a.id);
+                  return (
+                    <div className="editrow accounts" key={a.id || i} style={{ marginBottom: 8 }}>
+                      <input
+                        type="text"
+                        value={a.name}
+                        placeholder="e.g. DBS savings"
+                        onChange={(e) => {
+                          const next = [...cloudDraft];
+                          next[i] = { ...a, name: e.target.value };
+                          setCloudDraft(next);
+                        }}
+                      />
+                      {isNew ? (
+                        <NumInput
+                          value={a.balance}
+                          step={0.01}
+                          onChange={(v) => {
+                            const next = [...cloudDraft];
+                            next[i] = { ...a, balance: v };
+                            setCloudDraft(next);
+                          }}
+                        />
+                      ) : (
+                        <span className="note" title="Use deposits below to change balance">
+                          {fmt2(a.balance)}
+                        </span>
+                      )}
+                      <input
+                        type="text"
+                        value={a.notes}
+                        placeholder="Notes"
+                        onChange={(e) => {
+                          const next = [...cloudDraft];
+                          next[i] = { ...a, notes: e.target.value };
+                          setCloudDraft(next);
+                        }}
+                      />
+                      <label className="ctrl" style={{ fontSize: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={a.includeInSavings}
+                          onChange={(e) => {
+                            const next = [...cloudDraft];
+                            next[i] = { ...a, includeInSavings: e.target.checked };
+                            setCloudDraft(next);
+                          }}
+                        />
+                        Include in savings total
+                      </label>
+                      <button
+                        type="button"
+                        className="btn del sm"
+                        onClick={() => setCloudDraft(cloudDraft.filter((_, j) => j !== i))}
+                      >
+                        del
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() =>
+                    setCloudDraft([
+                      ...cloudDraft,
+                      {
+                        id: `new-${cloudDraft.length}`,
+                        userId: "",
+                        name: "",
+                        balance: 0,
+                        notes: "",
+                        sortOrder: cloudDraft.length,
+                        includeInSavings: true,
+                      },
+                    ])
+                  }
+                >
+                  + Add account
+                </button>
+              </>
+            ) : accountsApi.accounts.length === 0 ? (
+              <p className="note">No cash accounts yet. Click Edit to add one.</p>
+            ) : (
+              accountsApi.accounts.map((a) => (
+                <div key={a.id} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid var(--line)" }}>
+                  <div className="minirow">
+                    <span className="k">
+                      {a.name || "—"}
+                      {!a.includeInSavings ? (
+                        <span className="note"> (net worth only)</span>
+                      ) : null}
+                    </span>
+                    <span className="v">{fmt2(a.balance)}</span>
+                  </div>
+                  {a.notes ? <p className="note">{a.notes}</p> : null}
+                  <RecordSavingsForm
+                    label="Record deposit"
+                    onSubmit={async (payload) => {
+                      await accountsApi.recordAccountTransaction(a.id, {
+                        ...payload,
+                        kind: "deposit",
+                      });
+                      setTxRefresh((k) => k + 1);
+                    }}
+                  />
+                  <RecordSavingsForm
+                    label="Record withdrawal"
+                    onSubmit={async (payload) => {
+                      await accountsApi.recordAccountTransaction(a.id, {
+                        ...payload,
+                        kind: "withdrawal",
+                      });
+                      setTxRefresh((k) => k + 1);
+                    }}
+                  />
+                  <details>
+                    <summary className="note">Transaction history</summary>
+                    <TransactionList
+                      fetchUrl={`/api/accounts/${a.id}/transactions?limit=10`}
+                      refreshKey={txRefresh}
+                    />
+                  </details>
+                </div>
+              ))
+            )}
+          </>
+        ) : editingAccounts ? (
           <>
             {S.accounts.length === 0 ? (
               <p style={{ color: "var(--muted)", fontStyle: "italic", marginBottom: 12 }}>
@@ -380,6 +573,7 @@ export function TabMe({
                   <span>Account</span>
                   <span>Balance</span>
                   <span>Notes</span>
+                  <span>Savings?</span>
                   <span></span>
                 </div>
                 {S.accounts.map((a, i) => (
@@ -401,6 +595,15 @@ export function TabMe({
                       placeholder="Optional"
                       onChange={(e) => updateAccount(i, { notes: e.target.value })}
                     />
+                    <label className="ctrl">
+                      <input
+                        type="checkbox"
+                        checked={a.includeInSavings !== false}
+                        onChange={(e) =>
+                          updateAccount(i, { includeInSavings: e.target.checked })
+                        }
+                      />
+                    </label>
                     <button
                       type="button"
                       className="btn del sm"
@@ -420,7 +623,7 @@ export function TabMe({
           </>
         ) : S.accounts.length === 0 ? (
           <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-            No savings accounts. Click <b>Edit</b> to add balances used for cash and net worth.
+            No cash accounts. Click <b>Edit</b> to add balances for net worth and savings.
           </p>
         ) : (
           <div className="table-scroll">
@@ -429,6 +632,7 @@ export function TabMe({
                 <tr>
                   <th>Account</th>
                   <th>Balance</th>
+                  <th>In savings?</th>
                   <th>Notes</th>
                 </tr>
               </thead>
@@ -437,6 +641,7 @@ export function TabMe({
                   <tr key={i}>
                     <td>{a.name || "—"}</td>
                     <td className="num">{fmt2(a.balance)}</td>
+                    <td>{a.includeInSavings !== false ? "Yes" : "Net worth only"}</td>
                     <td>{a.notes || "—"}</td>
                   </tr>
                 ))}
@@ -445,11 +650,15 @@ export function TabMe({
           </div>
         )}
         <div className="minirow tot" style={{ marginTop: 12 }}>
-          <span className="k">Total cash</span>
+          <span className="k">Total cash (net worth)</span>
           <span className="v">{fmt2(cashTotal)}</span>
+          <span className="k">In savings totals</span>
+          <span className="v">{fmt2(savingsCashTotal)}</span>
           {!editingAccounts && (
             <span className="note" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-              Used in net worth, cashflow, and projections
+              {useCloudAccounts
+                ? "Balances update when you record deposits. Uncheck “Include in savings” to exclude from Savings tab only."
+                : "Used in net worth and projections; “In savings?” controls Savings tab rollup when signed in."}
             </span>
           )}
         </div>

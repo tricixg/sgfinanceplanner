@@ -96,11 +96,13 @@ export type BudgetItem = {
   type: "fixed" | "spend" | "save" | "invest";
 };
 
-/** Savings / cash account — balances feed net worth and cashflow. */
+/** Savings / cash account — local JSON or legacy; cloud uses user_savings_accounts. */
 export type SavingsAccount = {
   name: string;
   balance: number;
   notes: string;
+  /** Count toward Savings tab totals (always true for legacy rows). */
+  includeInSavings?: boolean;
 };
 
 export type Goal = {

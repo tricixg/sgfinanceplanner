@@ -3,6 +3,7 @@ import type {
   PartnerInvite,
   SavingsGoal,
   SavingsPool,
+  SavingsTransaction,
   UserSavingsAccount,
 } from "@/lib/savings/types";
 
@@ -14,6 +15,7 @@ export function mapAccount(row: Record<string, unknown>): UserSavingsAccount {
     balance: Number(row.balance ?? 0),
     notes: String(row.notes ?? ""),
     sortOrder: Number(row.sort_order ?? 0),
+    includeInSavings: row.include_in_savings !== false,
   };
 }
 
@@ -25,6 +27,26 @@ export function mapPool(row: Record<string, unknown>): SavingsPool {
     balance: Number(row.balance ?? 0),
     notes: String(row.notes ?? ""),
     sortOrder: Number(row.sort_order ?? 0),
+    includeInSavings: row.include_in_savings !== false,
+  };
+}
+
+export function mapTransaction(row: Record<string, unknown>): SavingsTransaction {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    householdId: row.household_id ? String(row.household_id) : null,
+    accountId: row.account_id ? String(row.account_id) : null,
+    poolId: row.pool_id ? String(row.pool_id) : null,
+    goalId: row.goal_id ? String(row.goal_id) : null,
+    kind: (row.kind === "withdrawal" || row.kind === "adjustment"
+      ? row.kind
+      : "deposit") as SavingsTransaction["kind"],
+    amount: Number(row.amount ?? 0),
+    balanceAfter: row.balance_after != null ? Number(row.balance_after) : null,
+    note: String(row.note ?? ""),
+    occurredAt: String(row.occurred_at),
+    createdAt: String(row.created_at),
   };
 }
 

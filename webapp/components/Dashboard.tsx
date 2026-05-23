@@ -1,7 +1,7 @@
 "use client";
 
 import "@/components/chart-setup";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { appConfig } from "@/lib/config";
 import { createEmptyState } from "@/lib/finance/defaults";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -14,7 +14,12 @@ import { TabBudgetSavings } from "./tabs/TabBudgetSavings";
 import { TabSavings } from "./tabs/TabSavings";
 import { TabExpenses } from "./tabs/TabExpenses";
 import { useSavings } from "@/hooks/useSavings";
+import { useAccounts } from "@/hooks/useAccounts";
 import { useHousehold } from "@/hooks/useHousehold";
+import { mergeSavingsSnapshots } from "@/lib/savings/load-bundle";
+import { buildSavingsSnapshot } from "@/lib/finance/savings-totals";
+import { localAccountsAsUserSavings, localAccountTotals } from "@/lib/finance/accounts";
+import type { SavingsSnapshot } from "@/lib/savings/types";
 import { TabBTO } from "./tabs/TabBTO";
 import { TabCPF } from "./tabs/TabCPF";
 import { TabDebt } from "./tabs/TabDebt";
@@ -146,8 +151,34 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
   const { state, setState, loading, saveMsg, flash, saveNow, reload } =
     usePersistedState(userId);
   const savingsApi = useSavings(Boolean(userId));
+  const accountsApi = useAccounts(Boolean(userId));
   const household = useHousehold(Boolean(userId));
-  const savingsTotals = savingsApi.configured ? savingsApi.bundle.totals : null;
+
+  const savingsTotals = useMemo((): SavingsSnapshot | null => {
+    if (accountsApi.configured && accountsApi.totals && savingsApi.configured) {
+      return mergeSavingsSnapshots(accountsApi.totals, savingsApi.bundle);
+    }
+    if (accountsApi.configured && accountsApi.totals) {
+      const t = accountsApi.totals;
+      return {
+        personalSavingsCash: t.personalSavingsCash,
+        personalNetWorthCash: t.personalNetWorthCash,
+        personalCash: t.personalSavingsCash,
+        jointCash: 0,
+        jointSavingsCash: 0,
+        jointNetWorthCash: 0,
+        personalMonthlySave: 0,
+        jointMonthlySave: 0,
+      };
+    }
+    const accounts = localAccountsAsUserSavings(state);
+    const local = localAccountTotals(state);
+    if (savingsApi.configured) {
+      return mergeSavingsSnapshots(local, savingsApi.bundle);
+    }
+    if (accounts.length === 0) return null;
+    return buildSavingsSnapshot(accounts, [], []);
+  }, [accountsApi.configured, accountsApi.totals, savingsApi.configured, savingsApi.bundle, state]);
   const activeTab = TABS.find((t) => t.id === active) ?? TABS[0];
 
   const handleReset = () => {
@@ -256,7 +287,11 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
           <TabSavings
             savings={savingsApi.bundle}
             configured={savingsApi.configured}
-            onSave={savingsApi.save}
+            personalAccounts={accountsApi.configured ? accountsApi.accounts : []}
+            savePools={savingsApi.savePools}
+            saveGoals={savingsApi.saveGoals}
+            recordGoalDeposit={savingsApi.recordGoalDeposit}
+            recordPoolTransaction={savingsApi.recordPoolTransaction}
           />
         </div>
         <div style={{ display: active === "expenses" ? "block" : "none" }}>
@@ -308,6 +343,17 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             saveMsg={saveMsg}
             userEmail={userEmail}
             household={household}
+            accountsApi={
+              accountsApi.configured
+                ? {
+                    accounts: accountsApi.accounts,
+                    totals: accountsApi.totals,
+                    saveAccounts: accountsApi.saveAccounts,
+                    recordAccountTransaction: accountsApi.recordAccountTransaction,
+                    reload: accountsApi.reload,
+                  }
+                : undefined
+            }
           />
         </div>
 

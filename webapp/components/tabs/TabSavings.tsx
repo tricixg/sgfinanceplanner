@@ -2,15 +2,38 @@
 
 import { useEffect, useState } from "react";
 import type { DashboardState } from "@/lib/types";
-import type { SavingsBundle, SavingsGoal, SavingsPool, UserSavingsAccount } from "@/lib/savings/types";
+import type {
+  SavingsBundle,
+  SavingsGoal,
+  SavingsPool,
+  UserSavingsAccount,
+} from "@/lib/savings/types";
 import { goalsFromSavingsGoals, goalsSummary } from "@/lib/finance/goals";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { RecordSavingsForm } from "@/components/savings/RecordSavingsForm";
+import { TransactionList } from "@/components/savings/TransactionList";
 
 type Props = {
   savings: SavingsBundle;
   configured: boolean;
-  onSave: (next: Pick<SavingsBundle, "accounts" | "pools" | "goals">) => Promise<unknown>;
+  personalAccounts: UserSavingsAccount[];
+  savePools: (pools: SavingsPool[]) => Promise<void>;
+  saveGoals: (goals: SavingsGoal[]) => Promise<void>;
+  recordGoalDeposit: (
+    goalId: string,
+    payload: { amount: number; occurredAt?: string; note?: string }
+  ) => Promise<void>;
+  recordPoolTransaction: (
+    poolId: string,
+    payload: {
+      amount: number;
+      occurredAt?: string;
+      kind?: "deposit" | "withdrawal";
+      note?: string;
+      goalId?: string;
+    }
+  ) => Promise<void>;
 };
 
 function NumInput({
@@ -30,24 +53,30 @@ function NumInput({
   );
 }
 
-export function TabSavings({ savings, configured, onSave }: Props) {
-  const [accounts, setAccounts] = useState(savings.accounts);
+export function TabSavings({
+  savings,
+  configured,
+  personalAccounts,
+  savePools,
+  saveGoals,
+  recordGoalDeposit,
+  recordPoolTransaction,
+}: Props) {
   const [pools, setPools] = useState(savings.pools);
   const [goals, setGoals] = useState(savings.goals);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [editingPools, setEditingPools] = useState(false);
+  const [editingPersonalGoals, setEditingPersonalGoals] = useState(false);
+  const [editingSharedGoals, setEditingSharedGoals] = useState(false);
+  const [savingPools, setSavingPools] = useState(false);
+  const [savingGoals, setSavingGoals] = useState(false);
   const [msg, setMsg] = useState("");
-
-  const syncFromProps = () => {
-    setAccounts(savings.accounts);
-    setPools(savings.pools);
-    setGoals(savings.goals);
-  };
+  const [poolTxKey, setPoolTxKey] = useState(0);
 
   useEffect(() => {
-    syncFromProps();
-    console.info("[TabSavings] synced from server bundle");
-  }, [savings.accounts, savings.pools, savings.goals, savings.totals.personalCash]);
+    setPools(savings.pools);
+    setGoals(savings.goals);
+    console.info("[TabSavings] synced from server");
+  }, [savings.pools, savings.goals, savings.totals.jointCash]);
 
   const personalGoals = goals.filter((g) => g.scope === "individual");
   const sharedGoals = goals.filter((g) => g.scope === "shared");
@@ -58,17 +87,32 @@ export function TabSavings({ savings, configured, onSave }: Props) {
     goals: goalsFromSavingsGoals(sharedGoals),
   } as DashboardState);
 
-  const persist = async () => {
-    setSaving(true);
+  const persistPools = async () => {
+    setSavingPools(true);
     setMsg("");
     try {
-      await onSave({ accounts, pools, goals });
-      setMsg("Saved");
-      setEditing(false);
+      await savePools(pools);
+      setMsg("Pools saved");
+      setEditingPools(false);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Save failed");
     } finally {
-      setSaving(false);
+      setSavingPools(false);
+    }
+  };
+
+  const persistGoals = async () => {
+    setSavingGoals(true);
+    setMsg("");
+    try {
+      await saveGoals(goals);
+      setMsg("Goals saved");
+      setEditingPersonalGoals(false);
+      setEditingSharedGoals(false);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSavingGoals(false);
     }
   };
 
@@ -76,8 +120,8 @@ export function TabSavings({ savings, configured, onSave }: Props) {
     return (
       <section className="panel on">
         <p className="note">
-          Sign in with Supabase to use cloud savings accounts and partner shared pools.
-          Local-only mode keeps legacy accounts on the ME tab until you connect.
+          Sign in with Supabase to use shared pools and goals. Personal cash accounts
+          are on the <b>ME</b> tab.
         </p>
       </section>
     );
@@ -87,121 +131,42 @@ export function TabSavings({ savings, configured, onSave }: Props) {
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        <b>Your savings</b> are private. <b>Shared with partner</b> appears after you pair in
-        Settings. Wealth and projections use personal cash by default — toggle joint inclusion
-        on Wealth or 5-Year Projection.
-      </div>
-
-      <div className="section-head">
-        <h2>Savings &amp; goals</h2>
-        {editing ? (
-          <button
-            type="button"
-            className="btn sm"
-            disabled={saving}
-            onClick={() => void persist()}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              syncFromProps();
-              setEditing(true);
-            }}
-          >
-            Edit
-          </button>
-        )}
+        <b>Personal cash</b> is on the ME tab. Here you manage joint pools and savings
+        goals. Record deposits to keep balances and goal progress in sync.
       </div>
       {msg ? <p className="note">{msg}</p> : null}
 
-      <h3 className="settings-account-title">Your savings accounts</h3>
-      <div className="card">
-        {editing ? (
-          <>
-            {accounts.map((a, i) => (
-              <div key={i} className="toolbar" style={{ marginBottom: 8 }}>
-                <input
-                  type="text"
-                  value={a.name}
-                  placeholder="Account name"
-                  onChange={(e) => {
-                    const next = [...accounts];
-                    next[i] = { ...a, name: e.target.value };
-                    setAccounts(next);
-                  }}
-                />
-                <NumInput
-                  value={a.balance}
-                  onChange={(n) => {
-                    const next = [...accounts];
-                    next[i] = { ...a, balance: n };
-                    setAccounts(next);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn del sm"
-                  onClick={() => setAccounts(accounts.filter((_, j) => j !== i))}
-                >
-                  del
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="btn ghost sm"
-              onClick={() =>
-                setAccounts([
-                  ...accounts,
-                  {
-                    id: `new-${accounts.length}`,
-                    userId: "",
-                    name: "New account",
-                    balance: 0,
-                    notes: "",
-                    sortOrder: accounts.length,
-                  },
-                ])
-              }
-            >
-              + Account
-            </button>
-          </>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.name}</td>
-                  <td className="num">{fmt2(a.balance)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <p className="note" style={{ marginTop: 8 }}>
-          Personal cash total: {fmt2(savings.totals.personalCash)}
-        </p>
-      </div>
-
       {savings.paired ? (
         <>
-          <h3 className="settings-account-title">Shared with partner</h3>
+          <div className="section-head">
+            <h2>Shared pools</h2>
+            {editingPools ? (
+              <button
+                type="button"
+                className="btn sm"
+                disabled={savingPools}
+                onClick={() => void persistPools()}
+              >
+                {savingPools ? "Saving…" : "Save"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => {
+                  setPools(savings.pools);
+                  setEditingPools(true);
+                }}
+              >
+                Edit
+              </button>
+            )}
+          </div>
           <div className="card">
-            {editing ? (
+            {editingPools ? (
               <>
                 {pools.map((p, i) => (
-                  <div key={i} className="toolbar" style={{ marginBottom: 8 }}>
+                  <div key={p.id} className="toolbar" style={{ marginBottom: 8 }}>
                     <input
                       type="text"
                       value={p.name}
@@ -211,14 +176,28 @@ export function TabSavings({ savings, configured, onSave }: Props) {
                         setPools(next);
                       }}
                     />
-                    <NumInput
-                      value={p.balance}
-                      onChange={(n) => {
+                    <input
+                      type="text"
+                      value={p.notes}
+                      placeholder="Notes"
+                      onChange={(e) => {
                         const next = [...pools];
-                        next[i] = { ...p, balance: n };
+                        next[i] = { ...p, notes: e.target.value };
                         setPools(next);
                       }}
                     />
+                    <label className="ctrl" style={{ fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={p.includeInSavings}
+                        onChange={(e) => {
+                          const next = [...pools];
+                          next[i] = { ...p, includeInSavings: e.target.checked };
+                          setPools(next);
+                        }}
+                      />
+                      Include in savings total
+                    </label>
                     <button
                       type="button"
                       className="btn del sm"
@@ -241,6 +220,7 @@ export function TabSavings({ savings, configured, onSave }: Props) {
                         balance: 0,
                         notes: "",
                         sortOrder: pools.length,
+                        includeInSavings: true,
                       },
                     ])
                   }
@@ -248,53 +228,118 @@ export function TabSavings({ savings, configured, onSave }: Props) {
                   + Shared pool
                 </button>
               </>
+            ) : pools.length === 0 ? (
+              <p className="note">No shared pools yet. Click Edit to add one.</p>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Pool</th>
-                    <th>Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pools.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.name}</td>
-                      <td className="num">{fmt2(p.balance)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              pools.map((p) => (
+                <div key={p.id} style={{ marginBottom: 16 }}>
+                  <div className="minirow">
+                    <span className="k">{p.name}</span>
+                    <span className="v">{fmt2(p.balance)}</span>
+                  </div>
+                  <RecordSavingsForm
+                    label="Record deposit"
+                    onSubmit={async ({ amount, occurredAt, note }) => {
+                      await recordPoolTransaction(p.id, {
+                        amount,
+                        occurredAt,
+                        kind: "deposit",
+                        note,
+                      });
+                      setPoolTxKey((k) => k + 1);
+                    }}
+                  />
+                  <details style={{ marginTop: 8 }}>
+                    <summary className="note">Transaction history</summary>
+                    <TransactionList
+                      fetchUrl={`/api/savings/pools/${p.id}/transactions?limit=10`}
+                      refreshKey={poolTxKey}
+                    />
+                  </details>
+                </div>
+              ))
             )}
             <p className="note" style={{ marginTop: 8 }}>
-              Joint cash total: {fmt2(savings.totals.jointCash)}
+              Joint savings total: {fmt2(savings.totals.jointSavingsCash ?? savings.totals.jointCash)}
             </p>
           </div>
         </>
       ) : (
-        <p className="note">Link a partner in Settings → Partner to add shared savings pools.</p>
+        <p className="note">Link a partner in ME → Settings to add shared savings pools.</p>
       )}
 
-      <h3 className="settings-account-title">Your goals</h3>
+      <div className="section-head">
+        <h2>Your goals</h2>
+        {editingPersonalGoals ? (
+          <button
+            type="button"
+            className="btn sm"
+            disabled={savingGoals}
+            onClick={() => void persistGoals()}
+          >
+            {savingGoals ? "Saving…" : "Save"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => {
+              setGoals(savings.goals);
+              setEditingPersonalGoals(true);
+            }}
+          >
+            Edit
+          </button>
+        )}
+      </div>
       <GoalsSection
-        editing={editing}
+        editing={editingPersonalGoals}
         goals={personalGoals}
         allGoals={goals}
         setGoals={setGoals}
         scope="individual"
         summary={personalSummary}
+        personalAccounts={personalAccounts}
+        pools={pools}
+        recordGoalDeposit={recordGoalDeposit}
       />
 
       {savings.paired ? (
         <>
-          <h3 className="settings-account-title">Shared goals</h3>
+          <div className="section-head">
+            <h2>Shared goals</h2>
+            {editingSharedGoals ? (
+              <button
+                type="button"
+                className="btn sm"
+                disabled={savingGoals}
+                onClick={() => void persistGoals()}
+              >
+                {savingGoals ? "Saving…" : "Save"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => {
+                  setGoals(savings.goals);
+                  setEditingSharedGoals(true);
+                }}
+              >
+                Edit
+              </button>
+            )}
+          </div>
           <GoalsSection
-            editing={editing}
+            editing={editingSharedGoals}
             goals={sharedGoals}
             allGoals={goals}
             setGoals={setGoals}
             scope="shared"
             summary={sharedSummary}
+            personalAccounts={personalAccounts}
+            pools={pools}
+            recordGoalDeposit={recordGoalDeposit}
           />
         </>
       ) : null}
@@ -309,6 +354,9 @@ function GoalsSection({
   setGoals,
   scope,
   summary,
+  personalAccounts,
+  pools,
+  recordGoalDeposit,
 }: {
   editing: boolean;
   goals: SavingsGoal[];
@@ -316,8 +364,11 @@ function GoalsSection({
   setGoals: (g: SavingsGoal[]) => void;
   scope: "individual" | "shared";
   summary: ReturnType<typeof goalsSummary>;
+  personalAccounts: UserSavingsAccount[];
+  pools: SavingsPool[];
+  recordGoalDeposit: Props["recordGoalDeposit"];
 }) {
-  const { rows, totT, totS, totMonthly } = summary;
+  const { rows, totT, totMonthly } = summary;
 
   const update = (i: number, patch: Partial<SavingsGoal>) => {
     const scoped = goals[i];
@@ -349,6 +400,15 @@ function GoalsSection({
     ]);
   };
 
+  const linkOptions =
+    scope === "shared"
+      ? pools.map((p) => ({ id: p.id, label: p.name, type: "pool" as const }))
+      : personalAccounts.map((a) => ({
+          id: a.id,
+          label: a.name,
+          type: "account" as const,
+        }));
+
   return (
     <div className="card">
       {editing ? (
@@ -364,10 +424,6 @@ function GoalsSection({
                 value={g.targetAmount}
                 onChange={(n) => update(i, { targetAmount: n })}
               />
-              <NumInput
-                value={g.savedAmount}
-                onChange={(n) => update(i, { savedAmount: n })}
-              />
               <input
                 type="month"
                 value={g.targetDate?.slice(0, 7) ?? "2028-01"}
@@ -377,6 +433,28 @@ function GoalsSection({
                 value={g.monthlyContribution}
                 onChange={(n) => update(i, { monthlyContribution: n })}
               />
+              <select
+                value={
+                  scope === "shared"
+                    ? (g.linkedPoolId ?? "")
+                    : (g.linkedAccountId ?? "")
+                }
+                onChange={(e) => {
+                  const v = e.target.value || null;
+                  if (scope === "shared") {
+                    update(i, { linkedPoolId: v, linkedAccountId: null });
+                  } else {
+                    update(i, { linkedAccountId: v, linkedPoolId: null });
+                  }
+                }}
+              >
+                <option value="">No linked jar</option>
+                {linkOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 className="btn del sm"
@@ -390,27 +468,37 @@ function GoalsSection({
             + Goal
           </button>
         </>
+      ) : goals.length === 0 ? (
+        <p className="note">No goals yet. Click Edit to add one.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Goal</th>
-              <th>Target</th>
-              <th>Saved</th>
-              <th>Need / mo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((g) => (
-              <tr key={g.name}>
-                <td>{g.name}</td>
-                <td className="num">{fmt(g.target)}</td>
-                <td className="num">{fmt(g.saved)}</td>
-                <td className="num">{fmt(g.need)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        goals.map((g) => {
+          const row = rows.find((r) => r.name === g.name);
+          return (
+            <div key={g.id} style={{ marginBottom: 16 }}>
+              <div className="minirow">
+                <span className="k">{g.name}</span>
+                <span className="v">
+                  {fmt2(g.savedAmount)} / {fmt(g.targetAmount)}
+                  {row ? ` · ${fmt(row.need)}/mo needed` : ""}
+                </span>
+              </div>
+              {(scope === "shared" && g.linkedPoolId) ||
+              (scope === "individual" && g.linkedAccountId) ? (
+                <RecordSavingsForm
+                  label="Record savings toward this goal"
+                  onSubmit={async (payload) => {
+                    await recordGoalDeposit(g.id, payload);
+                  }}
+                />
+              ) : (
+                <p className="note">
+                  Link a {scope === "shared" ? "shared pool" : "personal account"} in Edit
+                  to record savings that update balances.
+                </p>
+              )}
+            </div>
+          );
+        })
       )}
       <div className="minirow tot" style={{ marginTop: 8 }}>
         <span className="k">Total target / need per month</span>
