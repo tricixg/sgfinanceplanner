@@ -160,11 +160,13 @@ export function enabledSchemeRows(
   inputs: Pick<BTOInputs, "tSal" | "pSal">
 ) {
   return BTO_SCHEME_DEFS.filter((def) => selection[def.id]?.enabled).map((def) => {
+    const sel = selection[def.id];
     const amount = schemeGrantAmount(def.id, selection, inputs);
     const computed = schemeComputedAmount(def.id, inputs);
     const overridden =
-      selection[def.id].amountOverride != null &&
-      selection[def.id].amountOverride !== computed;
+      sel != null &&
+      sel.amountOverride != null &&
+      sel.amountOverride !== computed;
     return { ...def, amount, computed, overridden };
   });
 }

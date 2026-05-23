@@ -9,6 +9,7 @@ import {
   computeBTO,
   defaultBtoPlannerPrefs,
   enabledSchemeRows,
+  normalizeBtoPlannerPrefs,
   schemeComputedAmount,
   type BTOSchemeId,
 } from "@/lib/finance";
@@ -21,10 +22,10 @@ type Props = {
 };
 
 function resolveBtoPrefs(S: DashboardState): BtoPlannerPrefs {
-  return (
-    S.btoPlanner ??
-    defaultBtoPlannerPrefs({ monthlySal: S.monthlySal, oa: S.oa })
-  );
+  return normalizeBtoPlannerPrefs(S.btoPlanner, {
+    monthlySal: S.monthlySal,
+    oa: S.oa,
+  });
 }
 
 export function TabBTO({ state: S, setState }: Props) {
@@ -65,30 +66,33 @@ export function TabBTO({ state: S, setState }: Props) {
   const householdIncome = p.tSal + p.pSal;
 
   const toggleScheme = (id: BTOSchemeId, enabled: boolean) => {
+    const current = p.schemes[id] ?? { enabled: false, amountOverride: null };
     updatePrefs({
       schemes: {
         ...p.schemes,
-        [id]: { ...p.schemes[id], enabled },
+        [id]: { ...current, enabled },
       },
     });
     console.log("[TabBTO] scheme toggled", id, enabled);
   };
 
   const setSchemeOverride = (id: BTOSchemeId, amount: number | null) => {
+    const current = p.schemes[id] ?? { enabled: false, amountOverride: null };
     updatePrefs({
       schemes: {
         ...p.schemes,
-        [id]: { ...p.schemes[id], amountOverride: amount },
+        [id]: { ...current, amountOverride: amount },
       },
     });
     console.log("[TabBTO] scheme amount override", id, amount);
   };
 
   const resetSchemeAmount = (id: BTOSchemeId) => {
+    const current = p.schemes[id] ?? { enabled: false, amountOverride: null };
     updatePrefs({
       schemes: {
         ...p.schemes,
-        [id]: { ...p.schemes[id], amountOverride: null },
+        [id]: { ...current, amountOverride: null },
       },
     });
     console.log("[TabBTO] scheme amount reset", id);
@@ -149,7 +153,7 @@ export function TabBTO({ state: S, setState }: Props) {
 
       <div className="card bto-schemes-card">
         {BTO_SCHEME_DEFS.map((def) => {
-          const sel = p.schemes[def.id];
+          const sel = p.schemes[def.id] ?? { enabled: false, amountOverride: null };
           const computed = schemeComputedAmount(def.id, { tSal: p.tSal, pSal: p.pSal });
           const amount = sel.enabled
             ? sel.amountOverride != null

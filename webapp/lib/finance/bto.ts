@@ -2,6 +2,7 @@ import type { BtoPlannerPrefs } from "@/lib/types";
 import { addMonthsYm } from "./calendar";
 import { cpfOAmonthly } from "./cpf";
 import {
+  BTO_SCHEME_DEFS,
   defaultBTOSchemes,
   totalHousingGrants,
   type BTOSchemeSelection,
@@ -23,12 +24,66 @@ export type BTOInputs = {
 
 export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
 
+/** Merge persisted schemes with defaults (fixes prod profiles missing keys or `schemes`). */
+export function normalizeBTOSchemes(
+  partial?: Partial<BTOSchemeSelection> | null
+): BTOSchemeSelection {
+  const defaults = defaultBTOSchemes();
+  if (!partial || typeof partial !== "object") {
+    return defaults;
+  }
+  const out = { ...defaults };
+  for (const def of BTO_SCHEME_DEFS) {
+    const row = partial[def.id];
+    if (row && typeof row === "object") {
+      out[def.id] = {
+        enabled: Boolean(row.enabled),
+        amountOverride:
+          row.amountOverride != null && row.amountOverride >= 0
+            ? row.amountOverride
+            : null,
+      };
+    }
+  }
+  return out;
+}
+
+export function normalizeBtoPlannerPrefs(
+  raw: Partial<BtoPlannerPrefs> | null | undefined,
+  opts: { monthlySal: number; oa: number }
+): BtoPlannerPrefs {
+  const base = defaultBtoPlannerPrefs({ monthlySal: opts.monthlySal, oa: opts.oa });
+  if (!raw || typeof raw !== "object") {
+    return base;
+  }
+  return {
+    price: typeof raw.price === "number" ? raw.price : base.price,
+    ltv: typeof raw.ltv === "number" ? raw.ltv : base.ltv,
+    rate: typeof raw.rate === "number" ? raw.rate : base.rate,
+    tenure: typeof raw.tenure === "number" ? raw.tenure : base.tenure,
+    yrsToKeys: typeof raw.yrsToKeys === "number" ? raw.yrsToKeys : base.yrsToKeys,
+    applicationYm:
+      typeof raw.applicationYm === "string" && raw.applicationYm.length >= 7
+        ? raw.applicationYm
+        : base.applicationYm,
+    tSal: typeof raw.tSal === "number" ? raw.tSal : base.tSal,
+    pSal: typeof raw.pSal === "number" ? raw.pSal : base.pSal,
+    pOA: typeof raw.pOA === "number" ? raw.pOA : base.pOA,
+    schemes: normalizeBTOSchemes(raw.schemes),
+  };
+}
+
 export function defaultBtoPlannerPrefs(opts: {
   monthlySal: number;
   oa: number;
-  existing?: BtoPlannerPrefs;
+  existing?: Partial<BtoPlannerPrefs>;
 }): BtoPlannerPrefs {
-  if (opts.existing) return opts.existing;
+  if (opts.existing) {
+    return normalizeBtoPlannerPrefs(opts.existing, {
+      monthlySal: opts.monthlySal,
+      oa: opts.oa,
+    });
+  }
   return {
     price: 580000,
     ltv: 75,

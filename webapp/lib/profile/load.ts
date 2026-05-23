@@ -6,6 +6,7 @@ import type {
   IlpPolicy,
 } from "@/lib/types";
 import { createEmptyState } from "@/lib/finance/defaults";
+import { normalizeBtoPlannerPrefs } from "@/lib/finance/bto";
 
 export type FinanceProfile = Pick<
   DashboardState,
@@ -49,7 +50,12 @@ export async function loadFinanceProfile(
     cash: Number(data.cash ?? 0),
     ccDebt: Number(data.cc_debt ?? 0),
     cashflowStartYm: String(data.cashflow_start_ym ?? ""),
-    btoPlanner: (data.bto_planner as BtoPlannerPrefs) ?? undefined,
+    btoPlanner: data.bto_planner
+      ? normalizeBtoPlannerPrefs(data.bto_planner as Partial<BtoPlannerPrefs>, {
+          monthlySal: Number(data.monthly_sal ?? 0),
+          oa: Number(data.oa ?? 0),
+        })
+      : undefined,
   };
 }
 

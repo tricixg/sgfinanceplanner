@@ -4,7 +4,12 @@ import {
   defaultBTOSchemes,
   totalHousingGrants,
 } from "./bto-schemes";
-import { buildBTOTimeline, computeBTO } from "./bto";
+import {
+  buildBTOTimeline,
+  computeBTO,
+  normalizeBTOSchemes,
+  normalizeBtoPlannerPrefs,
+} from "./bto";
 
 describe("BTO schemes", () => {
   it("EHG tiers by household income", () => {
@@ -17,6 +22,22 @@ describe("BTO schemes", () => {
     const t = buildBTOTimeline("2026-06", 4);
     expect(t.application).toMatch(/Jun.*26/i);
     expect(t.keys).toMatch(/Jun 30/i);
+  });
+
+  it("normalizeBTOSchemes fills missing scheme keys", () => {
+    const schemes = normalizeBTOSchemes({ family: { enabled: true, amountOverride: null } });
+    expect(schemes.ehg).toEqual({ enabled: false, amountOverride: null });
+    expect(schemes.family.enabled).toBe(true);
+    expect(totalHousingGrants(schemes, { tSal: 2000, pSal: 1500 })).toBeGreaterThanOrEqual(0);
+  });
+
+  it("normalizeBtoPlannerPrefs handles missing schemes object", () => {
+    const p = normalizeBtoPlannerPrefs(
+      { price: 500000 },
+      { monthlySal: 6000, oa: 10000 }
+    );
+    expect(p.schemes.ehg).toBeDefined();
+    expect(p.price).toBe(500000);
   });
 
   it("grants reduce net price and loan", () => {

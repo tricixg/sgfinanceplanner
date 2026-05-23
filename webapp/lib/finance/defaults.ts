@@ -1,5 +1,6 @@
 import type { DashboardState, Loan } from "@/lib/types";
 import type { OtherLoan } from "@/lib/other-loans/types";
+import { normalizeBtoPlannerPrefs } from "./bto";
 import { defaultBudgetTemplate, migrateBudget } from "./budget";
 import { migrateInsurancePolicies } from "./insurance";
 import { migrateIlpPolicies } from "./ilp";
@@ -381,7 +382,12 @@ export function mergeWithDefaults(saved: LegacySaved): DashboardState {
     ilpPolicies: migrateIlpPolicies(saved),
     insurancePolicies: migrateInsurancePolicies(saved),
     accounts: migrateAccounts(saved),
-    btoPlanner: saved.btoPlanner,
+    btoPlanner: saved.btoPlanner
+      ? normalizeBtoPlannerPrefs(saved.btoPlanner, {
+          monthlySal,
+          oa: saved.oa ?? 0,
+        })
+      : undefined,
   };
   console.log("[mergeWithDefaults] merged state", {
     monthlySal: merged.monthlySal,
