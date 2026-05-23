@@ -974,6 +974,22 @@ tr.computed-row td {
 }
 .table-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.instalment-plans-scroll table {
+  width: 100%;
+  min-width: 36rem;
+}
+.instalment-plans-scroll .instalment-plans-edit-inner {
+  min-width: 52rem;
+}
+.cashflow-table-scroll table {
+  width: 100%;
+  min-width: 44rem;
+}
+.projection-table-scroll table {
+  width: 100%;
+  min-width: 38rem;
 }
 .ilp-edit-card {
   border: 1px solid var(--line);

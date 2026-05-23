@@ -244,31 +244,35 @@ export function TabDebt({ state: S, setState }: Props) {
 
       {editing ? (
         <div className="card">
-          <div className="editrow head loans">
-            <span>Plan</span>
-            <span>Card</span>
-            <span>Monthly $</span>
-            <span>Outstanding $</span>
-            <span>Ends YYYY-MM</span>
-            <span>Due</span>
-            <span>Pay from</span>
-            <span></span>
-          </div>
-          {activeLoans.length === 0 && archivedLoans.length === 0 ? (
-            <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-              No instalment plans configured. Click Edit to add one.
-            </p>
-          ) : (
-            <>
-              {editLoanRows(activeLoans)}
-              {archivedLoans.length > 0 && (
-                <details className="debt-archive" style={{ marginTop: 12 }}>
-                  <summary>Archive — {archivedLoans.length} ended</summary>
-                  <div style={{ marginTop: 10 }}>{editLoanRows(archivedLoans)}</div>
-                </details>
+          <div className="table-scroll instalment-plans-scroll">
+            <div className="instalment-plans-edit-inner">
+              <div className="editrow head loans">
+                <span>Plan</span>
+                <span>Card</span>
+                <span>Monthly $</span>
+                <span>Outstanding $</span>
+                <span>Ends YYYY-MM</span>
+                <span>Due</span>
+                <span>Pay from</span>
+                <span></span>
+              </div>
+              {activeLoans.length === 0 && archivedLoans.length === 0 ? (
+                <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
+                  No instalment plans configured. Click Edit to add one.
+                </p>
+              ) : (
+                <>
+                  {editLoanRows(activeLoans)}
+                  {archivedLoans.length > 0 && (
+                    <details className="debt-archive" style={{ marginTop: 12 }}>
+                      <summary>Archive — {archivedLoans.length} ended</summary>
+                      <div style={{ marginTop: 10 }}>{editLoanRows(archivedLoans)}</div>
+                    </details>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </div>
+          </div>
           <div className="toolbar">
             <button type="button" className="btn ghost sm" onClick={addLoan}>
               + Add instalment plan
@@ -277,7 +281,7 @@ export function TabDebt({ state: S, setState }: Props) {
         </div>
       ) : (
         <>
-          <div className="card">
+          <div className="card table-scroll instalment-plans-scroll">
             {activeLoans.length === 0 ? (
               <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
                 No active instalment plans.{" "}
@@ -298,7 +302,10 @@ export function TabDebt({ state: S, setState }: Props) {
                 Archive — {archivedLoans.length} ended plan
                 {archivedLoans.length === 1 ? "" : "s"}
               </summary>
-              <div className="card" style={{ marginTop: 0, borderTop: "none" }}>
+              <div
+                className="card table-scroll instalment-plans-scroll"
+                style={{ marginTop: 0, borderTop: "none" }}
+              >
                 <table>
                   {loanTableHead}
                   <tbody>{archivedLoans.map(loanRow)}</tbody>

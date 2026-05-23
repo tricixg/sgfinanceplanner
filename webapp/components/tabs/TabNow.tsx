@@ -251,7 +251,7 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
         </div>
       </div>
 
-      <div className="card">
+      <div className="card table-scroll cashflow-table-scroll">
         <table>
           <thead>
             <tr>

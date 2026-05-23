@@ -181,7 +181,7 @@ export function TabYear({ state: S, setState, savings }: Props) {
         <ChartBox type="bar" data={chartData} options={chartOpts} tall />
       </div>
 
-      <div className="card">
+      <div className="card table-scroll projection-table-scroll">
         <table>
           <thead>
             <tr>
