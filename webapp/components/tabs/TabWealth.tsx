@@ -228,7 +228,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
     <section className="panel on">
       {savings && personalCash > 0 ? (
         <p className="ui-hint" style={{ marginBottom: 12 }}>
-          Free cash uses your personal accounts (ME tab). Joint pools stay on Savings
+          Free cash uses your personal accounts (Cash Accounts tab). Joint pools stay on Savings
           &amp; Goals.
         </p>
       ) : null}

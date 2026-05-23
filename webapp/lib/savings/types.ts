@@ -1,4 +1,4 @@
-/** Personal cash jar (user_savings_accounts) — managed on ME tab. */
+/** Personal cash jar (user_savings_accounts) — managed on Cash Accounts tab. */
 export type UserSavingsAccount = {
   id: string;
   userId: string;

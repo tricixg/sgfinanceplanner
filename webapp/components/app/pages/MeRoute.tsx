@@ -46,18 +46,6 @@ function MeContent({
       saveMsg={saveMsg}
       userEmail={user?.email ?? undefined}
       household={household}
-      accountsApi={
-        accountsApi.configured
-          ? {
-              accounts: accountsApi.accounts,
-              totals: accountsApi.totals,
-              saveAccounts: accountsApi.saveAccounts,
-              recordAccountTransaction: accountsApi.recordAccountTransaction,
-              reload: accountsApi.reload,
-            }
-          : undefined
-      }
-      savingsGoals={savingsApi.configured ? savingsApi.bundle.goals : undefined}
       onPartnerUnlinked={onPartnerUnlinked}
     />
   );

@@ -125,7 +125,7 @@ export function TabSavings({
     <section className="panel on">
       <div className="callout tip">
         <span className="ico">Tip</span>
-        <b>Personal cash</b> is on the ME tab. Click a shared pool to record transactions.
+        <b>Personal cash</b> is on the Cash Accounts tab. Click a shared pool to record transactions.
         Goals below are progress stats — use Edit to change targets and timelines.
       </div>
       {savings.paired ? (

@@ -14,6 +14,8 @@ import { TabWealth } from "./tabs/TabWealth";
 import { TabBudgetSavings } from "./tabs/TabBudgetSavings";
 import { TabSavings } from "./tabs/TabSavings";
 import { TabExpenses } from "./tabs/TabExpenses";
+import { TabPoker } from "./tabs/TabPoker";
+import { TransactionsRoute } from "./app/pages/TransactionsRoute";
 import { useSavingsProvider } from "@/hooks/useSavings";
 import { useAccountsProvider } from "@/hooks/useAccounts";
 import { useHouseholdProvider } from "@/hooks/useHousehold";
@@ -25,19 +27,23 @@ import { TabBTO } from "./tabs/TabBTO";
 import { TabCPF } from "./tabs/TabCPF";
 import { TabDebt } from "./tabs/TabDebt";
 import { TabMe } from "./tabs/TabMe";
+import { TabCashAccounts } from "./tabs/TabCashAccounts";
 
 type TabId =
   | "thisMonth"
   | "budget"
   | "savings"
-  | "expenses"
-  | "debt"
-  | "cards"
-  | "wealth"
-  | "cpf"
   | "now"
   | "year"
   | "bto"
+  | "expenses"
+  | "transactions"
+  | "poker"
+  | "cashAccounts"
+  | "cards"
+  | "wealth"
+  | "cpf"
+  | "debt"
   | "me";
 
 type TabDef = {
@@ -54,7 +60,7 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
         id: "thisMonth",
         label: "This Month",
         summary:
-          "Net worth breakdown, monthly calendar, and credit card statement totals.",
+          "Monthly calendar, statement totals, and upcoming events.",
       },
     ],
   },
@@ -72,11 +78,6 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
         label: "Savings & Goals",
         summary:
           "Personal and shared savings accounts, goals, and progress (separate from budget).",
-      },
-      {
-        id: "expenses",
-        label: "Expenses",
-        summary: "Private expense log — loaded separately, not with the main dashboard.",
       },
       {
         id: "now",
@@ -99,13 +100,33 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
     ],
   },
   {
+    category: "Tracking",
+    tabs: [
+      {
+        id: "expenses",
+        label: "Expenses",
+        summary: "Private expense log — loaded separately, not with the main dashboard.",
+      },
+      {
+        id: "transactions",
+        label: "Transaction history",
+        summary: "Unified savings ledger and budget CSV imports.",
+      },
+      {
+        id: "poker",
+        label: "Poker tracker",
+        summary: "Log buy-ins, cash-outs, and session P/L — private to you.",
+      },
+    ],
+  },
+  {
     category: "Accounts",
     tabs: [
       {
-        id: "debt",
-        label: "Debts & Loans",
+        id: "cashAccounts",
+        label: "Cash Accounts",
         summary:
-          "Instalment plans and card balances — feeds cashflow, calendar, and burn-down charts.",
+          "Net worth breakdown and personal bank accounts, e-wallets, and cash jars.",
       },
       {
         id: "cards",
@@ -124,6 +145,12 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
         summary:
           "OA, SA, and MediSave balances for BTO planning, net worth, and long-term projections.",
       },
+      {
+        id: "debt",
+        label: "Debts & Loans",
+        summary:
+          "Instalment plans and card balances — feeds cashflow, calendar, and burn-down charts.",
+      },
     ],
   },
   {
@@ -133,7 +160,7 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
         id: "me",
         label: "ME",
         summary:
-          "Salary, savings accounts, non-ILP insurance, and import/export settings.",
+          "Salary, non-ILP insurance, partner linking, and import/export settings.",
       },
     ],
   },
@@ -284,11 +311,7 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
         </header>
 
         <div style={{ display: active === "thisMonth" ? "block" : "none" }}>
-          <TabThisMonth
-            state={state}
-            setState={setState}
-            savings={savingsTotals}
-          />
+          <TabThisMonth state={state} setState={setState} />
         </div>
         <div style={{ display: active === "budget" ? "block" : "none" }}>
           <TabBudgetSavings
@@ -308,11 +331,26 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             recordPoolTransaction={savingsApi.recordPoolTransaction}
           />
         </div>
-        <div style={{ display: active === "expenses" ? "block" : "none" }}>
-          <TabExpenses enabled={Boolean(userId)} />
-        </div>
-        <div style={{ display: active === "debt" ? "block" : "none" }}>
-          <TabDebt state={state} setState={setState} />
+        <div style={{ display: active === "cashAccounts" ? "block" : "none" }}>
+          <TabCashAccounts
+            state={state}
+            setState={setState}
+            savings={savingsTotals}
+            accountsApi={
+              accountsApi.configured
+                ? {
+                    accounts: accountsApi.accounts,
+                    totals: accountsApi.totals,
+                    saveAccounts: accountsApi.saveAccounts,
+                    recordAccountTransaction: accountsApi.recordAccountTransaction,
+                    reload: accountsApi.reload,
+                  }
+                : undefined
+            }
+            savingsGoals={
+              savingsApi.configured ? savingsApi.bundle.goals : undefined
+            }
+          />
         </div>
         <div style={{ display: active === "cards" ? "block" : "none" }}>
           <TabCards state={state} setState={setState} />
@@ -326,6 +364,9 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
         </div>
         <div style={{ display: active === "cpf" ? "block" : "none" }}>
           <TabCPF state={state} setState={setState} />
+        </div>
+        <div style={{ display: active === "debt" ? "block" : "none" }}>
+          <TabDebt state={state} setState={setState} />
         </div>
         <div style={{ display: active === "now" ? "block" : "none" }}>
           <TabNow
@@ -344,6 +385,15 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
         <div style={{ display: active === "bto" ? "block" : "none" }}>
           <TabBTO state={state} setState={setState} />
         </div>
+        <div style={{ display: active === "expenses" ? "block" : "none" }}>
+          <TabExpenses enabled={Boolean(userId)} />
+        </div>
+        <div style={{ display: active === "transactions" ? "block" : "none" }}>
+          <TransactionsRoute />
+        </div>
+        <div style={{ display: active === "poker" ? "block" : "none" }}>
+          <TabPoker enabled={Boolean(userId)} />
+        </div>
         <div style={{ display: active === "me" ? "block" : "none" }}>
           <TabMe
             state={state}
@@ -354,20 +404,6 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             saveMsg={saveMsg}
             userEmail={userEmail}
             household={household}
-            accountsApi={
-              accountsApi.configured
-                ? {
-                    accounts: accountsApi.accounts,
-                    totals: accountsApi.totals,
-                    saveAccounts: accountsApi.saveAccounts,
-                    recordAccountTransaction: accountsApi.recordAccountTransaction,
-                    reload: accountsApi.reload,
-                  }
-                : undefined
-            }
-            savingsGoals={
-              savingsApi.configured ? savingsApi.bundle.goals : undefined
-            }
           />
         </div>
 

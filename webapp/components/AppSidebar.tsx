@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { appConfig } from "@/lib/config";
-import { NAV_GROUPS, TRANSACTIONS_NAV } from "@/lib/nav-config";
+import { NAV_GROUPS } from "@/lib/nav-config";
 
 type Props = {
   open: boolean;
@@ -56,18 +56,6 @@ export function AppSidebar({ open, onClose }: Props) {
                   {t.label}
                 </Link>
               ))}
-              {group.category === "Planning" ? (
-                <Link
-                  href={TRANSACTIONS_NAV.href}
-                  className={`tab sidebar-tab ${isActive(TRANSACTIONS_NAV.href) ? "on" : ""}`}
-                  onClick={() => {
-                    onClose();
-                    console.info("[AppSidebar] nav → transaction history");
-                  }}
-                >
-                  {TRANSACTIONS_NAV.label}
-                </Link>
-              ) : null}
             </div>
           ))}
         </nav>

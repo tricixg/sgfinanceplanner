@@ -317,7 +317,7 @@ export function TransactionsHistoryPage() {
         {loading ? (
           <p className="note">Loading transactions…</p>
         ) : items.length === 0 ? (
-          <p className="note">No transactions found. Import a CSV or record savings on the ME tab.</p>
+          <p className="note">No transactions found. Import a CSV or record savings on the Cash Accounts tab.</p>
         ) : (
           <div className="table-scroll">
             <table>

@@ -1,8 +1,11 @@
 export type AppRouteId =
   | "thisMonth"
+  | "cashAccounts"
   | "budget"
   | "savings"
   | "expenses"
+  | "transactions"
+  | "poker"
   | "debt"
   | "cards"
   | "wealth"
@@ -10,8 +13,7 @@ export type AppRouteId =
   | "now"
   | "year"
   | "bto"
-  | "me"
-  | "transactions";
+  | "me";
 
 export type NavTab = {
   id: AppRouteId;
@@ -28,8 +30,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "thisMonth",
         label: "This Month",
         href: "/this-month",
-        summary:
-          "Net worth breakdown, monthly calendar, and credit card statement totals.",
+        summary: "Monthly calendar, statement totals, and upcoming events.",
       },
     ],
   },
@@ -49,12 +50,6 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         href: "/savings",
         summary:
           "Personal and shared savings accounts, goals, and progress (separate from budget).",
-      },
-      {
-        id: "expenses",
-        label: "Expenses",
-        href: "/expenses",
-        summary: "Private expense log — loaded separately, not with the main dashboard.",
       },
       {
         id: "now",
@@ -80,14 +75,36 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
     ],
   },
   {
+    category: "Tracking",
+    tabs: [
+      {
+        id: "expenses",
+        label: "Expenses",
+        href: "/expenses",
+        summary: "Private expense log — loaded separately, not with the main dashboard.",
+      },
+      {
+        id: "transactions",
+        label: "Transaction history",
+        href: "/transactions",
+        summary: "Unified savings ledger and budget CSV imports.",
+      },
+      {
+        id: "poker",
+        label: "Poker tracker",
+        href: "/poker",
+        summary: "Log buy-ins, cash-outs, and session P/L — private to you.",
+      },
+    ],
+  },
+  {
     category: "Accounts",
     tabs: [
       {
-        id: "debt",
-        label: "Debts & Loans",
-        href: "/debt",
-        summary:
-          "Instalment plans and card balances — feeds cashflow, calendar, and burn-down charts.",
+        id: "cashAccounts",
+        label: "Cash Accounts",
+        href: "/cash-accounts",
+        summary: "Net worth breakdown and personal bank accounts, e-wallets, and cash jars.",
       },
       {
         id: "cards",
@@ -109,6 +126,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         summary:
           "OA, SA, and MediSave balances for BTO planning, net worth, and long-term projections.",
       },
+      {
+        id: "debt",
+        label: "Debts & Loans",
+        href: "/debt",
+        summary:
+          "Instalment plans and card balances — feeds cashflow, calendar, and burn-down charts.",
+      },
     ],
   },
   {
@@ -119,18 +143,14 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "ME",
         href: "/me",
         summary:
-          "Salary, savings accounts, non-ILP insurance, and import/export settings.",
+          "Salary, non-ILP insurance, partner linking, and import/export settings.",
       },
     ],
   },
 ];
 
-export const TRANSACTIONS_NAV: NavTab = {
-  id: "transactions",
-  label: "Transaction history",
-  href: "/transactions",
-  summary: "Unified savings ledger and budget CSV imports.",
-};
+export const TRANSACTIONS_NAV: NavTab =
+  NAV_GROUPS.flatMap((g) => g.tabs).find((t) => t.id === "transactions")!;
 
 export const ALL_NAV_TABS = NAV_GROUPS.flatMap((g) => g.tabs);
 

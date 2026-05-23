@@ -1,12 +1,5 @@
-"use client";
-
-import { Suspense } from "react";
-import { TransactionsHistoryPage } from "@/components/savings/TransactionsHistoryPage";
+import { TransactionsRoute } from "@/components/app/pages/TransactionsRoute";
 
 export default function TransactionsPage() {
-  return (
-    <Suspense fallback={<p className="loading">Loading…</p>}>
-      <TransactionsHistoryPage />
-    </Suspense>
-  );
+  return <TransactionsRoute />;
 }
