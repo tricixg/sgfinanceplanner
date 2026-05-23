@@ -370,7 +370,7 @@ export function TabCashAccounts({
                           </td>
                           <td className="num">{fmt2(a.balance)}</td>
                           <td>
-                            {a.includeInSavings ? "Yes" : "Free cash only"}
+                            {a.includeInSavings ? "Yes" : "Total only"}
                           </td>
                           <td className="note" style={{ fontSize: 12 }}>
                             {a.notes || "—"}
@@ -480,7 +480,7 @@ export function TabCashAccounts({
                   <tr key={i}>
                     <td>{a.name || "—"}</td>
                     <td className="num">{fmt2(a.balance)}</td>
-                    <td>{a.includeInSavings !== false ? "Yes" : "Free cash only"}</td>
+                    <td>{a.includeInSavings !== false ? "Yes" : "Total only"}</td>
                     <td>{a.notes || "—"}</td>
                   </tr>
                 ))}
@@ -490,7 +490,7 @@ export function TabCashAccounts({
         )}
         <div className="account-totals">
           <div className="account-totals-stat">
-            <span className="account-totals-lbl">Free cash</span>
+            <span className="account-totals-lbl">Total</span>
             <span className="account-totals-val">{fmt2(cashTotal)}</span>
           </div>
           <div className="account-totals-stat">
@@ -500,8 +500,8 @@ export function TabCashAccounts({
           {!editingAccounts ? (
             <p className="ui-hint account-totals-hint">
               {useCloudAccounts
-                ? "All accounts count toward free cash. Uncheck Include in savings to omit from Savings only."
-                : "All accounts count toward free cash. “In savings?” controls Savings rollup when signed in."}
+                ? "All accounts count toward the total. Uncheck Include in savings to omit from Savings only."
+                : "All accounts count toward the total. “In savings?” controls Savings rollup when signed in."}
             </p>
           ) : null}
         </div>
