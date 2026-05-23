@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
-import { getDevBypassUserId, isDevAuthBypass } from "@/lib/auth/dev-bypass";
+import {
+  getDevBypassEmail,
+  getDevBypassUserId,
+  isDevAuthBypass,
+} from "@/lib/auth/dev-bypass";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -10,7 +14,7 @@ function devBypassUser(): User | null {
   console.info("[auth] dev bypass user", { userId: id });
   return {
     id,
-    email: "dev-bypass@local",
+    email: getDevBypassEmail() ?? "dev-bypass@local",
     app_metadata: {},
     user_metadata: {},
     aud: "authenticated",
@@ -45,7 +49,7 @@ export async function requireSessionUser(): Promise<
       response: NextResponse.json(
         {
           error:
-            "AUTH_BYPASS_DEV is set but DEV_USER_ID is missing. Add your Supabase user UUID to .env.local.",
+            "AUTH_BYPASS_DEV is set but DEV_USER_ID is missing. Add your Supabase user UUID (and DEV_USER_EMAIL for partner invites) to .env.local.",
         },
         { status: 503 }
       ),

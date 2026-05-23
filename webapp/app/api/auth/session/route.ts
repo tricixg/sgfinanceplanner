@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getDevBypassUserId, isDevAuthBypass } from "@/lib/auth/dev-bypass";
+import {
+  getDevBypassEmail,
+  getDevBypassUserId,
+  isDevAuthBypass,
+} from "@/lib/auth/dev-bypass";
 import { getSessionUser } from "@/lib/auth/require-user";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -11,7 +15,7 @@ export async function GET() {
       configured: true,
       bypass: true,
       user: id
-        ? { id, email: "dev-bypass@local" }
+        ? { id, email: getDevBypassEmail() ?? "dev-bypass@local" }
         : null,
     });
   }

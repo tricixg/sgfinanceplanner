@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
+import { enrichInviterEmails } from "@/lib/household/invite-emails";
 import { mapInvite } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -46,11 +47,18 @@ export async function GET() {
     : { data: [] };
 
   const paired = (members?.length ?? 0) > 1;
+
+  const sent = await enrichInviterEmails((sentInvites ?? []).map((r) => mapInvite(r)));
+  const received = await enrichInviterEmails(
+    (receivedInvites ?? []).map((r) => mapInvite(r))
+  );
+
   console.info("[api/household] GET", {
     userId: user.id,
     householdId,
     paired,
     members: members?.length ?? 0,
+    receivedPending: received.length,
   });
 
   return NextResponse.json({
@@ -63,7 +71,7 @@ export async function GET() {
       joinedAt: m.joined_at,
       isYou: m.user_id === user.id,
     })),
-    sentInvites: (sentInvites ?? []).map((r) => mapInvite(r)),
-    receivedInvites: (receivedInvites ?? []).map((r) => mapInvite(r)),
+    sentInvites: sent,
+    receivedInvites: received,
   });
 }
