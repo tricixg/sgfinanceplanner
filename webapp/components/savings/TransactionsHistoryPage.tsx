@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { fetchJson } from "@/lib/fetch-json";
-import { fmt2 } from "@/lib/finance/helpers";
+import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { useSavings } from "@/hooks/useSavings";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 
@@ -332,8 +332,6 @@ export function TransactionsHistoryPage() {
                   <th>Transaction</th>
                   <th className="num">Amount</th>
                   <th>Account</th>
-                  <th>Recorder</th>
-                  <th>Tag</th>
                   <th>Note</th>
                   <th>Goal</th>
                   <th className="num">Balance</th>
@@ -348,13 +346,8 @@ export function TransactionsHistoryPage() {
                     <td>{tx.category || "—"}</td>
                     <td>{tx.subcategory || "—"}</td>
                     <td style={{ textTransform: "capitalize" }}>{tx.typeLabel}</td>
-                    <td className="num">
-                      {tx.amount > 0 ? "+" : ""}
-                      {fmt2(tx.amount)}
-                    </td>
+                    <td className="num">{fmtSigned2(tx.amount)}</td>
                     <td>{tx.accountName ?? "—"}</td>
-                    <td>{tx.recorder || "—"}</td>
-                    <td>{tx.tag || "—"}</td>
                     <td>{tx.note || "—"}</td>
                     <td>{tx.goalName ?? "—"}</td>
                     <td className="num">

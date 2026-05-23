@@ -41,6 +41,9 @@ export type SavingsTransaction = {
   note: string;
   occurredAt: string;
   createdAt: string;
+  incomeCategoryId: string | null;
+  incomeCategoryName: string | null;
+  excludeFromBudget: boolean;
 };
 
 export type AccountsBundle = {

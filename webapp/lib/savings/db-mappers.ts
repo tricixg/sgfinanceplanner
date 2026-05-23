@@ -48,6 +48,9 @@ export function mapTransaction(row: Record<string, unknown>): SavingsTransaction
     note: String(row.note ?? ""),
     occurredAt: String(row.occurred_at),
     createdAt: String(row.created_at),
+    incomeCategoryId: row.income_category_id ? String(row.income_category_id) : null,
+    incomeCategoryName: null,
+    excludeFromBudget: row.exclude_from_budget === true,
   };
 }
 

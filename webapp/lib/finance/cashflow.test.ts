@@ -18,6 +18,7 @@ describe("cashflow", () => {
     const rows = buildMonths(DEFAULTS, "2026-06", 5);
     expect(rows).toHaveLength(5);
     expect(rows[0].m).toBe("Jun 26");
-    expect(rows.every((r) => r.income === stableTakeHome(DEFAULTS))).toBe(true);
+    expect(rows.every((r) => r.incomeBaseline === stableTakeHome(DEFAULTS))).toBe(true);
+    expect(rows.every((r) => r.income === r.incomeBaseline)).toBe(true);
   });
 });

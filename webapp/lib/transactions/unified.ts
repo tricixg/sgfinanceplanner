@@ -24,6 +24,9 @@ function signedBudgetAmount(tx: BudgetTransaction): number {
 }
 
 export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
+  const category =
+    tx.incomeCategoryName ??
+    (tx.excludeFromBudget ? "Excluded from budget" : null);
   return {
     id: tx.id,
     recordType: "savings",
@@ -34,7 +37,7 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
     amount: tx.amount,
     accountName: tx.sourceName ?? null,
     ledger: null,
-    category: null,
+    category,
     subcategory: null,
     currency: "SGD",
     recorder: null,
@@ -49,11 +52,12 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
 
 export function budgetToUnified(tx: BudgetTransaction): UnifiedTransaction {
   const sortAt = budgetSortAt(tx);
+  const when = `${tx.spentAt}T${tx.spentTime?.slice(0, 8) ?? "00:00:00"}`;
   return {
     id: tx.id,
     recordType: "budget",
     sortAt,
-    date: tx.spentAt,
+    date: formatTransactionDate(when),
     time: tx.spentTime?.slice(0, 5) ?? "",
     typeLabel: tx.transactionType,
     amount: signedBudgetAmount(tx),

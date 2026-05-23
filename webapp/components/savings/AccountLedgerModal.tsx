@@ -17,6 +17,7 @@ type Props = {
     kind: LedgerKind;
     note?: string;
     goalId?: string;
+    incomeCategoryId?: string;
   }) => Promise<void>;
   txRefresh: number;
 };

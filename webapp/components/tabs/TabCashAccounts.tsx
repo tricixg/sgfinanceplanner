@@ -27,6 +27,7 @@ type CloudAccountsApi = {
       kind?: "deposit" | "withdrawal" | "adjustment";
       note?: string;
       goalId?: string;
+      incomeCategoryId?: string;
     }
   ) => Promise<void>;
   reload: () => Promise<void>;

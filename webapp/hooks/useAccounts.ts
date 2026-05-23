@@ -74,10 +74,11 @@ export function useAccountsProvider(enabled: boolean) {
       payload: {
         amount: number;
         occurredAt?: string;
-        kind?: "deposit" | "withdrawal" | "adjustment";
-        note?: string;
-        goalId?: string | null;
-      }
+      kind?: "deposit" | "withdrawal" | "adjustment";
+      note?: string;
+      goalId?: string | null;
+      incomeCategoryId?: string;
+    }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(
         `/api/accounts/${accountId}/transactions`,

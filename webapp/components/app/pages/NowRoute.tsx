@@ -14,7 +14,7 @@ function NowContent({
 }) {
   const user = useAppSession();
   const { savingsTotals } = usePageSavings(user?.id, state);
-  return <TabNow state={state} setState={setState} savings={savingsTotals} />;
+  return <TabNow state={state} setState={setState} savings={savingsTotals} authEnabled={Boolean(user)} />;
 }
 
 export function NowRoute() {

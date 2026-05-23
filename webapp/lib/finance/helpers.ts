@@ -7,6 +7,13 @@ export const fmt2 = (n: number) =>
     maximumFractionDigits: 2,
   });
 
+/** Signed currency for ledgers: +$100.00 / -$94.90 */
+export const fmtSigned2 = (n: number) => {
+  if (n === 0) return fmt2(0);
+  const sign = n > 0 ? "+" : "-";
+  return sign + fmt2(Math.abs(n));
+};
+
 export const monIdx = (s: string) => {
   const [y, m] = s.split("-").map(Number);
   return y * 12 + (m - 1);

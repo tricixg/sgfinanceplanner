@@ -381,6 +381,7 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             state={state}
             setState={setState}
             savings={savingsTotals}
+            authEnabled={accountsApi.configured}
           />
         </div>
         <div style={{ display: active === "year" ? "block" : "none" }}>

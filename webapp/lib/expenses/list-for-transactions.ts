@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapExpense } from "@/lib/savings/db-mappers";
+import {
+  formatTransactionDate,
+  formatTransactionTime,
+} from "@/lib/savings/format-transaction-when";
 import type { Expense } from "@/lib/savings/types";
 import type { BudgetTransactionType, UnifiedTransaction } from "@/lib/transactions/types";
 
@@ -28,12 +32,13 @@ export function expenseMatchesTransactionType(
 
 export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransaction {
   const typeLabel = expense.autoCategory ?? "expense";
+  const when = expense.createdAt || `${expense.spentAt}T00:00:00Z`;
   return {
     id: expense.id,
     recordType: "expense",
-    sortAt: `${expense.spentAt}T00:00:00`,
-    date: expense.spentAt,
-    time: "",
+    sortAt: when,
+    date: formatTransactionDate(when),
+    time: formatTransactionTime(when),
     typeLabel,
     amount: -expense.amount,
     accountName: expense.accountName,

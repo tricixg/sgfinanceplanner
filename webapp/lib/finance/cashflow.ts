@@ -5,7 +5,7 @@ import { resolveDashboardCash } from "./wealth";
 import { computedInsuranceMonthly } from "./insurance";
 import { computedIlpMonthly } from "./ilp";
 import { formatMonthLabel } from "./helpers";
-import { stableTakeHome } from "./income";
+import { monthCashIncome } from "@/lib/income/hybrid-cashflow";
 import { loanLoadForMonth } from "./loanLoad";
 
 export { stableTakeHome } from "./income";
@@ -14,6 +14,8 @@ export type MonthRow = {
   m: string;
   ym: string;
   income: number;
+  incomeBaseline: number;
+  incomeAdditive: number;
   note: string;
   fixed: number;
   spend: number;
@@ -42,20 +44,23 @@ export function buildMonths(
   S: DashboardState,
   startYm: string,
   count = 5,
-  savings?: SavingsSnapshot | null
+  savings?: SavingsSnapshot | null,
+  additiveIncomeByYm: Record<string, number> = {}
 ): MonthRow[] {
-  const income = stableTakeHome(S);
   const fixed = budgetFixedTotal(S);
   const spend = budgetSpendTotal(S);
   const ilpPrem = computedIlpMonthly(S);
   const insurance = computedInsuranceMonthly(S);
   const months = Array.from({ length: count }, (_, i) => {
     const ym = addMonths(startYm, i);
+    const { baseline: b, additive, total } = monthCashIncome(S, ym, additiveIncomeByYm);
     return {
       m: formatMonthLabel(ym),
       ym,
-      income,
-      note: "Stable income",
+      income: total,
+      incomeBaseline: b,
+      incomeAdditive: additive,
+      note: additive > 0 ? "Salary/comms + extra deposits" : "Stable income",
       fixed,
       spend,
     };

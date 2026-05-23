@@ -7,6 +7,8 @@ export type PokerSession = {
   venue: string;
   hours: number | null;
   note: string;
+  financialAccountId: string | null;
+  savingsTransactionId: string | null;
   createdAt: string;
 };
 

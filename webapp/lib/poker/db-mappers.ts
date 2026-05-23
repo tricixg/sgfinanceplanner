@@ -11,6 +11,12 @@ export function mapPokerSession(row: Record<string, unknown>): PokerSession {
     venue: String(row.venue ?? ""),
     hours: hoursRaw == null ? null : Number(hoursRaw),
     note: String(row.note ?? ""),
+    financialAccountId: row.financial_account_id
+      ? String(row.financial_account_id)
+      : null,
+    savingsTransactionId: row.savings_transaction_id
+      ? String(row.savings_transaction_id)
+      : null,
     createdAt: String(row.created_at),
   };
 }

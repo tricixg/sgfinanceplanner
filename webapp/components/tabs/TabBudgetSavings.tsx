@@ -331,29 +331,6 @@ export function TabBudgetSavings({
 
       <div className="section-head">
         <h2>Monthly salary allocation</h2>
-        {editingAllocation ? (
-          <button
-            type="button"
-            className="btn sm"
-            onClick={() => {
-              setEditingAllocation(false);
-              console.log("[TabBudgetSavings] allocation edit off");
-            }}
-          >
-            Done
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingAllocation(true);
-              console.log("[TabBudgetSavings] allocation edit on");
-            }}
-          >
-            Edit
-          </button>
-        )}
       </div>
 
       <div className="callout tip">
@@ -410,6 +387,19 @@ export function TabBudgetSavings({
             <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
           </div>
           <div className="card">
+            <div className="section-head" style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "1rem" }}>Categories</h3>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => {
+                  setEditingAllocation(false);
+                  console.log("[TabBudgetSavings] allocation edit off");
+                }}
+              >
+                Done
+              </button>
+            </div>
             {S.budget.length === 0 ? (
               <button
                 type="button"
@@ -467,6 +457,19 @@ export function TabBudgetSavings({
             <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
           </div>
           <div className="card">
+            <div className="section-head" style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: "1rem" }}>Categories</h3>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => {
+                  setEditingAllocation(true);
+                  console.log("[TabBudgetSavings] allocation edit on");
+                }}
+              >
+                Edit
+              </button>
+            </div>
             <table>
               <thead>
                 <tr>

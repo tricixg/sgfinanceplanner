@@ -13,6 +13,8 @@ export type ApplyTransactionInput = {
   poolId?: string | null;
   householdId?: string | null;
   expenseId?: string | null;
+  incomeCategoryId?: string | null;
+  excludeFromBudget?: boolean;
 };
 
 export async function applyTransaction(
@@ -148,6 +150,8 @@ export async function applyTransaction(
       note: input.note ?? "",
       occurred_at: occurredAt,
       expense_id: input.expenseId ?? null,
+      income_category_id: input.incomeCategoryId ?? null,
+      exclude_from_budget: input.excludeFromBudget ?? false,
     })
     .select("*")
     .single();
@@ -164,6 +168,8 @@ export async function applyTransaction(
     poolId: input.poolId,
     goalId: input.goalId,
     expenseId: input.expenseId ?? null,
+    incomeCategoryId: input.incomeCategoryId ?? null,
+    excludeFromBudget: input.excludeFromBudget ?? false,
     balanceAfter,
   });
 
@@ -177,6 +183,39 @@ export async function applyTransaction(
     return { ...mapped, goalName: goalRow?.name ? String(goalRow.name) : null };
   }
   return mapped;
+}
+
+async function enrichTransactionsWithIncomeCategoryNames(
+  supabase: SupabaseClient,
+  items: SavingsTransaction[]
+): Promise<SavingsTransaction[]> {
+  const ids = [
+    ...new Set(
+      items.map((t) => t.incomeCategoryId).filter((id): id is string => Boolean(id))
+    ),
+  ];
+  if (!ids.length) return items;
+
+  const { data, error } = await supabase
+    .from("income_categories")
+    .select("id, name")
+    .in("id", ids);
+
+  if (error) {
+    console.warn("[ledger] income category name lookup failed", error.message);
+    return items;
+  }
+
+  const names = new Map(
+    (data ?? []).map((r) => [String(r.id), String(r.name ?? "").trim()])
+  );
+
+  return items.map((t) => ({
+    ...t,
+    incomeCategoryName: t.incomeCategoryId
+      ? names.get(t.incomeCategoryId) ?? null
+      : null,
+  }));
 }
 
 async function enrichTransactionsWithGoalNames(
@@ -307,6 +346,7 @@ export async function listAllTransactions(
   if (error) throw new Error(error.message);
 
   let items = (data ?? []).map((r) => mapTransaction(r));
+  items = await enrichTransactionsWithIncomeCategoryNames(supabase, items);
   items = await enrichTransactionsWithGoalNames(supabase, items);
   items = await enrichTransactionsWithSourceNames(supabase, items);
 
@@ -334,13 +374,14 @@ export async function listAccountTransactions(
 
   if (error) throw new Error(error.message);
 
-  const items = await enrichTransactionsWithGoalNames(
+  const items = await enrichTransactionsWithIncomeCategoryNames(
     supabase,
     (data ?? []).map((r) => mapTransaction(r))
   );
+  const withGoals = await enrichTransactionsWithGoalNames(supabase, items);
 
   return {
-    items,
+    items: withGoals,
     total: count ?? 0,
     nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
   };
@@ -363,13 +404,14 @@ export async function listPoolTransactions(
 
   if (error) throw new Error(error.message);
 
-  const items = await enrichTransactionsWithGoalNames(
+  const items = await enrichTransactionsWithIncomeCategoryNames(
     supabase,
     (data ?? []).map((r) => mapTransaction(r))
   );
+  const withGoals = await enrichTransactionsWithGoalNames(supabase, items);
 
   return {
-    items,
+    items: withGoals,
     total: count ?? 0,
     nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
   };
@@ -392,13 +434,14 @@ export async function listGoalTransactions(
 
   if (error) throw new Error(error.message);
 
-  const items = await enrichTransactionsWithGoalNames(
+  const items = await enrichTransactionsWithIncomeCategoryNames(
     supabase,
     (data ?? []).map((r) => mapTransaction(r))
   );
+  const withGoals = await enrichTransactionsWithGoalNames(supabase, items);
 
   return {
-    items,
+    items: withGoals,
     total: count ?? 0,
     nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
   };

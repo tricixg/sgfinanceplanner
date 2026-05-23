@@ -5,6 +5,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
 import type { PokerSession } from "@/lib/poker/types";
 import { pokerProfit } from "@/lib/poker/types";
+import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 
 function monthBounds(): { from: string; to: string } {
   const d = new Date();
@@ -31,6 +32,10 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
   const [playedAt, setPlayedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [financialAccountId, setFinancialAccountId] = useState("");
+
+  const { accounts: financialAccounts } = useFinancialAccounts();
+  const cashAccounts = financialAccounts.filter((a) => a.savingsAccountId);
 
   const load = useCallback(
     async (append: boolean) => {
@@ -78,6 +83,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     const out = cashOut === "" ? 0 : parseFloat(cashOut);
     if (!Number.isFinite(buy) || buy < 0) return;
     if (!Number.isFinite(out) || out < 0) return;
+    if (!financialAccountId) return;
     const hoursNum = hours === "" ? null : parseFloat(hours);
     try {
       const { res, data } = await fetchJson<{ item?: PokerSession; error?: string }>(
@@ -93,6 +99,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             hours: hoursNum,
             note,
             playedAt,
+            financialAccountId,
           }),
         }
       );
@@ -216,6 +223,21 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
               placeholder="Home game, NLHE $2/5…"
             />
           </label>
+          <label>
+            Cash account
+            <select
+              value={financialAccountId}
+              onChange={(e) => setFinancialAccountId(e.target.value)}
+              required
+            >
+              <option value="">Select account…</option>
+              {cashAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <label style={{ display: "block", marginTop: 8 }}>
           Note
@@ -241,6 +263,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                 <th>Buy-in</th>
                 <th>Cash-out</th>
                 <th>P/L</th>
+                <th>Ledger</th>
                 <th>Hrs</th>
                 <th>Note</th>
                 <th />
@@ -256,6 +279,15 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                     <td className="num">{fmt2(x.buyIn)}</td>
                     <td className="num">{fmt2(x.cashOut)}</td>
                     <td className="num">{formatPl(pl)}</td>
+                    <td className="note">
+                      {pl === 0
+                        ? "—"
+                        : x.savingsTransactionId
+                          ? pl > 0
+                            ? `Deposit · ${financialAccounts.find((a) => a.id === x.financialAccountId)?.name ?? "account"}`
+                            : `Withdrawal · ${financialAccounts.find((a) => a.id === x.financialAccountId)?.name ?? "account"}`
+                          : "No ledger"}
+                    </td>
                     <td className="num">{x.hours != null ? x.hours : "—"}</td>
                     <td>{x.note || "—"}</td>
                     <td>

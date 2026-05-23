@@ -58,6 +58,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     kind?: "deposit" | "withdrawal" | "adjustment";
     note?: string;
     goalId?: string;
+    incomeCategoryId?: string;
+    excludeFromBudget?: boolean;
   };
   try {
     body = await req.json();
@@ -91,6 +93,25 @@ export async function POST(req: NextRequest, { params }: Params) {
     amount = -amount;
   }
 
+  if (kind === "deposit" && !body.incomeCategoryId) {
+    return NextResponse.json(
+      { error: "incomeCategoryId required for deposits" },
+      { status: 400 }
+    );
+  }
+
+  if (body.incomeCategoryId) {
+    const { data: cat } = await supabase
+      .from("income_categories")
+      .select("id")
+      .eq("id", body.incomeCategoryId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!cat) {
+      return NextResponse.json({ error: "Invalid income category" }, { status: 400 });
+    }
+  }
+
   try {
     const item = await applyTransaction(supabase, {
       userId: user.id,
@@ -100,6 +121,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       kind,
       note: body.note,
       goalId: body.goalId ?? null,
+      incomeCategoryId: body.incomeCategoryId ?? null,
+      excludeFromBudget: body.excludeFromBudget ?? false,
     });
     return NextResponse.json({ item });
   } catch (e) {

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
 import { mapPokerSession } from "@/lib/poker/db-mappers";
+import { createPokerLedger } from "@/lib/poker/ledger-sync";
+import { pokerProfit } from "@/lib/poker/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
     venue?: string;
     hours?: number | null;
     note?: string;
+    financialAccountId?: string;
   };
   try {
     body = await req.json();
@@ -109,7 +113,21 @@ export async function POST(req: NextRequest) {
     if (Number.isFinite(h) && h >= 0) hours = h;
   }
 
+  if (!body.financialAccountId) {
+    return NextResponse.json({ error: "financialAccountId required" }, { status: 400 });
+  }
+
   const supabase = await createAuthedSupabaseClient();
+
+  const acctOk = await verifyFinancialAccount(
+    supabase,
+    user.id,
+    body.financialAccountId
+  );
+  if (!acctOk) {
+    return NextResponse.json({ error: "Invalid financial account" }, { status: 400 });
+  }
+
   const { data: row, error } = await supabase
     .from("poker_sessions")
     .insert({
@@ -120,6 +138,7 @@ export async function POST(req: NextRequest) {
       venue: body.venue ?? "",
       hours,
       note: body.note ?? "",
+      financial_account_id: body.financialAccountId,
     })
     .select("*")
     .single();
@@ -129,11 +148,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  let session = mapPokerSession(row);
+  const profit = pokerProfit(session);
+
+  if (profit !== 0) {
+    try {
+      const txId = await createPokerLedger(supabase, user.id, session);
+      if (txId) {
+        const { data: updated } = await supabase
+          .from("poker_sessions")
+          .update({ savings_transaction_id: txId })
+          .eq("id", session.id)
+          .select("*")
+          .single();
+        if (updated) session = mapPokerSession(updated);
+      }
+    } catch (ledgerErr) {
+      await supabase.from("poker_sessions").delete().eq("id", session.id);
+      const msg = ledgerErr instanceof Error ? ledgerErr.message : "Ledger sync failed";
+      console.error("[api/poker] ledger failed", msg);
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+  }
+
   console.info("[api/poker] POST ok", {
     userId: user.id,
     buyIn,
     cashOut,
     playedAt,
+    profit,
+    financialAccountId: body.financialAccountId,
   });
-  return NextResponse.json({ item: mapPokerSession(row) });
+  return NextResponse.json({ item: session });
 }

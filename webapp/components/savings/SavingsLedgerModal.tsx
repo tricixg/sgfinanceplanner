@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { SavingsPool, UserSavingsAccount } from "@/lib/savings/types";
 import { TransactionList } from "@/components/savings/TransactionList";
 import { fmt2 } from "@/lib/finance/helpers";
+import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 
 export type LedgerKind = "deposit" | "withdrawal" | "adjustment";
 
@@ -27,6 +28,7 @@ type Props = {
     kind: LedgerKind;
     note?: string;
     goalId?: string;
+    incomeCategoryId?: string;
   }) => Promise<void>;
 };
 
@@ -71,9 +73,13 @@ export function SavingsLedgerModal({
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
   const [note, setNote] = useState("");
+  const [incomeCategoryId, setIncomeCategoryId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [historyKey, setHistoryKey] = useState(txRefresh);
+
+  const { categories: incomeCategories, configured: incomeConfigured } =
+    useIncomeCategories(target.variant === "account");
 
   useEffect(() => {
     setHistoryKey(txRefresh);
@@ -82,8 +88,24 @@ export function SavingsLedgerModal({
   useEffect(() => {
     setGoalId("");
     setAmount("");
+    setIncomeCategoryId("");
     setError("");
   }, [target, kind]);
+
+  useEffect(() => {
+    if (
+      kind === "deposit" &&
+      target.variant === "account" &&
+      incomeCategories.length &&
+      !incomeCategoryId
+    ) {
+      const salary = incomeCategories.find((c) => c.slug === "salary");
+      if (salary) setIncomeCategoryId(salary.id);
+    }
+  }, [kind, target.variant, incomeCategories, incomeCategoryId]);
+
+  const showIncomeCategory =
+    target.variant === "account" && kind === "deposit" && incomeConfigured;
 
   const showGoalPicker = goalOptions.length > 0 && kind !== "adjustment";
 
@@ -127,6 +149,10 @@ export function SavingsLedgerModal({
       );
       return;
     }
+    if (showIncomeCategory && !incomeCategoryId) {
+      setError("Select an income category");
+      return;
+    }
     setError("");
     setBusy(true);
     try {
@@ -136,10 +162,12 @@ export function SavingsLedgerModal({
         kind,
         note: note.trim() || undefined,
         goalId: showGoalPicker && goalId ? goalId : undefined,
+        incomeCategoryId: showIncomeCategory ? incomeCategoryId : undefined,
       });
       setAmount("");
       setNote("");
       setGoalId("");
+      setIncomeCategoryId("");
       setHistoryKey((k) => k + 1);
       console.info("[SavingsLedgerModal] recorded", {
         variant: target.variant,
@@ -225,6 +253,27 @@ export function SavingsLedgerModal({
                   {goalOptions.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name || "Goal"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {showIncomeCategory ? (
+              <label className="ctrl" style={{ fontSize: 13, flex: "2 1 200px" }}>
+                <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
+                  Income category
+                </span>
+                <select
+                  value={incomeCategoryId}
+                  onChange={(e) => setIncomeCategoryId(e.target.value)}
+                  style={{ width: "100%" }}
+                  required
+                >
+                  <option value="">Select…</option>
+                  {incomeCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.countsAsAdditive ? " (+ cashflow)" : ""}
                     </option>
                   ))}
                 </select>
