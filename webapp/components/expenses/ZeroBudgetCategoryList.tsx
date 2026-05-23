@@ -66,7 +66,7 @@ export function ZeroBudgetCategoryItem({
       <summary className="zero-budget-item-summary">
         <span className="zero-budget-item-name">{category.category || "Unnamed"}</span>
         <span className="zero-budget-item-meta">
-          {category.spent > 0 ? fmt2(category.spent) : "—"}
+          used {category.spent > 0 ? fmt2(category.spent) : "—"}
         </span>
       </summary>
       <div className="zero-budget-item-body">

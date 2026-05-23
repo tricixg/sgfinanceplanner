@@ -4,6 +4,7 @@ export type AppRouteId =
   | "budget"
   | "savings"
   | "expenses"
+  | "recurring"
   | "transactions"
   | "poker"
   | "debt"
@@ -82,6 +83,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "Expenses",
         href: "/expenses",
         summary: "Private expense log — loaded separately, not with the main dashboard.",
+      },
+      {
+        id: "recurring",
+        label: "Recurring",
+        href: "/recurring",
+        summary:
+          "Monthly debt, insurance, ILP, and subscription payments — mark paid and track pay-from account.",
       },
       {
         id: "transactions",

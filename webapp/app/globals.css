@@ -540,7 +540,7 @@ tfoot td {
   padding-bottom: 8px;
 }
 .editrow.loans {
-  grid-template-columns: 1.3fr 0.9fr 0.85fr 0.85fr 1fr auto;
+  grid-template-columns: 1.2fr 0.85fr 0.75fr 0.75fr 0.9fr 0.55fr 0.85fr auto;
 }
 .editrow.holdings {
   grid-template-columns: 1.1fr 0.55fr 0.45fr 0.6fr 0.65fr 0.65fr 0.85fr auto;
@@ -603,7 +603,7 @@ tfoot td {
   margin: 0;
 }
 .editrow.insurance {
-  grid-template-columns: 1.1fr 0.9fr 0.85fr 1fr auto;
+  grid-template-columns: 1fr 0.85fr 0.75fr 0.9fr 0.55fr 0.85fr auto;
 }
 .editrow.accounts {
   grid-template-columns: 1.3fr 0.85fr 1fr auto;
@@ -1191,6 +1191,42 @@ select:focus {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+.budget-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.record-auto-payment-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.record-recurring-payment-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+.record-recurring-payment-form input[type="date"],
+.record-recurring-payment-form input[type="number"],
+.record-recurring-payment-form input[type="text"],
+.record-recurring-payment-form select {
+  max-width: 140px;
+  font-size: 12px;
+}
+.deduction-day-select {
+  max-width: 88px;
+  font-size: 12px;
+}
+.recurring-table .recurring-actions {
+  white-space: nowrap;
+}
+.editrow.recurring-sub {
+  grid-template-columns: 1.5fr 0.8fr 0.6fr 1.2fr auto;
+}
 @media (max-width: 760px) {
   .split {
     grid-template-columns: 1fr;
@@ -1635,6 +1671,10 @@ footer {
 .cal-event.loan_end {
   background: rgba(61, 107, 142, 0.12);
   color: var(--sky);
+}
+.cal-event.recurring {
+  background: rgba(90, 70, 120, 0.15);
+  color: #5a4678;
 }
 
 .cal-legend {

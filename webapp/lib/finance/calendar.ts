@@ -1,9 +1,10 @@
-import type { DashboardState } from "@/lib/types";
+import type { DashboardState, RecurringSubscription } from "@/lib/types";
 import { creditCardLabel } from "./card-linking";
 import { stableTakeHome } from "./cashflow";
+import { getRecurringCalendarEvents } from "@/lib/recurring/calendar-events";
 import { clampDay, formatMonthLabel } from "./helpers";
 
-export type CalendarEventType = "salary" | "statement" | "payment" | "loan_end";
+export type CalendarEventType = "salary" | "statement" | "payment" | "loan_end" | "recurring";
 
 export type CalendarEvent = {
   day: number;
@@ -26,7 +27,8 @@ function parseYm(viewYm: string): { year: number; month: number } {
 
 export function getCalendarEvents(
   S: DashboardState,
-  viewYm: string
+  viewYm: string,
+  subscriptions: RecurringSubscription[] = []
 ): CalendarEvent[] {
   const { year, month } = parseYm(viewYm);
   const events: CalendarEvent[] = [];
@@ -69,6 +71,8 @@ export function getCalendarEvents(
       });
     }
   }
+
+  events.push(...getRecurringCalendarEvents(S, viewYm, subscriptions));
 
   events.sort((a, b) => a.day - b.day);
   console.log("[getCalendarEvents]", viewYm, events.length);

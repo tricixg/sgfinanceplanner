@@ -14,9 +14,7 @@ function WealthContent({
 }) {
   const user = useAppSession();
   const { savingsTotals } = usePageSavings(user?.id, state);
-  return (
-    <TabWealth state={state} setState={setState} savings={savingsTotals} />
-  );
+  return <TabWealth state={state} setState={setState} savings={savingsTotals} />;
 }
 
 export function WealthRoute() {

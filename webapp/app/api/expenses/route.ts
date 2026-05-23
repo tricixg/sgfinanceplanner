@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import {
+  adjustLoanOutstanding,
+  autoPaymentInsertRow,
+  sourceIdFromPayload,
+  validateAutoPaymentPayload,
+  verifyAutoPaymentSource,
+  verifyFinancialAccount,
+  type AutoPaymentPayload,
+} from "@/lib/expenses/auto-payment";
+import {
   isExpenseBudgetType,
   mapDbBudgetLine,
   resolveBudgetLineId,
@@ -84,6 +93,12 @@ export async function POST(req: NextRequest) {
     amount?: number;
     category?: string;
     budgetLineId?: string;
+    autoCategory?: string;
+    loanId?: string;
+    insurancePolicyId?: string;
+    ilpPolicyId?: string;
+    subscriptionId?: string;
+    financialAccountId?: string;
     spentAt?: string;
     note?: string;
   };
@@ -104,6 +119,75 @@ export async function POST(req: NextRequest) {
       : new Date().toISOString().slice(0, 10);
 
   const supabase = await createAuthedSupabaseClient();
+
+  if (body.autoCategory) {
+    const validated = validateAutoPaymentPayload(body);
+    if (!validated.ok) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
+    }
+
+    const payload: AutoPaymentPayload = {
+      autoCategory: validated.autoCategory,
+      loanId: body.loanId,
+      insurancePolicyId: body.insurancePolicyId,
+      ilpPolicyId: body.ilpPolicyId,
+      subscriptionId: body.subscriptionId,
+      amount,
+      spentAt,
+      note: body.note,
+      financialAccountId: body.financialAccountId,
+    };
+
+    const sourceId = sourceIdFromPayload(payload);
+    const sourceOk = await verifyAutoPaymentSource(
+      supabase,
+      user.id,
+      validated.autoCategory,
+      sourceId
+    );
+    if (!sourceOk) {
+      return NextResponse.json({ error: "Source record not found" }, { status: 404 });
+    }
+
+    if (body.financialAccountId) {
+      const acctOk = await verifyFinancialAccount(
+        supabase,
+        user.id,
+        body.financialAccountId
+      );
+      if (!acctOk) {
+        return NextResponse.json({ error: "Invalid financial account" }, { status: 400 });
+      }
+    }
+
+    const { data: row, error } = await supabase
+      .from("expenses")
+      .insert(autoPaymentInsertRow(user.id, payload))
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("[api/expenses] auto payment POST failed", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (validated.autoCategory === "debt" && body.loanId) {
+      const adj = await adjustLoanOutstanding(supabase, user.id, body.loanId, -amount);
+      if (!adj.ok) {
+        await supabase.from("expenses").delete().eq("id", row.id);
+        return NextResponse.json({ error: adj.error }, { status: 500 });
+      }
+    }
+
+    console.info("[api/expenses] auto payment POST ok", {
+      userId: user.id,
+      autoCategory: validated.autoCategory,
+      sourceId,
+      amount,
+      spentAt,
+    });
+    return NextResponse.json({ item: mapExpense(row) });
+  }
 
   const { data: budgetRows } = await supabase
     .from("budget_lines")

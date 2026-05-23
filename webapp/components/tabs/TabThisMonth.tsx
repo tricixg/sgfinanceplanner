@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { DashboardState } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { fetchJson } from "@/lib/fetch-json";
+import type { DashboardState, RecurringSubscription } from "@/lib/types";
 import {
   addMonthsYm,
   attachEventsToGrid,
@@ -20,12 +21,34 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function TabThisMonth({ state: S }: Props) {
   const [viewYm, setViewYm] = useState(currentYm);
+  const [subscriptions, setSubscriptions] = useState<RecurringSubscription[]>([]);
   const todayYm = currentYm();
   const todayDay = new Date().getDate();
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { res, data } = await fetchJson<{
+        subscriptions?: RecurringSubscription[];
+        error?: string;
+      }>("/api/recurring-subscriptions", { credentials: "include" });
+      if (cancelled) return;
+      if (res.ok && data.subscriptions) {
+        setSubscriptions(data.subscriptions);
+        console.info("[TabThisMonth] subscriptions loaded", data.subscriptions.length);
+      } else {
+        console.warn("[TabThisMonth] subscriptions load failed", data.error);
+        setSubscriptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const events = useMemo(
-    () => getCalendarEvents(S, viewYm),
-    [S, viewYm]
+    () => getCalendarEvents(S, viewYm, subscriptions),
+    [S, viewYm, subscriptions]
   );
   const grid = useMemo(
     () => attachEventsToGrid(buildMonthGrid(viewYm), events),
@@ -117,6 +140,7 @@ export function TabThisMonth({ state: S }: Props) {
           <span><i style={{ background: "rgba(192,138,46,.3)" }} />Statement</span>
           <span><i style={{ background: "rgba(181,72,46,.2)" }} />Payment due</span>
           <span><i style={{ background: "rgba(61,107,142,.2)" }} />Loan ends</span>
+          <span><i style={{ background: "rgba(90,70,120,.25)" }} />Recurring due</span>
         </div>
       </div>
 

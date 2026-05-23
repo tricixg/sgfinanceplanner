@@ -116,7 +116,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
               <div className="val">{fmt2(totals?.allocated ?? 0)}</div>
             </div>
             <div className="stat">
-              <div className="lbl">Spent</div>
+              <div className="lbl">Used (month)</div>
               <div className="val">{fmt2(totals?.spent ?? 0)}</div>
             </div>
             <div className="stat">

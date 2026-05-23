@@ -9,6 +9,7 @@ import {
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { PartnerCard } from "@/components/PartnerCard";
+import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import type { useHousehold } from "@/hooks/useHousehold";
 
 type Props = {
@@ -232,6 +233,8 @@ export function TabMe({
                   <span>Insurer</span>
                   <span>Premium / mo</span>
                   <span>Notes</span>
+                  <span>Due</span>
+                  <span>Pay from</span>
                   <span></span>
                 </div>
                 {S.insurancePolicies.map((p, i) => (
@@ -258,6 +261,15 @@ export function TabMe({
                       value={p.notes}
                       placeholder="Optional"
                       onChange={(e) => updatePolicy(i, { notes: e.target.value })}
+                    />
+                    <RecurringScheduleFields
+                      inline
+                      deductionDay={p.deductionDay}
+                      defaultFinancialAccountId={p.defaultFinancialAccountId}
+                      onDeductionDayChange={(day) => updatePolicy(i, { deductionDay: day })}
+                      onAccountChange={(id) =>
+                        updatePolicy(i, { defaultFinancialAccountId: id })
+                      }
                     />
                     <button
                       type="button"

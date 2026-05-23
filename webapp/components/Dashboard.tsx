@@ -14,6 +14,7 @@ import { TabWealth } from "./tabs/TabWealth";
 import { TabBudgetSavings } from "./tabs/TabBudgetSavings";
 import { TabSavings } from "./tabs/TabSavings";
 import { TabExpenses } from "./tabs/TabExpenses";
+import { TabRecurring } from "./tabs/TabRecurring";
 import { TabPoker } from "./tabs/TabPoker";
 import { TransactionsRoute } from "./app/pages/TransactionsRoute";
 import { useSavingsProvider } from "@/hooks/useSavings";
@@ -37,6 +38,7 @@ type TabId =
   | "year"
   | "bto"
   | "expenses"
+  | "recurring"
   | "transactions"
   | "poker"
   | "cashAccounts"
@@ -106,6 +108,12 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
         id: "expenses",
         label: "Expenses",
         summary: "Private expense log — loaded separately, not with the main dashboard.",
+      },
+      {
+        id: "recurring",
+        label: "Recurring",
+        summary:
+          "Monthly debt, insurance, ILP, and subscription payments — mark paid and track pay-from account.",
       },
       {
         id: "transactions",
@@ -387,6 +395,9 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
         </div>
         <div style={{ display: active === "expenses" ? "block" : "none" }}>
           <TabExpenses enabled={Boolean(userId)} />
+        </div>
+        <div style={{ display: active === "recurring" ? "block" : "none" }}>
+          <TabRecurring enabled={Boolean(userId)} onReload={reload} />
         </div>
         <div style={{ display: active === "transactions" ? "block" : "none" }}>
           <TransactionsRoute />

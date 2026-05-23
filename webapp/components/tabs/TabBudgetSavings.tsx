@@ -14,6 +14,7 @@ import { fmt, fmt2, currentYm } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary, CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { normalizeCategoryKey } from "@/lib/expenses/budget-match";
+import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import { ChartBox } from "@/components/ChartBox";
 import {
   COMPUTED_DEBT_LABEL,
@@ -23,6 +24,7 @@ import {
   computedInsuranceMonthly,
   COMPUTED_ILP_LABEL,
   computedIlpMonthly,
+  COMPUTED_SUBSCRIPTION_LABEL,
   defaultBudgetTemplate,
 } from "@/lib/finance/budget";
 
@@ -81,6 +83,13 @@ function lookupCategorySpend(
   return all.find((c) => normalizeCategoryKey(c.category) === key) ?? null;
 }
 
+function lookupComputedSpend(
+  summary: BudgetExpenseSummary | null,
+  kind: AutoCategory
+): CategoryBudgetSummary | null {
+  return summary?.computedCategories?.find((c) => c.autoCategory === kind) ?? null;
+}
+
 function splitBudgetRows(budget: BudgetItem[]): {
   allocated: BudgetRow[];
   zeroAllocated: BudgetRow[];
@@ -125,6 +134,8 @@ export function TabBudgetSavings({
   const debt = computedDebtMonthly(S);
   const insurancePrem = computedInsuranceMonthly(S);
   const ilpPrem = computedIlpMonthly(S);
+  const subPrem =
+    lookupComputedSpend(expenseSummary, "subscription")?.allocated ?? 0;
   const { alloc, left, invPct } = budgetVerdict(S);
   const monthlyInv = monthlyInvestContribution(S);
   const monthlySave =
@@ -171,6 +182,27 @@ export function TabBudgetSavings({
       />
     </div>
   );
+
+  const renderComputedViewRow = (
+    kind: AutoCategory,
+    label: string,
+    allocated: number
+  ) => {
+    const spend = lookupComputedSpend(expenseSummary, kind);
+    return (
+      <tr className="computed-row" key={kind}>
+        <td>{label}</td>
+        <td>
+          <span className="tag t-soon">auto</span>
+        </td>
+        <td className="num">{fmt2(allocated)}</td>
+        <td className="num">{spend ? fmt2(spend.spent) : "—"}</td>
+        <td className={`num ${spend && spend.remaining < 0 ? "neg" : ""}`}>
+          {spend ? fmt2(spend.remaining) : "—"}
+        </td>
+      </tr>
+    );
+  };
 
   const renderBudgetViewRow = ({ b, i }: BudgetRow) => {
     const spend = lookupCategorySpend(expenseSummary, b);
@@ -372,7 +404,11 @@ export function TabBudgetSavings({
           </button>
         </div>
       ) : editingAllocation ? (
-        <div className="split">
+        <div className="budget-stack">
+          <div className="card">
+            {allocationChart}
+            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
+          </div>
           <div className="card">
             {S.budget.length === 0 ? (
               <button
@@ -423,13 +459,13 @@ export function TabBudgetSavings({
               <span className={`v ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</span>
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="budget-stack">
           <div className="card">
             {allocationChart}
             <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
           </div>
-        </div>
-      ) : (
-        <div className="split">
           <div className="card">
             <table>
               <thead>
@@ -437,41 +473,15 @@ export function TabBudgetSavings({
                   <th>Category</th>
                   <th>Type</th>
                   <th>Amount / month</th>
-                  <th>Spent (month)</th>
+                  <th>Used (month)</th>
                   <th>Remaining</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="computed-row">
-                  <td>{COMPUTED_DEBT_LABEL}</td>
-                  <td>
-                    <span className="tag t-soon">auto</span>
-                  </td>
-                  <td className="num">{fmt2(debt)}</td>
-                  <td colSpan={2} className="note">
-                    —
-                  </td>
-                </tr>
-                <tr className="computed-row">
-                  <td>{COMPUTED_INSURANCE_LABEL}</td>
-                  <td>
-                    <span className="tag t-soon">auto</span>
-                  </td>
-                  <td className="num">{fmt2(insurancePrem)}</td>
-                  <td colSpan={2} className="note">
-                    —
-                  </td>
-                </tr>
-                <tr className="computed-row">
-                  <td>{COMPUTED_ILP_LABEL}</td>
-                  <td>
-                    <span className="tag t-soon">auto</span>
-                  </td>
-                  <td className="num">{fmt2(ilpPrem)}</td>
-                  <td colSpan={2} className="note">
-                    —
-                  </td>
-                </tr>
+                {renderComputedViewRow("debt", COMPUTED_DEBT_LABEL, debt)}
+                {renderComputedViewRow("insurance", COMPUTED_INSURANCE_LABEL, insurancePrem)}
+                {renderComputedViewRow("ilp", COMPUTED_ILP_LABEL, ilpPrem)}
+                {renderComputedViewRow("subscription", COMPUTED_SUBSCRIPTION_LABEL, subPrem)}
                 {allocatedRows.map(renderBudgetViewRow)}
                 {zeroRows.length > 0 ? (
                   <tr>
@@ -495,10 +505,6 @@ export function TabBudgetSavings({
               <span className="k">{balanceLbl}</span>
               <span className={`v ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</span>
             </div>
-          </div>
-          <div className="card">
-            {allocationChart}
-            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
           </div>
         </div>
       )}

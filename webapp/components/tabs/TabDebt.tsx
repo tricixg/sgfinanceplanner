@@ -12,6 +12,7 @@ import {
 import type { EnrichedLoan } from "@/lib/finance/debt";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 
 type Props = {
   state: DashboardState;
@@ -51,6 +52,14 @@ export function TabDebt({ state: S, setState }: Props) {
       loans: prev.loans.map((l, j) => (j === i ? { ...l, [key]: val } : l)),
     }));
     console.log("[TabDebt] updated loan", i, key, val);
+  };
+
+  const patchLoan = (i: number, patch: Partial<Loan>) => {
+    setState((prev) => ({
+      ...prev,
+      loans: prev.loans.map((l, j) => (j === i ? { ...l, ...patch } : l)),
+    }));
+    console.log("[TabDebt] patched loan", i, patch);
   };
 
   const setLoanCard = (i: number, cardId: string) => {
@@ -166,6 +175,13 @@ export function TabDebt({ state: S, setState }: Props) {
           value={l.end}
           onChange={(e) => updateLoan(l.index, "end", e.target.value)}
         />
+        <RecurringScheduleFields
+          inline
+          deductionDay={S.loans[l.index]?.deductionDay}
+          defaultFinancialAccountId={S.loans[l.index]?.defaultFinancialAccountId}
+          onDeductionDayChange={(day) => patchLoan(l.index, { deductionDay: day })}
+          onAccountChange={(id) => patchLoan(l.index, { defaultFinancialAccountId: id })}
+        />
         <button
           type="button"
           className="btn del sm"
@@ -243,6 +259,8 @@ export function TabDebt({ state: S, setState }: Props) {
             <span>Monthly $</span>
             <span>Outstanding $</span>
             <span>Ends YYYY-MM</span>
+            <span>Due</span>
+            <span>Pay from</span>
             <span></span>
           </div>
           {activeLoans.length === 0 && archivedLoans.length === 0 ? (

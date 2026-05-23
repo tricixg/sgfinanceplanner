@@ -5,6 +5,11 @@ import {
   resolveBudgetLineId,
   type BudgetLineRow,
 } from "@/lib/expenses/budget-match";
+import {
+  buildComputedCategories,
+  type ComputedAllocations,
+} from "@/lib/expenses/computed-categories";
+import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 
 export type BudgetImportRow = {
   id: string;
@@ -18,7 +23,8 @@ export type BudgetImportRow = {
 export type CategoryBudgetSummary = {
   budgetLineId: string;
   category: string;
-  lineType: "fixed" | "spend";
+  lineType: "fixed" | "spend" | "auto";
+  autoCategory?: AutoCategory;
   allocated: number;
   spent: number;
   remaining: number;
@@ -43,6 +49,7 @@ export type BudgetExpenseSummary = {
   };
   categories: CategoryBudgetSummary[];
   zeroAllocated: CategoryBudgetSummary[];
+  computedCategories: CategoryBudgetSummary[];
   uncategorized: UncategorizedSummary;
 };
 
@@ -64,7 +71,8 @@ export function buildBudgetExpenseSummary(
   ym: string,
   budgetLines: BudgetLineRow[],
   expenses: Expense[],
-  imports: BudgetImportRow[]
+  imports: BudgetImportRow[],
+  computedAlloc?: ComputedAllocations
 ): BudgetExpenseSummary {
   const { from, to } = monthRange(ym);
   const buckets = expenseBudgetLines(budgetLines);
@@ -90,6 +98,7 @@ export function buildBudgetExpenseSummary(
   };
 
   for (const exp of expenses) {
+    if (exp.autoCategory) continue;
     const lineId = resolveBudgetLineId(buckets, exp.category, exp.budgetLineId);
     if (lineId && categoryMap.has(lineId)) {
       const cat = categoryMap.get(lineId)!;
@@ -137,6 +146,11 @@ export function buildBudgetExpenseSummary(
   };
   totals.remaining = totals.allocated - totals.spent;
 
+  const computedCategories =
+    computedAlloc != null
+      ? buildComputedCategories(expenses, computedAlloc)
+      : [];
+
   return {
     ym,
     from,
@@ -144,6 +158,7 @@ export function buildBudgetExpenseSummary(
     totals,
     categories,
     zeroAllocated,
+    computedCategories,
     uncategorized,
   };
 }

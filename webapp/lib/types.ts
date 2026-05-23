@@ -1,6 +1,7 @@
 import type { BTOSchemeSelection } from "./finance/bto-schemes";
 
 export type Loan = {
+  id?: string;
   name: string;
   /** Display label — kept in sync with linked credit card name. */
   card: string;
@@ -9,6 +10,10 @@ export type Loan = {
   monthly: number;
   out: number;
   end: string;
+  /** Day of month (1–31) when instalment is typically charged. */
+  deductionDay?: number;
+  /** Default cash or card account for recording payments. */
+  defaultFinancialAccountId?: string;
 };
 
 export type { CardRewardType, SpendCategory } from "./cards/sg-card-catalog";
@@ -59,6 +64,7 @@ export type PortfolioSnapshot = {
 
 /** Singapore investment-linked policy (ILP) — insurance + unit-linked funds. */
 export type IlpPolicy = {
+  id?: string;
   insurer: string;
   planName: string;
   policyNo: string;
@@ -80,14 +86,30 @@ export type IlpPolicy = {
   funds: string;
   freeFundSwitchesPerYear: number;
   notes: string;
+  /** Day of month (1–31) when premium is typically charged. */
+  deductionDay?: number;
+  defaultFinancialAccountId?: string;
 };
 
 /** Non-ILP insurance (term, PA, CI, etc.) — premiums flow to Budget & Savings. */
 export type InsurancePolicy = {
+  id?: string;
   name: string;
   insurer: string;
   monthlyPremium: number;
   notes: string;
+  /** Day of month (1–31) when premium is typically charged. */
+  deductionDay?: number;
+  defaultFinancialAccountId?: string;
+};
+
+export type RecurringSubscription = {
+  id?: string;
+  name: string;
+  amount: number;
+  notes: string;
+  deductionDay?: number;
+  defaultFinancialAccountId?: string;
 };
 
 export type BudgetItem = {

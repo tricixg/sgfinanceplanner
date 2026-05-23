@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -63,6 +64,22 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
 
   const supabase = await createAuthedSupabaseClient();
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("expenses")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (fetchErr) {
+    console.error("[api/expenses] DELETE fetch failed", fetchErr.message);
+    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  }
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const { error } = await supabase
     .from("expenses")
     .delete()
@@ -74,6 +91,23 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  console.info("[api/expenses] DELETE ok", { id, userId: user.id });
+  if (existing.auto_category === "debt" && existing.loan_id) {
+    const amount = Number(existing.amount ?? 0);
+    const adj = await adjustLoanOutstanding(
+      supabase,
+      user.id,
+      String(existing.loan_id),
+      amount
+    );
+    if (!adj.ok) {
+      console.error("[api/expenses] DELETE loan restore failed", adj.error);
+    }
+  }
+
+  console.info("[api/expenses] DELETE ok", {
+    id,
+    userId: user.id,
+    autoCategory: existing.auto_category ?? null,
+  });
   return NextResponse.json({ ok: true });
 }

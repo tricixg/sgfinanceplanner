@@ -20,6 +20,12 @@ function expense(partial: Partial<Expense> & Pick<Expense, "id" | "amount">): Ex
     amount: partial.amount,
     category: partial.category ?? "",
     budgetLineId: partial.budgetLineId ?? null,
+    autoCategory: partial.autoCategory ?? null,
+    loanId: partial.loanId ?? null,
+    insurancePolicyId: partial.insurancePolicyId ?? null,
+    ilpPolicyId: partial.ilpPolicyId ?? null,
+    subscriptionId: partial.subscriptionId ?? null,
+    financialAccountId: partial.financialAccountId ?? null,
     spentAt: partial.spentAt ?? "2025-05-10",
     note: partial.note ?? "",
     createdAt: partial.createdAt ?? "2025-05-10T00:00:00Z",
@@ -99,6 +105,61 @@ describe("buildBudgetExpenseSummary", () => {
       },
     ]);
     expect(summary.categories[0].spent).toBe(0);
+  });
+
+  it("excludes auto-category expenses from user buckets and uncategorized", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [
+        expense({ id: "e1", amount: 200, autoCategory: "debt", loanId: "loan-1" }),
+        expense({ id: "e2", amount: 50, budgetLineId: "a1" }),
+      ],
+      []
+    );
+    expect(summary.uncategorized.spent).toBe(0);
+    expect(summary.categories[0].spent).toBe(50);
+  });
+
+  it("builds computed debt/insurance/ilp buckets from auto expenses", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [
+        expense({ id: "d1", amount: 300, autoCategory: "debt", loanId: "l1" }),
+        expense({ id: "i1", amount: 80, autoCategory: "insurance", insurancePolicyId: "p1" }),
+        expense({ id: "p1", amount: 120, autoCategory: "ilp", ilpPolicyId: "ilp1" }),
+      ],
+      [],
+      { debt: 500, insurance: 100, ilp: 150, subscription: 0 }
+    );
+
+    expect(summary.computedCategories).toHaveLength(4);
+    const debt = summary.computedCategories.find((c) => c.autoCategory === "debt")!;
+    expect(debt.spent).toBe(300);
+    expect(debt.remaining).toBe(200);
+    expect(debt.expenses).toHaveLength(1);
+
+    const ins = summary.computedCategories.find((c) => c.autoCategory === "insurance")!;
+    expect(ins.spent).toBe(80);
+    expect(ins.remaining).toBe(20);
+
+    const ilp = summary.computedCategories.find((c) => c.autoCategory === "ilp")!;
+    expect(ilp.spent).toBe(120);
+    expect(ilp.remaining).toBe(30);
+  });
+
+  it("builds subscription computed bucket", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [expense({ id: "s1", amount: 15, autoCategory: "subscription", subscriptionId: "sub1" })],
+      [],
+      { debt: 0, insurance: 0, ilp: 0, subscription: 50 }
+    );
+    const sub = summary.computedCategories.find((c) => c.autoCategory === "subscription")!;
+    expect(sub.spent).toBe(15);
+    expect(sub.remaining).toBe(35);
   });
 });
 

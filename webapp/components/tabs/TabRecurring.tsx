@@ -1,0 +1,345 @@
+"use client";
+
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { RecordRecurringPaymentForm } from "@/components/expenses/RecordRecurringPaymentForm";
+import { fetchJson } from "@/lib/fetch-json";
+import type { RecurringRow } from "@/lib/recurring/build-rows";
+import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
+import { formatDeductionDayLabel } from "@/lib/recurring/prefill";
+import type { RecurringSubscription } from "@/lib/types";
+import { defaultRecurringSubscription } from "@/lib/finance/budget";
+import { addMonthsYm } from "@/lib/finance/calendar";
+import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+
+const KIND_LABEL: Record<RecurringRow["kind"], string> = {
+  debt: "Debt",
+  insurance: "Insurance",
+  ilp: "ILP",
+  subscription: "Subscription",
+};
+
+type Props = {
+  enabled: boolean;
+  onReload?: () => void | Promise<void>;
+};
+
+export function TabRecurring({ enabled, onReload }: Props) {
+  const [viewYm, setViewYm] = useState(currentYm);
+  const [rows, setRows] = useState<RecurringRow[]>([]);
+  const [subscriptions, setSubscriptions] = useState<RecurringSubscription[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [payRowKey, setPayRowKey] = useState<string | null>(null);
+  const [editingSubs, setEditingSubs] = useState(false);
+  const [subDraft, setSubDraft] = useState<RecurringSubscription[]>([]);
+  const [savingSubs, setSavingSubs] = useState(false);
+  const load = useCallback(async () => {
+    if (!enabled) return;
+    setLoading(true);
+    setError("");
+    try {
+      const { res, data } = await fetchJson<{
+        error?: string;
+        rows?: RecurringRow[];
+        subscriptions?: RecurringSubscription[];
+      }>(`/api/recurring?ym=${viewYm}`, { credentials: "include" });
+      if (!res.ok) throw new Error(data.error ?? "Failed to load recurring");
+      setRows(data.rows ?? []);
+      setSubscriptions(data.subscriptions ?? []);
+      console.info("[TabRecurring] loaded", { ym: viewYm, rows: data.rows?.length ?? 0 });
+    } catch (e) {
+      console.error("[TabRecurring] load failed", e);
+      setError(e instanceof Error ? e.message : "Failed to load");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [enabled, viewYm]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const rowKey = (r: RecurringRow) => `${r.kind}:${r.sourceId}`;
+
+  const deletePayment = async (expenseId: string) => {
+    const { res, data } = await fetchJson<{ error?: string }>(`/api/expenses/${expenseId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error(data.error ?? "Failed to undo payment");
+    console.info("[TabRecurring] payment deleted", { expenseId });
+    await load();
+    await onReload?.();
+  };
+
+  const onPaymentSuccess = async () => {
+    setPayRowKey(null);
+    await load();
+    await onReload?.();
+  };
+
+  const startEditSubs = () => {
+    setSubDraft(subscriptions.length ? subscriptions.map((s) => ({ ...s })) : []);
+    setEditingSubs(true);
+  };
+
+  const saveSubs = async () => {
+    setSavingSubs(true);
+    try {
+      const { res, data } = await fetchJson<{ error?: string; items?: RecurringSubscription[] }>(
+        "/api/recurring-subscriptions",
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: subDraft }),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to save subscriptions");
+      setSubscriptions(data.items ?? []);
+      setEditingSubs(false);
+      console.info("[TabRecurring] subscriptions saved");
+      await load();
+    } catch (e) {
+      console.error("[TabRecurring] save subscriptions failed", e);
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSavingSubs(false);
+    }
+  };
+
+  if (!enabled) {
+    return (
+      <section className="panel on">
+        <p className="note">Sign in to track recurring payments. Records stay private to you.</p>
+      </section>
+    );
+  }
+
+  const todayYm = currentYm();
+  const paidCount = rows.filter((r) => r.paid).length;
+
+  return (
+    <section className="panel on">
+      <div className="section-head">
+        <h2>Recurring payments</h2>
+      </div>
+
+      <div className="callout tip">
+        Set <b>Due day</b> and <b>Pay from</b> when editing loans (Debts &amp; Loans), insurance (ME),
+        or ILP (Investment). Subscriptions are configured below. Record payments here — date and
+        account are prefilled but editable.
+      </div>
+
+      <div className="toolbar" style={{ marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => setViewYm(addMonthsYm(viewYm, -1))}
+        >
+          ← Prev
+        </button>
+        <span style={{ fontWeight: 600 }}>{formatMonthLabel(viewYm)}</span>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => setViewYm(addMonthsYm(viewYm, 1))}
+        >
+          Next →
+        </button>
+        {viewYm !== todayYm ? (
+          <button type="button" className="btn ghost sm" onClick={() => setViewYm(todayYm)}>
+            This month
+          </button>
+        ) : null}
+      </div>
+
+      <div className="grid g3" style={{ marginBottom: 16 }}>
+        <div className="stat accent">
+          <div className="lbl">Items</div>
+          <div className="val">{rows.length}</div>
+        </div>
+        <div className="stat">
+          <div className="lbl">Paid this month</div>
+          <div className="val">
+            {paidCount}/{rows.length}
+          </div>
+        </div>
+        <div className="stat">
+          <div className="lbl">Subscriptions</div>
+          <div className="val">{subscriptions.length}</div>
+        </div>
+      </div>
+
+      {loading && rows.length === 0 ? (
+        <p className="loading">Loading recurring items…</p>
+      ) : error ? (
+        <p className="note">{error}</p>
+      ) : (
+        <div className="card table-scroll">
+          <table className="recurring-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Amount / mo</th>
+                <th>Due</th>
+                <th>Pay from</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="note">
+                    No recurring items yet. Add loans, insurance, ILP policies, or subscriptions.
+                  </td>
+                </tr>
+              ) : (
+                rows.map((row) => {
+                  const key = rowKey(row);
+                  const paying = payRowKey === key;
+                  return (
+                    <Fragment key={key}>
+                      <tr>
+                        <td>
+                          <span className="tag t-soon">{KIND_LABEL[row.kind]}</span>
+                        </td>
+                        <td>{row.name}</td>
+                        <td className="num">{fmt2(row.amount)}</td>
+                        <td>{formatDeductionDayLabel(row.deductionDay)}</td>
+                        <td>{row.defaultAccountName ?? "—"}</td>
+                        <td>
+                          {row.paid && row.payment ? (
+                            <span className="tag t-live">
+                              Paid {row.payment.spentAt.slice(5)}
+                              {row.payment.accountName ? ` · ${row.payment.accountName}` : ""}
+                            </span>
+                          ) : (
+                            <span className="tag t-warn">Unpaid</span>
+                          )}
+                        </td>
+                        <td className="recurring-actions">
+                          {row.paid && row.payment ? (
+                            <button
+                              type="button"
+                              className="btn ghost sm"
+                              onClick={() =>
+                                void deletePayment(row.payment!.expenseId).catch((err) => {
+                                  setError(err instanceof Error ? err.message : "Undo failed");
+                                })
+                              }
+                            >
+                              Undo
+                            </button>
+                          ) : paying ? null : (
+                            <button
+                              type="button"
+                              className="btn ghost sm"
+                              onClick={() => setPayRowKey(key)}
+                            >
+                              Record payment
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {paying ? (
+                        <tr className="recurring-pay-row">
+                          <td colSpan={7}>
+                            <RecordRecurringPaymentForm
+                              row={row}
+                              onSuccess={onPaymentSuccess}
+                              onCancel={() => setPayRowKey(null)}
+                            />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="section-head" style={{ marginTop: 24 }}>
+        <h2>Subscriptions</h2>
+        {editingSubs ? (
+          <button type="button" className="btn sm" onClick={() => void saveSubs()} disabled={savingSubs}>
+            {savingSubs ? "Saving…" : "Done"}
+          </button>
+        ) : (
+          <button type="button" className="btn ghost sm" onClick={startEditSubs}>
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editingSubs ? (
+        <div className="card">
+          {subDraft.map((s, i) => (
+            <div className="editrow recurring-sub" key={i}>
+              <input
+                type="text"
+                placeholder="Name"
+                value={s.name}
+                onChange={(e) => {
+                  const next = [...subDraft];
+                  next[i] = { ...s, name: e.target.value };
+                  setSubDraft(next);
+                }}
+              />
+              <input
+                type="number"
+                step={0.01}
+                placeholder="Amount"
+                value={s.amount}
+                onChange={(e) => {
+                  const next = [...subDraft];
+                  next[i] = { ...s, amount: parseFloat(e.target.value) || 0 };
+                  setSubDraft(next);
+                }}
+              />
+              <RecurringScheduleFields
+                inline
+                deductionDay={s.deductionDay}
+                defaultFinancialAccountId={s.defaultFinancialAccountId}
+                onDeductionDayChange={(day) => {
+                  const next = [...subDraft];
+                  next[i] = { ...s, deductionDay: day };
+                  setSubDraft(next);
+                }}
+                onAccountChange={(id) => {
+                  const next = [...subDraft];
+                  next[i] = { ...s, defaultFinancialAccountId: id };
+                  setSubDraft(next);
+                }}
+              />
+              <button
+                type="button"
+                className="btn del sm"
+                onClick={() => setSubDraft(subDraft.filter((_, j) => j !== i))}
+              >
+                del
+              </button>
+            </div>
+          ))}
+          <div className="toolbar">
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setSubDraft([...subDraft, defaultRecurringSubscription()])}
+            >
+              + Add subscription
+            </button>
+          </div>
+        </div>
+      ) : subscriptions.length === 0 ? (
+        <p className="note">No custom subscriptions yet. Click Edit to add Netflix, gym, etc.</p>
+      ) : null}
+    </section>
+  );
+}

@@ -112,6 +112,12 @@ export type Expense = {
   amount: number;
   category: string;
   budgetLineId: string | null;
+  autoCategory: "debt" | "insurance" | "ilp" | "subscription" | null;
+  loanId: string | null;
+  insurancePolicyId: string | null;
+  ilpPolicyId: string | null;
+  subscriptionId: string | null;
+  financialAccountId: string | null;
   spentAt: string;
   note: string;
   createdAt: string;

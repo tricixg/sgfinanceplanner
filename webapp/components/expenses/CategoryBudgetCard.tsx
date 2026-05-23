@@ -89,7 +89,7 @@ export function CategoryBudgetCard({
             <span className="lbl">Allocated</span> {fmt2(category.allocated)}
           </span>
           <span>
-            <span className="lbl">Spent</span> {fmt2(category.spent)}
+            <span className="lbl">Used (month)</span> {fmt2(category.spent)}
           </span>
           <span className={category.remaining < 0 ? "neg" : ""}>
             <span className="lbl">Remaining</span> {fmt2(category.remaining)}

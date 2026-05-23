@@ -17,6 +17,7 @@ import {
 } from "@/lib/finance";
 import { fmt, fmt2, formatSnapshotDate } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import type { ChartOptions } from "chart.js";
 import type { SavingsSnapshot } from "@/lib/savings/types";
@@ -374,6 +375,14 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                       onChange={(v) => updatePolicy(i, { monthlyPremium: v })}
                     />
                   </label>
+                  <RecurringScheduleFields
+                    deductionDay={p.deductionDay}
+                    defaultFinancialAccountId={p.defaultFinancialAccountId}
+                    onDeductionDayChange={(day) => updatePolicy(i, { deductionDay: day })}
+                    onAccountChange={(id) =>
+                      updatePolicy(i, { defaultFinancialAccountId: id })
+                    }
+                  />
                   <label>
                     Account value
                     <NumInput

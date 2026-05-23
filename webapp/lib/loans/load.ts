@@ -17,12 +17,20 @@ export async function loadLoans(
   return (data ?? []).map((row) => {
     const cc = row.credit_cards as { card_key?: string } | null;
     return {
+      id: String(row.id),
       name: String(row.name ?? ""),
       card: String(row.card_label ?? ""),
       cardId: cc?.card_key ?? undefined,
       monthly: Number(row.monthly ?? 0),
       out: Number(row.outstanding ?? 0),
       end: String(row.end_ym ?? ""),
+      deductionDay:
+        typeof row.deduction_day === "number" && row.deduction_day >= 1
+          ? row.deduction_day
+          : undefined,
+      defaultFinancialAccountId: row.default_financial_account_id
+        ? String(row.default_financial_account_id)
+        : undefined,
     };
   });
 }
@@ -67,11 +75,16 @@ export async function saveLoans(
       monthly: l.monthly ?? 0,
       outstanding: l.out ?? 0,
       end_ym: l.end ?? "",
+      deduction_day: l.deductionDay ?? null,
+      default_financial_account_id: l.defaultFinancialAccountId ?? null,
       sort_order: i,
       updated_at: new Date().toISOString(),
     };
 
-    const match = (existing ?? []).find((e) => e.name === l.name && !keepIds.has(e.id));
+    const match =
+      l.id && UUID_RE.test(l.id)
+        ? (existing ?? []).find((e) => e.id === l.id)
+        : (existing ?? []).find((e) => e.name === l.name && !keepIds.has(e.id));
     if (match?.id && UUID_RE.test(match.id)) {
       keepIds.add(match.id);
       await supabase.from("loans").update(payload).eq("id", match.id);

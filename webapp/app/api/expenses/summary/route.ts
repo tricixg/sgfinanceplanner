@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
+import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
+import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
+import { loadLoans } from "@/lib/loans/load";
+import { loadRecurringSubscriptions } from "@/lib/recurring/load";
+import { computedSubscriptionMonthly } from "@/lib/finance/budget";
+import { loanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -29,29 +34,34 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createAuthedSupabaseClient();
 
-  const [budgetRes, expensesRes, importsRes] = await Promise.all([
-    supabase
-      .from("budget_lines")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("expenses")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("spent_at", from)
-      .lte("spent_at", to)
-      .order("spent_at", { ascending: false })
-      .order("id", { ascending: false }),
-    supabase
-      .from("budget_transactions")
-      .select("id, amount, spent_at, category, note, transaction_type")
-      .eq("user_id", user.id)
-      .gte("spent_at", from)
-      .lte("spent_at", to)
-      .in("transaction_type", ["expense", "subscription", "income"])
-      .order("spent_at", { ascending: false }),
-  ]);
+  const [budgetRes, expensesRes, importsRes, loans, insurancePolicies, ilpPolicies, subscriptions] =
+    await Promise.all([
+      supabase
+        .from("budget_lines")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("expenses")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("spent_at", from)
+        .lte("spent_at", to)
+        .order("spent_at", { ascending: false })
+        .order("id", { ascending: false }),
+      supabase
+        .from("budget_transactions")
+        .select("id, amount, spent_at, category, note, transaction_type")
+        .eq("user_id", user.id)
+        .gte("spent_at", from)
+        .lte("spent_at", to)
+        .in("transaction_type", ["expense", "subscription", "income"])
+        .order("spent_at", { ascending: false }),
+      loadLoans(supabase, user.id),
+      loadInsurancePolicies(supabase, user.id),
+      loadIlpPolicies(supabase, user.id),
+      loadRecurringSubscriptions(supabase, user.id),
+    ]);
 
   if (budgetRes.error) {
     console.error("[api/expenses/summary] budget load failed", budgetRes.error.message);
@@ -77,13 +87,30 @@ export async function GET(req: NextRequest) {
     transactionType: String(r.transaction_type ?? "expense"),
   }));
 
-  const summary = buildBudgetExpenseSummary(ym, budgetLines, expenses, imports);
+  const computedAlloc = {
+    debt: loanLoadForMonth(loans, ym),
+    insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
+    ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
+    subscription: computedSubscriptionMonthly(subscriptions),
+  };
+
+  const summary = buildBudgetExpenseSummary(
+    ym,
+    budgetLines,
+    expenses,
+    imports,
+    computedAlloc
+  );
 
   console.info("[api/expenses/summary] GET", {
     userId: user.id,
     ym,
     categories: summary.categories.length,
     zeroAllocated: summary.zeroAllocated.length,
+    computed: summary.computedCategories.map((c) => ({
+      kind: c.autoCategory,
+      spent: c.spent,
+    })),
     uncategorizedSpent: summary.uncategorized.spent,
   });
 

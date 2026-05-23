@@ -70,12 +70,28 @@ export function mapGoal(row: Record<string, unknown>): SavingsGoal {
 }
 
 export function mapExpense(row: Record<string, unknown>): Expense {
+  const auto = row.auto_category;
+  const autoCategory =
+    auto === "debt" ||
+    auto === "insurance" ||
+    auto === "ilp" ||
+    auto === "subscription"
+      ? auto
+      : null;
   return {
     id: String(row.id),
     userId: String(row.user_id),
     amount: Number(row.amount ?? 0),
     category: String(row.category ?? ""),
     budgetLineId: row.budget_line_id ? String(row.budget_line_id) : null,
+    autoCategory,
+    loanId: row.loan_id ? String(row.loan_id) : null,
+    insurancePolicyId: row.insurance_policy_id ? String(row.insurance_policy_id) : null,
+    ilpPolicyId: row.ilp_policy_id ? String(row.ilp_policy_id) : null,
+    subscriptionId: row.subscription_id ? String(row.subscription_id) : null,
+    financialAccountId: row.financial_account_id
+      ? String(row.financial_account_id)
+      : null,
     spentAt: String(row.spent_at),
     note: String(row.note ?? ""),
     createdAt: String(row.created_at),

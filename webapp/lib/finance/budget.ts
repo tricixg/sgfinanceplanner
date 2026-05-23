@@ -14,6 +14,11 @@ import { portfolioInvestmentValue } from "./wealth";
 export const COMPUTED_DEBT_LABEL = "Loans & debt (from Debts & Loans)";
 export { COMPUTED_INSURANCE_LABEL, computedInsuranceMonthly } from "./insurance";
 export { COMPUTED_ILP_LABEL, computedIlpMonthly } from "./ilp";
+export {
+  COMPUTED_SUBSCRIPTION_LABEL,
+  computedSubscriptionMonthly,
+  defaultRecurringSubscription,
+} from "./subscriptions";
 
 /** Budget lines that duplicate Debts & Loans instalments — excluded from fixed totals. */
 export function isDebtBudgetCategory(cat: string): boolean {

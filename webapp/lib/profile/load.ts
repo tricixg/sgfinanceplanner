@@ -109,10 +109,18 @@ export async function loadInsurancePolicies(
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => ({
+    id: String(row.id),
     name: String(row.name ?? ""),
     insurer: String(row.insurer ?? ""),
     monthlyPremium: Number(row.monthly_premium ?? 0),
     notes: String(row.notes ?? ""),
+    deductionDay:
+      typeof row.deduction_day === "number" && row.deduction_day >= 1
+        ? row.deduction_day
+        : undefined,
+    defaultFinancialAccountId: row.default_financial_account_id
+      ? String(row.default_financial_account_id)
+      : undefined,
   }));
 }
 
@@ -121,18 +129,35 @@ export async function saveInsurancePolicies(
   userId: string,
   incoming: InsurancePolicy[]
 ): Promise<InsurancePolicy[]> {
-  await supabase.from("insurance_policies").delete().eq("user_id", userId);
-  if (incoming.length) {
-    await supabase.from("insurance_policies").insert(
-      incoming.map((p, i) => ({
-        user_id: userId,
-        name: p.name ?? "",
-        insurer: p.insurer ?? "",
-        monthly_premium: p.monthlyPremium ?? 0,
-        notes: p.notes ?? "",
-        sort_order: i,
-      }))
-    );
+  const { data: existing } = await supabase
+    .from("insurance_policies")
+    .select("id")
+    .eq("user_id", userId);
+  const existingIds = new Set((existing ?? []).map((r) => String(r.id)));
+  const incomingIds = new Set(incoming.filter((p) => p.id).map((p) => p.id!));
+
+  const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+  if (toDelete.length) {
+    await supabase.from("insurance_policies").delete().in("id", toDelete);
+  }
+
+  for (let i = 0; i < incoming.length; i++) {
+    const p = incoming[i];
+    const row = {
+      user_id: userId,
+      name: p.name ?? "",
+      insurer: p.insurer ?? "",
+      monthly_premium: p.monthlyPremium ?? 0,
+      notes: p.notes ?? "",
+      deduction_day: p.deductionDay ?? null,
+      default_financial_account_id: p.defaultFinancialAccountId ?? null,
+      sort_order: i,
+    };
+    if (p.id && existingIds.has(p.id)) {
+      await supabase.from("insurance_policies").update(row).eq("id", p.id).eq("user_id", userId);
+    } else {
+      await supabase.from("insurance_policies").insert(row);
+    }
   }
   return loadInsurancePolicies(supabase, userId);
 }
@@ -148,6 +173,7 @@ export async function loadIlpPolicies(
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => ({
+    id: String(row.id),
     insurer: String(row.insurer ?? ""),
     planName: String(row.plan_name ?? ""),
     policyNo: String(row.policy_no ?? ""),
@@ -164,6 +190,13 @@ export async function loadIlpPolicies(
     funds: String(row.funds ?? ""),
     freeFundSwitchesPerYear: Number(row.free_fund_switches_per_year ?? 0),
     notes: String(row.notes ?? ""),
+    deductionDay:
+      typeof row.deduction_day === "number" && row.deduction_day >= 1
+        ? row.deduction_day
+        : undefined,
+    defaultFinancialAccountId: row.default_financial_account_id
+      ? String(row.default_financial_account_id)
+      : undefined,
   }));
 }
 
@@ -172,30 +205,47 @@ export async function saveIlpPolicies(
   userId: string,
   incoming: IlpPolicy[]
 ): Promise<IlpPolicy[]> {
-  await supabase.from("ilp_policies").delete().eq("user_id", userId);
-  if (incoming.length) {
-    await supabase.from("ilp_policies").insert(
-      incoming.map((p, i) => ({
-        user_id: userId,
-        insurer: p.insurer ?? "",
-        plan_name: p.planName ?? "",
-        policy_no: p.policyNo ?? "",
-        premium_type: p.premiumType ?? "regular",
-        loading_type: p.loadingType ?? "front-end",
-        monthly_premium: p.monthlyPremium ?? 0,
-        initial_bonus: p.initialBonus ?? 0,
-        account_value: p.accountValue ?? 0,
-        premium_allocation_pct: p.premiumAllocationPct ?? 100,
-        lock_in_end_ym: p.lockInEndYm ?? "",
-        policy_start_ym: p.policyStartYm ?? "",
-        surrender_charge_end_ym: p.surrenderChargeEndYm ?? "",
-        insurance_cover: p.insuranceCover ?? 0,
-        funds: p.funds ?? "",
-        free_fund_switches_per_year: p.freeFundSwitchesPerYear ?? 0,
-        notes: p.notes ?? "",
-        sort_order: i,
-      }))
-    );
+  const { data: existing } = await supabase
+    .from("ilp_policies")
+    .select("id")
+    .eq("user_id", userId);
+  const existingIds = new Set((existing ?? []).map((r) => String(r.id)));
+  const incomingIds = new Set(incoming.filter((p) => p.id).map((p) => p.id!));
+
+  const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+  if (toDelete.length) {
+    await supabase.from("ilp_policies").delete().in("id", toDelete);
+  }
+
+  for (let i = 0; i < incoming.length; i++) {
+    const p = incoming[i];
+    const row = {
+      user_id: userId,
+      insurer: p.insurer ?? "",
+      plan_name: p.planName ?? "",
+      policy_no: p.policyNo ?? "",
+      premium_type: p.premiumType ?? "regular",
+      loading_type: p.loadingType ?? "front-end",
+      monthly_premium: p.monthlyPremium ?? 0,
+      initial_bonus: p.initialBonus ?? 0,
+      account_value: p.accountValue ?? 0,
+      premium_allocation_pct: p.premiumAllocationPct ?? 100,
+      lock_in_end_ym: p.lockInEndYm ?? "",
+      policy_start_ym: p.policyStartYm ?? "",
+      surrender_charge_end_ym: p.surrenderChargeEndYm ?? "",
+      insurance_cover: p.insuranceCover ?? 0,
+      funds: p.funds ?? "",
+      free_fund_switches_per_year: p.freeFundSwitchesPerYear ?? 0,
+      notes: p.notes ?? "",
+      deduction_day: p.deductionDay ?? null,
+      default_financial_account_id: p.defaultFinancialAccountId ?? null,
+      sort_order: i,
+    };
+    if (p.id && existingIds.has(p.id)) {
+      await supabase.from("ilp_policies").update(row).eq("id", p.id).eq("user_id", userId);
+    } else {
+      await supabase.from("ilp_policies").insert(row);
+    }
   }
   return loadIlpPolicies(supabase, userId);
 }
