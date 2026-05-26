@@ -1207,6 +1207,26 @@ input.decimal-input::-webkit-inner-spin-button {
   margin-left: auto;
 }
 
+.open-cycle-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.open-cycle-toggle input[type="checkbox"] {
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--moss);
+}
+
 @media (max-width: 760px) {
   .tx-filters-actions {
     margin-left: 0;
