@@ -76,25 +76,63 @@ export function budgetToUnified(tx: BudgetTransaction): UnifiedTransaction {
   };
 }
 
-async function resolveSavingsAccountFilter(
+type ResolvedAccountFilters = {
+  accountId?: string;
+  poolId?: string;
+  financialAccountId?: string;
+};
+
+/** Resolve savings + financial account ids so all streams filter consistently. */
+export async function resolveAccountFilters(
   supabase: SupabaseClient,
   userId: string,
   opts: ListUnifiedOpts
-): Promise<{ accountId?: string; poolId?: string }> {
-  if (opts.accountId) return { accountId: opts.accountId, poolId: opts.poolId };
-  if (!opts.financialAccountId) return { poolId: opts.poolId };
+): Promise<ResolvedAccountFilters> {
+  const resolved: ResolvedAccountFilters = { poolId: opts.poolId };
 
-  const { data } = await supabase
-    .from("financial_accounts")
-    .select("savings_account_id")
-    .eq("id", opts.financialAccountId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (data?.savings_account_id) {
-    return { accountId: String(data.savings_account_id), poolId: undefined };
+  if (opts.financialAccountId) {
+    resolved.financialAccountId = opts.financialAccountId;
+    const { data, error } = await supabase
+      .from("financial_accounts")
+      .select("savings_account_id")
+      .eq("id", opts.financialAccountId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data?.savings_account_id) {
+      resolved.accountId = String(data.savings_account_id);
+    } else if (opts.accountId) {
+      resolved.accountId = opts.accountId;
+    }
+    console.info("[transactions] resolved account filters (from financial account)", {
+      userId,
+      financialAccountId: resolved.financialAccountId,
+      accountId: resolved.accountId ?? null,
+    });
+    return resolved;
   }
-  return {};
+
+  if (opts.accountId) {
+    resolved.accountId = opts.accountId;
+    const { data, error } = await supabase
+      .from("financial_accounts")
+      .select("id")
+      .eq("savings_account_id", opts.accountId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data?.id) {
+      resolved.financialAccountId = String(data.id);
+    }
+    console.info("[transactions] resolved account filters (from savings account)", {
+      userId,
+      accountId: resolved.accountId,
+      financialAccountId: resolved.financialAccountId ?? null,
+    });
+    return resolved;
+  }
+
+  return resolved;
 }
 
 export async function listUnifiedTransactions(
@@ -115,13 +153,12 @@ export async function listUnifiedTransactions(
     !opts.kind &&
     opts.transactionType !== "income";
 
-  const savingsFilter = await resolveSavingsAccountFilter(supabase, userId, opts);
+  const accountFilters = await resolveAccountFilters(supabase, userId, opts);
 
   const skipSavingsForCardOnly =
-    Boolean(opts.financialAccountId) &&
-    !savingsFilter.accountId &&
-    !opts.accountId &&
-    !opts.poolId;
+    Boolean(accountFilters.financialAccountId) &&
+    !accountFilters.accountId &&
+    !accountFilters.poolId;
 
   const fetchSavings = includeSavings && !skipSavingsForCardOnly;
   const fetchBudget = includeBudget;
@@ -134,8 +171,8 @@ export async function listUnifiedTransactions(
       ? listAllTransactions(supabase, {
           limit: window,
           offset: 0,
-          accountId: savingsFilter.accountId ?? opts.accountId,
-          poolId: savingsFilter.poolId ?? opts.poolId,
+          accountId: accountFilters.accountId,
+          poolId: accountFilters.poolId,
           kind: opts.kind,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
@@ -143,7 +180,7 @@ export async function listUnifiedTransactions(
       ? listBudgetTransactions(supabase, userId, {
           limit: window,
           offset: 0,
-          financialAccountId: opts.financialAccountId,
+          financialAccountId: accountFilters.financialAccountId,
           transactionType: opts.transactionType,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
@@ -151,7 +188,7 @@ export async function listUnifiedTransactions(
       ? listExpensesForTransactions(supabase, userId, {
           limit: window,
           offset: 0,
-          financialAccountId: opts.financialAccountId,
+          financialAccountId: accountFilters.financialAccountId,
           transactionType: opts.transactionType,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),

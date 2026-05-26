@@ -1,30 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
-import { useSavings } from "@/hooks/useSavings";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 
 const PAGE_SIZE = 50;
 
+const SAVINGS_TYPES = ["deposit", "withdrawal", "adjustment"] as const;
+const BUDGET_TYPES = ["expense", "subscription", "income"] as const;
+
+function splitTypeFilter(type: string): { kind?: string; transactionType?: string } {
+  if (!type) return {};
+  if ((SAVINGS_TYPES as readonly string[]).includes(type)) return { kind: type };
+  if ((BUDGET_TYPES as readonly string[]).includes(type)) return { transactionType: type };
+  return {};
+}
+
+function readTypeFromSearchParams(searchParams: URLSearchParams): string {
+  const type = searchParams.get("type")?.trim() ?? "";
+  if (type) return type;
+  const kind = searchParams.get("kind")?.trim() ?? "";
+  if (kind) return kind;
+  return searchParams.get("transactionType")?.trim() ?? "";
+}
+
 function buildQuery(params: {
   accountId: string;
-  poolId: string;
   financialAccountId: string;
-  kind: string;
-  transactionType: string;
+  type: string;
   source: string;
   offset: number;
 }): string {
   const qs = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(params.offset) });
   if (params.accountId) qs.set("accountId", params.accountId);
-  if (params.poolId) qs.set("poolId", params.poolId);
   if (params.financialAccountId) qs.set("financialAccountId", params.financialAccountId);
-  if (params.kind) qs.set("kind", params.kind);
-  if (params.transactionType) qs.set("transactionType", params.transactionType);
+  const { kind, transactionType } = splitTypeFilter(params.type);
+  if (kind) qs.set("kind", kind);
+  if (transactionType) qs.set("transactionType", transactionType);
   if (params.source && params.source !== "all") qs.set("source", params.source);
   return qs.toString();
 }
@@ -32,13 +47,10 @@ function buildQuery(params: {
 export function TransactionsHistoryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const accountId = searchParams.get("accountId") ?? "";
-  const poolId = searchParams.get("poolId") ?? "";
   const financialAccountId = searchParams.get("financialAccountId") ?? "";
-  const kind = searchParams.get("kind") ?? "";
-  const transactionType = searchParams.get("transactionType") ?? "";
+  const type = readTypeFromSearchParams(searchParams);
   const source = searchParams.get("source") ?? "all";
 
   const [items, setItems] = useState<UnifiedTransaction[]>([]);
@@ -46,13 +58,14 @@ export function TransactionsHistoryPage() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState("");
 
-  const { bundle: savingsBundle } = useSavings();
-  const { accounts: financialAccounts, reload: reloadFinancialAccounts } =
-    useFinancialAccounts();
-  const pools = savingsBundle.pools;
+  const { accounts: financialAccounts } = useFinancialAccounts();
+
+  const effectiveFinancialAccountId = useMemo(() => {
+    if (financialAccountId) return financialAccountId;
+    if (!accountId) return "";
+    return financialAccounts.find((a) => a.savingsAccountId === accountId)?.id ?? "";
+  }, [financialAccountId, accountId, financialAccounts]);
 
   const load = useCallback(
     async (append: boolean) => {
@@ -62,10 +75,8 @@ export function TransactionsHistoryPage() {
 
       const qs = buildQuery({
         accountId,
-        poolId,
-        financialAccountId,
-        kind,
-        transactionType,
+        financialAccountId: effectiveFinancialAccountId,
+        type,
         source,
         offset: nextOffset,
       });
@@ -100,17 +111,17 @@ export function TransactionsHistoryPage() {
         setLoadingMore(false);
       }
     },
-    [accountId, poolId, financialAccountId, kind, transactionType, source, offset]
+    [accountId, effectiveFinancialAccountId, type, source, offset]
   );
 
   useEffect(() => {
     setOffset(0);
     void load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, poolId, financialAccountId, kind, transactionType, source]);
+  }, [accountId, effectiveFinancialAccountId, type, source]);
 
   const hasFilters = Boolean(
-    accountId || poolId || financialAccountId || kind || transactionType || source !== "all"
+    accountId || financialAccountId || type || source !== "all"
   );
 
   const selectedAccountValue = useMemo(() => {
@@ -124,25 +135,19 @@ export function TransactionsHistoryPage() {
 
   const setFilters = (next: {
     accountId?: string;
-    poolId?: string;
     financialAccountId?: string;
-    kind?: string;
-    transactionType?: string;
+    type?: string;
     source?: string;
   }) => {
     const params = new URLSearchParams();
     const a = next.accountId !== undefined ? next.accountId : accountId;
-    const p = next.poolId !== undefined ? next.poolId : poolId;
     const fa =
       next.financialAccountId !== undefined ? next.financialAccountId : financialAccountId;
-    const k = next.kind !== undefined ? next.kind : kind;
-    const tt = next.transactionType !== undefined ? next.transactionType : transactionType;
+    const t = next.type !== undefined ? next.type : type;
     const src = next.source !== undefined ? next.source : source;
     if (a) params.set("accountId", a);
-    if (p) params.set("poolId", p);
     if (fa) params.set("financialAccountId", fa);
-    if (k) params.set("kind", k);
-    if (tt) params.set("transactionType", tt);
+    if (t) params.set("type", t);
     if (src && src !== "all") params.set("source", src);
     const path = params.toString() ? `/transactions?${params}` : "/transactions";
     router.replace(path);
@@ -150,46 +155,6 @@ export function TransactionsHistoryPage() {
 
   const clearFilters = () => {
     router.replace("/transactions");
-  };
-
-  const onImportFile = async (file: File) => {
-    setImporting(true);
-    setImportMsg("");
-    try {
-      const csv = await file.text();
-      const { res, data } = await fetchJson<{
-        inserted?: number;
-        skipped?: number;
-        accountsCreated?: number;
-        parseSkipped?: number;
-        error?: string;
-      }>("/api/transactions", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv, createMissingAccounts: true }),
-      });
-      if (!res.ok) {
-        throw new Error(data.error ?? "Import failed");
-      }
-      const msg = `Imported ${data.inserted ?? 0} rows` +
-        (data.accountsCreated ? ` (${data.accountsCreated} new accounts)` : "") +
-        (data.skipped || data.parseSkipped
-          ? ` · skipped ${(data.skipped ?? 0) + (data.parseSkipped ?? 0)}`
-          : "");
-      setImportMsg(msg);
-      console.info("[TransactionsHistoryPage] import done", data);
-      setOffset(0);
-      void load(false);
-      await reloadFinancialAccounts();
-    } catch (e) {
-      const err = e instanceof Error ? e.message : "Import failed";
-      setImportMsg(err);
-      console.error("[TransactionsHistoryPage] import failed", e);
-    } finally {
-      setImporting(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
   };
 
   return (
@@ -206,12 +171,11 @@ export function TransactionsHistoryPage() {
                 setFilters({
                   financialAccountId: id,
                   accountId: fa.savingsAccountId,
-                  poolId: "",
                 });
               } else if (fa) {
-                setFilters({ financialAccountId: id, accountId: "", poolId: "" });
+                setFilters({ financialAccountId: id, accountId: "" });
               } else {
-                setFilters({ financialAccountId: "", accountId: "", poolId: "" });
+                setFilters({ financialAccountId: "", accountId: "" });
               }
             }}
           >
@@ -225,46 +189,13 @@ export function TransactionsHistoryPage() {
           </select>
         </label>
 
-        {pools.length > 0 ? (
-          <label className="tx-filter">
-            <span className="tx-filter-label">Pool</span>
-            <select
-              value={poolId}
-              onChange={(e) =>
-                setFilters({
-                  poolId: e.target.value,
-                  accountId: "",
-                  financialAccountId: "",
-                })
-              }
-            >
-              <option value="">All</option>
-              {pools.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name || "Pool"}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-
         <label className="tx-filter">
-          <span className="tx-filter-label">Savings</span>
-          <select value={kind} onChange={(e) => setFilters({ kind: e.target.value })}>
+          <span className="tx-filter-label">Transaction type</span>
+          <select value={type} onChange={(e) => setFilters({ type: e.target.value })}>
             <option value="">Any</option>
             <option value="deposit">Deposit</option>
             <option value="withdrawal">Withdrawal</option>
             <option value="adjustment">Adjustment</option>
-          </select>
-        </label>
-
-        <label className="tx-filter">
-          <span className="tx-filter-label">Budget</span>
-          <select
-            value={transactionType}
-            onChange={(e) => setFilters({ transactionType: e.target.value })}
-          >
-            <option value="">Any</option>
             <option value="expense">Expense</option>
             <option value="subscription">Subscription</option>
             <option value="income">Income</option>
@@ -281,44 +212,23 @@ export function TransactionsHistoryPage() {
           </select>
         </label>
 
-        <div className="tx-filters-actions">
-          {hasFilters ? (
+        {hasFilters ? (
+          <div className="tx-filters-actions">
             <button type="button" className="btn ghost sm" onClick={clearFilters}>
               Clear
             </button>
-          ) : null}
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,text/csv"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onImportFile(f);
-            }}
-          />
-          <button
-            type="button"
-            className="btn sm"
-            disabled={importing}
-            onClick={() => fileRef.current?.click()}
-          >
-            {importing ? "Importing…" : "Import CSV"}
-          </button>
-        </div>
+          </div>
+        ) : null}
       </div>
-
-      {importMsg ? (
-        <p className="note" style={{ marginBottom: 12 }}>
-          {importMsg}
-        </p>
-      ) : null}
 
       <section className="panel on">
         {loading ? (
           <p className="note">Loading transactions…</p>
         ) : items.length === 0 ? (
-          <p className="note">No transactions found. Import a CSV, record savings on Cash Accounts, or log expenses and recurring payments.</p>
+          <p className="note">
+            No transactions found. Record savings on Cash Accounts, or log expenses and recurring
+            payments.
+          </p>
         ) : (
           <div className="table-scroll">
             <table>

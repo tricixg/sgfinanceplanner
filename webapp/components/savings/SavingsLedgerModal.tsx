@@ -51,7 +51,7 @@ function useLedgerMeta(target: SavingsLedgerTarget) {
       title: target.pool.name || "Shared pool",
       current: target.pool.balance,
       historyUrl: `/api/savings/pools/${target.pool.id}/transactions?limit=3`,
-      viewMoreHref: `/transactions?poolId=${encodeURIComponent(target.pool.id)}`,
+      viewMoreHref: "/transactions",
       subtitle: target.pool.includeInSavings
         ? "Shared with partner"
         : "Shared · excluded from savings totals",
