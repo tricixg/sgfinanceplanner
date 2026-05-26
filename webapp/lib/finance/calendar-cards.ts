@@ -1,4 +1,9 @@
 import type { CalendarEvent } from "@/lib/finance/calendar";
+import { roundMoney } from "@/lib/cards/interest-accrual";
+import {
+  resolveAmountForClose,
+  type CardStatementAmountEntry,
+} from "@/lib/credit-cards/card-statements/calendar-amounts";
 import {
   clampDayInMonth,
   paymentDueDate,
@@ -55,7 +60,7 @@ export function projectCardCalendarCyclesForMonth(
       cardName: card.name,
       statementCloseDate,
       paymentDueDate: paymentDueDate(statementCloseDate, card.paymentDueDay),
-      actualAmount: amountsByCloseDate.get(statementCloseDate) ?? null,
+      actualAmount: resolveAmountForClose(amountsByCloseDate, statementCloseDate),
     });
   }
 
@@ -64,7 +69,7 @@ export function projectCardCalendarCyclesForMonth(
       cardName: card.name,
       statementCloseDate: priorStatementClose,
       paymentDueDate: paymentDueInMonth,
-      actualAmount: amountsByCloseDate.get(priorStatementClose) ?? null,
+      actualAmount: resolveAmountForClose(amountsByCloseDate, priorStatementClose),
     });
   }
 
@@ -121,12 +126,40 @@ export function getCardCalendarEvents(
   return events;
 }
 
-/** Sum of statement amounts entered on the Credit Cards tab (latest closed cycles). */
-export function sumEnteredStatementAmounts(
-  cycles: { actualAmount: number | null }[]
+/**
+ * Total statement amounts for cycles that **close** in `viewYm` (payment due next month).
+ */
+export function sumStatementBalancesClosedInMonth(
+  viewYm: string,
+  entries: CardStatementAmountEntry[]
 ): number {
-  return cycles.reduce(
-    (s, c) => s + (c.actualAmount != null && c.actualAmount > 0 ? c.actualAmount : 0),
-    0
-  );
+  const seen = new Set<string>();
+  let sum = 0;
+  for (const e of entries) {
+    if (!e.statementCloseDate.startsWith(`${viewYm}-`)) continue;
+    if (e.actualAmount == null || e.actualAmount <= 0) continue;
+    const key = `${e.creditCardId}:${e.statementCloseDate}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sum += e.actualAmount;
+  }
+  return roundMoney(sum);
+}
+
+/** Same as {@link sumStatementBalancesClosedInMonth} using projected calendar cycles. */
+export function sumStatementBalancesFromCycles(
+  viewYm: string,
+  cycles: CardCalendarCycle[]
+): number {
+  const seen = new Set<string>();
+  let sum = 0;
+  for (const c of cycles) {
+    if (!c.statementCloseDate.startsWith(`${viewYm}-`)) continue;
+    if (c.actualAmount == null || c.actualAmount <= 0) continue;
+    const key = `${c.cardName}:${c.statementCloseDate}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sum += c.actualAmount;
+  }
+  return roundMoney(sum);
 }

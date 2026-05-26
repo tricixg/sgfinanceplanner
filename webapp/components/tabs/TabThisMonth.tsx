@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { DashboardState, RecurringSubscription } from "@/lib/types";
-import type { CardCalendarCycle } from "@/lib/finance/calendar";
+import type { CardStatementAmountEntry } from "@/lib/credit-cards/card-statements/calendar-amounts";
+import { sumStatementBalancesFromCycles } from "@/lib/finance/calendar-cards";
 import {
   addMonthsYm,
   attachEventsToGrid,
   buildMonthGrid,
   getCalendarEvents,
-  totalStatementAmount,
 } from "@/lib/finance/calendar";
-import type { CardStatementsBundle } from "@/lib/cards/types";
+import {
+  buildCardCyclesForMonth,
+  type CalendarCardSchedule,
+} from "@/lib/finance/build-calendar-cycles";
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 
 type Props = {
@@ -24,10 +27,10 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export function TabThisMonth({ state: S }: Props) {
   const [viewYm, setViewYm] = useState(currentYm);
   const [subscriptions, setSubscriptions] = useState<RecurringSubscription[]>([]);
-  const [cardCycles, setCardCycles] = useState<CardCalendarCycle[] | null>(null);
-  const [enteredStatementAmounts, setEnteredStatementAmounts] = useState<
-    number[] | null
+  const [statementEntries, setStatementEntries] = useState<
+    CardStatementAmountEntry[] | null
   >(null);
+  const [calendarCards, setCalendarCards] = useState<CalendarCardSchedule[]>([]);
   const todayYm = currentYm();
   const todayDay = new Date().getDate();
 
@@ -54,35 +57,44 @@ export function TabThisMonth({ state: S }: Props) {
     };
   }, []);
 
+  const loadCalendarAmounts = useCallback(async () => {
+    const { res, data } = await fetchJson<{
+      configured?: boolean;
+      entries?: CardStatementAmountEntry[];
+      cards?: CalendarCardSchedule[];
+      error?: string;
+    }>("/api/credit-cards/calendar", { credentials: "include" });
+    if (res.ok && data.configured) {
+      setStatementEntries(data.entries ?? []);
+      setCalendarCards(data.cards ?? []);
+      console.info("[TabThisMonth] calendar amounts loaded", {
+        entries: data.entries?.length ?? 0,
+        cards: data.cards?.length ?? 0,
+      });
+    } else {
+      console.warn("[TabThisMonth] calendar amounts load failed", data.error);
+      setStatementEntries([]);
+      setCalendarCards([]);
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
-    setCardCycles(null);
-    void (async () => {
-      const { res, data } = await fetchJson<
-        CardStatementsBundle & {
-          calendarCycles?: CardCalendarCycle[];
-          enteredStatementAmounts?: number[];
-          error?: string;
-        }
-      >(`/api/credit-cards/statements?ym=${viewYm}`, { credentials: "include" });
-      if (cancelled) return;
-      if (res.ok && data.configured) {
-        setCardCycles(data.calendarCycles ?? []);
-        setEnteredStatementAmounts(data.enteredStatementAmounts ?? []);
-        console.info("[TabThisMonth] card statement cycles loaded", {
-          ym: viewYm,
-          cycles: data.calendarCycles?.length ?? 0,
-        });
-      } else {
-        console.warn("[TabThisMonth] card statements load failed", data.error);
-        setCardCycles([]);
-        setEnteredStatementAmounts([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
+    void loadCalendarAmounts();
+  }, [loadCalendarAmounts]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      console.info("[TabThisMonth] refresh calendar amounts on focus");
+      void loadCalendarAmounts();
     };
-  }, [viewYm]);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadCalendarAmounts]);
+
+  const cardCycles = useMemo(() => {
+    if (statementEntries === null) return null;
+    return buildCardCyclesForMonth(calendarCards, viewYm, statementEntries);
+  }, [calendarCards, viewYm, statementEntries]);
 
   const events = useMemo(
     () => getCalendarEvents(S, viewYm, subscriptions, cardCycles),
@@ -92,15 +104,24 @@ export function TabThisMonth({ state: S }: Props) {
     () => attachEventsToGrid(buildMonthGrid(viewYm), events),
     [viewYm, events]
   );
-  const stmtTotal = totalStatementAmount(S, enteredStatementAmounts);
+  const stmtTotal = useMemo(() => {
+    if (!cardCycles) return null;
+    return sumStatementBalancesFromCycles(viewYm, cardCycles);
+  }, [cardCycles, viewYm]);
+  const stmtDueYm = addMonthsYm(viewYm, 1);
 
   return (
     <section className="panel on">
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <div className="stat accent">
           <div className="lbl">Statement balances (all cards)</div>
-          <div className="val">{fmt(stmtTotal)}</div>
-          <div className="note">Totals from statement amounts entered on Credit Cards</div>
+          <div className="val">{stmtTotal != null ? fmt(stmtTotal) : "—"}</div>
+          <div className="note">
+            Statements generated in {formatMonthLabel(viewYm)}
+            {stmtTotal != null && stmtTotal > 0
+              ? ` · due ${formatMonthLabel(stmtDueYm)}`
+              : ""}
+          </div>
         </div>
         <div className="stat">
           <div className="lbl">Events this month</div>
