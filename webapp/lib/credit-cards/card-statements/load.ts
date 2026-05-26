@@ -15,7 +15,10 @@ import {
   paymentDueDate,
   recentStatementCloseDates,
 } from "@/lib/cards/statement-cycle";
-import { buildCardSpendIndex } from "@/lib/cards/statement-spend-index";
+import {
+  buildCardSpendIndex,
+  buildCardSpendIndexMap,
+} from "@/lib/cards/statement-spend-index";
 import type {
   CardStatementComputed,
   CardStatementsBundle,
@@ -178,22 +181,35 @@ export async function loadCardStatementsBundle(
   const statements: CardStatementComputed[] = [];
   const openCycles: OpenCycleEstimate[] = [];
 
+  const rowsByCard = await Promise.all(
+    cards.map((card) => ensureStatementRows(supabase, userId, card))
+  );
+
+  let spendFrom = today;
+  for (const rows of rowsByCard) {
+    for (const r of rows) {
+      if (r.cycleStartDate < spendFrom) spendFrom = r.cycleStartDate;
+    }
+  }
+
+  const finIds = cards
+    .map((c) => c.financialAccountId)
+    .filter((id): id is string => Boolean(id));
+  const spendIndexMap =
+    finIds.length > 0
+      ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
+      : new Map();
+
   await Promise.all(
-    cards.map(async (card) => {
-      const rows = await ensureStatementRows(supabase, userId, card);
+    cards.map(async (card, cardIdx) => {
+      const rows = rowsByCard[cardIdx]!;
       const finId = card.financialAccountId;
       const { statementClose: openClose, cycleStart, cycleEnd } = openCycleBounds(
         card.statementDay,
         today
       );
 
-      const earliest = rows.reduce(
-        (min, r) => (r.cycleStartDate < min ? r.cycleStartDate : min),
-        rows[0]?.cycleStartDate ?? cycleStart
-      );
-      const spendIndex = finId
-        ? await buildCardSpendIndex(supabase, userId, finId, earliest, today)
-        : null;
+      const spendIndex = finId ? spendIndexMap.get(finId) ?? null : null;
 
       let latestClosed = findLatestClosedStatement(rows, today);
       if (!latestClosed && rows.length > 0) {
@@ -211,7 +227,8 @@ export async function loadCardStatementsBundle(
           supabase,
           userId,
           card,
-          latestClosed
+          latestClosed,
+          spendIndex
         );
         statements.push(
           enrichStatement(
@@ -231,7 +248,8 @@ export async function loadCardStatementsBundle(
           supabase,
           userId,
           card,
-          priorClosed
+          priorClosed,
+          spendIndex
         );
         carriedForward = outstandingBalance({
           carriedForwardIn: priorClosed.carriedForwardIn,

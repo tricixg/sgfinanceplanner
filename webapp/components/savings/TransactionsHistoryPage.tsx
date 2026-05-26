@@ -328,7 +328,6 @@ export function TransactionsHistoryPage() {
                   <th>Time</th>
                   <th>Ledger</th>
                   <th>Category</th>
-                  <th>Subcategory</th>
                   <th>Transaction</th>
                   <th className="num">Amount</th>
                   <th>Account</th>
@@ -344,7 +343,6 @@ export function TransactionsHistoryPage() {
                     <td>{tx.time || "—"}</td>
                     <td>{tx.ledger || "—"}</td>
                     <td>{tx.category || "—"}</td>
-                    <td>{tx.subcategory || "—"}</td>
                     <td style={{ textTransform: "capitalize" }}>{tx.typeLabel}</td>
                     <td className="num">{fmtSigned2(tx.amount)}</td>
                     <td>{tx.accountName ?? "—"}</td>

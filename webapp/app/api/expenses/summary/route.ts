@@ -8,12 +8,7 @@ import { loadRecurringSubscriptions } from "@/lib/recurring/load";
 import { computedSubscriptionMonthly } from "@/lib/finance/budget";
 import { loanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
-import { loadCreditCards } from "@/lib/credit-cards/load";
-import {
-  loadFinancialAccounts,
-  syncCashFinancialAccounts,
-  syncCreditCardFinancialAccountsFromRows,
-} from "@/lib/financial-accounts/sync";
+import { loadFinancialAccounts } from "@/lib/financial-accounts/sync";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
@@ -108,13 +103,9 @@ export async function GET(req: NextRequest) {
     computedAlloc
   );
 
+  // Read-only: sync runs when cards/accounts are saved, not on every summary load.
   let financialAccounts: Awaited<ReturnType<typeof loadFinancialAccounts>> = [];
   try {
-    await syncCashFinancialAccounts(supabase, user.id);
-    const cardRows = await loadCreditCards(supabase, user.id);
-    if (cardRows.length) {
-      await syncCreditCardFinancialAccountsFromRows(supabase, user.id, cardRows);
-    }
     financialAccounts = await loadFinancialAccounts(supabase, user.id);
     console.info("[api/expenses/summary] financial accounts loaded", {
       count: financialAccounts.length,

@@ -6,6 +6,7 @@ import {
   principalAtDue,
   todayYmd,
 } from "@/lib/cards/interest-accrual";
+import type { CardSpendIndex } from "@/lib/cards/statement-spend-index";
 import { sumCardSpendByDay } from "@/lib/cards/statement-spend";
 import { interestFreeBalanceTransferPrincipal } from "@/lib/other-loans/interest-free";
 import type { DbCardStatement } from "./mappers";
@@ -14,7 +15,8 @@ export async function recomputeInterestForStatement(
   supabase: SupabaseClient,
   userId: string,
   card: DbCreditCard,
-  stmt: DbCardStatement
+  stmt: DbCardStatement,
+  spendIndex?: CardSpendIndex | null
 ): Promise<number> {
   const today = todayYmd();
   const financialAccountId = card.financialAccountId;
@@ -40,13 +42,9 @@ export async function recomputeInterestForStatement(
   }
 
   const start = interestStartAfterDue(stmt.paymentDueDate);
-  const dailySpend = await sumCardSpendByDay(
-    supabase,
-    userId,
-    financialAccountId,
-    start,
-    today
-  );
+  const dailySpend = spendIndex
+    ? spendIndex.dailySpendInRange(start, today)
+    : await sumCardSpendByDay(supabase, userId, financialAccountId, start, today);
 
   const interest = accrueDailyInterest({
     aprPercent: card.interestRateApr,

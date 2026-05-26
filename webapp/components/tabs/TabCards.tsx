@@ -173,30 +173,20 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     loading: statementsLoading,
     reload: reloadStatements,
   } = useCardStatements(statementsEnabled);
-  const {
-    accounts: financialAccounts,
-    loading: accountsLoading,
-    reload: reloadFinancialAccounts,
-  } = useFinancialAccounts();
+  const { accounts: financialAccounts } = useFinancialAccounts();
 
   const snackbar = useSnackbar();
   const [initialLoadDone, setInitialLoadDone] = useState(!statementsEnabled);
-
-  useEffect(() => {
-    if (statementsEnabled) {
-      void reloadFinancialAccounts();
-    }
-  }, [statementsEnabled, reloadFinancialAccounts]);
 
   useEffect(() => {
     if (!statementsEnabled) {
       setInitialLoadDone(true);
       return;
     }
-    if (!statementsLoading && !accountsLoading) {
+    if (!statementsLoading) {
       setInitialLoadDone(true);
     }
-  }, [statementsEnabled, statementsLoading, accountsLoading]);
+  }, [statementsEnabled, statementsLoading]);
 
   const [editing, setEditing] = useState(false);
   const [editDraft, setEditDraft] = useState<CreditCard[] | null>(null);

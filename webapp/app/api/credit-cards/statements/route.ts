@@ -2,10 +2,6 @@ import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadCardStatementsBundle } from "@/lib/credit-cards/card-statements/load";
 import { loadCreditCards } from "@/lib/credit-cards/load";
-import {
-  syncCashFinancialAccounts,
-  syncCreditCardFinancialAccountsFromRows,
-} from "@/lib/financial-accounts/sync";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -23,11 +19,7 @@ export async function GET() {
 
   try {
     const supabase = await createAuthedSupabaseClient();
-    await syncCashFinancialAccounts(supabase, auth.user.id);
     const cards = await loadCreditCards(supabase, auth.user.id);
-    if (cards.length) {
-      await syncCreditCardFinancialAccountsFromRows(supabase, auth.user.id, cards);
-    }
     const bundle = await loadCardStatementsBundle(
       supabase,
       auth.user.id,
