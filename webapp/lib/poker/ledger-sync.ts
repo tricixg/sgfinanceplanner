@@ -2,12 +2,21 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { findIncomeCategoryBySlug } from "@/lib/income/load";
 import { applyTransaction } from "@/lib/savings/ledger";
-import { pokerProfit } from "@/lib/poker/types";
+import { pokerProfit, sessionGameLabel } from "@/lib/poker/types";
 import type { PokerSession } from "@/lib/poker/types";
 
-export function pokerLedgerNote(session: Pick<PokerSession, "venue" | "playedAt">): string {
-  const venue = session.venue.trim();
-  return venue ? `Poker: ${venue}` : `Poker session ${session.playedAt}`;
+export function pokerLedgerNote(session: PokerSession): string {
+  const loc = session.location.trim();
+  const game = sessionGameLabel(session);
+  const parts = ["Poker"];
+  if (session.sessionType === "tournament") {
+    const tName = session.tournamentName?.trim();
+    if (tName) parts.push(tName);
+  }
+  if (game !== "—") parts.push(game);
+  if (loc) parts.push(`@ ${loc}`);
+  if (parts.length === 1) return `Poker session ${session.playedAt}`;
+  return parts.join(" · ");
 }
 
 export async function createPokerLedger(

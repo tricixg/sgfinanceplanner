@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
 import { mapPokerSession } from "@/lib/poker/db-mappers";
+import { listPokerGames, verifyPokerGame } from "@/lib/poker/games";
 import { createPokerLedger } from "@/lib/poker/ledger-sync";
+import { listPokerLocations, upsertPokerLocation } from "@/lib/poker/locations";
+import type { PokerSessionType, TournamentResult } from "@/lib/poker/types";
 import { pokerProfit } from "@/lib/poker/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -34,7 +37,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createAuthedSupabaseClient();
   let query = supabase
     .from("poker_sessions")
-    .select("*", { count: "exact" })
+    .select("*, poker_games(*)", { count: "exact" })
     .eq("user_id", user.id)
     .order("played_at", { ascending: false })
     .order("id", { ascending: false })
@@ -61,11 +64,18 @@ export async function GET(req: NextRequest) {
     total,
   });
 
+  const [locations, games] = await Promise.all([
+    listPokerLocations(supabase, user.id),
+    listPokerGames(supabase, user.id),
+  ]);
+
   return NextResponse.json({
     configured: true,
     items: page.map((r) => mapPokerSession(r)),
     nextOffset,
     total,
+    locations,
+    games,
   });
 }
 
@@ -79,10 +89,19 @@ export async function POST(req: NextRequest) {
   const { user } = auth;
 
   let body: {
+    sessionType?: PokerSessionType;
     buyIn?: number;
     cashOut?: number;
     playedAt?: string;
+    location?: string;
     venue?: string;
+    tournamentName?: string;
+    gameId?: string;
+    eventName?: string;
+    tournamentResult?: TournamentResult;
+    tournamentPlace?: number | null;
+    tournamentEntries?: number | null;
+    amountWon?: number | null;
     hours?: number | null;
     note?: string;
     financialAccountId?: string;
@@ -93,14 +112,67 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const sessionType: PokerSessionType =
+    body.sessionType === "tournament" ? "tournament" : "cash_game";
+
   const buyIn = typeof body.buyIn === "number" ? body.buyIn : NaN;
-  const cashOut = typeof body.cashOut === "number" ? body.cashOut : 0;
   if (!Number.isFinite(buyIn) || buyIn < 0) {
     return NextResponse.json({ error: "Valid buy-in required" }, { status: 400 });
   }
-  if (!Number.isFinite(cashOut) || cashOut < 0) {
-    return NextResponse.json({ error: "Valid cash-out required" }, { status: 400 });
+
+  let cashOut = typeof body.cashOut === "number" ? body.cashOut : 0;
+  let amountWon: number | null = null;
+  let tournamentResult: TournamentResult | null = null;
+  let tournamentPlace: number | null = null;
+  let tournamentEntries: number | null = null;
+  const tournamentName =
+    typeof body.tournamentName === "string" ? body.tournamentName.trim() : "";
+  const eventName =
+    typeof body.eventName === "string" ? body.eventName.trim() : "";
+
+  if (sessionType === "tournament") {
+    if (!tournamentName) {
+      return NextResponse.json({ error: "Tournament name is required" }, { status: 400 });
+    }
+    if (!eventName) {
+      return NextResponse.json({ error: "Event name is required" }, { status: 400 });
+    }
+    if (body.tournamentResult !== "placed" && body.tournamentResult !== "busted") {
+      return NextResponse.json({ error: "Result must be placed or busted" }, { status: 400 });
+    }
+    tournamentResult = body.tournamentResult;
+    if (tournamentResult === "placed") {
+      const won = typeof body.amountWon === "number" ? body.amountWon : NaN;
+      if (!Number.isFinite(won) || won < 0) {
+        return NextResponse.json({ error: "Valid amount won required" }, { status: 400 });
+      }
+      amountWon = won;
+      cashOut = won;
+      if (body.tournamentPlace != null) {
+        const place = Number(body.tournamentPlace);
+        if (Number.isFinite(place) && place >= 1) tournamentPlace = Math.round(place);
+      }
+    } else {
+      amountWon = 0;
+      cashOut = 0;
+    }
+    if (body.tournamentEntries != null) {
+      const entries = Number(body.tournamentEntries);
+      if (Number.isFinite(entries) && entries >= 1) {
+        tournamentEntries = Math.round(entries);
+      }
+    }
+  } else {
+    if (!Number.isFinite(cashOut) || cashOut < 0) {
+      return NextResponse.json({ error: "Valid cash-out required" }, { status: 400 });
+    }
+    if (!body.gameId) {
+      return NextResponse.json({ error: "Game (stakes) is required" }, { status: 400 });
+    }
   }
+
+  const location =
+    (typeof body.location === "string" ? body.location : body.venue ?? "").trim();
 
   const playedAt =
     typeof body.playedAt === "string" && body.playedAt.length >= 10
@@ -128,19 +200,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid financial account" }, { status: 400 });
   }
 
+  let gameId: string | null = null;
+  if (sessionType === "cash_game") {
+    const ok = await verifyPokerGame(supabase, user.id, body.gameId!);
+    if (!ok) {
+      return NextResponse.json({ error: "Invalid game" }, { status: 400 });
+    }
+    gameId = body.gameId!;
+  }
+
+  if (location) {
+    await upsertPokerLocation(supabase, user.id, location);
+  }
+
   const { data: row, error } = await supabase
     .from("poker_sessions")
     .insert({
       user_id: user.id,
+      session_type: sessionType,
       buy_in: buyIn,
       cash_out: cashOut,
       played_at: playedAt,
-      venue: body.venue ?? "",
+      venue: location,
+      location,
+      tournament_name: sessionType === "tournament" ? tournamentName : null,
+      game_id: gameId,
+      event_name: sessionType === "tournament" ? eventName : null,
+      tournament_result: tournamentResult,
+      tournament_place: tournamentPlace,
+      tournament_entries: tournamentEntries,
+      amount_won: sessionType === "tournament" ? amountWon : null,
       hours,
       note: body.note ?? "",
       financial_account_id: body.financialAccountId,
     })
-    .select("*")
+    .select("*, poker_games(*)")
     .single();
 
   if (error) {
@@ -173,10 +267,12 @@ export async function POST(req: NextRequest) {
 
   console.info("[api/poker] POST ok", {
     userId: user.id,
+    sessionType,
     buyIn,
     cashOut,
     playedAt,
     profit,
+    location: location || null,
     financialAccountId: body.financialAccountId,
   });
   return NextResponse.json({ item: session });

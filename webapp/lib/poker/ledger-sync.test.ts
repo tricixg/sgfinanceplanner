@@ -1,21 +1,84 @@
 import { describe, expect, it } from "vitest";
 import { pokerLedgerNote } from "@/lib/poker/ledger-sync";
+import type { PokerSession } from "@/lib/poker/types";
 import { pokerProfit } from "@/lib/poker/types";
 
+function sampleSession(overrides: Partial<PokerSession> = {}): PokerSession {
+  return {
+    id: "s1",
+    userId: "u1",
+    sessionType: "cash_game",
+    playedAt: "2026-05-01",
+    buyIn: 100,
+    cashOut: 200,
+    location: "Home",
+    tournamentName: null,
+    gameId: "g1",
+    game: {
+      id: "g1",
+      userId: "u1",
+      name: "NLHE",
+      smallBlind: 1,
+      bigBlind: 2,
+      ante: null,
+      createdAt: "",
+    },
+    eventName: null,
+    tournamentResult: null,
+    tournamentPlace: null,
+    tournamentEntries: null,
+    amountWon: null,
+    hours: null,
+    note: "",
+    financialAccountId: null,
+    savingsTransactionId: null,
+    createdAt: "",
+    ...overrides,
+  };
+}
+
 describe("pokerLedgerNote", () => {
-  it("includes venue when set", () => {
+  it("includes location and game for cash game", () => {
+    expect(pokerLedgerNote(sampleSession())).toBe("Poker · NLHE (1/2) · @ Home");
+  });
+
+  it("includes tournament name and event", () => {
     expect(
-      pokerLedgerNote({ venue: "Home NLHE", playedAt: "2026-05-01" })
-    ).toBe("Poker: Home NLHE");
+      pokerLedgerNote(
+        sampleSession({
+          sessionType: "tournament",
+          game: null,
+          gameId: null,
+          tournamentName: "WSOP",
+          eventName: "Main Event Day 1",
+          location: "Paris",
+        })
+      )
+    ).toBe("Poker · WSOP · Main Event Day 1 · @ Paris");
   });
 });
 
 describe("pokerProfit", () => {
   it("positive when cash-out exceeds buy-in", () => {
-    expect(pokerProfit({ buyIn: 100, cashOut: 250 })).toBe(150);
+    expect(
+      pokerProfit({ sessionType: "cash_game", buyIn: 100, cashOut: 250, amountWon: null })
+    ).toBe(150);
   });
 
-  it("negative on loss", () => {
-    expect(pokerProfit({ buyIn: 200, cashOut: 50 })).toBe(-150);
+  it("negative on cash game loss", () => {
+    expect(
+      pokerProfit({ sessionType: "cash_game", buyIn: 200, cashOut: 50, amountWon: null })
+    ).toBe(-150);
+  });
+
+  it("uses amount won for tournaments", () => {
+    expect(
+      pokerProfit({
+        sessionType: "tournament",
+        buyIn: 200,
+        cashOut: 500,
+        amountWon: 500,
+      })
+    ).toBe(300);
   });
 });
