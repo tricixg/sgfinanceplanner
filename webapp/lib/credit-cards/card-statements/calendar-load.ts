@@ -1,11 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DbCreditCard } from "@/lib/credit-cards/mappers";
-import type { CardCalendarCycle } from "@/lib/finance/calendar-cards";
-import { ensureStatementRows } from "@/lib/credit-cards/card-statements/load";
-
-function inViewYm(ymd: string, viewYm: string): boolean {
-  return ymd.slice(0, 7) === viewYm;
-}
+import {
+  projectCardCalendarCyclesForMonth,
+  type CardCalendarCycle,
+} from "@/lib/finance/calendar-cards";
 
 export async function loadCardCalendarCycles(
   supabase: SupabaseClient,
@@ -16,21 +14,34 @@ export async function loadCardCalendarCycles(
   const cycles: CardCalendarCycle[] = [];
 
   for (const card of cards) {
-    const rows = await ensureStatementRows(supabase, userId, card);
-    for (const row of rows) {
-      if (
-        !inViewYm(row.statementCloseDate, viewYm) &&
-        !inViewYm(row.paymentDueDate, viewYm)
-      ) {
-        continue;
-      }
-      cycles.push({
-        cardName: card.name,
-        statementCloseDate: row.statementCloseDate,
-        paymentDueDate: row.paymentDueDate,
-        actualAmount: row.actualAmount,
-      });
+    const { data: rows, error } = await supabase
+      .from("card_statements")
+      .select("statement_close_date, actual_amount")
+      .eq("credit_card_id", card.id)
+      .eq("user_id", userId);
+
+    if (error) throw new Error(error.message);
+
+    const amountsByClose = new Map<string, number | null>();
+    for (const row of rows ?? []) {
+      const close = String(row.statement_close_date).slice(0, 10);
+      amountsByClose.set(
+        close,
+        row.actual_amount != null ? Number(row.actual_amount) : null
+      );
     }
+
+    cycles.push(
+      ...projectCardCalendarCyclesForMonth(
+        {
+          name: card.name,
+          statementDay: card.statementDay,
+          paymentDueDay: card.paymentDueDay,
+        },
+        viewYm,
+        amountsByClose
+      )
+    );
   }
 
   console.info("[card-statements] calendar cycles", {

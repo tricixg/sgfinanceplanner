@@ -1,5 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { getCardCalendarEvents } from "@/lib/finance/calendar-cards";
+import {
+  getCardCalendarEvents,
+  projectCardCalendarCyclesForMonth,
+} from "@/lib/finance/calendar-cards";
+
+describe("projectCardCalendarCyclesForMonth", () => {
+  it("projects statement and payment dates for a future month", () => {
+    const cycles = projectCardCalendarCyclesForMonth(
+      { name: "DBS", statementDay: 5, paymentDueDay: 25 },
+      "2026-08"
+    );
+    expect(cycles).toContainEqual({
+      cardName: "DBS",
+      statementCloseDate: "2026-08-05",
+      paymentDueDate: "2026-09-25",
+      actualAmount: null,
+    });
+    expect(cycles).toContainEqual({
+      cardName: "DBS",
+      statementCloseDate: "2026-07-05",
+      paymentDueDate: "2026-08-25",
+      actualAmount: null,
+    });
+  });
+
+  it("uses saved actualAmount when present for payment due", () => {
+    const amounts = new Map<string, number | null>([
+      ["2026-07-05", 900],
+    ]);
+    const events = getCardCalendarEvents(
+      "2026-08",
+      projectCardCalendarCyclesForMonth(
+        { name: "DBS", statementDay: 5, paymentDueDay: 25 },
+        "2026-08",
+        amounts
+      )
+    );
+    expect(events).toContainEqual({
+      day: 25,
+      type: "payment",
+      label: "DBS — payment due",
+      amount: 900,
+    });
+  });
+});
 
 describe("getCardCalendarEvents", () => {
   it("shows payment amount only when actualAmount is entered", () => {

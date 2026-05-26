@@ -1,4 +1,8 @@
 import type { CalendarEvent } from "@/lib/finance/calendar";
+import {
+  clampDayInMonth,
+  paymentDueDate,
+} from "@/lib/cards/statement-cycle";
 
 /** One billing cycle row for the month calendar (from card_statements). */
 export type CardCalendarCycle = {
@@ -7,6 +11,65 @@ export type CardCalendarCycle = {
   paymentDueDate: string;
   actualAmount: number | null;
 };
+
+export type CardBillingSchedule = {
+  name: string;
+  statementDay: number;
+  paymentDueDay: number;
+};
+
+/**
+ * Project statement close + payment due for `viewYm` from card billing days.
+ * Payment due in a month applies to the prior month's statement close.
+ */
+export function projectCardCalendarCyclesForMonth(
+  card: CardBillingSchedule,
+  viewYm: string,
+  amountsByCloseDate: Map<string, number | null> = new Map()
+): CardCalendarCycle[] {
+  const [y, m] = viewYm.split("-").map(Number);
+  const monthIndex = m - 1;
+
+  const statementCloseDate = clampDayInMonth(y, monthIndex, card.statementDay);
+
+  let prevY = y;
+  let prevMonthIndex = monthIndex - 1;
+  if (prevMonthIndex < 0) {
+    prevMonthIndex = 11;
+    prevY -= 1;
+  }
+  const priorStatementClose = clampDayInMonth(
+    prevY,
+    prevMonthIndex,
+    card.statementDay
+  );
+  const paymentDueInMonth = paymentDueDate(
+    priorStatementClose,
+    card.paymentDueDay
+  );
+
+  const cycles: CardCalendarCycle[] = [];
+
+  if (statementCloseDate.startsWith(`${viewYm}-`)) {
+    cycles.push({
+      cardName: card.name,
+      statementCloseDate,
+      paymentDueDate: paymentDueDate(statementCloseDate, card.paymentDueDay),
+      actualAmount: amountsByCloseDate.get(statementCloseDate) ?? null,
+    });
+  }
+
+  if (paymentDueInMonth.startsWith(`${viewYm}-`)) {
+    cycles.push({
+      cardName: card.name,
+      statementCloseDate: priorStatementClose,
+      paymentDueDate: paymentDueInMonth,
+      actualAmount: amountsByCloseDate.get(priorStatementClose) ?? null,
+    });
+  }
+
+  return cycles;
+}
 
 function dayInYm(ymd: string, viewYm: string): number | null {
   if (!ymd.startsWith(`${viewYm}-`)) return null;
