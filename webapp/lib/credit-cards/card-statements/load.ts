@@ -42,7 +42,7 @@ function closingUnpaidForCarry(stmt: DbCardStatement): number {
   return roundMoney(principal + stmt.interestAccrued);
 }
 
-async function ensureStatementRows(
+export async function ensureStatementRows(
   supabase: SupabaseClient,
   userId: string,
   card: DbCreditCard

@@ -1,8 +1,14 @@
 import type { DashboardState, RecurringSubscription } from "@/lib/types";
+import {
+  getCardCalendarEvents,
+  type CardCalendarCycle,
+} from "@/lib/finance/calendar-cards";
 import { creditCardLabel } from "./card-linking";
 import { stableTakeHome } from "./cashflow";
 import { getRecurringCalendarEvents } from "@/lib/recurring/calendar-events";
 import { clampDay, formatMonthLabel } from "./helpers";
+
+export type { CardCalendarCycle } from "@/lib/finance/calendar-cards";
 
 export type CalendarEventType = "salary" | "statement" | "payment" | "loan_end" | "recurring";
 
@@ -28,7 +34,8 @@ function parseYm(viewYm: string): { year: number; month: number } {
 export function getCalendarEvents(
   S: DashboardState,
   viewYm: string,
-  subscriptions: RecurringSubscription[] = []
+  subscriptions: RecurringSubscription[] = [],
+  cardCycles: CardCalendarCycle[] | null = null
 ): CalendarEvent[] {
   const { year, month } = parseYm(viewYm);
   const events: CalendarEvent[] = [];
@@ -43,21 +50,23 @@ export function getCalendarEvents(
     amount: takeHome,
   });
 
-  for (const card of S.creditCards) {
-    const stmtDay = clampDay(year, month, card.statementDay);
-    events.push({
-      day: stmtDay,
-      type: "statement",
-      label: `${card.name} — statement`,
-      amount: card.statementAmount,
-    });
-    const payDay = clampDay(year, month, card.paymentDueDay);
-    events.push({
-      day: payDay,
-      type: "payment",
-      label: `${card.name} — payment due`,
-      amount: card.statementAmount,
-    });
+  if (cardCycles !== null) {
+    events.push(...getCardCalendarEvents(viewYm, cardCycles));
+  } else {
+    for (const card of S.creditCards) {
+      const stmtDay = clampDay(year, month, card.statementDay);
+      events.push({
+        day: stmtDay,
+        type: "statement",
+        label: `${card.name} — statement`,
+      });
+      const payDay = clampDay(year, month, card.paymentDueDay);
+      events.push({
+        day: payDay,
+        type: "payment",
+        label: `${card.name} — payment due`,
+      });
+    }
   }
 
   for (const loan of S.loans) {
@@ -135,6 +144,15 @@ export function addMonthsYm(ym: string, n: number): string {
   return `${ny}-${String(nm).padStart(2, "0")}`;
 }
 
-export function totalStatementAmount(S: DashboardState): number {
+export function totalStatementAmount(
+  S: DashboardState,
+  enteredStatementAmounts?: number[] | null
+): number {
+  if (enteredStatementAmounts != null) {
+    return enteredStatementAmounts.reduce(
+      (s, n) => s + (Number.isFinite(n) && n > 0 ? n : 0),
+      0
+    );
+  }
   return S.creditCards.reduce((s, c) => s + c.statementAmount, 0);
 }
