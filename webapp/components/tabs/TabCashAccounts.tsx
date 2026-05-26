@@ -12,6 +12,7 @@ import {
   wealthSummary,
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { DecimalInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
 
@@ -40,25 +41,6 @@ type Props = {
   accountsApi?: CloudAccountsApi;
   savingsGoals?: SavingsGoal[];
 };
-
-function NumInput({
-  value,
-  onChange,
-  step,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
 
 export function TabCashAccounts({
   state: S,
@@ -267,7 +249,7 @@ export function TabCashAccounts({
                         }}
                       />
                       {isNew ? (
-                        <NumInput
+                        <DecimalInput
                           value={a.balance}
                           step={0.01}
                           onChange={(v) => {
@@ -424,7 +406,7 @@ export function TabCashAccounts({
                       placeholder="e.g. DBS savings"
                       onChange={(e) => updateAccount(i, { name: e.target.value })}
                     />
-                    <NumInput
+                    <DecimalInput
                       value={a.balance}
                       step={0.01}
                       onChange={(v) => updateAccount(i, { balance: v })}

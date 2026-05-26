@@ -7,6 +7,7 @@ import { creditCardLabel, ensureCreditCardIds } from "@/lib/finance/card-linking
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 
 type Props = {
   state: DashboardState;
@@ -15,28 +16,6 @@ type Props = {
   onSaved: (msg: string) => void;
   onError: (msg: string) => void;
 };
-
-function NumInput({
-  value,
-  onChange,
-  step,
-  disabled,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-  disabled?: boolean;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      disabled={disabled}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
 
 function fmtDate(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -109,14 +88,7 @@ function OtherLoanPayModal({
           <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
             <label>
               Amount (SGD)
-              <input
-                type="number"
-                step={0.01}
-                min={0}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-              />
+              <DecimalTextInput value={amount} onChange={setAmount} required />
             </label>
             <label>
               Pay from (cash)
@@ -290,19 +262,19 @@ export function OtherLoansPanel({
                   ) : (
                     <span>—</span>
                   )}
-                  <NumInput
+                  <DecimalInput
                     value={l.principal}
                     step={0.01}
                     disabled={saving}
                     onChange={(v) => patchLoan(i, { principal: v, outstanding: v })}
                   />
-                  <NumInput
+                  <DecimalInput
                     value={l.outstanding}
                     step={0.01}
                     disabled={saving}
                     onChange={(v) => patchLoan(i, { outstanding: v })}
                   />
-                  <NumInput
+                  <DecimalInput
                     value={l.interestRateApr}
                     step={0.01}
                     disabled={saving}
@@ -315,13 +287,13 @@ export function OtherLoansPanel({
                       patchLoan(i, { dueDate: e.target.value || undefined })
                     }
                   />
-                  <NumInput
+                  <DecimalInput
                     value={l.tenureMonths ?? 0}
                     step={1}
                     disabled={saving}
                     onChange={(v) => patchLoan(i, { tenureMonths: v || undefined })}
                   />
-                  <NumInput
+                  <DecimalInput
                     value={l.feesPaid}
                     step={0.01}
                     disabled={saving}

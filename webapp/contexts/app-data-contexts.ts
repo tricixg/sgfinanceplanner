@@ -23,7 +23,13 @@ export type AppDataContextValue = {
   configured: boolean;
   reload: () => Promise<void>;
   saveProfile: (patch: Partial<FinanceProfile>) => Promise<void>;
+  saveProfilePolicies: (patch: {
+    insurancePolicies?: DashboardState["insurancePolicies"];
+    ilpPolicies?: DashboardState["ilpPolicies"];
+  }) => Promise<void>;
   saveLoans: (next: DashboardState["loans"]) => Promise<void>;
+  savePrefs: (next: DashboardState["prefs"]) => Promise<void>;
+  appendSnapshot: (snap: import("@/lib/types").PortfolioSnapshot) => Promise<void>;
   saveBudget: (next: DashboardState["budget"]) => Promise<void>;
   saveCards: (next: DashboardState["creditCards"]) => Promise<void>;
   saveHoldings: (next: DashboardState["holdings"]) => Promise<void>;

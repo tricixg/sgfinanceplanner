@@ -6,6 +6,7 @@ import { fmt2 } from "@/lib/finance/helpers";
 import type { PokerSession } from "@/lib/poker/types";
 import { pokerProfit } from "@/lib/poker/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { DecimalTextInput } from "@/components/DecimalInput";
 
 function monthBounds(): { from: string; to: string } {
   const d = new Date();
@@ -183,34 +184,21 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
           </label>
           <label>
             Buy-in
-            <input
-              type="number"
-              step={0.01}
-              min={0}
-              value={buyIn}
-              onChange={(e) => setBuyIn(e.target.value)}
-              required
-            />
+            <DecimalTextInput value={buyIn} onChange={setBuyIn} required />
           </label>
           <label>
             Cash-out
-            <input
-              type="number"
-              step={0.01}
-              min={0}
+            <DecimalTextInput
               value={cashOut}
-              onChange={(e) => setCashOut(e.target.value)}
+              onChange={setCashOut}
               placeholder="0 if bust"
             />
           </label>
           <label>
             Hours
-            <input
-              type="number"
-              step={0.25}
-              min={0}
+            <DecimalTextInput
               value={hours}
-              onChange={(e) => setHours(e.target.value)}
+              onChange={setHours}
               placeholder="Optional"
             />
           </label>

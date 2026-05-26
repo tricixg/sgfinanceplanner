@@ -7,7 +7,7 @@ import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
 import { stableTakeHome } from "./income";
 import { loanLoadForMonth } from "./loanLoad";
-import { currentYm } from "./helpers";
+import { budgetYm } from "./helpers";
 import { computedInsuranceMonthly } from "./insurance";
 import { computedIlpMonthly, ilpTotalValue } from "./ilp";
 import { portfolioInvestmentValue } from "./wealth";
@@ -74,9 +74,9 @@ export function monthlySaveContribution(S: DashboardState): number {
     .reduce((s, b) => s + b.amt, 0);
 }
 
-/** Instalment load from Debts & Loans — not stored in budget. */
+/** Instalment load from Debts & Loans — not stored in budget. Uses current month unless ym is passed. */
 export function computedDebtMonthly(S: DashboardState, ym?: string): number {
-  return loanLoadForMonth(S.loans, ym ?? S.cashflowStartYm ?? currentYm());
+  return loanLoadForMonth(S.loans, budgetYm(ym));
 }
 
 /** Sum of monthly saving needed for goals with a target date. */

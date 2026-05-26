@@ -12,6 +12,7 @@ import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { PartnerCard } from "@/components/PartnerCard";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import type { useHousehold } from "@/hooks/useHousehold";
+import { DecimalInput } from "@/components/DecimalInput";
 
 type Props = {
   state: DashboardState;
@@ -25,25 +26,6 @@ type Props = {
   onPartnerUnlinked?: () => void | Promise<void>;
   onSaveError?: (message: string) => void;
 };
-
-function NumInput({
-  value,
-  onChange,
-  step,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
 
 export function TabMe({
   state: S,
@@ -60,6 +42,8 @@ export function TabMe({
   const appData = useContext(AppDataContext);
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
+  const [savingInsurance, setSavingInsurance] = useState(false);
+  const [insuranceDraft, setInsuranceDraft] = useState(S.insurancePolicies);
   const [signingOut, setSigningOut] = useState(false);
   const [editingSalary, setEditingSalary] = useState(false);
   const [savingSalary, setSavingSalary] = useState(false);
@@ -68,7 +52,11 @@ export function TabMe({
     comms: S.comms,
     salaryCreditDay: S.salaryCreditDay,
   });
-  const insuranceTotal = computedInsuranceMonthly(S);
+  const insurancePolicies = editingInsurance ? insuranceDraft : S.insurancePolicies;
+  const insuranceTotal = computedInsuranceMonthly({
+    ...S,
+    insurancePolicies,
+  });
 
   useEffect(() => {
     if (!editingSalary) {
@@ -149,30 +137,46 @@ export function TabMe({
     }
   };
 
+  const startInsuranceEdit = () => {
+    setInsuranceDraft(structuredClone(S.insurancePolicies));
+    setEditingInsurance(true);
+    console.log("[TabMe] insurance edit on");
+  };
+
+  const saveInsurance = async () => {
+    setSavingInsurance(true);
+    try {
+      if (appData?.configured) {
+        await appData.saveProfilePolicies({ insurancePolicies: insuranceDraft });
+      } else {
+        setState((prev) => ({ ...prev, insurancePolicies: insuranceDraft }));
+      }
+      setEditingInsurance(false);
+      console.info("[TabMe] insurance saved", { count: insuranceDraft.length });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to save insurance";
+      onSaveError?.(msg);
+      console.error("[TabMe] insurance save failed", e);
+    } finally {
+      setSavingInsurance(false);
+    }
+  };
+
   const updatePolicy = (i: number, patchPolicy: Partial<InsurancePolicy>) => {
-    setState((prev) => ({
-      ...prev,
-      insurancePolicies: prev.insurancePolicies.map((p, j) =>
-        j === i ? { ...p, ...patchPolicy } : p
-      ),
-    }));
-    console.log("[TabMe] updated insurance", i, patchPolicy);
+    setInsuranceDraft((prev) =>
+      prev.map((p, j) => (j === i ? { ...p, ...patchPolicy } : p))
+    );
+    console.log("[TabMe] updated insurance draft", i, patchPolicy);
   };
 
   const addPolicy = () => {
-    setState((prev) => ({
-      ...prev,
-      insurancePolicies: [...prev.insurancePolicies, defaultInsurancePolicy()],
-    }));
-    console.log("[TabMe] added insurance policy");
+    setInsuranceDraft((prev) => [...prev, defaultInsurancePolicy()]);
+    console.log("[TabMe] added insurance policy to draft");
   };
 
   const removePolicy = (i: number) => {
-    setState((prev) => ({
-      ...prev,
-      insurancePolicies: prev.insurancePolicies.filter((_, j) => j !== i),
-    }));
-    console.log("[TabMe] removed insurance policy", i);
+    setInsuranceDraft((prev) => prev.filter((_, j) => j !== i));
+    console.log("[TabMe] removed insurance policy from draft", i);
   };
 
   const exportJSON = () => {
@@ -262,7 +266,7 @@ export function TabMe({
             </div>
             <div className="editrow">
               <span>Monthly gross salary</span>
-              <NumInput
+              <DecimalInput
                 value={salaryDraft.monthlySal}
                 onChange={(v) => setSalaryDraft((d) => ({ ...d, monthlySal: v }))}
               />
@@ -272,7 +276,7 @@ export function TabMe({
             </div>
             <div className="editrow">
               <span>Comms allowance / mo (non-CPF)</span>
-              <NumInput
+              <DecimalInput
                 value={salaryDraft.comms}
                 onChange={(v) => setSalaryDraft((d) => ({ ...d, comms: v }))}
               />
@@ -282,7 +286,7 @@ export function TabMe({
             </div>
             <div className="editrow">
               <span>Salary credit day (1–31)</span>
-              <NumInput
+              <DecimalInput
                 value={salaryDraft.salaryCreditDay}
                 onChange={(v) =>
                   setSalaryDraft((d) => ({
@@ -323,22 +327,13 @@ export function TabMe({
           <button
             type="button"
             className="btn sm"
-            onClick={() => {
-              setEditingInsurance(false);
-              console.log("[TabMe] insurance edit off");
-            }}
+            disabled={savingInsurance}
+            onClick={() => void saveInsurance()}
           >
-            Done
+            {savingInsurance ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingInsurance(true);
-              console.log("[TabMe] insurance edit on");
-            }}
-          >
+          <button type="button" className="btn ghost sm" onClick={startInsuranceEdit}>
             Edit
           </button>
         )}
@@ -346,7 +341,7 @@ export function TabMe({
       <div className="card">
         {editingInsurance ? (
           <>
-            {S.insurancePolicies.length === 0 ? (
+            {insurancePolicies.length === 0 ? (
               <p style={{ color: "var(--muted)", fontStyle: "italic", marginBottom: 12 }}>
                 No policies yet. Add term life, PA, CI, or other non-ILP cover.
               </p>
@@ -361,7 +356,7 @@ export function TabMe({
                   <span>Pay from</span>
                   <span></span>
                 </div>
-                {S.insurancePolicies.map((p, i) => (
+                {insurancePolicies.map((p, i) => (
                   <div className="editrow insurance" key={i}>
                     <input
                       type="text"
@@ -375,7 +370,7 @@ export function TabMe({
                       placeholder="Insurer"
                       onChange={(e) => updatePolicy(i, { insurer: e.target.value })}
                     />
-                    <NumInput
+                    <DecimalInput
                       value={p.monthlyPremium}
                       step={0.01}
                       onChange={(v) => updatePolicy(i, { monthlyPremium: v })}

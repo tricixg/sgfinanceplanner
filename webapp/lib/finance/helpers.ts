@@ -50,6 +50,13 @@ export function currentYm(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Month key for budget / expense views — never use cashflow window picker values. */
+export function budgetYm(override?: string): string {
+  const m = override?.trim();
+  if (m && /^\d{4}-\d{2}$/.test(m)) return m;
+  return currentYm();
+}
+
 export function clampDay(year: number, month: number, day: number): number {
   const last = new Date(year, month + 1, 0).getDate();
   return Math.min(Math.max(1, day), last);

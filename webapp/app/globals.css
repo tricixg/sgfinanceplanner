@@ -888,7 +888,7 @@ tfoot td {
   margin-bottom: 6px;
 }
 .zero-budget-item-add input[type="date"],
-.zero-budget-item-add input[type="number"],
+.zero-budget-item-add input.decimal-input,
 .zero-budget-item-add input[type="text"] {
   font-size: 12px;
   padding: 4px 6px;
@@ -1037,6 +1037,15 @@ select:focus {
   outline: none;
   border-color: var(--moss);
 }
+input.decimal-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input.decimal-input::-webkit-outer-spin-button,
+input.decimal-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 .editrow input[type="text"] {
   font-family: inherit;
   font-size: 13.5px;
@@ -1148,7 +1157,7 @@ select:focus {
   gap: 7px;
   color: var(--muted);
 }
-.ctrl input[type="number"] {
+.ctrl input.decimal-input {
   width: 90px;
 }
 .ctrl input[type="checkbox"] {
@@ -1230,7 +1239,7 @@ select:focus {
   padding: 8px 0;
 }
 .record-recurring-payment-form input[type="date"],
-.record-recurring-payment-form input[type="number"],
+.record-recurring-payment-form input.decimal-input,
 .record-recurring-payment-form input[type="text"],
 .record-recurring-payment-form select {
   max-width: 140px;

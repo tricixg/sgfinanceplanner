@@ -5,6 +5,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { DecimalTextInput } from "@/components/DecimalInput";
 
 type Props = {
   row: RecurringRow;
@@ -71,13 +72,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
   return (
     <form className="record-recurring-payment-form" onSubmit={(e) => void submit(e)}>
       <input type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} />
-      <input
-        type="number"
-        step={0.01}
-        min={0}
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        required
+      <DecimalTextInput value={amount} onChange={setAmount} required
       />
       <select
         value={financialAccountId}

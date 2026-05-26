@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useState } from "react";
 import type { DashboardState, Loan } from "@/lib/types";
 import {
   activeLoanOutstanding,
@@ -17,103 +17,99 @@ import { OtherLoansPanel } from "@/components/debt/OtherLoansPanel";
 import { Snackbar } from "@/components/Snackbar";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { DecimalInput } from "@/components/DecimalInput";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
 };
 
-function NumInput({
-  value,
-  onChange,
-  step,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
-
 export function TabDebt({ state: S, setState }: Props) {
+  const appData = useContext(AppDataContext);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loansDraft, setLoansDraft] = useState<Loan[]>(S.loans);
   const snackbar = useSnackbar();
-  const { labels, data } = debtBurnDown(S);
-  const totalOut = activeLoanOutstanding(S);
+  const loans = editing ? loansDraft : S.loans;
+  const viewState = editing ? { ...S, loans } : S;
+  const { labels, data } = debtBurnDown(viewState);
+  const totalOut = activeLoanOutstanding(viewState);
   const otherOut = activeOtherLoansOutstanding(S);
-  const { active: activeLoans, archived: archivedLoans } = partitionLoans(S);
+  const { active: activeLoans, archived: archivedLoans } = partitionLoans(viewState);
 
   const cardsWithIds = ensureCreditCardIds(S.creditCards);
 
+  const startEditing = () => {
+    setLoansDraft(structuredClone(S.loans));
+    setEditing(true);
+    console.log("[TabDebt] edit mode on");
+  };
+
+  const saveLoans = async () => {
+    setSaving(true);
+    try {
+      if (appData?.configured) {
+        await appData.saveLoans(loansDraft);
+      } else {
+        setState((prev) => ({ ...prev, loans: loansDraft }));
+      }
+      setEditing(false);
+      snackbar.show("Instalment plans saved");
+      console.info("[TabDebt] loans saved", { count: loansDraft.length });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to save loans";
+      snackbar.show(msg, { error: true });
+      console.error("[TabDebt] save failed", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const updateLoan = (i: number, key: keyof Loan, val: string | number) => {
-    setState((prev) => ({
-      ...prev,
-      loans: prev.loans.map((l, j) => (j === i ? { ...l, [key]: val } : l)),
-    }));
-    console.log("[TabDebt] updated loan", i, key, val);
+    setLoansDraft((prev) =>
+      prev.map((l, j) => (j === i ? { ...l, [key]: val } : l))
+    );
+    console.log("[TabDebt] updated loan draft", i, key, val);
   };
 
   const patchLoan = (i: number, patch: Partial<Loan>) => {
-    setState((prev) => ({
-      ...prev,
-      loans: prev.loans.map((l, j) => (j === i ? { ...l, ...patch } : l)),
-    }));
-    console.log("[TabDebt] patched loan", i, patch);
+    setLoansDraft((prev) =>
+      prev.map((l, j) => (j === i ? { ...l, ...patch } : l))
+    );
+    console.log("[TabDebt] patched loan draft", i, patch);
   };
 
   const setLoanCard = (i: number, cardId: string) => {
     const label = creditCardLabel(cardsWithIds, cardId) || "—";
-    setState((prev) => {
-      const loans = prev.loans.map((l, j) =>
+    setLoansDraft((prev) =>
+      prev.map((l, j) =>
         j === i ? { ...l, cardId: cardId || undefined, card: label } : l
-      );
-      console.log("[TabDebt] linked loan to card", { index: i, cardId, label });
-      return { ...prev, loans };
-    });
+      )
+    );
+    console.log("[TabDebt] linked loan to card", { index: i, cardId, label });
   };
 
   const addLoan = () => {
     const defaultCardId = cardsWithIds[0]?.id;
     const defaultLabel = creditCardLabel(cardsWithIds, defaultCardId) || "—";
-    setState((prev) => {
-      const creditCards = ensureCreditCardIds(prev.creditCards);
-      return {
-        ...prev,
-        creditCards,
-        loans: [
-          ...prev.loans,
-          {
-            name: "New instalment plan",
-            card: defaultLabel,
-            cardId: defaultCardId,
-            monthly: 100,
-            out: 0,
-            end: "2027-01",
-          },
-        ],
-      };
-    });
-    console.log("[TabDebt] added loan");
+    setLoansDraft((prev) => [
+      ...prev,
+      {
+        name: "New instalment plan",
+        card: defaultLabel,
+        cardId: defaultCardId,
+        monthly: 100,
+        out: 0,
+        end: "2027-01",
+      },
+    ]);
+    console.log("[TabDebt] added loan to draft");
   };
 
   const removeLoan = (i: number) => {
-    setState((prev) => ({
-      ...prev,
-      loans: prev.loans.filter((_, j) => j !== i),
-    }));
-    console.log("[TabDebt] removed loan", i);
-  };
-
-  const finishEditing = () => {
-    setEditing(false);
-    console.log("[TabDebt] edit mode off");
+    setLoansDraft((prev) => prev.filter((_, j) => j !== i));
+    console.log("[TabDebt] removed loan from draft", i);
   };
 
   const loanTableHead = (
@@ -161,12 +157,12 @@ export function TabDebt({ state: S, setState }: Props) {
             </option>
           ))}
         </select>
-        <NumInput
+        <DecimalInput
           value={l.monthly}
           step={0.01}
           onChange={(v) => updateLoan(l.index, "monthly", v)}
         />
-        <NumInput
+        <DecimalInput
           value={l.out}
           step={0.01}
           onChange={(v) => updateLoan(l.index, "out", v)}
@@ -225,18 +221,16 @@ export function TabDebt({ state: S, setState }: Props) {
       <div className="section-head">
         <h2>Instalment plans</h2>
         {editing ? (
-          <button type="button" className="btn sm" onClick={finishEditing}>
-            Done
-          </button>
-        ) : (
           <button
             type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditing(true);
-              console.log("[TabDebt] edit mode on");
-            }}
+            className="btn sm"
+            disabled={saving}
+            onClick={() => void saveLoans()}
           >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        ) : (
+          <button type="button" className="btn ghost sm" onClick={startEditing}>
             Edit
           </button>
         )}

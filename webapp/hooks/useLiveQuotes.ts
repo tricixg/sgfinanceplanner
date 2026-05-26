@@ -25,9 +25,16 @@ type RefreshResult = {
   requested: number;
 };
 
+type QuotePersistPayload = {
+  holdings: Holding[];
+  moo: number;
+  portfolioHistory: DashboardState["portfolioHistory"];
+};
+
 export function useLiveQuotes(
   holdings: Holding[],
-  setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void
+  setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void,
+  onPersist?: (payload: QuotePersistPayload) => void | Promise<void>
 ) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +84,7 @@ export function useLiveQuotes(
       let updated = 0;
       const refreshedAt = new Date().toISOString();
 
+      let persistPayload: QuotePersistPayload | null = null;
       setState((prev) => {
         const nextHoldings = prev.holdings.map((h) => {
           if (!h.ticker || h.ticker === "—") return h;
@@ -98,6 +106,7 @@ export function useLiveQuotes(
           totals,
           refreshedAt.slice(0, 10)
         );
+        persistPayload = { holdings: nextHoldings, moo, portfolioHistory };
         return {
           ...prev,
           holdings: nextHoldings,
@@ -105,6 +114,9 @@ export function useLiveQuotes(
           portfolioHistory,
         };
       });
+      if (persistPayload && onPersist) {
+        await onPersist(persistPayload);
+      }
 
       if (updated === 0) {
         markFailed(
@@ -133,7 +145,7 @@ export function useLiveQuotes(
     } finally {
       setLoading(false);
     }
-  }, [holdings, setState, markFailed]);
+  }, [holdings, setState, markFailed, onPersist]);
 
   return { refresh, loading, error, lastRefresh };
 }

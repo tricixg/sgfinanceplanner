@@ -5,6 +5,7 @@ import type { SavingsPool, UserSavingsAccount } from "@/lib/savings/types";
 import { TransactionList } from "@/components/savings/TransactionList";
 import { fmt2 } from "@/lib/finance/helpers";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
+import { DecimalTextInput } from "@/components/DecimalInput";
 
 export type LedgerKind = "deposit" | "withdrawal" | "adjustment";
 
@@ -305,13 +306,11 @@ export function SavingsLedgerModal({
           ) : null}
 
           <div className="toolbar" style={{ flexWrap: "wrap" }}>
-            <input
-              type="number"
-              step="0.01"
+            <DecimalTextInput
               placeholder={amountPlaceholder}
               aria-label={amountPlaceholder}
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={setAmount}
               autoFocus
             />
             <input

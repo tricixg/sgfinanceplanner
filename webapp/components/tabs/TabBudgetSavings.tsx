@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import type { BudgetItem, DashboardState } from "@/lib/types";
 import {
   budgetProjection,
@@ -16,6 +16,8 @@ import type { BudgetExpenseSummary, CategoryBudgetSummary } from "@/lib/expenses
 import { normalizeCategoryKey } from "@/lib/expenses/budget-match";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import { ChartBox } from "@/components/ChartBox";
+import { DecimalInput } from "@/components/DecimalInput";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 import {
   COMPUTED_DEBT_LABEL,
   budgetBalanceLabel,
@@ -35,25 +37,6 @@ type Props = {
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
 };
-
-function NumInput({
-  value,
-  onChange,
-  step,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
 
 const BUDGET_TYPES: BudgetItem["type"][] = ["fixed", "spend", "invest"];
 
@@ -108,12 +91,17 @@ export function TabBudgetSavings({
   setState,
   savings,
 }: Props) {
+  const appData = useContext(AppDataContext);
   const { bundle: savingsBundle } = useSavings();
   const savingsGoals = savingsBundle.goals;
   const [budRet, setBudRet] = useState(6);
   const [budYrs, setBudYrs] = useState(10);
   const [editingAllocation, setEditingAllocation] = useState(false);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetDraft, setBudgetDraft] = useState<BudgetItem[]>(S.budget);
   const [expenseSummary, setExpenseSummary] = useState<BudgetExpenseSummary | null>(null);
+  const activeBudget = editingAllocation ? budgetDraft : S.budget;
+  const budgetState = editingAllocation ? { ...S, budget: budgetDraft } : S;
 
   useEffect(() => {
     if (editingAllocation) return;
@@ -135,16 +123,19 @@ export function TabBudgetSavings({
   }, [editingAllocation, S.budget]);
 
   const income = stableTakeHome(S);
-  const debt = computedDebtMonthly(S);
+  const ym = currentYm();
+  const debt =
+    lookupComputedSpend(expenseSummary, "debt")?.allocated ??
+    computedDebtMonthly(S, ym);
   const insurancePrem = computedInsuranceMonthly(S);
   const ilpPrem = computedIlpMonthly(S);
   const subPrem =
     lookupComputedSpend(expenseSummary, "subscription")?.allocated ?? 0;
   const savingsPrem = computedSavingsMonthly(savingsGoals);
-  const { alloc, left, invPct } = budgetVerdict(S, undefined, savingsPrem);
-  const monthlyInv = monthlyInvestContribution(S);
+  const { alloc, left, invPct } = budgetVerdict(budgetState, ym, savingsPrem);
+  const monthlyInv = monthlyInvestContribution(budgetState);
   const proj = budgetProjection(
-    S,
+    budgetState,
     monthlyInv,
     0,
     budRet,
@@ -152,8 +143,9 @@ export function TabBudgetSavings({
     savings,
     savingsPrem
   );
-  const budgetLines = S.budget.filter((b) => b.type !== "save");
-  const { allocated: allocatedRows, zeroAllocated: zeroRows } = splitBudgetRows(S.budget);
+  const budgetLines = activeBudget.filter((b) => b.type !== "save");
+  const { allocated: allocatedRows, zeroAllocated: zeroRows } =
+    splitBudgetRows(activeBudget);
   const balanceLbl = budgetBalanceLabel(left);
 
   const renderBudgetEditItem = ({ b, i }: BudgetRow) => (
@@ -255,38 +247,61 @@ export function TabBudgetSavings({
     );
   };
 
+  const startBudgetEdit = () => {
+    setBudgetDraft(structuredClone(S.budget));
+    setEditingAllocation(true);
+    console.log("[TabBudgetSavings] allocation edit on");
+  };
+
+  const saveBudget = async () => {
+    setBudgetSaving(true);
+    try {
+      if (appData?.configured) {
+        await appData.saveBudget(budgetDraft);
+      } else {
+        setState((prev) => ({ ...prev, budget: budgetDraft }));
+      }
+      setEditingAllocation(false);
+      console.info("[TabBudgetSavings] budget saved", { lines: budgetDraft.length });
+    } catch (e) {
+      console.error("[TabBudgetSavings] budget save failed", e);
+    } finally {
+      setBudgetSaving(false);
+    }
+  };
+
   const updateBudget = (i: number, patchItem: Partial<BudgetItem>) => {
-    setState((prev) => ({
-      ...prev,
-      budget: prev.budget.map((b, j) => (j === i ? { ...b, ...patchItem } : b)),
-    }));
-    console.log("[TabBudgetSavings] updated budget line", i, patchItem);
+    setBudgetDraft((prev) =>
+      prev.map((b, j) => (j === i ? { ...b, ...patchItem } : b))
+    );
+    console.log("[TabBudgetSavings] updated budget draft line", i, patchItem);
   };
 
   const addBudgetLine = () => {
-    setState((prev) => ({
+    setBudgetDraft((prev) => [
       ...prev,
-      budget: [
-        ...prev.budget,
-        { cat: "New category", amt: 0, type: "spend" },
-      ],
-    }));
-    console.log("[TabBudgetSavings] added budget line");
+      { cat: "New category", amt: 0, type: "spend" },
+    ]);
+    console.log("[TabBudgetSavings] added budget draft line");
   };
 
   const removeBudgetLine = (i: number) => {
-    setState((prev) => ({
-      ...prev,
-      budget: prev.budget.filter((_, j) => j !== i),
-    }));
-    console.log("[TabBudgetSavings] removed budget line", i);
+    setBudgetDraft((prev) => prev.filter((_, j) => j !== i));
+    console.log("[TabBudgetSavings] removed budget draft line", i);
   };
 
   const initBudgetTemplate = () => {
-    setState((prev) => ({
-      ...prev,
-      budget: defaultBudgetTemplate(),
-    }));
+    const template = defaultBudgetTemplate();
+    setBudgetDraft(template);
+    if (!editingAllocation) {
+      void (async () => {
+        if (appData?.configured) {
+          await appData.saveBudget(template);
+        } else {
+          setState((prev) => ({ ...prev, budget: template }));
+        }
+      })();
+    }
     console.log("[TabBudgetSavings] initialized budget template");
   };
 
@@ -426,15 +441,13 @@ export function TabBudgetSavings({
               <button
                 type="button"
                 className="btn sm"
-                onClick={() => {
-                  setEditingAllocation(false);
-                  console.log("[TabBudgetSavings] allocation edit off");
-                }}
+                disabled={budgetSaving}
+                onClick={() => void saveBudget()}
               >
-                Done
+                {budgetSaving ? "Saving…" : "Save"}
               </button>
             </div>
-            {S.budget.length === 0 ? (
+            {activeBudget.length === 0 ? (
               <button
                 type="button"
                 className="btn ghost sm"
@@ -502,10 +515,7 @@ export function TabBudgetSavings({
               <button
                 type="button"
                 className="btn ghost sm"
-                onClick={() => {
-                  setEditingAllocation(true);
-                  console.log("[TabBudgetSavings] allocation edit on");
-                }}
+                onClick={startBudgetEdit}
               >
                 Edit
               </button>
@@ -562,22 +572,11 @@ export function TabBudgetSavings({
         <div className="ctrl">
           <label>
             Return %{" "}
-            <input
-              type="number"
-              value={budRet}
-              step={0.5}
-              onChange={(e) => setBudRet(+e.target.value)}
-            />
+            <DecimalInput value={budRet} onChange={setBudRet} />
           </label>
           <label>
             Years{" "}
-            <input
-              type="number"
-              value={budYrs}
-              min={3}
-              max={30}
-              onChange={(e) => setBudYrs(+e.target.value)}
-            />
+            <DecimalInput value={budYrs} min={3} max={30} onChange={setBudYrs} />
           </label>
         </div>
         <ChartBox

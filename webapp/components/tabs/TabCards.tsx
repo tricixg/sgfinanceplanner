@@ -25,6 +25,7 @@ import { Snackbar } from "@/components/Snackbar";
 import { useCardStatements } from "@/hooks/useCardStatements";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useSnackbar } from "@/hooks/useSnackbar";
+import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 
 type CardsApi = {
   cards: CreditCard[];
@@ -39,31 +40,6 @@ type Props = {
 };
 
 const SPEND_CATEGORIES = Object.keys(SPEND_CATEGORY_LABELS) as SpendCategory[];
-
-function NumInput({
-  value,
-  onChange,
-  step,
-  min,
-  max,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-  min?: number;
-  max?: number;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      min={min}
-      max={max}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
 
 function rewardTagClass(type?: CreditCard["rewardType"]): string {
   if (type === "miles") return "tag t-live";
@@ -150,12 +126,9 @@ function CardPaymentModal({
           <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
           <label>
             Amount (SGD)
-            <input
-              type="number"
-              step={0.01}
-              min={0}
+            <DecimalTextInput
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={setAmount}
               required
               disabled={saving}
             />
@@ -613,7 +586,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                   />
                   <label className="note" style={{ display: "flex", flexDirection: "column" }}>
                     Stmt day
-                    <NumInput
+                    <DecimalInput
                       value={c.statementDay}
                       min={1}
                       max={31}
@@ -626,7 +599,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                   </label>
                   <label className="note" style={{ display: "flex", flexDirection: "column" }}>
                     Due day
-                    <NumInput
+                    <DecimalInput
                       value={c.paymentDueDay}
                       min={1}
                       max={31}
@@ -639,7 +612,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                   </label>
                   <label className="note" style={{ display: "flex", flexDirection: "column" }}>
                     Interest % p.a.
-                    <NumInput
+                    <DecimalInput
                       value={c.interestRateApr ?? 0}
                       step={0.01}
                       min={0}
@@ -772,10 +745,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                         <td>{stmt ? fmtDate(stmt.paymentDueDate) : `Day ${c.paymentDueDay}`}</td>
                         <td className="num">
                           {stmt && !stmt.paidAt ? (
-                            <input
-                              type="number"
-                              step={0.01}
-                              min={0}
+                            <DecimalTextInput
                               style={{ width: 88 }}
                               disabled={rowSaving}
                               value={
@@ -785,10 +755,10 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                                   : "")
                               }
                               placeholder="Add"
-                              onChange={(e) =>
+                              onChange={(v) =>
                                 setDraftActual((prev) => ({
                                   ...prev,
-                                  [stmt.id]: e.target.value,
+                                  [stmt.id]: v,
                                 }))
                               }
                             />
@@ -800,10 +770,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                         </td>
                         <td className="num">
                           {stmt && !stmt.paidAt ? (
-                            <input
-                              type="number"
-                              step={0.01}
-                              min={0}
+                            <DecimalTextInput
                               style={{ width: 88 }}
                               disabled={rowSaving}
                               value={
@@ -813,10 +780,10 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                                   : "")
                               }
                               placeholder="Add"
-                              onChange={(e) =>
+                              onChange={(v) =>
                                 setDraftMinDue((prev) => ({
                                   ...prev,
-                                  [stmt.id]: e.target.value,
+                                  [stmt.id]: v,
                                 }))
                               }
                             />
@@ -894,7 +861,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
         <div className="card-advisor-form">
           <label>
             Spend amount (SGD)
-            <NumInput value={spendAmount} step={10} onChange={setSpendAmount} />
+            <DecimalInput value={spendAmount} step={10} onChange={setSpendAmount} />
           </label>
           <label>
             Category

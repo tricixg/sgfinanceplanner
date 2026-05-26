@@ -5,6 +5,7 @@ import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
 import type { FinancialAccount } from "@/lib/transactions/types";
+import { DecimalTextInput } from "@/components/DecimalInput";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -120,12 +121,9 @@ export function CategoryBudgetCard({
         </label>
         <label>
           Amount
-          <input
-            type="number"
-            step={0.01}
-            min={0}
+          <DecimalTextInput
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={setAmount}
             required
           />
         </label>

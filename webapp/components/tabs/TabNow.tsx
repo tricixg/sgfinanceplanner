@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import {
@@ -23,6 +23,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { isSystemIncomeSlug } from "@/lib/income/types";
 import type { IncomeCategoryInput } from "@/lib/income/types";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 
 type Props = {
   state: DashboardState;
@@ -32,6 +33,9 @@ type Props = {
 };
 
 export function TabNow({ state: S, setState, savings, authEnabled = false }: Props) {
+  const appData = useContext(AppDataContext);
+  const [startYmDraft, setStartYmDraft] = useState(S.cashflowStartYm);
+  const [savingStartYm, setSavingStartYm] = useState(false);
   const startYm = S.cashflowStartYm;
   const [additiveByYm, setAdditiveByYm] = useState<Record<string, number>>({});
   const { categories, configured, save, loading: catsLoading } = useIncomeCategories(
@@ -58,6 +62,10 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
   useEffect(() => {
     void loadAdditive();
   }, [loadAdditive]);
+
+  useEffect(() => {
+    setStartYmDraft(S.cashflowStartYm);
+  }, [S.cashflowStartYm]);
 
   useEffect(() => {
     if (!editingCats) {
@@ -208,16 +216,40 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
           Start month
           <input
             type="month"
-            value={startYm}
+            value={startYmDraft}
             onChange={(e) => {
               const v = e.target.value;
               if (v) {
-                setState((p) => ({ ...p, cashflowStartYm: v }));
-                console.log("[TabNow] cashflowStartYm", v);
+                setStartYmDraft(v);
+                console.log("[TabNow] cashflowStartYm draft", v);
               }
             }}
           />
         </label>
+        <button
+          type="button"
+          className="btn sm"
+          disabled={savingStartYm || startYmDraft === startYm}
+          onClick={() => {
+            void (async () => {
+              setSavingStartYm(true);
+              try {
+                if (appData?.configured) {
+                  await appData.saveProfile({ cashflowStartYm: startYmDraft });
+                } else {
+                  setState((p) => ({ ...p, cashflowStartYm: startYmDraft }));
+                }
+                console.info("[TabNow] cashflowStartYm saved", startYmDraft);
+              } catch (e) {
+                console.error("[TabNow] cashflowStartYm save failed", e);
+              } finally {
+                setSavingStartYm(false);
+              }
+            })();
+          }}
+        >
+          {savingStartYm ? "Saving…" : "Save"}
+        </button>
       </div>
 
       <div className="grid g3">

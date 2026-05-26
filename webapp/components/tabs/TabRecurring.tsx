@@ -10,6 +10,7 @@ import type { RecurringSubscription } from "@/lib/types";
 import { defaultRecurringSubscription } from "@/lib/finance/budget";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { DecimalInput } from "@/components/DecimalInput";
 
 const KIND_LABEL: Record<RecurringRow["kind"], string> = {
   debt: "Debt",
@@ -292,14 +293,12 @@ export function TabRecurring({ enabled, onReload }: Props) {
                   setSubDraft(next);
                 }}
               />
-              <input
-                type="number"
-                step={0.01}
+              <DecimalInput
                 placeholder="Amount"
                 value={s.amount}
-                onChange={(e) => {
+                onChange={(v) => {
                   const next = [...subDraft];
-                  next[i] = { ...s, amount: parseFloat(e.target.value) || 0 };
+                  next[i] = { ...s, amount: v };
                   setSubDraft(next);
                 }}
               />

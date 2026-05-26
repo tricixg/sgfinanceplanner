@@ -10,6 +10,7 @@ import type {
 } from "@/lib/savings/types";
 import { goalsFromSavingsGoals, goalsSummary } from "@/lib/finance/goals";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { DecimalInput } from "@/components/DecimalInput";
 import { SavingsLedgerModal } from "@/components/savings/SavingsLedgerModal";
 import { GoalsProgressBar } from "@/components/savings/GoalsProgressBar";
 import { Snackbar } from "@/components/Snackbar";
@@ -33,23 +34,6 @@ type Props = {
     }
   ) => Promise<void>;
 };
-
-function NumInput({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={0.01}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
 
 export function TabSavings({
   savings,
@@ -489,7 +473,7 @@ function GoalsSection({
                       />
                     </td>
                     <td className="num">
-                      <NumInput
+                      <DecimalInput
                         value={g.targetAmount}
                         onChange={(n) => update(i, { targetAmount: n })}
                       />
@@ -518,7 +502,7 @@ function GoalsSection({
                       ) : null}
                     </td>
                     <td className="num">
-                      <NumInput
+                      <DecimalInput
                         value={g.monthlyContribution}
                         onChange={(n) => update(i, { monthlyContribution: n })}
                       />

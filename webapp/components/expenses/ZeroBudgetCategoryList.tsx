@@ -5,6 +5,7 @@ import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
 import type { FinancialAccount } from "@/lib/transactions/types";
+import { DecimalTextInput } from "@/components/DecimalInput";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -79,13 +80,10 @@ export function ZeroBudgetCategoryItem({
       <div className="zero-budget-item-body">
         <form className="zero-budget-item-add" onSubmit={(e) => void handleSubmit(e)}>
           <input type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} />
-          <input
-            type="number"
-            step={0.01}
-            min={0}
+          <DecimalTextInput
             placeholder="Amount"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={setAmount}
             required
           />
           <input

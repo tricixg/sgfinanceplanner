@@ -1,7 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { DashboardState, Holding, HoldingMarket, IlpPolicy } from "@/lib/types";
+import { useCallback, useContext, useMemo, useState } from "react";
+import type {
+  DashboardState,
+  Holding,
+  HoldingMarket,
+  IlpPolicy,
+} from "@/lib/types";
 import {
   computedIlpMonthly,
   defaultHolding,
@@ -17,6 +22,8 @@ import {
 } from "@/lib/finance";
 import { fmt, fmt2, formatSnapshotDate } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { DecimalInput } from "@/components/DecimalInput";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import type { ChartOptions } from "chart.js";
@@ -28,25 +35,6 @@ type Props = {
   savings?: SavingsSnapshot | null;
 };
 
-function NumInput({
-  value,
-  onChange,
-  step,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
-
 function priceStale(lastPriceAt?: string): boolean {
   if (!lastPriceAt) return true;
   const age = Date.now() - new Date(lastPriceAt).getTime();
@@ -54,80 +42,152 @@ function priceStale(lastPriceAt?: string): boolean {
 }
 
 export function TabWealth({ state: S, setState, savings }: Props) {
+  const appData = useContext(AppDataContext);
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
+  const [savingIlp, setSavingIlp] = useState(false);
+  const [savingHoldings, setSavingHoldings] = useState(false);
+  const [ilpDraft, setIlpDraft] = useState(S.ilpPolicies);
+  const [holdingsDraft, setHoldingsDraft] = useState(S.holdings);
+  const [marginDraft, setMarginDraft] = useState(S.margin);
+
+  const ilpPolicies = editingIlp ? ilpDraft : S.ilpPolicies;
+  const displayHoldings = editingHoldings ? holdingsDraft : S.holdings;
+  const wealthState = {
+    ...S,
+    ilpPolicies,
+    holdings: displayHoldings,
+    margin: editingHoldings ? marginDraft : S.margin,
+  };
+
   const { port, invTotal, ilpVal, ilpLocked, personalCash } = wealthSummary(
-    S,
+    wealthState,
     savings
   );
-  const ilpPrem = computedIlpMonthly(S);
-  const totals = portfolioTotals(S.holdings);
+  const ilpPrem = computedIlpMonthly(wealthState);
+  const totals = portfolioTotals(displayHoldings);
+
+  const persistQuotes = useCallback(
+    async (payload: {
+      holdings: Holding[];
+      moo: number;
+      portfolioHistory: DashboardState["portfolioHistory"];
+    }) => {
+      if (!appData?.configured) return;
+      await appData.saveHoldings(payload.holdings);
+      await appData.saveProfile({ moo: payload.moo });
+      const latest = payload.portfolioHistory[payload.portfolioHistory.length - 1];
+      if (latest) await appData.appendSnapshot(latest);
+      console.info("[TabWealth] persisted quote refresh");
+    },
+    [appData]
+  );
+
   const { refresh, loading, error, lastRefresh } = useLiveQuotes(
     S.holdings,
-    setState
+    setState,
+    persistQuotes
   );
 
   const holdings = useMemo(
     () =>
-      [...S.holdings].sort(
+      [...displayHoldings].sort(
         (a, b) => holdingMarketValue(b) - holdingMarketValue(a)
       ),
-    [S.holdings]
+    [displayHoldings]
   );
 
+  const startIlpEdit = () => {
+    setIlpDraft(structuredClone(S.ilpPolicies));
+    setEditingIlp(true);
+    console.log("[TabWealth] ILP edit on");
+  };
+
+  const saveIlp = async () => {
+    setSavingIlp(true);
+    try {
+      if (appData?.configured) {
+        await appData.saveProfilePolicies({ ilpPolicies: ilpDraft });
+      } else {
+        setState((prev) => ({ ...prev, ilpPolicies: ilpDraft }));
+      }
+      setEditingIlp(false);
+      console.info("[TabWealth] ILP policies saved");
+    } catch (e) {
+      console.error("[TabWealth] ILP save failed", e);
+    } finally {
+      setSavingIlp(false);
+    }
+  };
+
   const updatePolicy = (i: number, patch: Partial<IlpPolicy>) => {
-    setState((prev) => ({
-      ...prev,
-      ilpPolicies: prev.ilpPolicies.map((p, j) =>
-        j === i ? { ...p, ...patch } : p
-      ),
-    }));
-    console.log("[TabWealth] updated ILP policy", i, patch);
+    setIlpDraft((prev) =>
+      prev.map((p, j) => (j === i ? { ...p, ...patch } : p))
+    );
+    console.log("[TabWealth] updated ILP draft", i, patch);
   };
 
   const addPolicy = () => {
-    setState((prev) => ({
-      ...prev,
-      ilpPolicies: [...prev.ilpPolicies, defaultIlpPolicy()],
-    }));
-    console.log("[TabWealth] added ILP policy");
+    setIlpDraft((prev) => [...prev, defaultIlpPolicy()]);
+    console.log("[TabWealth] added ILP policy to draft");
   };
 
   const removePolicy = (i: number) => {
-    setState((prev) => ({
-      ...prev,
-      ilpPolicies: prev.ilpPolicies.filter((_, j) => j !== i),
-    }));
-    console.log("[TabWealth] removed ILP policy", i);
+    setIlpDraft((prev) => prev.filter((_, j) => j !== i));
+    console.log("[TabWealth] removed ILP policy from draft", i);
+  };
+
+  const startHoldingsEdit = () => {
+    setHoldingsDraft(structuredClone(S.holdings));
+    setMarginDraft(S.margin);
+    setEditingHoldings(true);
+    console.log("[TabWealth] holdings edit on");
+  };
+
+  const saveHoldingsEdit = async () => {
+    setSavingHoldings(true);
+    const moo = portfolioValue(holdingsDraft);
+    try {
+      if (appData?.configured) {
+        await appData.saveHoldings(holdingsDraft);
+        await appData.saveProfile({ margin: marginDraft, moo });
+      } else {
+        setState((prev) => ({
+          ...prev,
+          holdings: holdingsDraft,
+          margin: marginDraft,
+          moo,
+        }));
+      }
+      setEditingHoldings(false);
+      console.info("[TabWealth] holdings saved");
+    } catch (e) {
+      console.error("[TabWealth] holdings save failed", e);
+    } finally {
+      setSavingHoldings(false);
+    }
   };
 
   const updateHolding = (i: number, patch: Partial<Holding>) => {
-    setState((prev) => {
-      const holdings = prev.holdings.map((h, j) => (j === i ? { ...h, ...patch } : h));
-      return { ...prev, holdings, moo: portfolioValue(holdings) };
-    });
-    console.log("[TabWealth] updated holding", i, patch);
+    setHoldingsDraft((prev) =>
+      prev.map((h, j) => (j === i ? { ...h, ...patch } : h))
+    );
+    console.log("[TabWealth] updated holding draft", i, patch);
   };
 
   const addHolding = () => {
-    setState((prev) => {
-      const holdings = [...prev.holdings, defaultHolding()];
-      return { ...prev, holdings, moo: portfolioValue(holdings) };
-    });
-    console.log("[TabWealth] added holding");
+    setHoldingsDraft((prev) => [...prev, defaultHolding()]);
+    console.log("[TabWealth] added holding to draft");
   };
 
   const removeHolding = (i: number) => {
-    setState((prev) => {
-      const holdings = prev.holdings.filter((_, j) => j !== i);
-      return { ...prev, holdings, moo: portfolioValue(holdings) };
-    });
-    console.log("[TabWealth] removed holding", i);
+    setHoldingsDraft((prev) => prev.filter((_, j) => j !== i));
+    console.log("[TabWealth] removed holding from draft", i);
   };
 
   const patchMargin = (margin: number) => {
-    setState((prev) => ({ ...prev, margin }));
-    console.log("[TabWealth] updated margin", margin);
+    setMarginDraft(margin);
+    console.log("[TabWealth] updated margin draft", margin);
   };
 
   const allocationChart = useMemo(() => {
@@ -267,22 +327,13 @@ export function TabWealth({ state: S, setState, savings }: Props) {
           <button
             type="button"
             className="btn sm"
-            onClick={() => {
-              setEditingIlp(false);
-              console.log("[TabWealth] ILP edit off");
-            }}
+            disabled={savingIlp}
+            onClick={() => void saveIlp()}
           >
-            Done
+            {savingIlp ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingIlp(true);
-              console.log("[TabWealth] ILP edit on");
-            }}
-          >
+          <button type="button" className="btn ghost sm" onClick={startIlpEdit}>
             Edit
           </button>
         )}
@@ -306,12 +357,12 @@ export function TabWealth({ state: S, setState, savings }: Props) {
 
       {editingIlp ? (
         <div className="card">
-          {S.ilpPolicies.length === 0 ? (
+          {ilpPolicies.length === 0 ? (
             <p style={{ color: "var(--muted)", fontStyle: "italic", marginBottom: 12 }}>
               No ILP policies yet.
             </p>
           ) : (
-            S.ilpPolicies.map((p, i) => (
+            ilpPolicies.map((p, i) => (
               <div key={i} className="ilp-edit-card">
                 <div className="ilp-edit-grid">
                   <label>
@@ -369,7 +420,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                   </label>
                   <label>
                     Monthly premium
-                    <NumInput
+                    <DecimalInput
                       value={p.monthlyPremium}
                       step={0.01}
                       onChange={(v) => updatePolicy(i, { monthlyPremium: v })}
@@ -385,7 +436,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                   />
                   <label>
                     Account value
-                    <NumInput
+                    <DecimalInput
                       value={p.accountValue}
                       step={0.01}
                       onChange={(v) => updatePolicy(i, { accountValue: v })}
@@ -393,7 +444,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                   </label>
                   <label>
                     Start bonus (SGD)
-                    <NumInput
+                    <DecimalInput
                       value={p.initialBonus}
                       step={0.01}
                       onChange={(v) => updatePolicy(i, { initialBonus: v })}
@@ -404,7 +455,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                   </label>
                   <label>
                     Allocation rate (% to units)
-                    <NumInput
+                    <DecimalInput
                       value={p.premiumAllocationPct}
                       step={1}
                       onChange={(v) => updatePolicy(i, { premiumAllocationPct: v })}
@@ -438,7 +489,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                   </label>
                   <label>
                     Insurance cover (sum assured)
-                    <NumInput
+                    <DecimalInput
                       value={p.insuranceCover}
                       step={1000}
                       onChange={(v) => updatePolicy(i, { insuranceCover: v })}
@@ -446,7 +497,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                   </label>
                   <label>
                     Free fund switches / yr
-                    <NumInput
+                    <DecimalInput
                       value={p.freeFundSwitchesPerYear}
                       step={1}
                       onChange={(v) => updatePolicy(i, { freeFundSwitchesPerYear: v })}
@@ -546,22 +597,13 @@ export function TabWealth({ state: S, setState, savings }: Props) {
           <button
             type="button"
             className="btn sm"
-            onClick={() => {
-              setEditingHoldings(false);
-              console.log("[TabWealth] holdings edit off");
-            }}
+            disabled={savingHoldings}
+            onClick={() => void saveHoldingsEdit()}
           >
-            Done
+            {savingHoldings ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingHoldings(true);
-              console.log("[TabWealth] holdings edit on");
-            }}
-          >
+          <button type="button" className="btn ghost sm" onClick={startHoldingsEdit}>
             Edit
           </button>
         )}
@@ -619,7 +661,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
               style={{ borderBottom: "1.5px solid var(--ink)", paddingBottom: 10 }}
             >
               <span>Margin loan (outstanding)</span>
-              <NumInput value={S.margin} step={0.01} onChange={patchMargin} />
+              <DecimalInput value={marginDraft} onChange={patchMargin} />
               <span></span>
               <span></span>
               <span></span>
@@ -636,12 +678,12 @@ export function TabWealth({ state: S, setState, savings }: Props) {
               <span>Sector</span>
               <span></span>
             </div>
-            {S.holdings.length === 0 ? (
+            {holdingsDraft.length === 0 ? (
               <p style={{ color: "var(--muted)", fontStyle: "italic", margin: "12px 0" }}>
                 No holdings yet. Add a line below.
               </p>
             ) : (
-              S.holdings.map((h, i) => (
+              holdingsDraft.map((h, i) => (
                 <div className="editrow holdings" key={i}>
                   <input
                     type="text"
@@ -662,17 +704,17 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                     <option value="SGX">SGX</option>
                     <option value="US">US</option>
                   </select>
-                  <NumInput
+                  <DecimalInput
                     value={h.qty}
                     step={1}
                     onChange={(v) => updateHolding(i, { qty: v })}
                   />
-                  <NumInput
+                  <DecimalInput
                     value={h.avgCost}
                     step={0.001}
                     onChange={(v) => updateHolding(i, { avgCost: v })}
                   />
-                  <NumInput
+                  <DecimalInput
                     value={h.lastPrice}
                     step={0.001}
                     onChange={(v) =>

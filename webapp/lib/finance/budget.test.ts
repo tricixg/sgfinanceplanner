@@ -3,15 +3,39 @@ import { DEFAULTS } from "./defaults";
 import {
   budgetFixedTotal,
   COMPUTED_DEBT_LABEL,
+  computedDebtMonthly,
   isDebtBudgetCategory,
   monthlyInvestContribution,
   monthlySaveContribution,
 } from "./budget";
+import { loanLoadForMonth } from "./loanLoad";
+import { currentYm } from "./helpers";
 
 describe("monthlyInvestContribution", () => {
   it("sums invest-type budget lines", () => {
     expect(monthlyInvestContribution(DEFAULTS)).toBe(1300);
     expect(monthlySaveContribution(DEFAULTS)).toBe(900);
+  });
+});
+
+describe("computedDebtMonthly", () => {
+  it("uses current month, not cashflowStartYm", () => {
+    const expected = loanLoadForMonth(DEFAULTS.loans, currentYm());
+    expect(expected).toBeGreaterThan(0);
+
+    expect(
+      computedDebtMonthly({
+        ...DEFAULTS,
+        cashflowStartYm: "",
+      })
+    ).toBe(expected);
+
+    expect(
+      computedDebtMonthly({
+        ...DEFAULTS,
+        cashflowStartYm: "2030-01",
+      })
+    ).toBe(expected);
   });
 });
 

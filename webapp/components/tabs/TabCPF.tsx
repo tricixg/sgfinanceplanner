@@ -1,44 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import { simulateCPF } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { DecimalInput } from "@/components/DecimalInput";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
 };
 
-function NumInput({
-  value,
-  onChange,
-  step,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  step?: number;
-}) {
-  return (
-    <input
-      type="number"
-      value={value}
-      step={step ?? 1}
-      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-    />
-  );
-}
-
 export function TabCPF({ state: S, setState }: Props) {
+  const appData = useContext(AppDataContext);
   const [growth, setGrowth] = useState(3.5);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [cpfDraft, setCpfDraft] = useState({ oa: S.oa, sa: S.sa, ma: S.ma });
   const series = simulateCPF(S, growth);
   const cpfNow = S.oa + S.sa + S.ma;
 
-  const patchCpf = (key: "oa" | "sa" | "ma", val: number) => {
-    setState((prev) => ({ ...prev, [key]: val }));
-    console.log("[TabCPF] updated CPF balance", key, val);
+  const startEdit = () => {
+    setCpfDraft({ oa: S.oa, sa: S.sa, ma: S.ma });
+    setEditing(true);
+    console.log("[TabCPF] edit mode on");
+  };
+
+  const saveCpf = async () => {
+    setSaving(true);
+    try {
+      if (appData?.configured) {
+        await appData.saveProfile(cpfDraft);
+      } else {
+        setState((prev) => ({ ...prev, ...cpfDraft }));
+      }
+      setEditing(false);
+      console.info("[TabCPF] CPF balances saved", cpfDraft);
+    } catch (e) {
+      console.error("[TabCPF] CPF save failed", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const patchCpfDraft = (key: "oa" | "sa" | "ma", val: number) => {
+    setCpfDraft((d) => ({ ...d, [key]: val }));
+    console.log("[TabCPF] draft CPF balance", key, val);
   };
 
   const chartData = {
@@ -89,12 +98,7 @@ export function TabCPF({ state: S, setState }: Props) {
       <div className="ctrl">
         <label>
           Salary growth / yr (projection)
-          <input
-            type="number"
-            value={growth}
-            step={0.5}
-            onChange={(e) => setGrowth(+e.target.value)}
-          />
+          <DecimalInput value={growth} onChange={setGrowth} />
           %
         </label>
       </div>
@@ -105,22 +109,13 @@ export function TabCPF({ state: S, setState }: Props) {
           <button
             type="button"
             className="btn sm"
-            onClick={() => {
-              setEditing(false);
-              console.log("[TabCPF] edit mode off");
-            }}
+            disabled={saving}
+            onClick={() => void saveCpf()}
           >
-            Done
+            {saving ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditing(true);
-              console.log("[TabCPF] edit mode on");
-            }}
-          >
+          <button type="button" className="btn ghost sm" onClick={startEdit}>
             Edit
           </button>
         )}
@@ -144,7 +139,10 @@ export function TabCPF({ state: S, setState }: Props) {
           ).map(([label, key]) => (
             <div className="editrow" key={key}>
               <span>{label}</span>
-              <NumInput value={S[key]} step={0.01} onChange={(v) => patchCpf(key, v)} />
+              <DecimalInput
+                value={cpfDraft[key]}
+                onChange={(v) => patchCpfDraft(key, v)}
+              />
               <span></span>
               <span></span>
               <span></span>

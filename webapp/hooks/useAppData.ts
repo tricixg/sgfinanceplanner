@@ -265,34 +265,46 @@ export function useAppDataProvider(enabled: boolean) {
     setPrefs(nextPrefs);
   }, []);
 
+  const saveProfilePolicies = useCallback(
+    async (patch: {
+      insurancePolicies?: DashboardState["insurancePolicies"];
+      ilpPolicies?: DashboardState["ilpPolicies"];
+    }) => {
+      const { res, data } = await fetchJson<ProfileBundle & { error?: string }>(
+        "/api/profile",
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to save profile");
+      setProfileBundle({
+        profile: data.profile!,
+        insurancePolicies: data.insurancePolicies ?? [],
+        ilpPolicies: data.ilpPolicies ?? [],
+      });
+      console.info("[useAppData] saved profile policies", {
+        insurance: patch.insurancePolicies?.length,
+        ilp: patch.ilpPolicies?.length,
+      });
+    },
+    []
+  );
+
+  /** Update in-memory dashboard state only — persist via save* methods or tab Save buttons. */
   const setState = useCallback(
     (updater: DashboardState | ((prev: DashboardState) => DashboardState)) => {
       const prev = buildState();
       const next = typeof updater === "function" ? updater(prev) : updater;
 
-      if (next.loans !== prev.loans) {
-        setLoans(next.loans);
-        void saveLoans(next.loans);
-      }
-      if (next.budget !== prev.budget) {
-        setBudget(next.budget);
-        void saveBudget(next.budget);
-      }
-      if (next.creditCards !== prev.creditCards) {
-        setCreditCards(next.creditCards);
-        void saveCards(next.creditCards);
-      }
-      if (next.holdings !== prev.holdings) {
-        setHoldings(next.holdings);
-        void saveHoldings(next.holdings);
-      }
-      if (next.prefs !== prev.prefs) {
-        setPrefs(next.prefs);
-        void savePrefs(next.prefs);
-      }
-      if (next.otherLoans !== prev.otherLoans) {
-        setOtherLoans(next.otherLoans ?? []);
-      }
+      if (next.loans !== prev.loans) setLoans(next.loans);
+      if (next.budget !== prev.budget) setBudget(next.budget);
+      if (next.creditCards !== prev.creditCards) setCreditCards(next.creditCards);
+      if (next.holdings !== prev.holdings) setHoldings(next.holdings);
+      if (next.prefs !== prev.prefs) setPrefs(next.prefs);
+      if (next.otherLoans !== prev.otherLoans) setOtherLoans(next.otherLoans ?? []);
 
       const profilePatch: Partial<FinanceProfile> = {};
       if (next.monthlySal !== prev.monthlySal) profilePatch.monthlySal = next.monthlySal;
@@ -320,10 +332,6 @@ export function useAppDataProvider(enabled: boolean) {
                 ilpPolicies: [],
               }
         );
-        void patchProfile(profilePatch).catch((e) => {
-          console.error("[useAppData] profile save failed", e);
-          void load();
-        });
       }
 
       if (
@@ -339,39 +347,13 @@ export function useAppDataProvider(enabled: boolean) {
               }
             : null
         );
-        void fetchJson("/api/profile", {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            insurancePolicies: next.insurancePolicies,
-            ilpPolicies: next.ilpPolicies,
-          }),
-        });
       }
 
       if (next.portfolioHistory !== prev.portfolioHistory) {
-        const added = next.portfolioHistory.length - prev.portfolioHistory.length;
-        if (added > 0) {
-          const latest = next.portfolioHistory[next.portfolioHistory.length - 1];
-          setPortfolioHistory(next.portfolioHistory);
-          void appendSnapshot(latest);
-        } else {
-          setPortfolioHistory(next.portfolioHistory);
-        }
+        setPortfolioHistory(next.portfolioHistory);
       }
     },
-    [
-      buildState,
-      saveLoans,
-      saveBudget,
-      saveCards,
-      saveHoldings,
-      savePrefs,
-      patchProfile,
-      appendSnapshot,
-      load,
-    ]
+    [buildState]
   );
 
   const saveProfile = useCallback(
@@ -398,10 +380,13 @@ export function useAppDataProvider(enabled: boolean) {
     configured,
     reload: load,
     saveProfile,
+    saveProfilePolicies,
     saveLoans,
     saveBudget,
     saveCards,
     saveHoldings,
+    savePrefs,
+    appendSnapshot,
     cardsApi: configured
       ? { cards: creditCards, saveCards, configured: true as const }
       : undefined,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import type { BtoPlannerPrefs, DashboardState } from "@/lib/types";
 import {
   BTO_SCHEME_DEFS,
@@ -15,6 +15,8 @@ import {
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { DecimalInput } from "@/components/DecimalInput";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 
 type Props = {
   state: DashboardState;
@@ -29,15 +31,49 @@ function resolveBtoPrefs(S: DashboardState): BtoPlannerPrefs {
 }
 
 export function TabBTO({ state: S, setState }: Props) {
-  const p = resolveBtoPrefs(S);
+  const appData = useContext(AppDataContext);
   const [editingSchemes, setEditingSchemes] = useState(false);
   const [editingCalc, setEditingCalc] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [prefsDraft, setPrefsDraft] = useState<BtoPlannerPrefs>(() => resolveBtoPrefs(S));
+  const editing = editingSchemes || editingCalc;
+  const p = editing ? prefsDraft : resolveBtoPrefs(S);
+
+  const startSchemesEdit = () => {
+    setPrefsDraft(resolveBtoPrefs(S));
+    setEditingSchemes(true);
+    console.log("[TabBTO] schemes edit on");
+  };
+
+  const startCalcEdit = () => {
+    setPrefsDraft(resolveBtoPrefs(S));
+    setEditingCalc(true);
+    console.log("[TabBTO] calc edit on");
+  };
+
+  const saveBtoPrefs = async () => {
+    setSaving(true);
+    try {
+      if (appData?.configured) {
+        await appData.saveProfile({ btoPlanner: prefsDraft });
+      } else {
+        setState((prev) => ({ ...prev, btoPlanner: prefsDraft }));
+      }
+      setEditingSchemes(false);
+      setEditingCalc(false);
+      console.info("[TabBTO] planner prefs saved");
+    } catch (e) {
+      console.error("[TabBTO] save failed", e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const updatePrefs = (patch: Partial<BtoPlannerPrefs>) => {
-    setState((prev) => {
-      const next = { ...resolveBtoPrefs(prev), ...patch };
-      console.log("[TabBTO] updated prefs", patch);
-      return { ...prev, btoPlanner: next };
+    setPrefsDraft((prev) => {
+      const next = { ...prev, ...patch };
+      console.log("[TabBTO] updated prefs draft", patch);
+      return next;
     });
   };
 
@@ -66,34 +102,48 @@ export function TabBTO({ state: S, setState }: Props) {
   const householdIncome = p.tSal + p.pSal;
 
   const toggleScheme = (id: BTOSchemeId, enabled: boolean) => {
-    const current = p.schemes[id] ?? { enabled: false, amountOverride: null };
-    updatePrefs({
-      schemes: {
-        ...p.schemes,
-        [id]: { ...current, enabled },
-      },
+    setPrefsDraft((prev) => {
+      const base = editingSchemes ? prev : resolveBtoPrefs(S);
+      const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
+      return {
+        ...base,
+        schemes: {
+          ...base.schemes,
+          [id]: { ...current, enabled },
+        },
+      };
     });
+    if (!editingSchemes) setEditingSchemes(true);
     console.log("[TabBTO] scheme toggled", id, enabled);
   };
 
   const setSchemeOverride = (id: BTOSchemeId, amount: number | null) => {
-    const current = p.schemes[id] ?? { enabled: false, amountOverride: null };
-    updatePrefs({
-      schemes: {
-        ...p.schemes,
-        [id]: { ...current, amountOverride: amount },
-      },
+    setPrefsDraft((prev) => {
+      const base = editingSchemes ? prev : resolveBtoPrefs(S);
+      const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
+      return {
+        ...base,
+        schemes: {
+          ...base.schemes,
+          [id]: { ...current, amountOverride: amount },
+        },
+      };
     });
+    if (!editingSchemes) setEditingSchemes(true);
     console.log("[TabBTO] scheme amount override", id, amount);
   };
 
   const resetSchemeAmount = (id: BTOSchemeId) => {
-    const current = p.schemes[id] ?? { enabled: false, amountOverride: null };
-    updatePrefs({
-      schemes: {
-        ...p.schemes,
-        [id]: { ...current, amountOverride: null },
-      },
+    setPrefsDraft((prev) => {
+      const base = editingSchemes ? prev : resolveBtoPrefs(S);
+      const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
+      return {
+        ...base,
+        schemes: {
+          ...base.schemes,
+          [id]: { ...current, amountOverride: null },
+        },
+      };
     });
     console.log("[TabBTO] scheme amount reset", id);
   };
@@ -130,22 +180,13 @@ export function TabBTO({ state: S, setState }: Props) {
           <button
             type="button"
             className="btn sm"
-            onClick={() => {
-              setEditingSchemes(false);
-              console.log("[TabBTO] schemes edit off");
-            }}
+            disabled={saving}
+            onClick={() => void saveBtoPrefs()}
           >
-            Done
+            {saving ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingSchemes(true);
-              console.log("[TabBTO] schemes edit on");
-            }}
-          >
+          <button type="button" className="btn ghost sm" onClick={startSchemesEdit}>
             Edit amounts
           </button>
         )}
@@ -196,13 +237,9 @@ export function TabBTO({ state: S, setState }: Props) {
                   {editingSchemes ? (
                     <label>
                       Grant amount
-                      <input
-                        type="number"
+                      <DecimalInput
                         value={amount}
-                        step={500}
-                        onChange={(e) =>
-                          setSchemeOverride(def.id, +e.target.value)
-                        }
+                        onChange={(v) => setSchemeOverride(def.id, v)}
                       />
                       {def.id === "ehg" && (
                         <span className="note" style={{ display: "block", marginTop: 4 }}>
@@ -256,22 +293,13 @@ export function TabBTO({ state: S, setState }: Props) {
           <button
             type="button"
             className="btn sm"
-            onClick={() => {
-              setEditingCalc(false);
-              console.log("[TabBTO] calc edit off");
-            }}
+            disabled={saving}
+            onClick={() => void saveBtoPrefs()}
           >
-            Done
+            {saving ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingCalc(true);
-              console.log("[TabBTO] calc edit on");
-            }}
-          >
+          <button type="button" className="btn ghost sm" onClick={startCalcEdit}>
             Edit
           </button>
         )}
@@ -282,38 +310,19 @@ export function TabBTO({ state: S, setState }: Props) {
           <div className="grid g3">
             <label className="bto-field">
               Flat price (list)
-              <input
-                type="number"
-                value={p.price}
-                step={10000}
-                onChange={(e) => updatePrefs({ price: +e.target.value })}
-              />
+              <DecimalInput value={p.price} onChange={(v) => updatePrefs({ price: v })} />
             </label>
             <label className="bto-field">
               HDB loan LTV %
-              <input
-                type="number"
-                value={p.ltv}
-                step={5}
-                onChange={(e) => updatePrefs({ ltv: +e.target.value })}
-              />
+              <DecimalInput value={p.ltv} onChange={(v) => updatePrefs({ ltv: v })} />
             </label>
             <label className="bto-field">
               Loan interest % p.a.
-              <input
-                type="number"
-                value={p.rate}
-                step={0.1}
-                onChange={(e) => updatePrefs({ rate: +e.target.value })}
-              />
+              <DecimalInput value={p.rate} onChange={(v) => updatePrefs({ rate: v })} />
             </label>
             <label className="bto-field">
               Tenure (years)
-              <input
-                type="number"
-                value={p.tenure}
-                onChange={(e) => updatePrefs({ tenure: +e.target.value })}
-              />
+              <DecimalInput value={p.tenure} onChange={(v) => updatePrefs({ tenure: v })} />
             </label>
             <label className="bto-field">
               BTO application month
@@ -328,39 +337,22 @@ export function TabBTO({ state: S, setState }: Props) {
             </label>
             <label className="bto-field">
               Years to keys
-              <input
-                type="number"
+              <DecimalInput
                 value={p.yrsToKeys}
-                step={0.5}
-                onChange={(e) => updatePrefs({ yrsToKeys: +e.target.value })}
+                onChange={(v) => updatePrefs({ yrsToKeys: v })}
               />
             </label>
             <label className="bto-field">
               Your salary / mo
-              <input
-                type="number"
-                value={p.tSal}
-                step={100}
-                onChange={(e) => updatePrefs({ tSal: +e.target.value })}
-              />
+              <DecimalInput value={p.tSal} onChange={(v) => updatePrefs({ tSal: v })} />
             </label>
             <label className="bto-field">
               Partner salary / mo
-              <input
-                type="number"
-                value={p.pSal}
-                step={100}
-                onChange={(e) => updatePrefs({ pSal: +e.target.value })}
-              />
+              <DecimalInput value={p.pSal} onChange={(v) => updatePrefs({ pSal: v })} />
             </label>
             <label className="bto-field">
               Partner CPF OA now
-              <input
-                type="number"
-                value={p.pOA}
-                step={100}
-                onChange={(e) => updatePrefs({ pOA: +e.target.value })}
-              />
+              <DecimalInput value={p.pOA} onChange={(v) => updatePrefs({ pOA: v })} />
             </label>
           </div>
           <p style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic", marginTop: 8 }}>

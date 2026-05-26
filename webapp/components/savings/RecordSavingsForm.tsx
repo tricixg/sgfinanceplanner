@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DecimalTextInput } from "@/components/DecimalInput";
 
 export type RecordTransactionKind = "deposit" | "withdrawal";
 
@@ -113,13 +114,10 @@ export function RecordSavingsForm({
           </label>
         </div>
       ) : null}
-      <input
-        type="number"
-        step="0.01"
-        min="0"
+      <DecimalTextInput
         placeholder="Amount"
         value={amount}
-        onChange={(e) => setAmount(e.target.value)}
+        onChange={setAmount}
         autoFocus
       />
       <input

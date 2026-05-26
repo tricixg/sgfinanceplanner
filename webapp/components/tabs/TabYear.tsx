@@ -6,6 +6,7 @@ import type { SavingsSnapshot } from "@/lib/savings/types";
 import { monthlyInvestContribution, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
+import { DecimalInput } from "@/components/DecimalInput";
 import type { ChartOptions } from "chart.js";
 
 type Props = {
@@ -91,26 +92,17 @@ export function TabYear({ state: S, setState, savings }: Props) {
       <div className="ctrl">
         <label>
           Salary growth / yr
-          <input
-            type="number"
-            value={growth}
-            step={0.5}
-            min={0}
-            max={15}
-            onChange={(e) => setGrowth(+e.target.value)}
-          />
+          <DecimalInput value={growth} min={0} max={15} onChange={setGrowth} />
           %
         </label>
         <label>
           Monthly invest contribution
-          <input
-            type="number"
+          <DecimalInput
             value={invAmt}
-            step={50}
-            onChange={(e) => {
+            onChange={(v) => {
               invAmtUserEdited.current = true;
-              setInvAmt(+e.target.value);
-              console.log("[TabYear] inv contribution override", +e.target.value);
+              setInvAmt(v);
+              console.log("[TabYear] inv contribution override", v);
             }}
           />
           <span style={{ fontSize: 11, color: "var(--muted)", display: "block", marginTop: 4 }}>
@@ -137,12 +129,7 @@ export function TabYear({ state: S, setState, savings }: Props) {
         </label>
         <label>
           Investment return / yr
-          <input
-            type="number"
-            value={invRet}
-            step={0.5}
-            onChange={(e) => setInvRet(+e.target.value)}
-          />
+          <DecimalInput value={invRet} onChange={setInvRet} />
           %
         </label>
         <label>
