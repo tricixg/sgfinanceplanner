@@ -9,6 +9,8 @@ import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 
 const PAGE_SIZE = 50;
 
+type PeriodPreset = "" | "this_month" | "last_30" | "last_90" | "custom";
+
 const SAVINGS_TYPES = ["deposit", "withdrawal", "adjustment"] as const;
 const BUDGET_TYPES = ["expense", "subscription", "income"] as const;
 
@@ -27,11 +29,52 @@ function readTypeFromSearchParams(searchParams: URLSearchParams): string {
   return searchParams.get("transactionType")?.trim() ?? "";
 }
 
+function isoTodayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isoDaysAgoUtc(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function isoMonthStartUtc(): string {
+  const d = new Date();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${month}-01`;
+}
+
+function periodToRange(period: Exclude<PeriodPreset, "" | "custom">): {
+  dateFrom: string;
+  dateTo: string;
+} {
+  const today = isoTodayUtc();
+  if (period === "this_month") {
+    return { dateFrom: isoMonthStartUtc(), dateTo: today };
+  }
+  if (period === "last_30") {
+    return { dateFrom: isoDaysAgoUtc(29), dateTo: today };
+  }
+  return { dateFrom: isoDaysAgoUtc(89), dateTo: today };
+}
+
+function detectPeriod(dateFrom: string, dateTo: string): PeriodPreset {
+  if (!dateFrom && !dateTo) return "";
+  for (const preset of ["this_month", "last_30", "last_90"] as const) {
+    const range = periodToRange(preset);
+    if (range.dateFrom === dateFrom && range.dateTo === dateTo) return preset;
+  }
+  return "custom";
+}
+
 function buildQuery(params: {
   accountId: string;
   financialAccountId: string;
   type: string;
   source: string;
+  dateFrom: string;
+  dateTo: string;
   offset: number;
 }): string {
   const qs = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(params.offset) });
@@ -41,6 +84,8 @@ function buildQuery(params: {
   if (kind) qs.set("kind", kind);
   if (transactionType) qs.set("transactionType", transactionType);
   if (params.source && params.source !== "all") qs.set("source", params.source);
+  if (params.dateFrom) qs.set("dateFrom", params.dateFrom);
+  if (params.dateTo) qs.set("dateTo", params.dateTo);
   return qs.toString();
 }
 
@@ -52,6 +97,9 @@ export function TransactionsHistoryPage() {
   const financialAccountId = searchParams.get("financialAccountId") ?? "";
   const type = readTypeFromSearchParams(searchParams);
   const source = searchParams.get("source") ?? "all";
+  const dateFrom = searchParams.get("dateFrom") ?? "";
+  const dateTo = searchParams.get("dateTo") ?? "";
+  const period = detectPeriod(dateFrom, dateTo);
 
   const [items, setItems] = useState<UnifiedTransaction[]>([]);
   const [total, setTotal] = useState(0);
@@ -78,6 +126,8 @@ export function TransactionsHistoryPage() {
         financialAccountId: effectiveFinancialAccountId,
         type,
         source,
+        dateFrom,
+        dateTo,
         offset: nextOffset,
       });
 
@@ -111,17 +161,17 @@ export function TransactionsHistoryPage() {
         setLoadingMore(false);
       }
     },
-    [accountId, effectiveFinancialAccountId, type, source, offset]
+    [accountId, effectiveFinancialAccountId, type, source, dateFrom, dateTo, offset]
   );
 
   useEffect(() => {
     setOffset(0);
     void load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, effectiveFinancialAccountId, type, source]);
+  }, [accountId, effectiveFinancialAccountId, type, source, dateFrom, dateTo]);
 
   const hasFilters = Boolean(
-    accountId || financialAccountId || type || source !== "all"
+    accountId || financialAccountId || type || source !== "all" || dateFrom || dateTo
   );
 
   const selectedAccountValue = useMemo(() => {
@@ -138,6 +188,8 @@ export function TransactionsHistoryPage() {
     financialAccountId?: string;
     type?: string;
     source?: string;
+    dateFrom?: string;
+    dateTo?: string;
   }) => {
     const params = new URLSearchParams();
     const a = next.accountId !== undefined ? next.accountId : accountId;
@@ -145,12 +197,34 @@ export function TransactionsHistoryPage() {
       next.financialAccountId !== undefined ? next.financialAccountId : financialAccountId;
     const t = next.type !== undefined ? next.type : type;
     const src = next.source !== undefined ? next.source : source;
+    const from = next.dateFrom !== undefined ? next.dateFrom : dateFrom;
+    const to = next.dateTo !== undefined ? next.dateTo : dateTo;
     if (a) params.set("accountId", a);
     if (fa) params.set("financialAccountId", fa);
     if (t) params.set("type", t);
     if (src && src !== "all") params.set("source", src);
+    if (from) params.set("dateFrom", from);
+    if (to) params.set("dateTo", to);
     const path = params.toString() ? `/transactions?${params}` : "/transactions";
     router.replace(path);
+  };
+
+  const setPeriod = (nextPeriod: PeriodPreset) => {
+    if (!nextPeriod) {
+      setFilters({ dateFrom: "", dateTo: "" });
+      return;
+    }
+    if (nextPeriod === "custom") {
+      console.info("[TransactionsHistoryPage] custom date range");
+      if (!dateFrom && !dateTo) {
+        const today = isoTodayUtc();
+        setFilters({ dateFrom: today, dateTo: today });
+      }
+      return;
+    }
+    const range = periodToRange(nextPeriod);
+    console.info("[TransactionsHistoryPage] period preset", { nextPeriod, ...range });
+    setFilters({ dateFrom: range.dateFrom, dateTo: range.dateTo });
   };
 
   const clearFilters = () => {
@@ -210,6 +284,44 @@ export function TransactionsHistoryPage() {
             <option value="budget">Import</option>
             <option value="expense">Recorded</option>
           </select>
+        </label>
+
+        <label className="tx-filter">
+          <span className="tx-filter-label">Period</span>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as PeriodPreset)}
+          >
+            <option value="">Any</option>
+            <option value="this_month">This month</option>
+            <option value="last_30">Last 30 days</option>
+            <option value="last_90">Last 90 days</option>
+            <option value="custom">Custom range</option>
+          </select>
+        </label>
+
+        <label className="tx-filter">
+          <span className="tx-filter-label">From</span>
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) =>
+              setFilters({
+                dateFrom: e.target.value,
+                dateTo: dateTo && e.target.value > dateTo ? e.target.value : dateTo,
+              })
+            }
+          />
+        </label>
+        <label className="tx-filter">
+          <span className="tx-filter-label">To</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => setFilters({ dateTo: e.target.value })}
+          />
         </label>
 
         {hasFilters ? (

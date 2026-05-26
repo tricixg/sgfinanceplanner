@@ -5,6 +5,7 @@ import { parseBudgetCsv } from "@/lib/budget/parse-csv";
 import { importBudgetRows } from "@/lib/budget/transactions";
 import type { SavingsTransactionKind } from "@/lib/savings/types";
 import type { BudgetTransactionType } from "@/lib/transactions/types";
+import { parseDateRangeFilter } from "@/lib/transactions/date-range";
 import { listUnifiedTransactions } from "@/lib/transactions/unified";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -42,6 +43,15 @@ export async function GET(req: NextRequest) {
   const sourceParam = searchParams.get("source")?.trim();
   const source =
     sourceParam === "savings" || sourceParam === "budget" ? sourceParam : "all";
+
+  const dateRange = parseDateRangeFilter(
+    searchParams.get("dateFrom"),
+    searchParams.get("dateTo")
+  );
+  if ("error" in dateRange) {
+    console.warn("[api/transactions] invalid date range", dateRange.error);
+    return NextResponse.json({ error: dateRange.error }, { status: 400 });
+  }
 
   const supabase = await createAuthedSupabaseClient();
 
@@ -89,11 +99,15 @@ export async function GET(req: NextRequest) {
       kind,
       transactionType,
       source,
+      dateFrom: dateRange.dateFrom,
+      dateTo: dateRange.dateTo,
     });
     console.info("[api/transactions] listed", {
       userId: auth.user.id,
       count: page.items.length,
       total: page.total,
+      dateFrom: dateRange.dateFrom ?? null,
+      dateTo: dateRange.dateTo ?? null,
     });
     return NextResponse.json({ configured: true, ...page });
   } catch (e) {

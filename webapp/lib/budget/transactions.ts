@@ -17,6 +17,8 @@ export type ListBudgetOpts = {
   offset?: number;
   financialAccountId?: string;
   transactionType?: BudgetTransactionType;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 export async function listBudgetTransactions(
@@ -39,6 +41,8 @@ export async function listBudgetTransactions(
   if (opts.transactionType) {
     query = query.eq("transaction_type", opts.transactionType);
   }
+  if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
+  if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);
 
   const { data, error, count } = await query
     .order("spent_at", { ascending: false })

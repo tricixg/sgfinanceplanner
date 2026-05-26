@@ -174,6 +174,8 @@ export async function listUnifiedTransactions(
           accountId: accountFilters.accountId,
           poolId: accountFilters.poolId,
           kind: opts.kind,
+          dateFrom: opts.dateFrom,
+          dateTo: opts.dateTo,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
     fetchBudget
@@ -182,6 +184,8 @@ export async function listUnifiedTransactions(
           offset: 0,
           financialAccountId: accountFilters.financialAccountId,
           transactionType: opts.transactionType,
+          dateFrom: opts.dateFrom,
+          dateTo: opts.dateTo,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
     fetchExpenses
@@ -190,6 +194,8 @@ export async function listUnifiedTransactions(
           offset: 0,
           financialAccountId: accountFilters.financialAccountId,
           transactionType: opts.transactionType,
+          dateFrom: opts.dateFrom,
+          dateTo: opts.dateTo,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
   ]);
@@ -215,6 +221,8 @@ export async function listUnifiedTransactions(
     savings: savingsPage.items.length,
     budget: budgetPage.items.length,
     expenses: expensePage.items.length,
+    dateFrom: opts.dateFrom ?? null,
+    dateTo: opts.dateTo ?? null,
   });
 
   return { items, total, nextOffset };

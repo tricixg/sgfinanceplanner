@@ -70,4 +70,8 @@ export type ListUnifiedOpts = {
   kind?: SavingsTransactionKind;
   transactionType?: BudgetTransactionType;
   source?: "all" | "savings" | "budget" | "expense";
+  /** Inclusive YYYY-MM-DD */
+  dateFrom?: string;
+  /** Inclusive YYYY-MM-DD */
+  dateTo?: string;
 };

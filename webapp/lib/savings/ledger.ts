@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SavingsTransaction, SavingsTransactionKind } from "@/lib/savings/types";
 import { mapTransaction } from "@/lib/savings/db-mappers";
+import {
+  savingsOccurredAtLowerBound,
+  savingsOccurredAtUpperBoundExclusive,
+} from "@/lib/transactions/date-range";
 
 export type ApplyTransactionInput = {
   userId: string;
@@ -321,6 +325,8 @@ export type ListTransactionsOpts = {
   accountId?: string;
   poolId?: string;
   kind?: SavingsTransactionKind;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 export async function listAllTransactions(
@@ -338,6 +344,12 @@ export async function listAllTransactions(
   if (opts.accountId) query = query.eq("account_id", opts.accountId);
   if (opts.poolId) query = query.eq("pool_id", opts.poolId);
   if (opts.kind) query = query.eq("kind", opts.kind);
+  if (opts.dateFrom) {
+    query = query.gte("occurred_at", savingsOccurredAtLowerBound(opts.dateFrom));
+  }
+  if (opts.dateTo) {
+    query = query.lt("occurred_at", savingsOccurredAtUpperBoundExclusive(opts.dateTo));
+  }
 
   const { data, error, count } = await query
     .order("occurred_at", { ascending: false })

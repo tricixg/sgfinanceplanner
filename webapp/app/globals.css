@@ -1191,7 +1191,8 @@ input.decimal-input::-webkit-inner-spin-button {
   white-space: nowrap;
 }
 
-.tx-filters select {
+.tx-filters select,
+.tx-filters input[type="date"] {
   width: auto;
   min-width: 0;
   max-width: 128px;

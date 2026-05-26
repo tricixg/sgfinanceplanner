@@ -17,6 +17,8 @@ export type ListExpensesForTransactionsOpts = {
   offset?: number;
   financialAccountId?: string;
   transactionType?: BudgetTransactionType;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 export function expenseMatchesTransactionType(
@@ -84,6 +86,8 @@ export async function listExpensesForTransactions(
   } else if (opts.transactionType === "expense") {
     query = query.or("auto_category.is.null,auto_category.neq.subscription");
   }
+  if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
+  if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);
 
   const { data, error, count } = await query
     .order("spent_at", { ascending: false })
