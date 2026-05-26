@@ -166,7 +166,11 @@ export function navTabForPath(pathname: string): NavTab | undefined {
   if (pathname === "/transactions" || pathname.startsWith("/transactions?")) {
     return TRANSACTIONS_NAV;
   }
-  return ALL_NAV_TABS.find(
+  const tab = ALL_NAV_TABS.find(
     (t) => pathname === t.href || pathname.startsWith(`${t.href}/`)
   );
+  if (tab?.id === "poker" && pathname.startsWith("/poker/stats")) {
+    return { ...tab, label: "Poker statistics", summary: "Bankroll overview, sessions, locations, and charts." };
+  }
+  return tab;
 }

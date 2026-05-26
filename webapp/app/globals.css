@@ -1882,3 +1882,84 @@ footer {
     gap: 8px;
   }
 }
+
+/* Poker statistics */
+.pl-pos {
+  color: var(--moss);
+}
+.pl-neg {
+  color: var(--rust);
+}
+.poker-stats-toolbar {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.poker-stats-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0;
+  flex: 1;
+}
+.poker-stats-back {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.poker-stats-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.poker-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.poker-session-card {
+  padding: 12px 14px;
+}
+.poker-session-card-top,
+.poker-location-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.poker-session-pl {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.poker-session-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.poker-location-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.poker-location-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+}
+.poker-location-card:hover {
+  border-color: var(--moss);
+  background: var(--sand);
+}
+.poker-location-card-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  justify-content: flex-start;
+}

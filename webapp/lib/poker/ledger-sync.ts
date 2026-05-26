@@ -133,3 +133,20 @@ export async function reversePokerLedger(
     restoreAmount,
   });
 }
+
+/** Reverse any existing ledger entry, then create one for the updated session if needed. */
+export async function resyncPokerLedger(
+  supabase: SupabaseClient,
+  userId: string,
+  previous: PokerSession,
+  updated: PokerSession
+): Promise<string | null> {
+  await reversePokerLedger(supabase, userId, previous);
+  const txId = await createPokerLedger(supabase, userId, updated);
+  console.info("[poker-ledger] resynced", {
+    sessionId: updated.id,
+    previousTxId: previous.savingsTransactionId,
+    newTxId: txId,
+  });
+  return txId;
+}

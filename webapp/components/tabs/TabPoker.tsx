@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
 import type { PokerGame, PokerSession, PokerSessionType, TournamentResult } from "@/lib/poker/types";
@@ -36,7 +37,6 @@ function tournamentResultLabel(session: PokerSession): string {
 }
 
 export function TabPoker({ enabled }: { enabled: boolean }) {
-  const locationListId = useId();
   const [items, setItems] = useState<PokerSession[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [games, setGames] = useState<PokerGame[]>([]);
@@ -62,12 +62,17 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [tournamentEntries, setTournamentEntries] = useState("");
   const [amountWon, setAmountWon] = useState("");
 
+  const [showNewLocation, setShowNewLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState("");
+  const [creatingLocation, setCreatingLocation] = useState(false);
   const [showNewGame, setShowNewGame] = useState(false);
   const [newGameName, setNewGameName] = useState("");
   const [newSmallBlind, setNewSmallBlind] = useState("");
   const [newBigBlind, setNewBigBlind] = useState("");
   const [newAnte, setNewAnte] = useState("");
   const [creatingGame, setCreatingGame] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formError, setFormError] = useState("");
 
   const { accounts: financialAccounts } = useFinancialAccounts();
   const cashAccounts = financialAccounts.filter((a) => a.savingsAccountId);
@@ -120,11 +125,16 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   }, [enabled]);
 
   const resetForm = () => {
+    setEditingId(null);
+    setFormError("");
+    setSessionType("cash_game");
     setBuyIn("");
     setCashOut("");
     setLocation("");
     setHours("");
     setNote("");
+    setPlayedAt(new Date().toISOString().slice(0, 10));
+    setFinancialAccountId("");
     setGameId("");
     setTournamentName("");
     setEventName("");
@@ -132,6 +142,78 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     setTournamentPlace("");
     setTournamentEntries("");
     setAmountWon("");
+    setShowNewLocation(false);
+    setNewLocationName("");
+    setShowNewGame(false);
+  };
+
+  const ensureLocationOption = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setLocations((prev) =>
+      prev.includes(trimmed) ? prev : [...prev, trimmed].sort((a, b) => a.localeCompare(b))
+    );
+  };
+
+  const createLocation = async () => {
+    const name = newLocationName.trim();
+    if (!name) return;
+    setCreatingLocation(true);
+    try {
+      const { res, data } = await fetchJson<{ item?: string; error?: string }>(
+        "/api/poker/locations",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to save location");
+      if (data.item) {
+        ensureLocationOption(data.item);
+        setLocation(data.item);
+        setShowNewLocation(false);
+        setNewLocationName("");
+        console.info("[TabPoker] location created", { name: data.item });
+      }
+    } catch (err) {
+      console.error("[TabPoker] create location failed", err);
+      setFormError(err instanceof Error ? err.message : "Failed to save location");
+    } finally {
+      setCreatingLocation(false);
+    }
+  };
+
+  const startEdit = (session: PokerSession) => {
+    setEditingId(session.id);
+    setFormError("");
+    setSessionType(session.sessionType);
+    setPlayedAt(session.playedAt);
+    setBuyIn(String(session.buyIn));
+    setCashOut(String(session.cashOut));
+    ensureLocationOption(session.location);
+    setLocation(session.location);
+    setHours(session.hours != null ? String(session.hours) : "");
+    setNote(session.note);
+    setFinancialAccountId(session.financialAccountId ?? "");
+    setGameId(session.gameId ?? "");
+    setTournamentName(session.tournamentName ?? "");
+    setEventName(session.eventName ?? "");
+    setTournamentResult(session.tournamentResult ?? "busted");
+    setTournamentPlace(
+      session.tournamentPlace != null ? String(session.tournamentPlace) : ""
+    );
+    setTournamentEntries(
+      session.tournamentEntries != null ? String(session.tournamentEntries) : ""
+    );
+    setAmountWon(
+      session.amountWon != null && session.tournamentResult === "placed"
+        ? String(session.amountWon)
+        : ""
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    console.info("[TabPoker] editing session", { id: session.id });
   };
 
   const createGame = async () => {
@@ -174,11 +256,10 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     }
   };
 
-  const addSession = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const buildSessionBody = (): Record<string, unknown> | null => {
     const buy = parseFloat(buyIn);
-    if (!Number.isFinite(buy) || buy < 0) return;
-    if (!financialAccountId) return;
+    if (!Number.isFinite(buy) || buy < 0) return null;
+    if (!financialAccountId) return null;
 
     const body: Record<string, unknown> = {
       sessionType,
@@ -219,30 +300,49 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       }
     }
 
+    return body;
+  };
+
+  const saveSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const body = buildSessionBody();
+    if (!body) {
+      setFormError("Please fill in all required fields.");
+      return;
+    }
+
     setSubmitting(true);
+    setFormError("");
     try {
+      const isEdit = Boolean(editingId);
       const { res, data } = await fetchJson<{ item?: PokerSession; error?: string }>(
-        "/api/poker",
+        isEdit ? `/api/poker/${editingId}` : "/api/poker",
         {
-          method: "POST",
+          method: isEdit ? "PATCH" : "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         }
       );
-      if (!res.ok) throw new Error(data.error ?? "Failed to add session");
+      if (!res.ok) {
+        throw new Error(data.error ?? (isEdit ? "Failed to update session" : "Failed to add session"));
+      }
       if (data.item) {
-        setItems((prev) => [data.item!, ...prev]);
-        setTotal((t) => t + 1);
-        const loc = location.trim();
-        if (loc && !locations.includes(loc)) {
-          setLocations((prev) => [...prev, loc].sort((a, b) => a.localeCompare(b)));
+        ensureLocationOption(location);
+        if (isEdit) {
+          setItems((prev) => prev.map((x) => (x.id === data.item!.id ? data.item! : x)));
+          console.info("[TabPoker] updated session", { id: data.item.id });
+        } else {
+          setItems((prev) => [data.item!, ...prev]);
+          setTotal((t) => t + 1);
+          console.info("[TabPoker] added session", { id: data.item.id });
         }
       }
       resetForm();
-      console.info("[TabPoker] added session", { sessionType, buyIn: buy });
     } catch (err) {
-      console.error("[TabPoker] add failed", err);
+      const msg = err instanceof Error ? err.message : "Save failed";
+      setFormError(msg);
+      console.error("[TabPoker] save failed", err);
     } finally {
       setSubmitting(false);
     }
@@ -258,6 +358,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       if (!res.ok) throw new Error(data.error ?? "Failed to delete");
       setItems((prev) => prev.filter((x) => x.id !== id));
       setTotal((t) => Math.max(0, t - 1));
+      if (editingId === id) resetForm();
       console.info("[TabPoker] deleted session", { id });
     } catch (err) {
       console.error("[TabPoker] delete failed", err);
@@ -278,6 +379,14 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
 
   return (
     <section className="panel on">
+      <div
+        className="toolbar"
+        style={{ marginBottom: 16, marginTop: 0, width: "100%", justifyContent: "flex-end" }}
+      >
+        <Link href="/poker/stats" className="btn ghost sm">
+          View statistics
+        </Link>
+      </div>
       <div className="grid g3">
         <div className="stat accent">
           <div className="lbl">P/L this month (loaded)</div>
@@ -295,8 +404,13 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
         </div>
       </div>
 
-      <h2>Log session</h2>
-      <form className="card" onSubmit={addSession}>
+      <h2>{editingId ? "Edit session" : "Log session"}</h2>
+      {editingId ? (
+        <p className="note" style={{ marginBottom: 8 }}>
+          Updating session — changes will resync the linked cash account entry when P/L changes.
+        </p>
+      ) : null}
+      <form className="card" onSubmit={saveSession}>
         <div className="toolbar" style={{ marginBottom: 12 }}>
           <label>
             Type
@@ -312,22 +426,58 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             Date
             <input type="date" value={playedAt} onChange={(e) => setPlayedAt(e.target.value)} />
           </label>
+        </div>
+
+        <div
+          className="toolbar"
+          style={{ marginBottom: 12, flexWrap: "wrap", alignItems: "end" }}
+        >
           <label>
             Location
-            <input
-              type="text"
-              list={locationListId}
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Casino, home game…"
-            />
-            <datalist id={locationListId}>
+            <select value={location} onChange={(e) => setLocation(e.target.value)}>
+              <option value="">Select location…</option>
               {locations.map((loc) => (
-                <option key={loc} value={loc} />
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
               ))}
-            </datalist>
+            </select>
           </label>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => setShowNewLocation((v) => !v)}
+          >
+            {showNewLocation ? "Cancel new location" : "+ New location"}
+          </button>
         </div>
+
+        {showNewLocation ? (
+          <div className="card" style={{ marginBottom: 12, background: "var(--surface-2, #f8f9fa)" }}>
+            <div className="lbl" style={{ marginBottom: 8 }}>
+              New location
+            </div>
+            <div className="toolbar">
+              <label>
+                Name
+                <input
+                  type="text"
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  placeholder="Marina Bay Sands, Home game…"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={creatingLocation}
+                onClick={() => void createLocation()}
+              >
+                {creatingLocation ? "Saving…" : "Save location"}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {sessionType === "cash_game" ? (
           <div className="toolbar" style={{ marginBottom: 12, flexWrap: "wrap", alignItems: "end" }}>
@@ -496,9 +646,21 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
           Note
           <input type="text" value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
-        <button type="submit" className="btn" style={{ marginTop: 12 }} disabled={submitting}>
-          {submitting ? "Saving…" : "Add session"}
-        </button>
+        {formError ? (
+          <p className="note" style={{ marginTop: 8, color: "var(--danger, #c00)" }}>
+            {formError}
+          </p>
+        ) : null}
+        <div className="toolbar" style={{ marginTop: 12 }}>
+          <button type="submit" className="btn" disabled={submitting}>
+            {submitting ? "Saving…" : editingId ? "Save changes" : "Add session"}
+          </button>
+          {editingId ? (
+            <button type="button" className="btn ghost" disabled={submitting} onClick={resetForm}>
+              Cancel
+            </button>
+          ) : null}
+        </div>
       </form>
 
       <h2>Recent sessions</h2>
@@ -554,7 +716,14 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                     <td>{tournamentResultLabel(x)}</td>
                     <td className="num">{x.hours != null ? x.hours : "—"}</td>
                     <td>{x.note || "—"}</td>
-                    <td>
+                    <td className="recurring-actions">
+                      <button
+                        type="button"
+                        className="btn ghost sm"
+                        onClick={() => startEdit(x)}
+                      >
+                        Edit
+                      </button>
                       <button
                         type="button"
                         className="btn ghost sm"
