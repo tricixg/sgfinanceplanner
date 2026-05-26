@@ -19,7 +19,7 @@ export async function GET() {
 
   const supabase = await createAuthedSupabaseClient();
   const items = await loadRecurringSubscriptions(supabase, user.id);
-  return NextResponse.json({ configured: true, items });
+  return NextResponse.json({ configured: true, items, subscriptions: items });
 }
 
 export async function PUT(req: NextRequest) {

@@ -29,13 +29,15 @@ export function TabThisMonth({ state: S }: Props) {
     let cancelled = false;
     void (async () => {
       const { res, data } = await fetchJson<{
+        items?: RecurringSubscription[];
         subscriptions?: RecurringSubscription[];
         error?: string;
       }>("/api/recurring-subscriptions", { credentials: "include" });
       if (cancelled) return;
-      if (res.ok && data.subscriptions) {
-        setSubscriptions(data.subscriptions);
-        console.info("[TabThisMonth] subscriptions loaded", data.subscriptions.length);
+      const list = data.items ?? data.subscriptions ?? [];
+      if (res.ok) {
+        setSubscriptions(list);
+        console.info("[TabThisMonth] subscriptions loaded", list.length);
       } else {
         console.warn("[TabThisMonth] subscriptions load failed", data.error);
         setSubscriptions([]);
