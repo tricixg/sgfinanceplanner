@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { DomainPage } from "@/components/app/DomainPage";
 import { TabCashAccounts } from "@/components/tabs/TabCashAccounts";
 import { useAppSession } from "@/contexts/AppSessionContext";
@@ -14,6 +15,13 @@ function CashAccountsContent({
 }) {
   const user = useAppSession();
   const { savingsTotals, savingsApi, accountsApi } = usePageSavings(user?.id, state);
+
+  useEffect(() => {
+    if (!accountsApi.configured) return;
+    void accountsApi.reload().then(() => {
+      console.info("[CashAccountsRoute] refreshed balances on visit");
+    });
+  }, [accountsApi.configured, accountsApi.reload]);
 
   return (
     <TabCashAccounts

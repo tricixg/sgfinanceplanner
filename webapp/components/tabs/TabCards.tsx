@@ -27,6 +27,7 @@ import { ensureCreditCardIds } from "@/lib/finance/card-linking";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { Snackbar } from "@/components/Snackbar";
+import { useAccounts } from "@/hooks/useAccounts";
 import { useCardStatements } from "@/hooks/useCardStatements";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useSnackbar } from "@/hooks/useSnackbar";
@@ -178,7 +179,9 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     loading: statementsLoading,
     reload: reloadStatements,
   } = useCardStatements(statementsEnabled);
-  const { accounts: financialAccounts } = useFinancialAccounts();
+  const { accounts: financialAccounts, reload: reloadFinancialAccounts } =
+    useFinancialAccounts();
+  const { configured: accountsConfigured, reload: reloadCashAccounts } = useAccounts();
 
   const snackbar = useSnackbar();
   const [initialLoadDone, setInitialLoadDone] = useState(!statementsEnabled);
@@ -373,6 +376,13 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     console.log("[TabCards] recommend", { spendAmount, spendCategory, preference, rec });
   };
 
+  const refreshBalancesAfterLedgerChange = async () => {
+    if (!accountsConfigured) return;
+    await reloadCashAccounts();
+    await reloadFinancialAccounts();
+    console.info("[TabCards] cash account balances refreshed");
+  };
+
   const undoStatementPayment = async (stmt: CardStatementComputed) => {
     if (!stmt.paymentSavingsTransactionId) return;
     const ok = window.confirm(
@@ -393,6 +403,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
       if (!res.ok) throw new Error(data.error ?? "Failed to undo payment");
       console.info("[TabCards] undo payment ok", { statementId: stmt.id });
       await reloadStatements({ silent: true });
+      await refreshBalancesAfterLedgerChange();
       snackbar.show("Payment undone");
     } catch (e) {
       console.error("[TabCards] undo payment failed", e);
@@ -1046,6 +1057,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
           onClose={() => setPayStatement(null)}
           onPaid={async () => {
             await reloadStatements({ silent: true });
+            await refreshBalancesAfterLedgerChange();
             const { res, data } = await fetchJson<{ otherLoans?: OtherLoan[] }>(
               "/api/other-loans",
               { credentials: "include" }
