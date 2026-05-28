@@ -206,6 +206,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
   const [draftActual, setDraftActual] = useState<Record<string, string>>({});
   const [draftMinDue, setDraftMinDue] = useState<Record<string, string>>({});
   const [savingRow, setSavingRow] = useState<string | null>(null);
+  const [undoingRow, setUndoingRow] = useState<string | null>(null);
   const [showOpenCycleDetail, setShowOpenCycleDetail] = useState(false);
   const [excludeCarriedFromOpenCycle, setExcludeCarriedFromOpenCycle] =
     useState(false);
@@ -370,6 +371,37 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     );
     setRecommendation(rec);
     console.log("[TabCards] recommend", { spendAmount, spendCategory, preference, rec });
+  };
+
+  const undoStatementPayment = async (stmt: CardStatementComputed) => {
+    if (!stmt.paymentSavingsTransactionId) return;
+    const ok = window.confirm(
+      `Undo latest payment for ${stmt.cardName} statement ${fmtDate(
+        stmt.statementCloseDate
+      )}?`
+    );
+    if (!ok) return;
+    setUndoingRow(stmt.id);
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/credit-cards/statements/${stmt.id}/pay`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to undo payment");
+      console.info("[TabCards] undo payment ok", { statementId: stmt.id });
+      await reloadStatements({ silent: true });
+      snackbar.show("Payment undone");
+    } catch (e) {
+      console.error("[TabCards] undo payment failed", e);
+      snackbar.show(e instanceof Error ? e.message : "Failed to undo payment", {
+        error: true,
+      });
+    } finally {
+      setUndoingRow(null);
+    }
   };
 
   const startEditing = () => {
@@ -781,6 +813,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                     const cardKey = c.id ?? c.name;
                     const stmt = statementByCardKey.get(cardKey);
                     const rowSaving = stmt != null && savingRow === stmt.id;
+                    const rowUndoing = stmt != null && undoingRow === stmt.id;
 
                     return (
                       <tr
@@ -872,25 +905,38 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                               : "No"}
                         </td>
                         <td>
-                          {stmt && !stmt.paidAt ? (
+                          {stmt ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                              <button
-                                type="button"
-                                className="btn ghost sm"
-                                disabled={rowSaving || savingConfig}
-                                onClick={() => void saveStatementRow(stmt)}
-                              >
-                                {rowSaving ? "Saving…" : "Save"}
-                              </button>
-                              {stmt.outstandingBalance > 0 ||
-                              (stmt.actualAmount != null && stmt.actualAmount > 0) ? (
+                              {!stmt.paidAt ? (
+                                <button
+                                  type="button"
+                                  className="btn ghost sm"
+                                  disabled={rowSaving || rowUndoing || savingConfig}
+                                  onClick={() => void saveStatementRow(stmt)}
+                                >
+                                  {rowSaving ? "Saving…" : "Save"}
+                                </button>
+                              ) : null}
+                              {!stmt.paidAt &&
+                              (stmt.outstandingBalance > 0 ||
+                                (stmt.actualAmount != null && stmt.actualAmount > 0)) ? (
                                 <button
                                   type="button"
                                   className="btn sm"
-                                  disabled={rowSaving || savingConfig}
+                                  disabled={rowSaving || rowUndoing || savingConfig}
                                   onClick={() => setPayStatement(stmt)}
                                 >
                                   Pay
+                                </button>
+                              ) : null}
+                              {stmt.amountPaid > 0 && stmt.paymentSavingsTransactionId ? (
+                                <button
+                                  type="button"
+                                  className="btn ghost sm"
+                                  disabled={rowSaving || rowUndoing || savingConfig}
+                                  onClick={() => void undoStatementPayment(stmt)}
+                                >
+                                  {rowUndoing ? "Undoing…" : "Undo payment"}
                                 </button>
                               ) : null}
                             </div>

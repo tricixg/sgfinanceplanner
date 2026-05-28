@@ -14,6 +14,7 @@ import {
 import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
+import { syncStatementAfterPaymentTransactionDelete } from "@/lib/credit-cards/card-statements/pay";
 
 type Params = { params: Promise<{ recordType: string; id: string }> };
 
@@ -164,7 +165,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   if (recordType === "savings") {
+    const existing = await getSavingsTransactionById(supabase, user.id, id);
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
     await deleteSavingsTransaction(supabase, user.id, id);
+    await syncStatementAfterPaymentTransactionDelete(supabase, user.id, id, existing.amount);
     return NextResponse.json({ ok: true });
   }
 
