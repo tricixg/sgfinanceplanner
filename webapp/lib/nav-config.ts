@@ -7,6 +7,7 @@ export type AppRouteId =
   | "expenses"
   | "recurring"
   | "transactions"
+  | "travel"
   | "poker"
   | "debt"
   | "cards"
@@ -103,6 +104,12 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "Transaction history",
         href: "/transactions",
         summary: "Unified savings ledger and budget CSV imports.",
+      },
+      {
+        id: "travel",
+        label: "Travel",
+        href: "/travel",
+        summary: "Trip budgets and actual travel spending by category.",
       },
       {
         id: "poker",
