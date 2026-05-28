@@ -16,7 +16,7 @@ import {
   COMPUTED_ILP_LABEL,
   COMPUTED_INSURANCE_LABEL,
 } from "@/lib/finance";
-import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import type { ChartOptions } from "chart.js";
 import { fetchJson } from "@/lib/fetch-json";
@@ -61,11 +61,36 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
 
   useEffect(() => {
     void loadAdditive();
-  }, [loadAdditive]);
+    console.info("[TabNow] additive reload trigger", {
+      startYm,
+      hasSavingsSnapshot: Boolean(savings),
+    });
+  }, [loadAdditive, startYm, savings]);
+
+  useEffect(() => {
+    const onLedgerRecorded = () => {
+      void loadAdditive();
+      console.info("[TabNow] additive reload from ledger event", { startYm });
+    };
+    window.addEventListener("savings-ledger-recorded", onLedgerRecorded);
+    return () => {
+      window.removeEventListener("savings-ledger-recorded", onLedgerRecorded);
+    };
+  }, [loadAdditive, startYm]);
 
   useEffect(() => {
     setStartYmDraft(S.cashflowStartYm);
   }, [S.cashflowStartYm]);
+
+  useEffect(() => {
+    const ym = currentYm();
+    if (S.cashflowStartYm === ym) return;
+    setStartYmDraft(ym);
+    setState((p) => ({ ...p, cashflowStartYm: ym }));
+    console.info("[TabNow] defaulted cashflowStartYm on load", { ym });
+    // intentionally runs once on mount; per request default view starts at current month
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!editingCats) {

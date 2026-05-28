@@ -170,6 +170,15 @@ export function SavingsLedgerModal({
       setGoalId("");
       setIncomeCategoryId("");
       setHistoryKey((k) => k + 1);
+      window.dispatchEvent(
+        new CustomEvent("savings-ledger-recorded", {
+          detail: {
+            kind,
+            incomeCategoryId: showIncomeCategory ? incomeCategoryId : null,
+            occurredAt: new Date(date).toISOString(),
+          },
+        })
+      );
       console.info("[SavingsLedgerModal] recorded", {
         variant: target.variant,
         kind,

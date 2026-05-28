@@ -8,6 +8,20 @@ function addMonthsYm(ym: string, n: number): string {
   return `${ny}-${String(nm).padStart(2, "0")}`;
 }
 
+export function addAdditiveRowsToMonths(
+  result: Record<string, number>,
+  rows: Array<{ occurred_at?: unknown; amount?: unknown }>
+): Record<string, number> {
+  for (const row of rows) {
+    const occurred = String(row.occurred_at ?? "");
+    const ym = occurred.slice(0, 7);
+    if (!(ym in result)) continue;
+    const amt = Number(row.amount ?? 0);
+    result[ym] += Math.abs(amt);
+  }
+  return result;
+}
+
 export async function loadAdditiveIncomeByYm(
   supabase: SupabaseClient,
   userId: string,
@@ -51,13 +65,7 @@ export async function loadAdditiveIncomeByYm(
 
   if (error) throw new Error(error.message);
 
-  for (const row of rows ?? []) {
-    const occurred = String(row.occurred_at ?? "");
-    const ym = occurred.slice(0, 7);
-    if (!result[ym]) continue;
-    const amt = Number(row.amount ?? 0);
-    result[ym] += Math.abs(amt);
-  }
+  addAdditiveRowsToMonths(result, rows ?? []);
 
   console.info("[income] additive deposits by month", { userId, startYm, count, result });
   return result;
