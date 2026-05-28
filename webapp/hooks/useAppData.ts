@@ -242,6 +242,21 @@ export function useAppDataProvider(enabled: boolean) {
   }, []);
 
   const appendSnapshot = useCallback(async (snap: PortfolioSnapshot) => {
+    let shouldPost = true;
+    setPortfolioHistory((hist) => {
+      const existingIdx = hist.findIndex((h) => h.recordedAt === snap.recordedAt);
+      if (existingIdx === -1) return hist;
+      shouldPost = false;
+      const next = [...hist];
+      next[existingIdx] = snap;
+      return next;
+    });
+    if (!shouldPost) {
+      console.info("[useAppData] skip snapshot insert (already recorded today)", {
+        recordedAt: snap.recordedAt,
+      });
+      return;
+    }
     await fetchJson("/api/portfolio/snapshots", {
       method: "POST",
       credentials: "include",

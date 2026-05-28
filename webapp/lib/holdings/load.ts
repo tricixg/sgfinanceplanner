@@ -102,12 +102,34 @@ export async function appendPortfolioSnapshot(
   userId: string,
   snap: PortfolioSnapshot
 ): Promise<void> {
-  await supabase.from("portfolio_snapshots").insert({
+  const { data: existing, error: findErr } = await supabase
+    .from("portfolio_snapshots")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("recorded_at", snap.recordedAt)
+    .maybeSingle();
+  if (findErr) throw new Error(findErr.message);
+
+  if (existing?.id) {
+    const { error: updateErr } = await supabase
+      .from("portfolio_snapshots")
+      .update({
+        total_value: snap.totalValue,
+        total_cost: snap.totalCost,
+      })
+      .eq("id", existing.id)
+      .eq("user_id", userId);
+    if (updateErr) throw new Error(updateErr.message);
+    return;
+  }
+
+  const { error: insertErr } = await supabase.from("portfolio_snapshots").insert({
     user_id: userId,
     recorded_at: snap.recordedAt,
     total_value: snap.totalValue,
     total_cost: snap.totalCost,
   });
+  if (insertErr) throw new Error(insertErr.message);
 }
 
 export async function migrateHoldingsFromDashboard(
