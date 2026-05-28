@@ -46,6 +46,14 @@ const palette: Record<string, string> = {
   invest: "#2f5d3a",
 };
 
+const AUTO_CHART_COLORS: Record<string, string> = {
+  debt: "#b5482e",
+  insurance: "#3d6b8e",
+  ilp: "#7a9eb5",
+  subscription: "#8a7be2",
+  savings: "#4a8055",
+};
+
 const TYPE_TAG: Record<BudgetItem["type"], string> = {
   fixed: "t-end",
   spend: "t-soon",
@@ -327,14 +335,27 @@ export function TabBudgetSavings({
   }
   verdict += ` Directing ${invPct.toFixed(0)}% of take-home to investing via budget lines.`;
 
-  const allocationChart = budgetLines.length > 0 && (
+  const allocationChartRows = [
+    { label: COMPUTED_DEBT_LABEL, amount: debt, color: AUTO_CHART_COLORS.debt },
+    { label: COMPUTED_INSURANCE_LABEL, amount: insurancePrem, color: AUTO_CHART_COLORS.insurance },
+    { label: COMPUTED_ILP_LABEL, amount: ilpPrem, color: AUTO_CHART_COLORS.ilp },
+    { label: COMPUTED_SUBSCRIPTION_LABEL, amount: subPrem, color: AUTO_CHART_COLORS.subscription },
+    { label: COMPUTED_SAVINGS_LABEL, amount: savingsPrem, color: AUTO_CHART_COLORS.savings },
+    ...budgetLines.map((b) => ({
+      label: b.cat?.trim() || "Unnamed",
+      amount: Number(b.amt ?? 0),
+      color: palette[b.type] ?? "#999",
+    })),
+  ].filter((row) => row.amount > 0);
+
+  const allocationChart = allocationChartRows.length > 0 && (
     <ChartBox
       type="doughnut"
       data={{
-        labels: budgetLines.map((b) => b.cat?.trim() || "Unnamed"),
+        labels: allocationChartRows.map((row) => row.label),
         datasets: [{
-          data: budgetLines.map((b) => b.amt),
-          backgroundColor: budgetLines.map((b) => palette[b.type] ?? "#999"),
+          data: allocationChartRows.map((row) => row.amount),
+          backgroundColor: allocationChartRows.map((row) => row.color),
           borderColor: "#fffdf6",
           borderWidth: 2,
         }],
