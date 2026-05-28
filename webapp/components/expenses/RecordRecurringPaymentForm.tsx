@@ -71,7 +71,12 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
 
   return (
     <form className="record-recurring-payment-form" onSubmit={(e) => void submit(e)}>
-      <input type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} />
+      <input
+        type="date"
+        value={spentAt}
+        onChange={(e) => setSpentAt(e.target.value)}
+        required
+      />
       <DecimalTextInput value={amount} onChange={setAmount} required
       />
       <select

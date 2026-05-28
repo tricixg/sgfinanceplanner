@@ -31,6 +31,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [payRowKey, setPayRowKey] = useState<string | null>(null);
+  const [undoingExpenseId, setUndoingExpenseId] = useState<string | null>(null);
   const [editingSubs, setEditingSubs] = useState(false);
   const [subDraft, setSubDraft] = useState<RecurringSubscription[]>([]);
   const [savingSubs, setSavingSubs] = useState(false);
@@ -143,6 +144,8 @@ export function TabRecurring({ enabled, onReload }: Props) {
     return list.map((row) => {
       const key = rowKey(row);
       const paying = payRowKey === key;
+      const paymentExpenseId = row.payment?.expenseId ?? null;
+      const undoing = paymentExpenseId != null && undoingExpenseId === paymentExpenseId;
       return (
         <Fragment key={key}>
           <tr>
@@ -170,13 +173,20 @@ export function TabRecurring({ enabled, onReload }: Props) {
                 <button
                   type="button"
                   className="btn ghost sm"
-                  onClick={() =>
-                    void deletePayment(row.payment!.expenseId).catch((err) => {
-                      setError(err instanceof Error ? err.message : "Undo failed");
-                    })
-                  }
+                  disabled={undoing}
+                  onClick={() => {
+                    if (!paymentExpenseId) return;
+                    setUndoingExpenseId(paymentExpenseId);
+                    void deletePayment(paymentExpenseId)
+                      .catch((err) => {
+                        setError(err instanceof Error ? err.message : "Undo failed");
+                      })
+                      .finally(() => {
+                        setUndoingExpenseId(null);
+                      });
+                  }}
                 >
-                  Undo
+                  {undoing ? "Undo-ing…" : "Undo"}
                 </button>
               ) : paying ? null : (
                 <button

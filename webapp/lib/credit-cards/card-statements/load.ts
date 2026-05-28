@@ -10,6 +10,7 @@ import {
 } from "@/lib/cards/interest-accrual";
 import { recomputeInterestForStatement } from "./interest";
 import {
+  addDaysYmd,
   cycleBoundsFromClose,
   openCycleBounds,
   paymentDueDate,
@@ -220,7 +221,7 @@ export async function loadCardStatementsBundle(
         const tracked = spendIndex
           ? spendIndex.sumInRange(
               latestClosed.cycleStartDate,
-              latestClosed.cycleEndDate
+              latestClosed.statementCloseDate
             )
           : 0;
         const interest = await recomputeInterestForStatement(
@@ -279,9 +280,8 @@ export async function loadCardStatementsBundle(
         }
       }
 
-      const newSpend = spendIndex
-        ? spendIndex.sumInRange(cycleStart, cycleEnd)
-        : 0;
+      const newSpendStart = addDaysYmd(cycleStart, 1);
+      const newSpend = spendIndex ? spendIndex.sumInRange(newSpendStart, cycleEnd) : 0;
 
       const daysLeft = Math.max(
         0,
@@ -369,9 +369,9 @@ export async function updateStatementFields(
         userId,
         card.financialAccountId,
         db.cycleStartDate,
-        db.cycleEndDate
+        db.statementCloseDate
       )
-    ).sumInRange(db.cycleStartDate, db.cycleEndDate);
+    ).sumInRange(db.cycleStartDate, db.statementCloseDate);
     patch.tracked_amount = tracked;
   }
 

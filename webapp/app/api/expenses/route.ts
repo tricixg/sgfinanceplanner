@@ -22,6 +22,13 @@ import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api"
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
+function toYmdOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
 export async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [], nextCursor: null });
@@ -114,14 +121,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Valid amount required" }, { status: 400 });
   }
 
-  const spentAt =
-    typeof body.spentAt === "string" && body.spentAt.length >= 10
-      ? body.spentAt.slice(0, 10)
-      : new Date().toISOString().slice(0, 10);
+  const parsedSpentAt = toYmdOrNull(body.spentAt);
+  const spentAt = parsedSpentAt ?? new Date().toISOString().slice(0, 10);
 
   const supabase = await createAuthedSupabaseClient();
 
   if (body.autoCategory) {
+    if (!parsedSpentAt) {
+      console.info("[api/expenses] auto payment rejected invalid spentAt", {
+        userId: user.id,
+        autoCategory: body.autoCategory,
+        spentAt: body.spentAt ?? null,
+      });
+      return NextResponse.json(
+        { error: "Paid date is required (YYYY-MM-DD)" },
+        { status: 400 }
+      );
+    }
+
     const validated = validateAutoPaymentPayload(body);
     if (!validated.ok) {
       return NextResponse.json({ error: validated.error }, { status: 400 });
