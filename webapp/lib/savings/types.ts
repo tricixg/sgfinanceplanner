@@ -122,6 +122,7 @@ export type Expense = {
   subscriptionId: string | null;
   financialAccountId: string | null;
   spentAt: string;
+  spentTime?: string | null;
   note: string;
   createdAt: string;
 };

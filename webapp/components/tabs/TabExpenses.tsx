@@ -46,6 +46,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     budgetLineId: string;
     amount: number;
     spentAt: string;
+    spentTime?: string;
     note: string;
     financialAccountId?: string;
   }) => {
@@ -57,6 +58,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
         budgetLineId: payload.budgetLineId,
         amount: payload.amount,
         spentAt: payload.spentAt,
+        ...(payload.spentTime ? { spentTime: payload.spentTime } : {}),
         note: payload.note,
         ...(payload.financialAccountId
           ? { financialAccountId: payload.financialAccountId }

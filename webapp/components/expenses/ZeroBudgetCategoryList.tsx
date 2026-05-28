@@ -6,7 +6,7 @@ import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { DecimalTextInput } from "@/components/DecimalInput";
-import { sgtTodayYmd } from "@/lib/time/sgt";
+import { sgtNowInputDateTime } from "@/lib/time/sgt";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -15,6 +15,7 @@ type Props = {
     budgetLineId: string;
     amount: number;
     spentAt: string;
+    spentTime?: string;
     note: string;
     financialAccountId?: string;
   }) => Promise<void>;
@@ -29,7 +30,7 @@ export function ZeroBudgetCategoryItem({
 }: Props) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [spentAt, setSpentAt] = useState(sgtTodayYmd());
+  const [spentAtInput, setSpentAtInput] = useState(sgtNowInputDateTime());
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -56,10 +57,13 @@ export function ZeroBudgetCategoryItem({
     if (!amt || amt <= 0) return;
     setSaving(true);
     try {
+      const [spentAt, spentTimeRaw] = spentAtInput.split("T");
+      const spentTime = spentTimeRaw ? `${spentTimeRaw}:00` : undefined;
       await onAddExpense({
         budgetLineId: category.budgetLineId,
         amount: amt,
         spentAt,
+        spentTime,
         note,
         financialAccountId: financialAccountId || undefined,
       });
@@ -80,7 +84,11 @@ export function ZeroBudgetCategoryItem({
       </summary>
       <div className="zero-budget-item-body">
         <form className="zero-budget-item-add" onSubmit={(e) => void handleSubmit(e)}>
-          <input type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} />
+          <input
+            type="datetime-local"
+            value={spentAtInput}
+            onChange={(e) => setSpentAtInput(e.target.value)}
+          />
           <DecimalTextInput
             placeholder="Amount"
             value={amount}

@@ -7,6 +7,9 @@ import { fetchJson } from "@/lib/fetch-json";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { sgtTodayYmd, sgtYmdDaysAgo } from "@/lib/time/sgt";
+import { Snackbar } from "@/components/Snackbar";
+import { useSnackbar } from "@/hooks/useSnackbar";
+import { TransactionActionModal } from "@/components/savings/TransactionActionModal";
 
 const PAGE_SIZE = 50;
 
@@ -104,6 +107,8 @@ export function TransactionsHistoryPage() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<UnifiedTransaction | null>(null);
+  const snackbar = useSnackbar();
 
   const { accounts: financialAccounts } = useFinancialAccounts();
 
@@ -357,7 +362,11 @@ export function TransactionsHistoryPage() {
               </thead>
               <tbody>
                 {items.map((tx) => (
-                  <tr key={`${tx.recordType}-${tx.id}`}>
+                  <tr
+                    key={`${tx.recordType}-${tx.id}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setSelectedTx(tx)}
+                  >
                     <td>{tx.date}</td>
                     <td>{tx.time || "—"}</td>
                     <td>{tx.category || "—"}</td>
@@ -394,6 +403,22 @@ export function TransactionsHistoryPage() {
           </p>
         ) : null}
       </section>
+      {selectedTx ? (
+        <TransactionActionModal
+          tx={selectedTx}
+          onClose={() => setSelectedTx(null)}
+          onSaved={(m) => {
+            snackbar.show(m);
+            void load(false);
+          }}
+        />
+      ) : null}
+      <Snackbar
+        message={snackbar.message}
+        variant={snackbar.variant}
+        durationMs={snackbar.durationMs}
+        onDismiss={snackbar.dismiss}
+      />
     </>
   );
 }

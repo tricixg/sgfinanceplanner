@@ -458,3 +458,91 @@ export async function listGoalTransactions(
     nextOffset: offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
   };
 }
+
+export async function getSavingsTransactionById(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string
+): Promise<SavingsTransaction | null> {
+  const { data, error } = await supabase
+    .from("savings_transactions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapTransaction(data) : null;
+}
+
+export async function deleteSavingsTransaction(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string
+): Promise<boolean> {
+  const tx = await getSavingsTransactionById(supabase, userId, id);
+  if (!tx) return false;
+
+  const reverse = -tx.amount;
+
+  if (tx.accountId) {
+    const { data: acct, error: readErr } = await supabase
+      .from("user_savings_accounts")
+      .select("balance")
+      .eq("id", tx.accountId)
+      .maybeSingle();
+    if (readErr || !acct) throw new Error(readErr?.message ?? "Account not found");
+    const nextBalance = Number(acct.balance ?? 0) + reverse;
+    if (nextBalance < 0) throw new Error("Insufficient balance");
+    const { error: updErr } = await supabase
+      .from("user_savings_accounts")
+      .update({ balance: nextBalance, updated_at: new Date().toISOString() })
+      .eq("id", tx.accountId);
+    if (updErr) throw new Error(updErr.message);
+  } else if (tx.poolId) {
+    const { data: pool, error: readErr } = await supabase
+      .from("savings_pools")
+      .select("balance")
+      .eq("id", tx.poolId)
+      .maybeSingle();
+    if (readErr || !pool) throw new Error(readErr?.message ?? "Pool not found");
+    const nextBalance = Number(pool.balance ?? 0) + reverse;
+    if (nextBalance < 0) throw new Error("Insufficient balance");
+    const { error: updErr } = await supabase
+      .from("savings_pools")
+      .update({ balance: nextBalance, updated_at: new Date().toISOString() })
+      .eq("id", tx.poolId);
+    if (updErr) throw new Error(updErr.message);
+  }
+
+  if (tx.goalId) {
+    const { data: goal, error: gErr } = await supabase
+      .from("savings_goals")
+      .select("saved_amount")
+      .eq("id", tx.goalId)
+      .maybeSingle();
+    if (gErr || !goal) throw new Error(gErr?.message ?? "Goal not found");
+    const nextSaved = Math.max(0, Number(goal.saved_amount ?? 0) + reverse);
+    const { error: upGoalErr } = await supabase
+      .from("savings_goals")
+      .update({ saved_amount: nextSaved, updated_at: new Date().toISOString() })
+      .eq("id", tx.goalId);
+    if (upGoalErr) throw new Error(upGoalErr.message);
+  }
+
+  const { error: delErr } = await supabase
+    .from("savings_transactions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (delErr) throw new Error(delErr.message);
+
+  console.info("[ledger] transaction deleted with balance rollback", {
+    userId,
+    id,
+    amount: tx.amount,
+    accountId: tx.accountId,
+    poolId: tx.poolId,
+    goalId: tx.goalId,
+  });
+  return true;
+}

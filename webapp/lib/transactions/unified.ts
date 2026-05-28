@@ -47,6 +47,13 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
     balanceAfter: tx.balanceAfter,
     transactionType: null,
     savingsKind: tx.kind,
+    financialAccountId: null,
+    savingsAccountId: tx.accountId,
+    poolId: tx.poolId,
+    goalId: tx.goalId,
+    spentAt: null,
+    spentTime: null,
+    occurredAt: tx.occurredAt,
   };
 }
 
@@ -73,6 +80,13 @@ export function budgetToUnified(tx: BudgetTransaction): UnifiedTransaction {
     balanceAfter: null,
     transactionType: tx.transactionType,
     savingsKind: null,
+    financialAccountId: tx.financialAccountId,
+    savingsAccountId: null,
+    poolId: null,
+    goalId: null,
+    spentAt: tx.spentAt,
+    spentTime: tx.spentTime,
+    occurredAt: null,
   };
 }
 

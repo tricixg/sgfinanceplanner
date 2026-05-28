@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import {
   formatTransactionDate,
+  formatTransactionTime,
 } from "@/lib/savings/format-transaction-when";
 import type { Expense } from "@/lib/savings/types";
 import type { BudgetTransactionType, UnifiedTransaction } from "@/lib/transactions/types";
@@ -34,21 +35,25 @@ export function expenseMatchesTransactionType(
 export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransaction {
   const typeLabel = expense.autoCategory ?? "expense";
   const spentAt = String(expense.spentAt ?? "").slice(0, 10);
+  const spentTime = expense.spentTime ?? "";
+  const normalizedTime =
+    spentTime.length === 5 ? `${spentTime}:00` : spentTime || "00:00:00";
   // Prefer user-entered spent date over created timestamp for transaction history display/sorting.
-  const when = spentAt ? `${spentAt}T00:00:00` : expense.createdAt;
-  const displayDate = spentAt ? formatTransactionDate(`${spentAt}T12:00:00`) : formatTransactionDate(when);
+  const when = spentAt ? `${spentAt}T${normalizedTime}` : expense.createdAt;
+  const displayDate = spentAt ? formatTransactionDate(when) : formatTransactionDate(when);
   console.info("[transactions] expense timestamp resolved", {
     expenseId: expense.id,
     spentAt,
+    spentTime: spentTime || null,
     createdAt: expense.createdAt,
-    using: spentAt ? "spentAt" : "createdAt",
+    using: spentAt ? "spentAt+spentTime" : "createdAt",
   });
   return {
     id: expense.id,
     recordType: "expense",
     sortAt: when,
     date: displayDate,
-    time: "",
+    time: formatTransactionTime(when),
     typeLabel,
     amount: -expense.amount,
     accountName: expense.accountName,
@@ -64,6 +69,13 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
     transactionType:
       expense.autoCategory === "subscription" ? "subscription" : "expense",
     savingsKind: null,
+    financialAccountId: expense.financialAccountId,
+    savingsAccountId: null,
+    poolId: null,
+    goalId: null,
+    spentAt: spentAt || null,
+    spentTime: spentTime || null,
+    occurredAt: null,
   };
 }
 
@@ -99,6 +111,7 @@ export async function listExpensesForTransactions(
 
   const { data, error, count } = await query
     .order("spent_at", { ascending: false })
+    .order("spent_time", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
     .range(offset, offset + limit - 1);
 

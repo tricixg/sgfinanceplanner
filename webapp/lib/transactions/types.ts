@@ -59,6 +59,13 @@ export type UnifiedTransaction = {
   transactionType: BudgetTransactionType | null;
   /** Savings: deposit | withdrawal | adjustment */
   savingsKind: SavingsTransactionKind | null;
+  financialAccountId?: string | null;
+  savingsAccountId?: string | null;
+  poolId?: string | null;
+  goalId?: string | null;
+  spentAt?: string | null;
+  spentTime?: string | null;
+  occurredAt?: string | null;
 };
 
 export type ListUnifiedOpts = {
