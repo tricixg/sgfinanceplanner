@@ -33,6 +33,11 @@ function clamp(n: number, min?: number, max?: number): number {
   return out;
 }
 
+function roundToStep(n: number, step?: number): number {
+  if (step == null || !Number.isFinite(step) || step <= 0) return n;
+  return Math.round(n / step) * step;
+}
+
 type CommonProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
   "type" | "value" | "onChange" | "step" | "inputMode"
@@ -44,6 +49,7 @@ export function DecimalInput({
   onChange,
   min,
   max,
+  step,
   onBlur,
   onFocus,
   className,
@@ -53,6 +59,8 @@ export function DecimalInput({
   onChange: (n: number) => void;
   min?: number;
   max?: number;
+  /** Round committed values to this increment (e.g. 0.01 for cents). */
+  step?: number;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const editing = draft !== null;
@@ -60,7 +68,7 @@ export function DecimalInput({
 
   const commit = (raw: string) => {
     const parsed = parseDecimalInput(raw);
-    const n = clamp(parsed ?? 0, min, max);
+    const n = roundToStep(clamp(parsed ?? 0, min, max), step);
     onChange(n);
     setDraft(null);
   };
@@ -83,7 +91,7 @@ export function DecimalInput({
         setDraft(s);
         const parsed = parseDecimalInput(s);
         if (parsed !== null) {
-          onChange(clamp(parsed, min, max));
+          onChange(roundToStep(clamp(parsed, min, max), step));
         } else if (s === "" || s === ".") {
           onChange(min != null && min > 0 ? min : 0);
         }
