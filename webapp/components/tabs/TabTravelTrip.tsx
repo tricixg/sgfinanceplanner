@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { ChartBox } from "@/components/ChartBox";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fmt2 } from "@/lib/finance/helpers";
@@ -37,6 +38,14 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [savingExpense, setSavingExpense] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(false);
+  const [savingTrip, setSavingTrip] = useState(false);
+  const [tripDraft, setTripDraft] = useState({
+    name: "",
+    country: "",
+    startDate: "",
+    endDate: "",
+  });
 
   const load = async () => {
     setLoading(true);
@@ -57,7 +66,16 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       setMsg(tripRes.data.error ?? "Failed to load trip");
       setTrip(null);
     } else {
-      setTrip(tripRes.data.item ?? null);
+      const item = tripRes.data.item ?? null;
+      setTrip(item);
+      if (!editingTrip && item) {
+        setTripDraft({
+          name: item.name,
+          country: item.country,
+          startDate: item.startDate,
+          endDate: item.endDate,
+        });
+      }
     }
     if (budgetRes.res.ok) {
       const next = budgetRes.data.items ?? [];
@@ -75,7 +93,55 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     if (!enabled) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, tripId]);
+  }, [enabled, tripId, editingTrip]);
+
+  const saveTripMeta = async () => {
+    if (!trip) return;
+    const name = tripDraft.name.trim();
+    const country = tripDraft.country.trim();
+    const startDate = tripDraft.startDate;
+    const endDate = tripDraft.endDate;
+    if (!name || !country || !startDate || !endDate) {
+      setMsg("Name, country, start date, and end date are required");
+      return;
+    }
+    if (startDate > endDate) {
+      setMsg("Start date must be on or before end date");
+      return;
+    }
+
+    setSavingTrip(true);
+    setMsg("");
+    const { res, data } = await fetchJson<{ item?: TravelTrip; error?: string }>(
+      `/api/travel/trips/${tripId}`,
+      {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          country,
+          startDate,
+          endDate,
+        }),
+      }
+    );
+    setSavingTrip(false);
+    if (!res.ok || !data.item) {
+      setMsg(data.error ?? "Failed to save trip");
+      return;
+    }
+
+    setTrip(data.item);
+    setTripDraft({
+      name: data.item.name,
+      country: data.item.country,
+      startDate: data.item.startDate,
+      endDate: data.item.endDate,
+    });
+    setEditingTrip(false);
+    await load();
+  };
 
   const saveBudgets = async () => {
     setSavingBudget(true);
@@ -167,6 +233,29 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     };
   }, [editingBudget, draft, budgets, spentBySub]);
 
+  const budgetPie = useMemo(() => {
+    const rows = (editingBudget ? draft : budgets).filter(
+      (row) => row.subCategory.trim().length > 0 && Number(row.budgetAmount ?? 0) > 0
+    );
+    if (rows.length === 0) return null;
+    const labels = rows.map((row) => row.subCategory.trim());
+    const values = rows.map((row) => Number(row.budgetAmount ?? 0));
+    const palette = [
+      "#5b8def",
+      "#5dbb84",
+      "#f0b35a",
+      "#e67a7a",
+      "#8a7be2",
+      "#64c2d1",
+      "#b9a27a",
+      "#7fc17f",
+      "#f28fb2",
+      "#9aa6b2",
+    ];
+    const colors = rows.map((_, i) => palette[i % palette.length]);
+    return { labels, values, colors };
+  }, [editingBudget, draft, budgets]);
+
   const onDeleteTrip = async () => {
     if (!trip) return;
     const ok = window.confirm(`Delete trip "${trip.name}"? This will remove its budgets.`);
@@ -201,18 +290,126 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
           <Link href="/travel" className="btn ghost sm">
             Back to Travel
           </Link>
-          <button
-            type="button"
-            className="btn del sm"
-            onClick={() => void onDeleteTrip()}
-            disabled={deleting}
-          >
-            {deleting ? "Deleting…" : "Delete travel"}
-          </button>
+          {editingTrip ? (
+            <>
+              <button
+                type="button"
+                className="btn ghost sm"
+                disabled={savingTrip}
+                onClick={() => {
+                  if (trip) {
+                    setTripDraft({
+                      name: trip.name,
+                      country: trip.country,
+                      startDate: trip.startDate,
+                      endDate: trip.endDate,
+                    });
+                  }
+                  setEditingTrip(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={savingTrip}
+                onClick={() => void saveTripMeta()}
+              >
+                {savingTrip ? "Saving…" : "Save"}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn ghost sm" onClick={() => setEditingTrip(true)}>
+              Edit travel
+            </button>
+          )}
         </div>
       </div>
 
       {loading ? <p className="note">Loading…</p> : null}
+      {editingTrip ? (
+        <div className="card">
+          <h3>Edit travel</h3>
+          <div className="editrow" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+            <input
+              type="text"
+              placeholder="Trip name"
+              value={tripDraft.name}
+              onChange={(e) =>
+                setTripDraft((prev) => ({
+                  ...prev,
+                  name: e.target.value,
+                }))
+              }
+            />
+            <input
+              type="text"
+              placeholder="Country"
+              value={tripDraft.country}
+              onChange={(e) =>
+                setTripDraft((prev) => ({
+                  ...prev,
+                  country: e.target.value,
+                }))
+              }
+            />
+            <input
+              type="date"
+              value={tripDraft.startDate}
+              onChange={(e) =>
+                setTripDraft((prev) => ({
+                  ...prev,
+                  startDate: e.target.value,
+                }))
+              }
+            />
+            <input
+              type="date"
+              value={tripDraft.endDate}
+              onChange={(e) =>
+                setTripDraft((prev) => ({
+                  ...prev,
+                  endDate: e.target.value,
+                }))
+              }
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="card">
+        <div className="section-head">
+          <h3>Budget breakdown</h3>
+          <span className="note">By subcategory</span>
+        </div>
+        {budgetPie ? (
+          <ChartBox
+            type="pie"
+            height={280}
+            data={{
+              labels: budgetPie.labels,
+              datasets: [
+                {
+                  data: budgetPie.values,
+                  backgroundColor: budgetPie.colors,
+                  borderWidth: 2,
+                  borderColor: "#faf7ef",
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: true, position: "bottom" },
+              },
+            }}
+          />
+        ) : (
+          <p className="note">Add budget amounts to see chart.</p>
+        )}
+      </div>
 
       <div className="card">
         <div className="section-head">
@@ -432,6 +629,16 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       </div>
 
       {msg ? <p className="note">{msg}</p> : null}
+      <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 16 }}>
+        <button
+          type="button"
+          className="btn del sm"
+          onClick={() => void onDeleteTrip()}
+          disabled={deleting}
+        >
+          {deleting ? "Deleting…" : "Delete travel"}
+        </button>
+      </div>
     </section>
   );
 }

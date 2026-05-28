@@ -78,7 +78,7 @@ export async function createTrip(
   if (error) throw new Error(error.message);
   const trip = mapTrip(data);
 
-  const defaults = ["Flights/Transport", "Accomodation", "Attractions"];
+  const defaults = ["Flights/Transport", "Accomodation", "Attractions", "Food"];
   const { error: budgetErr } = await supabase.from("travel_trip_budgets").insert(
     defaults.map((subCategory, i) => ({
       user_id: userId,
