@@ -1726,6 +1726,30 @@ footer {
   color: #5a4678;
 }
 
+.cal-upcoming-table {
+  width: 100%;
+}
+
+.cal-upcoming-row--salary td {
+  background: rgba(47, 93, 58, 0.12);
+}
+
+.cal-upcoming-row--statement td {
+  background: rgba(192, 138, 46, 0.15);
+}
+
+.cal-upcoming-row--payment td {
+  background: rgba(181, 72, 46, 0.1);
+}
+
+.cal-upcoming-row--loan_end td {
+  background: rgba(61, 107, 142, 0.1);
+}
+
+.cal-upcoming-row--recurring td {
+  background: rgba(90, 70, 120, 0.12);
+}
+
 .cal-legend {
   display: flex;
   flex-wrap: wrap;

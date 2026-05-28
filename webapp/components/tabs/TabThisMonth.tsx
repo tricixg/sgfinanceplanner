@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { DashboardState, RecurringSubscription } from "@/lib/types";
-import type { CardStatementAmountEntry } from "@/lib/credit-cards/card-statements/calendar-amounts";
+import {
+  normalizeCardStatementAmountEntries,
+  type CardStatementAmountEntry,
+} from "@/lib/credit-cards/card-statements/calendar-amounts";
 import { sumStatementBalancesFromCycles } from "@/lib/finance/calendar-cards";
 import {
   addMonthsYm,
@@ -64,9 +67,12 @@ export function TabThisMonth({ state: S }: Props) {
       cards?: CalendarCardSchedule[];
       error?: string;
     }>("/api/credit-cards/calendar", { credentials: "include" });
-    if (res.ok && data.configured) {
-      setStatementEntries(data.entries ?? []);
-      setCalendarCards(data.cards ?? []);
+      if (res.ok && data.configured) {
+        const cards = data.cards ?? [];
+        setStatementEntries(
+          normalizeCardStatementAmountEntries(data.entries ?? [], cards)
+        );
+        setCalendarCards(cards);
       console.info("[TabThisMonth] calendar amounts loaded", {
         entries: data.entries?.length ?? 0,
         cards: data.cards?.length ?? 0,
@@ -218,7 +224,7 @@ export function TabThisMonth({ state: S }: Props) {
             No events configured for this month.
           </p>
         ) : (
-          <table>
+          <table className="cal-upcoming-table">
             <thead>
               <tr>
                 <th>Day</th>
@@ -228,7 +234,7 @@ export function TabThisMonth({ state: S }: Props) {
             </thead>
             <tbody>
               {events.map((ev, i) => (
-                <tr key={i}>
+                <tr key={i} className={`cal-upcoming-row cal-upcoming-row--${ev.type}`}>
                   <td className="num">{ev.day}</td>
                   <td>{ev.label}</td>
                   <td className="num">

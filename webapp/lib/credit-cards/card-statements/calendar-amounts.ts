@@ -1,6 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { paymentDueDate } from "@/lib/cards/statement-cycle";
 import type { DbCreditCard } from "@/lib/credit-cards/mappers";
 import { todayYmd } from "@/lib/cards/interest-accrual";
+
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function sliceYmd(value: unknown): string {
+  if (value == null || value === "") return "";
+  const s = String(value).slice(0, 10);
+  return YMD_RE.test(s) ? s : "";
+}
 
 export type CardStatementAmountEntry = {
   creditCardId: string;
@@ -22,11 +31,40 @@ export async function loadCardStatementAmountEntries(
 
   return (data ?? []).map((row) => ({
     creditCardId: String(row.credit_card_id),
-    statementCloseDate: String(row.statement_close_date).slice(0, 10),
-    paymentDueDate: String(row.payment_due_date).slice(0, 10),
+    statementCloseDate: sliceYmd(row.statement_close_date),
+    paymentDueDate: sliceYmd(row.payment_due_date),
     actualAmount:
       row.actual_amount != null ? Number(row.actual_amount) : null,
   }));
+}
+
+/** Fill missing due dates and drop rows without valid close dates. */
+export function normalizeCardStatementAmountEntries(
+  entries: CardStatementAmountEntry[],
+  cards: Pick<DbCreditCard, "id" | "paymentDueDay">[] = []
+): CardStatementAmountEntry[] {
+  const cardById = new Map(cards.map((c) => [c.id, c]));
+  const out: CardStatementAmountEntry[] = [];
+
+  for (const e of entries) {
+    if (!e.statementCloseDate) continue;
+    let due = sliceYmd(e.paymentDueDate);
+    if (!due) {
+      const card = cardById.get(e.creditCardId);
+      if (card) {
+        due = paymentDueDate(e.statementCloseDate, card.paymentDueDay);
+      }
+    }
+    if (!due) continue;
+    out.push({
+      creditCardId: e.creditCardId,
+      statementCloseDate: e.statementCloseDate,
+      paymentDueDate: due,
+      actualAmount: e.actualAmount,
+    });
+  }
+
+  return out;
 }
 
 /** Amount saved for a statement whose payment is due on `paymentDueYmd`. */
@@ -37,7 +75,7 @@ export function amountForPaymentDue(
 ): number | null {
   for (const e of entries) {
     if (e.creditCardId !== creditCardId) continue;
-    if (e.paymentDueDate !== paymentDueYmd) continue;
+    if (!e.paymentDueDate || e.paymentDueDate !== paymentDueYmd) continue;
     if (e.actualAmount != null && e.actualAmount > 0) return e.actualAmount;
   }
   return null;

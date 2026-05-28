@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
   amountForPaymentDue,
+  normalizeCardStatementAmountEntries,
   resolveAmountForClose,
 } from "@/lib/credit-cards/card-statements/calendar-amounts";
+
+describe("normalizeCardStatementAmountEntries", () => {
+  it("fills missing payment due from card schedule", () => {
+    const out = normalizeCardStatementAmountEntries(
+      [
+        {
+          creditCardId: "c1",
+          statementCloseDate: "2026-05-05",
+          paymentDueDate: "",
+          actualAmount: 100,
+        },
+      ],
+      [{ id: "c1", paymentDueDay: 25 } as { id: string; paymentDueDay: number }]
+    );
+    expect(out[0]?.paymentDueDate).toBe("2026-06-25");
+  });
+});
 
 describe("amountForPaymentDue", () => {
   it("matches by payment due date and card id", () => {

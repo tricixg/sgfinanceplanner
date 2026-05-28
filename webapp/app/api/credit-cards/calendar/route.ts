@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { loadCardStatementAmountEntries } from "@/lib/credit-cards/card-statements/calendar-amounts";
+import {
+  loadCardStatementAmountEntries,
+  normalizeCardStatementAmountEntries,
+} from "@/lib/credit-cards/card-statements/calendar-amounts";
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -21,7 +24,11 @@ export async function GET() {
     const supabase = await createAuthedSupabaseClient();
     const cards = await loadCreditCards(supabase, auth.user.id);
 
-    const entries = await loadCardStatementAmountEntries(supabase, auth.user.id);
+    const rawEntries = await loadCardStatementAmountEntries(
+      supabase,
+      auth.user.id
+    );
+    const entries = normalizeCardStatementAmountEntries(rawEntries, cards);
 
     console.info("[api/credit-cards/calendar] GET", {
       userId: auth.user.id,

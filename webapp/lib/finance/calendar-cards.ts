@@ -121,7 +121,7 @@ export function getCardCalendarEvents(
   const nameById = new Map(cards.map((c) => [c.id, c.name]));
   const amountByDueKey = new Map<string, number>();
   for (const e of entries) {
-    if (!e.paymentDueDate.startsWith(`${viewYm}-`)) continue;
+    if (!e.paymentDueDate?.startsWith(`${viewYm}-`)) continue;
     if (e.actualAmount == null || e.actualAmount <= 0) continue;
     const name = nameById.get(e.creditCardId) ?? "";
     if (!name) continue;
@@ -142,7 +142,7 @@ export function getCardCalendarEvents(
       }
     }
 
-    const payDay = dayInYm(c.paymentDueDate, viewYm);
+    const payDay = c.paymentDueDate ? dayInYm(c.paymentDueDate, viewYm) : null;
     if (payDay != null) {
       const key = `p:${c.cardName}:${c.paymentDueDate}`;
       if (!seenPay.has(key)) {
