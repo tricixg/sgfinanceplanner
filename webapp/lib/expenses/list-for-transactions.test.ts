@@ -40,7 +40,7 @@ describe("expenseToUnified", () => {
     expect(row.balanceAfter).toBe(880);
     expect(row.date).toMatch(/\d{2}\/\d{2}\/\d{4}/);
     expect(row.time).toMatch(/\d{2}:\d{2}/);
-    expect(row.sortAt).toBe("2025-05-15T00:00:00Z");
+    expect(row.sortAt).toBe("2025-05-15T00:00:00");
   });
 
   it("maps debt auto payment", () => {

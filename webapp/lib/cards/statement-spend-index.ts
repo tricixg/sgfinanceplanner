@@ -7,6 +7,23 @@ export type CardSpendIndex = {
   dailySpendInRange(from: string, to: string): DailySpendMap;
 };
 
+type SpendRow = {
+  spent_at: unknown;
+  created_at?: unknown;
+};
+
+function isYmd(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export function resolveSpendDay(row: SpendRow): string | null {
+  const spentAt = String(row.spent_at ?? "").slice(0, 10);
+  if (isYmd(spentAt)) return spentAt;
+  const createdAt = String(row.created_at ?? "").slice(0, 10);
+  if (isYmd(createdAt)) return createdAt;
+  return null;
+}
+
 function indexFromByDay(byDay: DailySpendMap): CardSpendIndex {
   return {
     sumInRange(cycleStart, cycleEnd) {
@@ -44,7 +61,7 @@ export async function buildCardSpendIndexMap(
 
   const { data: expenses, error: expErr } = await supabase
     .from("expenses")
-    .select("amount, spent_at, financial_account_id")
+    .select("amount, spent_at, created_at, financial_account_id")
     .eq("user_id", userId)
     .in("financial_account_id", financialAccountIds)
     .gte("spent_at", from)
@@ -54,7 +71,13 @@ export async function buildCardSpendIndexMap(
 
   for (const row of expenses ?? []) {
     const accountId = String(row.financial_account_id ?? "");
-    const day = String(row.spent_at).slice(0, 10);
+    const day = resolveSpendDay(row);
+    if (!day) {
+      console.info("[statement-spend-index] skip expense row without date", {
+        accountId,
+      });
+      continue;
+    }
     const bucket = byAccountDay.get(accountId);
     if (!bucket) continue;
     bucket[day] = (bucket[day] ?? 0) + Number(row.amount ?? 0);
@@ -62,7 +85,7 @@ export async function buildCardSpendIndexMap(
 
   const { data: budgetRows, error: budErr } = await supabase
     .from("budget_transactions")
-    .select("amount, spent_at, financial_account_id")
+    .select("amount, spent_at, created_at, financial_account_id")
     .eq("user_id", userId)
     .in("financial_account_id", financialAccountIds)
     .is("expense_id", null)
@@ -74,7 +97,13 @@ export async function buildCardSpendIndexMap(
 
   for (const row of budgetRows ?? []) {
     const accountId = String(row.financial_account_id ?? "");
-    const day = String(row.spent_at).slice(0, 10);
+    const day = resolveSpendDay(row);
+    if (!day) {
+      console.info("[statement-spend-index] skip budget row without date", {
+        accountId,
+      });
+      continue;
+    }
     const bucket = byAccountDay.get(accountId);
     if (!bucket) continue;
     bucket[day] = (bucket[day] ?? 0) + Number(row.amount ?? 0);

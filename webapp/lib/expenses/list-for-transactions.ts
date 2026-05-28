@@ -34,7 +34,15 @@ export function expenseMatchesTransactionType(
 
 export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransaction {
   const typeLabel = expense.autoCategory ?? "expense";
-  const when = expense.createdAt || `${expense.spentAt}T00:00:00Z`;
+  const spentAt = String(expense.spentAt ?? "").slice(0, 10);
+  // Prefer user-entered spent date over created timestamp for transaction history display/sorting.
+  const when = spentAt ? `${spentAt}T00:00:00` : expense.createdAt;
+  console.info("[transactions] expense timestamp resolved", {
+    expenseId: expense.id,
+    spentAt,
+    createdAt: expense.createdAt,
+    using: spentAt ? "spentAt" : "createdAt",
+  });
   return {
     id: expense.id,
     recordType: "expense",

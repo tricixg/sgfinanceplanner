@@ -174,8 +174,8 @@ export function TabDebt({ state: S, setState }: Props) {
         />
         <RecurringScheduleFields
           inline
-          deductionDay={S.loans[l.index]?.deductionDay}
-          defaultFinancialAccountId={S.loans[l.index]?.defaultFinancialAccountId}
+          deductionDay={loans[l.index]?.deductionDay}
+          defaultFinancialAccountId={loans[l.index]?.defaultFinancialAccountId}
           onDeductionDayChange={(day) => patchLoan(l.index, { deductionDay: day })}
           onAccountChange={(id) => patchLoan(l.index, { defaultFinancialAccountId: id })}
         />
