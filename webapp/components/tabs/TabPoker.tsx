@@ -273,8 +273,8 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
 
     if (sessionType === "cash_game") {
       const out = cashOut === "" ? 0 : parseFloat(cashOut);
-      if (!Number.isFinite(out) || out < 0) return;
-      if (!gameId) return;
+      if (!Number.isFinite(out) || out < 0) return null;
+      if (!gameId) return null;
       body.cashOut = out;
       body.gameId = gameId;
     } else {
@@ -289,7 +289,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       }
       if (tournamentResult === "placed") {
         const won = parseFloat(amountWon);
-        if (!Number.isFinite(won) || won < 0) return;
+        if (!Number.isFinite(won) || won < 0) return null;
         body.amountWon = won;
         if (tournamentPlace !== "") {
           const place = parseInt(tournamentPlace, 10);
