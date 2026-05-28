@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CreditCard, DashboardState } from "@/lib/types";
 import type { OtherLoan, OtherLoanType } from "@/lib/other-loans/types";
 import { creditCardLabel, ensureCreditCardIds } from "@/lib/finance/card-linking";
