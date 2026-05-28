@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { applyTransaction } from "@/lib/savings/ledger";
 import type { Expense } from "@/lib/savings/types";
+import { sgtSpentAtToIso } from "@/lib/time/sgt";
 
 export function expenseLedgerNote(expense: Expense): string {
   if (expense.note.trim()) return expense.note.trim();
@@ -14,9 +15,11 @@ export function expenseBudgetTransactionType(
   return expense.autoCategory === "subscription" ? "subscription" : "expense";
 }
 
-function expenseOccurredAt(spentAt: string): string {
-  // Keep date-only expenses deterministic for balance ordering.
-  return `${spentAt}T00:00:00.000Z`;
+function expenseOccurredAt(expense: Expense): string {
+  if (expense.spentTime) {
+    return sgtSpentAtToIso(expense.spentAt, expense.spentTime);
+  }
+  return sgtSpentAtToIso(expense.spentAt, "00:00:00");
 }
 
 export async function createExpenseLedger(
@@ -36,7 +39,7 @@ export async function createExpenseLedger(
   }
 
   const note = expenseLedgerNote(expense);
-  const occurredAt = opts.occurredAt ?? expenseOccurredAt(expense.spentAt);
+  const occurredAt = opts.occurredAt ?? expenseOccurredAt(expense);
   const spentTime = occurredAt.slice(11, 19);
 
   if (account.accountType === "cash" && account.savingsAccountId) {

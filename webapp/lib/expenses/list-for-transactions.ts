@@ -4,6 +4,7 @@ import {
   formatTransactionDate,
   formatTransactionTime,
 } from "@/lib/savings/format-transaction-when";
+import { sgtSpentAtToIso } from "@/lib/time/sgt";
 import type { Expense } from "@/lib/savings/types";
 import type { BudgetTransactionType, UnifiedTransaction } from "@/lib/transactions/types";
 
@@ -36,11 +37,10 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
   const typeLabel = expense.autoCategory ?? "expense";
   const spentAt = String(expense.spentAt ?? "").slice(0, 10);
   const spentTime = expense.spentTime ?? "";
-  const normalizedTime =
-    spentTime.length === 5 ? `${spentTime}:00` : spentTime || "00:00:00";
   // Prefer user-entered spent date over created timestamp for transaction history display/sorting.
-  // Wall-clock date/time is entered in SGT; anchor with +08:00 so display is not browser-local.
-  const when = spentAt ? `${spentAt}T${normalizedTime}+08:00` : expense.createdAt;
+  const when = spentAt
+    ? sgtSpentAtToIso(spentAt, spentTime || "00:00:00")
+    : expense.createdAt;
   const displayDate = spentAt ? formatTransactionDate(when) : formatTransactionDate(when);
   console.info("[transactions] expense timestamp resolved", {
     expenseId: expense.id,

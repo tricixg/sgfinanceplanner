@@ -12,10 +12,10 @@ import {
   listExpensesForTransactions,
 } from "@/lib/expenses/list-for-transactions";
 import type { ListUnifiedOpts, UnifiedTransaction } from "@/lib/transactions/types";
+import { sgtSpentAtToIso } from "@/lib/time/sgt";
 
 function budgetSortAt(tx: BudgetTransaction): string {
-  const time = tx.spentTime ?? "00:00:00";
-  return `${tx.spentAt}T${time.length === 5 ? `${time}:00` : time}`;
+  return sgtSpentAtToIso(tx.spentAt, tx.spentTime ?? "00:00:00");
 }
 
 function signedBudgetAmount(tx: BudgetTransaction): number {
@@ -59,13 +59,12 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
 
 export function budgetToUnified(tx: BudgetTransaction): UnifiedTransaction {
   const sortAt = budgetSortAt(tx);
-  const when = `${tx.spentAt}T12:00:00`;
   return {
     id: tx.id,
     recordType: "budget",
     sortAt,
-    date: formatTransactionDate(when),
-    time: tx.spentTime?.slice(0, 5) ?? "",
+    date: formatTransactionDate(sortAt),
+    time: formatTransactionTime(sortAt),
     typeLabel: tx.transactionType,
     amount: signedBudgetAmount(tx),
     accountName: tx.accountName,

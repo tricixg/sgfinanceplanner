@@ -18,7 +18,7 @@ import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api";
-import { sgtTodayYmd } from "@/lib/time/sgt";
+import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -135,12 +135,8 @@ export async function POST(req: NextRequest) {
   const parsedSpentAt = toYmdOrNull(body.spentAt);
   const spentAt = parsedSpentAt ?? sgtTodayYmd();
   const parsedSpentTime = toTimeOrNull(body.spentTime);
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  const ss = String(now.getSeconds()).padStart(2, "0");
-  const spentTime = parsedSpentTime ?? `${hh}:${mm}:${ss}`;
-  const occurredAt = `${spentAt}T${spentTime}.000Z`;
+  const spentTime = parsedSpentTime ?? sgtNowTimeHms();
+  const occurredAt = sgtSpentAtToIso(spentAt, spentTime);
 
   const supabase = await createAuthedSupabaseClient();
 

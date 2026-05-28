@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
         .from("budget_transactions")
         .select("id, amount, spent_at, category, note, transaction_type")
         .eq("user_id", user.id)
+        .is("expense_id", null)
         .gte("spent_at", from)
         .lte("spent_at", to)
         .in("transaction_type", ["expense", "subscription", "income"])
@@ -117,6 +118,8 @@ export async function GET(req: NextRequest) {
   console.info("[api/expenses/summary] GET", {
     userId: user.id,
     ym,
+    expenseCount: expenses.length,
+    importCount: imports.length,
     categories: summary.categories.length,
     zeroAllocated: summary.zeroAllocated.length,
     computed: summary.computedCategories.map((c) => ({
