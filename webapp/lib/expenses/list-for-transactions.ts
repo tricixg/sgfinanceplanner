@@ -39,7 +39,8 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
   const normalizedTime =
     spentTime.length === 5 ? `${spentTime}:00` : spentTime || "00:00:00";
   // Prefer user-entered spent date over created timestamp for transaction history display/sorting.
-  const when = spentAt ? `${spentAt}T${normalizedTime}` : expense.createdAt;
+  // Wall-clock date/time is entered in SGT; anchor with +08:00 so display is not browser-local.
+  const when = spentAt ? `${spentAt}T${normalizedTime}+08:00` : expense.createdAt;
   const displayDate = spentAt ? formatTransactionDate(when) : formatTransactionDate(when);
   console.info("[transactions] expense timestamp resolved", {
     expenseId: expense.id,
