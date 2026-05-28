@@ -263,6 +263,21 @@ export function TabBudgetSavings({
     );
   };
 
+  const computedUsedTotal =
+    (lookupComputedSpend(expenseSummary, "debt")?.spent ?? 0) +
+    (lookupComputedSpend(expenseSummary, "insurance")?.spent ?? 0) +
+    (lookupComputedSpend(expenseSummary, "ilp")?.spent ?? 0) +
+    (lookupComputedSpend(expenseSummary, "subscription")?.spent ?? 0);
+
+  const categoryUsedTotal = allocatedRows.reduce((sum, row) => {
+    const spend = lookupCategorySpend(expenseSummary, row.b);
+    return sum + (spend?.spent ?? 0);
+  }, 0);
+
+  const tableAmountTotal = debt + insurancePrem + ilpPrem + subPrem + savingsPrem + alloc;
+  const tableUsedTotal = computedUsedTotal + categoryUsedTotal;
+  const tableRemainingTotal = tableAmountTotal - tableUsedTotal;
+
   const startBudgetEdit = () => {
     setBudgetDraft(structuredClone(S.budget));
     setEditingAllocation(true);
@@ -583,15 +598,31 @@ export function TabBudgetSavings({
                   </tr>
                 ) : null}
               </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td>
+                    <span className="tag t-live">sum</span>
+                  </td>
+                  <td className="num">{fmt2(tableAmountTotal)}</td>
+                  <td className="num">{fmt2(tableUsedTotal)}</td>
+                  <td className={`num ${tableRemainingTotal < 0 ? "neg" : ""}`}>
+                    {fmt2(tableRemainingTotal)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>{balanceLbl}</td>
+                  <td>
+                    <span className={`tag ${left < -1 ? "t-end" : "t-live"}`}>
+                      {left < -1 ? "over" : "left"}
+                    </span>
+                  </td>
+                  <td className={`num ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</td>
+                  <td className="num">—</td>
+                  <td className="num">—</td>
+                </tr>
+              </tfoot>
             </table>
-            <div className="minirow tot" style={{ marginTop: 12 }}>
-              <span className="k">Your categories</span>
-              <span className="v">{fmt2(alloc)}</span>
-            </div>
-            <div className="minirow" style={{ border: "none" }}>
-              <span className="k">{balanceLbl}</span>
-              <span className={`v ${left < -1 ? "neg" : ""}`}>{fmt2(Math.abs(left))}</span>
-            </div>
           </div>
         </div>
       )}
