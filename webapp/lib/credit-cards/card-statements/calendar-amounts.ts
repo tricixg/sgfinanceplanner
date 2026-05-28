@@ -5,6 +5,7 @@ import { todayYmd } from "@/lib/cards/interest-accrual";
 export type CardStatementAmountEntry = {
   creditCardId: string;
   statementCloseDate: string;
+  paymentDueDate: string;
   actualAmount: number | null;
 };
 
@@ -14,7 +15,7 @@ export async function loadCardStatementAmountEntries(
 ): Promise<CardStatementAmountEntry[]> {
   const { data, error } = await supabase
     .from("card_statements")
-    .select("credit_card_id, statement_close_date, actual_amount")
+    .select("credit_card_id, statement_close_date, payment_due_date, actual_amount")
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
@@ -22,9 +23,24 @@ export async function loadCardStatementAmountEntries(
   return (data ?? []).map((row) => ({
     creditCardId: String(row.credit_card_id),
     statementCloseDate: String(row.statement_close_date).slice(0, 10),
+    paymentDueDate: String(row.payment_due_date).slice(0, 10),
     actualAmount:
       row.actual_amount != null ? Number(row.actual_amount) : null,
   }));
+}
+
+/** Amount saved for a statement whose payment is due on `paymentDueYmd`. */
+export function amountForPaymentDue(
+  entries: CardStatementAmountEntry[],
+  creditCardId: string,
+  paymentDueYmd: string
+): number | null {
+  for (const e of entries) {
+    if (e.creditCardId !== creditCardId) continue;
+    if (e.paymentDueDate !== paymentDueYmd) continue;
+    if (e.actualAmount != null && e.actualAmount > 0) return e.actualAmount;
+  }
+  return null;
 }
 
 /** Latest closed statement actual amounts (for summary stat). */

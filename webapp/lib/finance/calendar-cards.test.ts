@@ -53,16 +53,19 @@ describe("sumStatementBalancesClosedInMonth", () => {
       {
         creditCardId: "a",
         statementCloseDate: "2026-05-05",
+        paymentDueDate: "2026-06-25",
         actualAmount: 1000,
       },
       {
         creditCardId: "b",
         statementCloseDate: "2026-05-10",
+        paymentDueDate: "2026-06-28",
         actualAmount: 500,
       },
       {
         creditCardId: "a",
         statementCloseDate: "2026-04-05",
+        paymentDueDate: "2026-05-25",
         actualAmount: 200,
       },
     ]);
@@ -71,20 +74,27 @@ describe("sumStatementBalancesClosedInMonth", () => {
 });
 
 describe("getCardCalendarEvents", () => {
-  it("shows payment amount only when actualAmount is entered", () => {
-    const events = getCardCalendarEvents("2025-05", [
-      {
-        cardName: "DBS",
-        statementCloseDate: "2025-05-05",
-        paymentDueDate: "2025-05-25",
-        actualAmount: 1200,
-      },
-    ]);
-    expect(events).toContainEqual({
-      day: 5,
-      type: "statement",
-      label: "DBS — statement",
-    });
+  it("shows payment amount from DB payment due date", () => {
+    const events = getCardCalendarEvents(
+      "2025-05",
+      [
+        {
+          cardName: "DBS",
+          statementCloseDate: "2025-04-05",
+          paymentDueDate: "2025-05-25",
+          actualAmount: null,
+        },
+      ],
+      [
+        {
+          creditCardId: "uuid-dbs",
+          statementCloseDate: "2025-04-05",
+          paymentDueDate: "2025-05-25",
+          actualAmount: 1200,
+        },
+      ],
+      [{ id: "uuid-dbs", name: "DBS" }]
+    );
     expect(events).toContainEqual({
       day: 25,
       type: "payment",
@@ -98,13 +108,15 @@ describe("getCardCalendarEvents", () => {
       {
         creditCardId: "a",
         statementCloseDate: "2026-05-05",
+        paymentDueDate: "2026-06-25",
         actualAmount: 800,
       },
     ];
     const cycles = projectCardCalendarCyclesForMonth(
-      { name: "DBS", statementDay: 5, paymentDueDay: 25 },
+      { creditCardId: "a", name: "DBS", statementDay: 5, paymentDueDay: 25 },
       "2026-05",
-      new Map([["2026-05-05", 800]])
+      new Map([["2026-05-05", 800]]),
+      entries
     );
     expect(sumStatementBalancesFromCycles("2026-05", cycles)).toBe(800);
     expect(sumStatementBalancesClosedInMonth("2026-05", entries)).toBe(800);
@@ -114,7 +126,7 @@ describe("getCardCalendarEvents", () => {
     const events = getCardCalendarEvents("2025-05", [
       {
         cardName: "UOB",
-        statementCloseDate: "2025-05-10",
+        statementCloseDate: "2025-04-10",
         paymentDueDate: "2025-05-28",
         actualAmount: null,
       },

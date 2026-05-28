@@ -23,15 +23,18 @@ export function buildCardCyclesForMonth(
   const cycles: CardCalendarCycle[] = [];
 
   for (const card of cards) {
+    const cardEntries = entries.filter((e) => e.creditCardId === card.id);
     cycles.push(
       ...projectCardCalendarCyclesForMonth(
         {
+          creditCardId: card.id,
           name: card.name,
           statementDay: card.statementDay,
           paymentDueDay: card.paymentDueDay,
         },
         viewYm,
-        amountsByCloseForCard(entries, card.id)
+        amountsByCloseForCard(entries, card.id),
+        cardEntries
       )
     );
   }

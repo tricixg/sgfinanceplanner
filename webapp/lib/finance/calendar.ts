@@ -1,3 +1,4 @@
+import type { CardStatementAmountEntry } from "@/lib/credit-cards/card-statements/calendar-amounts";
 import type { DashboardState, RecurringSubscription } from "@/lib/types";
 import {
   getCardCalendarEvents,
@@ -31,11 +32,15 @@ function parseYm(viewYm: string): { year: number; month: number } {
   return { year: y, month: m - 1 };
 }
 
+type CalendarCardRef = { id: string; name: string };
+
 export function getCalendarEvents(
   S: DashboardState,
   viewYm: string,
   subscriptions: RecurringSubscription[] = [],
-  cardCycles: CardCalendarCycle[] | null = null
+  cardCycles: CardCalendarCycle[] | null = null,
+  statementEntries: CardStatementAmountEntry[] = [],
+  calendarCards: CalendarCardRef[] = []
 ): CalendarEvent[] {
   const { year, month } = parseYm(viewYm);
   const events: CalendarEvent[] = [];
@@ -51,7 +56,9 @@ export function getCalendarEvents(
   });
 
   if (cardCycles !== null) {
-    events.push(...getCardCalendarEvents(viewYm, cardCycles));
+    events.push(
+      ...getCardCalendarEvents(viewYm, cardCycles, statementEntries, calendarCards)
+    );
   } else {
     for (const card of S.creditCards) {
       const stmtDay = clampDay(year, month, card.statementDay);

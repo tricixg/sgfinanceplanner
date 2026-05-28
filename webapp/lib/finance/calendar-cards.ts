@@ -1,6 +1,7 @@
 import type { CalendarEvent } from "@/lib/finance/calendar";
 import { roundMoney } from "@/lib/cards/interest-accrual";
 import {
+  amountForPaymentDue,
   resolveAmountForClose,
   type CardStatementAmountEntry,
 } from "@/lib/credit-cards/card-statements/calendar-amounts";
@@ -18,6 +19,7 @@ export type CardCalendarCycle = {
 };
 
 export type CardBillingSchedule = {
+  creditCardId?: string;
   name: string;
   statementDay: number;
   paymentDueDay: number;
@@ -27,10 +29,24 @@ export type CardBillingSchedule = {
  * Project statement close + payment due for `viewYm` from card billing days.
  * Payment due in a month applies to the prior month's statement close.
  */
+function resolvePaymentDueAmount(
+  creditCardId: string,
+  paymentDueYmd: string,
+  priorStatementClose: string,
+  cardEntries: CardStatementAmountEntry[],
+  amountsByCloseDate: Map<string, number | null>
+): number | null {
+  return (
+    amountForPaymentDue(cardEntries, creditCardId, paymentDueYmd) ??
+    resolveAmountForClose(amountsByCloseDate, priorStatementClose)
+  );
+}
+
 export function projectCardCalendarCyclesForMonth(
   card: CardBillingSchedule,
   viewYm: string,
-  amountsByCloseDate: Map<string, number | null> = new Map()
+  amountsByCloseDate: Map<string, number | null> = new Map(),
+  cardEntries: CardStatementAmountEntry[] = []
 ): CardCalendarCycle[] {
   const [y, m] = viewYm.split("-").map(Number);
   const monthIndex = m - 1;
@@ -69,7 +85,15 @@ export function projectCardCalendarCyclesForMonth(
       cardName: card.name,
       statementCloseDate: priorStatementClose,
       paymentDueDate: paymentDueInMonth,
-      actualAmount: resolveAmountForClose(amountsByCloseDate, priorStatementClose),
+      actualAmount: card.creditCardId
+        ? resolvePaymentDueAmount(
+            card.creditCardId,
+            paymentDueInMonth,
+            priorStatementClose,
+            cardEntries,
+            amountsByCloseDate
+          )
+        : resolveAmountForClose(amountsByCloseDate, priorStatementClose),
     });
   }
 
@@ -82,14 +106,27 @@ function dayInYm(ymd: string, viewYm: string): number | null {
   return Number.isFinite(day) ? day : null;
 }
 
+type CardNameLookup = { id: string; name: string };
+
 /** Statement close + payment due events for cycles touching `viewYm`. */
 export function getCardCalendarEvents(
   viewYm: string,
-  cycles: CardCalendarCycle[]
+  cycles: CardCalendarCycle[],
+  entries: CardStatementAmountEntry[] = [],
+  cards: CardNameLookup[] = []
 ): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const seenStmt = new Set<string>();
   const seenPay = new Set<string>();
+  const nameById = new Map(cards.map((c) => [c.id, c.name]));
+  const amountByDueKey = new Map<string, number>();
+  for (const e of entries) {
+    if (!e.paymentDueDate.startsWith(`${viewYm}-`)) continue;
+    if (e.actualAmount == null || e.actualAmount <= 0) continue;
+    const name = nameById.get(e.creditCardId) ?? "";
+    if (!name) continue;
+    amountByDueKey.set(`${name}:${e.paymentDueDate}`, e.actualAmount);
+  }
 
   for (const c of cycles) {
     const stmtDay = dayInYm(c.statementCloseDate, viewYm);
@@ -115,8 +152,10 @@ export function getCardCalendarEvents(
           type: "payment",
           label: `${c.cardName} — payment due`,
         };
-        if (c.actualAmount != null && c.actualAmount > 0) {
-          ev.amount = c.actualAmount;
+        const fromDb = amountByDueKey.get(`${c.cardName}:${c.paymentDueDate}`);
+        const amount = fromDb ?? c.actualAmount;
+        if (amount != null && amount > 0) {
+          ev.amount = amount;
         }
         events.push(ev);
       }

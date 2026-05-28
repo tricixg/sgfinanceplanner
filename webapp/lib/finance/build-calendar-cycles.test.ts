@@ -15,6 +15,7 @@ describe("buildCardCyclesForMonth", () => {
       {
         creditCardId: "uuid-dbs",
         statementCloseDate: "2026-04-05",
+        paymentDueDate: "2026-05-25",
         actualAmount: 500,
       },
     ];

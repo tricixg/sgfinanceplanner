@@ -97,8 +97,16 @@ export function TabThisMonth({ state: S }: Props) {
   }, [calendarCards, viewYm, statementEntries]);
 
   const events = useMemo(
-    () => getCalendarEvents(S, viewYm, subscriptions, cardCycles),
-    [S, viewYm, subscriptions, cardCycles]
+    () =>
+      getCalendarEvents(
+        S,
+        viewYm,
+        subscriptions,
+        cardCycles,
+        statementEntries ?? [],
+        calendarCards
+      ),
+    [S, viewYm, subscriptions, cardCycles, statementEntries, calendarCards]
   );
   const grid = useMemo(
     () => attachEventsToGrid(buildMonthGrid(viewYm), events),
