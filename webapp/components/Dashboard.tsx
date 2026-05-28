@@ -118,7 +118,7 @@ const NAV_GROUPS: { category: string; tabs: TabDef[] }[] = [
       {
         id: "transactions",
         label: "Transaction history",
-        summary: "Unified savings ledger and budget CSV imports.",
+        summary: "Unified savings, budget, and expense transaction history.",
       },
       {
         id: "poker",

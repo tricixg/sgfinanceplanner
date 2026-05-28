@@ -103,7 +103,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "transactions",
         label: "Transaction history",
         href: "/transactions",
-        summary: "Unified savings ledger and budget CSV imports.",
+        summary: "Unified savings, budget, and expense transaction history.",
       },
       {
         id: "travel",

@@ -19,6 +19,8 @@ export type ApplyTransactionInput = {
   expenseId?: string | null;
   incomeCategoryId?: string | null;
   excludeFromBudget?: boolean;
+  sourceRecordType?: "expense" | "savings" | "budget" | null;
+  sourceRecordId?: string | null;
 };
 
 export async function applyTransaction(
@@ -156,6 +158,8 @@ export async function applyTransaction(
       expense_id: input.expenseId ?? null,
       income_category_id: input.incomeCategoryId ?? null,
       exclude_from_budget: input.excludeFromBudget ?? false,
+      source_record_type: input.sourceRecordType ?? null,
+      source_record_id: input.sourceRecordId ?? null,
     })
     .select("*")
     .single();

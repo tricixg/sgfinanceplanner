@@ -284,7 +284,7 @@ export function TransactionsHistoryPage() {
           <select value={source} onChange={(e) => setFilters({ source: e.target.value })}>
             <option value="all">All</option>
             <option value="savings">Ledger</option>
-            <option value="budget">Import</option>
+            <option value="budget">Budget</option>
             <option value="expense">Recorded</option>
           </select>
         </label>

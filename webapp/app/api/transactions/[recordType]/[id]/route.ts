@@ -3,18 +3,14 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import {
-  deleteBudgetTransaction,
   getBudgetTransactionById,
   updateBudgetTransaction,
 } from "@/lib/budget/transactions";
 import {
-  deleteSavingsTransaction,
   getSavingsTransactionById,
 } from "@/lib/savings/ledger";
-import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { mapExpense } from "@/lib/savings/db-mappers";
-import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
-import { syncStatementAfterPaymentTransactionDelete } from "@/lib/credit-cards/card-statements/pay";
+import { deleteTransactionWithLedger } from "@/lib/transactions/actions";
 
 type Params = { params: Promise<{ recordType: string; id: string }> };
 
@@ -132,57 +128,21 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
   const supabase = await createAuthedSupabaseClient();
   try {
-    if (recordType === "expense") {
-      const { data: row, error } = await supabase
-        .from("expenses")
-        .select("*")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      const expense = mapExpense(row);
-      const rev = await syncExpenseLedgerBeforeDelete(supabase, user.id, expense);
-      if (!rev.ok) return NextResponse.json({ error: rev.error }, { status: 500 });
-      const { error: delErr } = await supabase
-        .from("expenses")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", user.id);
-      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
-      if (row.auto_category === "debt" && row.loan_id) {
-        const adj = await adjustLoanOutstanding(
-          supabase,
-          user.id,
-          String(row.loan_id),
-          Number(row.amount ?? 0)
-        );
-        if (!adj.ok) {
-          console.error("[transactions-action] expense delete loan restore failed", adj.error);
-        }
-      }
-      return NextResponse.json({ ok: true });
-    }
-
-    if (recordType === "savings") {
-      const existing = await getSavingsTransactionById(supabase, user.id, id);
-      if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      await deleteSavingsTransaction(supabase, user.id, id);
-      await syncStatementAfterPaymentTransactionDelete(supabase, user.id, id, existing.amount);
-      return NextResponse.json({ ok: true });
-    }
-
-    const existing = await getBudgetTransactionById(supabase, user.id, id);
-    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    await deleteBudgetTransaction(supabase, user.id, id);
+    await deleteTransactionWithLedger(supabase, user.id, recordType, id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to delete transaction";
+    const status =
+      msg === "Not found"
+        ? 404
+        : msg === "Insufficient balance" || msg === "Insufficient balance for reversal"
+          ? 400
+          : 500;
     console.error("[transactions-action] DELETE failed", {
       recordType,
       id,
       msg,
     });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status });
   }
 }

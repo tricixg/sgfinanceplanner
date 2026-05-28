@@ -163,6 +163,8 @@ export async function createBudgetTransaction(
     transactionType: BudgetTransactionType;
     importBatchId?: string | null;
     budgetLineId?: string | null;
+    sourceRecordType?: "expense" | "savings" | "budget" | null;
+    sourceRecordId?: string | null;
   }
 ): Promise<BudgetTransaction> {
   const { data, error } = await supabase
@@ -183,6 +185,8 @@ export async function createBudgetTransaction(
       transaction_type: payload.transactionType,
       import_batch_id: payload.importBatchId ?? null,
       budget_line_id: payload.budgetLineId ?? null,
+      source_record_type: payload.sourceRecordType ?? null,
+      source_record_id: payload.sourceRecordId ?? null,
     })
     .select("*, financial_accounts(name)")
     .single();
