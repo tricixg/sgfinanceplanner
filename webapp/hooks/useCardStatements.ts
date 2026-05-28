@@ -61,5 +61,27 @@ export function useCardStatements(enabled: boolean) {
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onRefresh = () => {
+      console.info("[useCardStatements] refresh after expenses-changed");
+      void reload({ silent: true });
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void reload({ silent: true });
+      }
+    };
+
+    window.addEventListener("expenses-changed", onRefresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("expenses-changed", onRefresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [enabled, reload]);
+
   return { bundle, loading, reload };
 }

@@ -66,6 +66,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
       }),
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to add expense");
+    window.dispatchEvent(new Event("expenses-changed"));
     await loadSummary();
   };
 
@@ -76,6 +77,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to delete");
     console.info("[TabExpenses] deleted expense", { id });
+    window.dispatchEvent(new Event("expenses-changed"));
     await loadSummary();
   };
 

@@ -1,16 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DbCreditCard } from "@/lib/credit-cards/mappers";
+import { loadCreditCards } from "@/lib/credit-cards/load";
 import {
   accrueDailyInterest,
   interestStartAfterDue,
   outstandingBalance,
   principalAtDue,
   roundMoney,
-  todayYmd,
 } from "@/lib/cards/interest-accrual";
 import { recomputeInterestForStatement } from "./interest";
 import {
-  addDaysYmd,
   cycleBoundsFromClose,
   openCycleBounds,
   paymentDueDate,
@@ -19,7 +18,10 @@ import {
 import {
   buildCardSpendIndex,
   buildCardSpendIndexMap,
+  type CardSpendIndex,
 } from "@/lib/cards/statement-spend-index";
+import { syncCreditCardFinancialAccountsFromRows } from "@/lib/financial-accounts/sync";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 import type {
   CardStatementComputed,
   CardStatementsBundle,
@@ -32,6 +34,15 @@ import {
 } from "./mappers";
 
 const HISTORY_CYCLES = 12;
+
+function cycleSpendTotal(
+  spendIndex: CardSpendIndex | null | undefined,
+  cycleStart: string,
+  cycleEnd: string
+): number {
+  if (!spendIndex) return 0;
+  return spendIndex.sumInRange(cycleStart, cycleEnd);
+}
 
 function closingUnpaidForCarry(stmt: DbCardStatement): number {
   if (stmt.paidAt) return 0;
@@ -48,7 +59,7 @@ export async function ensureStatementRows(
   userId: string,
   card: DbCreditCard
 ): Promise<DbCardStatement[]> {
-  const today = todayYmd();
+  const today = sgtTodayYmd();
   const closeDates = recentStatementCloseDates(
     card.statementDay,
     HISTORY_CYCLES,
@@ -100,19 +111,36 @@ export async function ensureStatementRows(
       priorCarry =
         today > due && !mapped.paidAt ? closingUnpaidForCarry(mapped) : 0;
     } else {
-      if (row.carriedForwardIn !== priorCarry && !row.paidAt) {
+      const cycleDatesStale =
+        row.cycleStartDate !== cycleStart || row.cycleEndDate !== cycleEnd;
+      const carryStale = row.carriedForwardIn !== priorCarry && !row.paidAt;
+
+      if (cycleDatesStale || carryStale) {
+        const patch: Record<string, unknown> = {
+          updated_at: new Date().toISOString(),
+        };
+        if (cycleDatesStale) {
+          patch.cycle_start_date = cycleStart;
+          patch.cycle_end_date = cycleEnd;
+        }
+        if (carryStale) patch.carried_forward_in = priorCarry;
+
         const { data: updated, error: updErr } = await supabase
           .from("card_statements")
-          .update({
-            carried_forward_in: priorCarry,
-            updated_at: new Date().toISOString(),
-          })
+          .update(patch)
           .eq("id", row.id)
           .select("*")
           .single();
         if (updErr) throw new Error(updErr.message);
         const mapped = mapCardStatement(updated);
         byClose.set(close, mapped);
+        if (cycleDatesStale) {
+          console.info("[card-statements] corrected cycle dates", {
+            statementId: row.id,
+            cycleStart,
+            cycleEnd,
+          });
+        }
         priorCarry =
           today > due && !mapped.paidAt ? closingUnpaidForCarry(mapped) : 0;
       } else {
@@ -149,7 +177,7 @@ function enrichStatement(
     { ...row, interestAccrued: interest, trackedAmount: tracked },
     meta
   );
-  const today = todayYmd();
+  const today = sgtTodayYmd();
   const untracked =
     base.actualAmount != null
       ? roundMoney(base.actualAmount - base.trackedAmount)
@@ -176,11 +204,21 @@ function enrichStatement(
 export async function loadCardStatementsBundle(
   supabase: SupabaseClient,
   userId: string,
-  cards: DbCreditCard[]
+  cardsInput: DbCreditCard[]
 ): Promise<CardStatementsBundle> {
-  const today = todayYmd();
+  const today = sgtTodayYmd();
   const statements: CardStatementComputed[] = [];
   const openCycles: OpenCycleEstimate[] = [];
+
+  let cards = cardsInput;
+  if (cards.some((c) => !c.financialAccountId)) {
+    await syncCreditCardFinancialAccountsFromRows(supabase, userId, cards);
+    cards = await loadCreditCards(supabase, userId);
+    console.info("[card-statements] synced financial accounts for cards", {
+      userId,
+      count: cards.length,
+    });
+  }
 
   const rowsByCard = await Promise.all(
     cards.map((card) => ensureStatementRows(supabase, userId, card))
@@ -219,12 +257,11 @@ export async function loadCardStatementsBundle(
           rows.find((r) => r.statementCloseDate !== openClose) ?? rows[0];
       }
       if (latestClosed) {
-        const tracked = spendIndex
-          ? spendIndex.sumInRange(
-              latestClosed.cycleStartDate,
-              latestClosed.statementCloseDate
-            )
-          : 0;
+        const tracked = cycleSpendTotal(
+          spendIndex,
+          latestClosed.cycleStartDate,
+          latestClosed.cycleEndDate
+        );
         const interest = await recomputeInterestForStatement(
           supabase,
           userId,
@@ -281,8 +318,7 @@ export async function loadCardStatementsBundle(
         }
       }
 
-      const newSpendStart = addDaysYmd(cycleStart, 1);
-      const newSpend = spendIndex ? spendIndex.sumInRange(newSpendStart, cycleEnd) : 0;
+      const newSpend = cycleSpendTotal(spendIndex, cycleStart, cycleEnd);
 
       const daysLeft = Math.max(
         0,
@@ -364,15 +400,14 @@ export async function updateStatementFields(
 
   let tracked = db.trackedAmount ?? 0;
   if (fields.actualAmount != null && card.financialAccountId) {
-    tracked = (
-      await buildCardSpendIndex(
-        supabase,
-        userId,
-        card.financialAccountId,
-        db.cycleStartDate,
-        db.statementCloseDate
-      )
-    ).sumInRange(db.cycleStartDate, db.statementCloseDate);
+    const spendIndex = await buildCardSpendIndex(
+      supabase,
+      userId,
+      card.financialAccountId,
+      db.cycleStartDate,
+      db.cycleEndDate
+    );
+    tracked = cycleSpendTotal(spendIndex, db.cycleStartDate, db.cycleEndDate);
     patch.tracked_amount = tracked;
   }
 

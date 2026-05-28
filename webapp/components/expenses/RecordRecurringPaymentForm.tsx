@@ -79,6 +79,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         amt,
         spentAt,
       });
+      window.dispatchEvent(new Event("expenses-changed"));
       await onSuccess({
         expenseId,
         spentAt,
