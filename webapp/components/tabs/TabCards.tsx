@@ -929,11 +929,21 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
                                   Pay
                                 </button>
                               ) : null}
-                              {stmt.amountPaid > 0 && stmt.paymentSavingsTransactionId ? (
+                              {stmt.amountPaid > 0 ? (
                                 <button
                                   type="button"
                                   className="btn ghost sm"
-                                  disabled={rowSaving || rowUndoing || savingConfig}
+                                  disabled={
+                                    rowSaving ||
+                                    rowUndoing ||
+                                    savingConfig ||
+                                    !stmt.paymentSavingsTransactionId
+                                  }
+                                  title={
+                                    stmt.paymentSavingsTransactionId
+                                      ? "Undo latest statement payment"
+                                      : "Undo unavailable for unlinked/legacy payments"
+                                  }
                                   onClick={() => void undoStatementPayment(stmt)}
                                 >
                                   {rowUndoing ? "Undoing…" : "Undo payment"}
