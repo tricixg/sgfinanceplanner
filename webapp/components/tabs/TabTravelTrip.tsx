@@ -411,7 +411,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
         )}
       </div>
 
-      <div className="card">
+      <div className="card table-scroll">
         <div className="section-head">
           <h3>Budget</h3>
           {editingBudget ? (
@@ -558,8 +558,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       <div className="card">
         <h3>Add expense</h3>
         <form
-          className="editrow"
-          style={{ gridTemplateColumns: "1fr 0.9fr 0.9fr 1.2fr 1fr auto" }}
+          className="editrow travel-expense-form"
           onSubmit={(e) => void addExpense(e)}
         >
           <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)}>

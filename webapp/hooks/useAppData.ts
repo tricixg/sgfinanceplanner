@@ -111,7 +111,7 @@ export function useAppDataProvider(enabled: boolean) {
           fetchJson<{
             items?: DashboardState["portfolioHistory"];
             configured?: boolean;
-          }>("/api/portfolio/snapshots?limit=24", { credentials: "include" }),
+          }>("/api/portfolio/snapshots?limit=30", { credentials: "include" }),
         ]);
 
       setConfigured(profRes.data.configured !== false);
@@ -264,7 +264,7 @@ export function useAppDataProvider(enabled: boolean) {
       body: JSON.stringify({ snapshot: snap }),
     });
     setPortfolioHistory((hist) => {
-      const next = [...hist, snap].slice(-24);
+      const next = [...hist, snap].slice(-30);
       return next;
     });
   }, []);

@@ -1919,6 +1919,10 @@ footer {
   color: var(--muted);
 }
 
+.travel-expense-form {
+  grid-template-columns: 1fr 0.9fr 0.9fr 1.2fr 1fr auto;
+}
+
 @media (max-width: 760px) {
   .travel-create-grid {
     grid-template-columns: 1fr;
@@ -1933,6 +1937,24 @@ footer {
 
   .travel-create-form .btn {
     min-height: 42px;
+    width: 100%;
+  }
+
+  .travel-expense-form {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .travel-expense-form input,
+  .travel-expense-form select,
+  .travel-expense-form .decimal-input,
+  .travel-expense-form .btn {
+    min-height: 42px;
+    font-size: 15px;
+  }
+
+  .travel-expense-form .btn {
     width: 100%;
   }
 }
