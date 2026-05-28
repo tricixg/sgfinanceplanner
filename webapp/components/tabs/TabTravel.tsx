@@ -123,22 +123,34 @@ export function TabTravel({ enabled }: Props) {
         </label>
       </div>
 
-      <form className="card" onSubmit={(e) => void onCreate(e)} style={{ marginBottom: 12 }}>
-        <div className="editrow" style={{ gridTemplateColumns: "1.1fr 1fr 1fr 1fr auto" }}>
-          <input
-            type="text"
-            placeholder="Trip name (e.g. Japan 2026)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Country"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-          />
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+      <form className="card travel-create-form" onSubmit={(e) => void onCreate(e)} style={{ marginBottom: 12 }}>
+        <div className="travel-create-grid">
+          <label className="travel-field">
+            <span>Trip name</span>
+            <input
+              type="text"
+              placeholder="Trip name (e.g. Japan 2026)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label className="travel-field">
+            <span>Country</span>
+            <input
+              type="text"
+              placeholder="Country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+            />
+          </label>
+          <label className="travel-field">
+            <span>Start date</span>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </label>
+          <label className="travel-field">
+            <span>End date</span>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </label>
           <button type="submit" className="btn sm" disabled={saving || openingTrip}>
             {saving ? "Creating…" : "Create trip"}
           </button>
