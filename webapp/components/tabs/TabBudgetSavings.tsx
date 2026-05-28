@@ -169,7 +169,15 @@ export function TabBudgetSavings({
             </option>
           ))}
         </select>
-        <span className="num">{fmt2(b.amt)}</span>
+        <DecimalInput
+          value={b.amt}
+          step={10}
+          min={0}
+          max={Math.round(income) || 1}
+          onChange={(v) => updateBudget(i, { amt: v })}
+          aria-label={`Budget amount for ${b.cat || "category"}`}
+          style={{ width: 110 }}
+        />
         <button type="button" className="btn del sm" onClick={() => removeBudgetLine(i)}>
           del
         </button>

@@ -987,6 +987,12 @@ tr.computed-row td {
   width: 100%;
   min-width: 44rem;
 }
+.cashflow-table-scroll .cashflow-sep-inout {
+  border-left: 2px solid var(--line);
+}
+.cashflow-table-scroll .cashflow-sep-outnet {
+  border-left: 2px solid var(--line);
+}
 .projection-table-scroll table {
   width: 100%;
   min-width: 38rem;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import {
@@ -30,14 +30,27 @@ type Props = {
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
   authEnabled?: boolean;
+  preloadedAdditiveByYm?: Record<string, number> | null;
+  preloadedAdditiveLoading?: boolean;
+  preloadedAdditiveStartYm?: string;
 };
 
-export function TabNow({ state: S, setState, savings, authEnabled = false }: Props) {
+export function TabNow({
+  state: S,
+  setState,
+  savings,
+  authEnabled = false,
+  preloadedAdditiveByYm = null,
+  preloadedAdditiveLoading = false,
+  preloadedAdditiveStartYm = "",
+}: Props) {
   const appData = useContext(AppDataContext);
   const [startYmDraft, setStartYmDraft] = useState(S.cashflowStartYm);
   const [savingStartYm, setSavingStartYm] = useState(false);
   const startYm = S.cashflowStartYm;
   const [additiveByYm, setAdditiveByYm] = useState<Record<string, number>>({});
+  const [subscriptionsMonthly, setSubscriptionsMonthly] = useState(0);
+  const prefetchAppliedForYm = useRef("");
   const { categories, configured, save, loading: catsLoading } = useIncomeCategories(
     authEnabled
   );
@@ -60,12 +73,35 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
   }, [authEnabled, startYm]);
 
   useEffect(() => {
+    if (!preloadedAdditiveByYm) return;
+    if (!preloadedAdditiveStartYm || preloadedAdditiveStartYm !== startYm) return;
+    if (prefetchAppliedForYm.current === startYm) return;
+    prefetchAppliedForYm.current = startYm;
+    setAdditiveByYm(preloadedAdditiveByYm);
+    console.info("[TabNow] additive preloaded", { startYm });
+  }, [preloadedAdditiveByYm, preloadedAdditiveStartYm, startYm]);
+
+  useEffect(() => {
+    if (
+      preloadedAdditiveByYm &&
+      preloadedAdditiveStartYm === startYm &&
+      preloadedAdditiveLoading
+    ) {
+      return;
+    }
     void loadAdditive();
     console.info("[TabNow] additive reload trigger", {
       startYm,
       hasSavingsSnapshot: Boolean(savings),
     });
-  }, [loadAdditive, startYm, savings]);
+  }, [
+    loadAdditive,
+    startYm,
+    savings,
+    preloadedAdditiveByYm,
+    preloadedAdditiveLoading,
+    preloadedAdditiveStartYm,
+  ]);
 
   useEffect(() => {
     const onLedgerRecorded = () => {
@@ -105,7 +141,28 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
     }
   }, [categories, editingCats]);
 
-  const rows = buildMonths(S, startYm, 5, savings, additiveByYm);
+  const loadSubscriptions = useCallback(async () => {
+    if (!authEnabled) return;
+    const { res, data } = await fetchJson<{
+      items?: Array<{ amount?: number }>;
+      subscriptions?: Array<{ amount?: number }>;
+    }>("/api/recurring-subscriptions", { credentials: "include" });
+    if (res.ok) {
+      const list = data.items ?? data.subscriptions ?? [];
+      const total = list.reduce((s, x) => s + Math.max(0, Number(x.amount ?? 0)), 0);
+      setSubscriptionsMonthly(total);
+      console.info("[TabNow] subscriptions monthly loaded", {
+        total,
+        count: list.length,
+      });
+    }
+  }, [authEnabled]);
+
+  useEffect(() => {
+    void loadSubscriptions();
+  }, [loadSubscriptions]);
+
+  const rows = buildMonths(S, startYm, 5, savings, {}, subscriptionsMonthly);
   const newCash = stableTakeHome(S);
   const firstYm = rows[0]?.ym ?? startYm;
   const lastYm = rows[rows.length - 1]?.ym ?? startYm;
@@ -120,13 +177,6 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
           label: "Baseline (salary/comms)",
           data: rows.map((r) => r.incomeBaseline),
           backgroundColor: "#2f5d3a",
-          stack: "inflows",
-          order: 2,
-        },
-        {
-          label: "Extra deposits",
-          data: rows.map((r) => r.incomeAdditive),
-          backgroundColor: "#4a7c59",
           stack: "inflows",
           order: 2,
         },
@@ -162,6 +212,13 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
           label: "Insurance premiums",
           data: rows.map((r) => -r.insurance),
           backgroundColor: "#6b7d6a",
+          stack: "outflows",
+          order: 2,
+        },
+        {
+          label: "Subscriptions",
+          data: rows.map((r) => -r.subscriptions),
+          backgroundColor: "#5a4678",
           stack: "outflows",
           order: 2,
         },
@@ -300,10 +357,11 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
         <ChartBox type="bar" data={chartData} options={chartOpts} />
         <div className="legend">
           <span><i className="dot" style={{ background: "var(--moss)" }} />Baseline income</span>
-          <span><i className="dot" style={{ background: "#4a7c59" }} />Extra deposits</span>
           <span><i className="dot" style={{ background: "var(--sand)" }} />Fixed obligations</span>
           <span><i className="dot" style={{ background: "var(--gold)" }} />Loan instalments</span>
-          <span><i className="dot" style={{ background: "#7a9eb5" }} />ILP &amp; insurance</span>
+          <span><i className="dot" style={{ background: "#7a9eb5" }} />ILP premiums</span>
+          <span><i className="dot" style={{ background: "#6b7d6a" }} />Insurance premiums</span>
+          <span><i className="dot" style={{ background: "#5a4678" }} />Subscriptions</span>
           <span><i className="dot" style={{ background: "var(--rust)" }} />Net position</span>
         </div>
       </div>
@@ -314,30 +372,30 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
             <tr>
               <th>Month</th>
               <th>Cash in</th>
-              <th>Baseline</th>
-              <th>Extra</th>
-              <th>Fixed</th>
+              <th className="cashflow-sep-inout">Fixed</th>
               <th>Loans</th>
               <th>Spend</th>
-              <th>Net</th>
-              <th>Running cash</th>
+              <th>Insurance</th>
+              <th>ILP</th>
+              <th>Subs</th>
+              <th className="cashflow-sep-outnet">Net</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.ym}>
                 <td>{r.m}</td>
-                <td className="num">{fmt(r.income)}</td>
                 <td className="num">{fmt(r.incomeBaseline)}</td>
-                <td className="num">{r.incomeAdditive > 0 ? fmt(r.incomeAdditive) : "—"}</td>
-                <td className="num">{fmt(r.fixed)}</td>
+                <td className="num cashflow-sep-inout">{fmt(r.fixed)}</td>
                 <td className="num">{fmt(r.loans)}</td>
                 <td className="num">{fmt(r.spend)}</td>
-                <td className={`num ${r.net >= 0 ? "pos" : "neg"}`}>
+                <td className="num">{fmt(r.insurance)}</td>
+                <td className="num">{fmt(r.ilp)}</td>
+                <td className="num">{fmt(r.subscriptions)}</td>
+                <td className={`num cashflow-sep-outnet ${r.net >= 0 ? "pos" : "neg"}`}>
                   {r.net >= 0 ? "+" : ""}
                   {fmt(r.net)}
                 </td>
-                <td className={`num ${r.running >= 0 ? "pos" : "neg"}`}>{fmt(r.running)}</td>
               </tr>
             ))}
           </tbody>

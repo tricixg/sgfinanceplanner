@@ -1,5 +1,6 @@
 export type AppRouteId =
   | "thisMonth"
+  | "thisMonthCashflow"
   | "cashAccounts"
   | "budget"
   | "savings"
@@ -32,6 +33,12 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "This Month",
         href: "/this-month",
         summary: "Monthly calendar, statement totals, and upcoming events.",
+      },
+      {
+        id: "thisMonthCashflow",
+        label: "This Month Cashflow",
+        href: "/this-month-cashflow",
+        summary: "This month in/out with actual credit card statement bills due.",
       },
     ],
   },

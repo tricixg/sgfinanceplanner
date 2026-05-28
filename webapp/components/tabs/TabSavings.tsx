@@ -8,7 +8,7 @@ import type {
   SavingsPool,
   UserSavingsAccount,
 } from "@/lib/savings/types";
-import { goalsFromSavingsGoals, goalsSummary } from "@/lib/finance/goals";
+import { goalsFromSavingsGoals, goalsSummary, monthlySavingNeeded } from "@/lib/finance/goals";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
 import { SavingsLedgerModal } from "@/components/savings/SavingsLedgerModal";
@@ -415,6 +415,25 @@ function GoalsSection({
     setGoals(next);
   };
 
+  const updateTargetDateAndPlan = (i: number, targetDate: string | null) => {
+    const scoped = goals[i];
+    if (!scoped) return;
+    const needed = monthlySavingNeeded({
+      targetAmount: scoped.targetAmount,
+      savedAmount: scoped.savedAmount,
+      targetDate,
+    });
+    update(i, {
+      targetDate,
+      monthlyContribution: needed != null ? needed : 0,
+    });
+    console.info("[TabSavings] goal target date updated", {
+      goalId: scoped.id,
+      targetDate,
+      monthlyContribution: needed != null ? needed : 0,
+    });
+  };
+
   const add = () => {
     setGoals([
       ...allGoals,
@@ -483,11 +502,10 @@ function GoalsSection({
                         type="month"
                         value={g.targetDate?.slice(0, 7) ?? ""}
                         onChange={(e) =>
-                          update(i, {
-                            targetDate: e.target.value
-                              ? `${e.target.value}-01`
-                              : null,
-                          })
+                          updateTargetDateAndPlan(
+                            i,
+                            e.target.value ? `${e.target.value}-01` : null
+                          )
                         }
                       />
                       {g.targetDate ? (
@@ -495,7 +513,7 @@ function GoalsSection({
                           type="button"
                           className="btn ghost sm"
                           style={{ marginLeft: 4 }}
-                          onClick={() => update(i, { targetDate: null })}
+                          onClick={() => updateTargetDateAndPlan(i, null)}
                         >
                           Clear
                         </button>
