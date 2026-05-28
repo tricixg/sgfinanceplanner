@@ -18,6 +18,7 @@ import {
   portfolioTotals,
   portfolioValue,
   ilpProfit,
+  estimatedPremiumsPaid,
   wealthSummary,
 } from "@/lib/finance";
 import { fmt, fmt2, formatSnapshotDate } from "@/lib/finance/helpers";
@@ -550,6 +551,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                   <th>Insurer</th>
                   <th>Plan</th>
                   <th>Premium / mo</th>
+                  <th>Premiums paid to date</th>
                   <th>Account value</th>
                   <th>Start bonus</th>
                   <th>Est. profit vs premiums</th>
@@ -561,11 +563,13 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                 {S.ilpPolicies.map((p, i) => {
                   const lock = lockInStatus(p);
                   const profit = ilpProfit(p);
+                  const premiumsPaid = estimatedPremiumsPaid(p);
                   return (
                     <tr key={i}>
                       <td>{p.insurer || "—"}</td>
                       <td>{p.planName || "—"}</td>
                       <td className="num">{fmt2(p.monthlyPremium)}</td>
+                      <td className="num">{fmt2(premiumsPaid)}</td>
                       <td className="num">{fmt2(p.accountValue)}</td>
                       <td className="num">
                         {p.initialBonus > 0 ? fmt2(p.initialBonus) : "—"}
