@@ -1,5 +1,6 @@
 import type { CreditCard, DashboardState, Loan } from "@/lib/types";
 import type { OtherLoan } from "@/lib/other-loans/types";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 import { currentYm, monIdx } from "./helpers";
 
 export type CardStatementBreakdown = {
@@ -132,7 +133,7 @@ function activeBalanceTransferOnCard(
   otherLoans: OtherLoan[] | undefined,
   cardId: string
 ): boolean {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = sgtTodayYmd();
   return (otherLoans ?? []).some(
     (l) =>
       l.loanType === "balance_transfer" &&

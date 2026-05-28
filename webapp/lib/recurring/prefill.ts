@@ -1,8 +1,10 @@
+import { sgtTodayYmd } from "@/lib/time/sgt";
+
 /** Build YYYY-MM-DD for viewed month from day-of-month, clamped to month length. */
 export function prefillSpentAt(ym: string, deductionDay: number | null | undefined): string {
   const [y, m] = ym.split("-").map(Number);
   if (!deductionDay || deductionDay < 1 || deductionDay > 31) {
-    return new Date().toISOString().slice(0, 10);
+    return sgtTodayYmd();
   }
   const last = new Date(y, m, 0).getDate();
   const day = Math.min(deductionDay, last);

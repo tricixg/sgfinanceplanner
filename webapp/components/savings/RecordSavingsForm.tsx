@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { sgtNowInputDateTime } from "@/lib/time/sgt";
 
 export type RecordTransactionKind = "deposit" | "withdrawal";
 
@@ -26,7 +27,7 @@ export function RecordSavingsForm({
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<RecordTransactionKind>("deposit");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
+  const [date, setDate] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +35,7 @@ export function RecordSavingsForm({
   const resetFields = () => {
     setAmount("");
     setNote("");
-    setDate(new Date().toISOString().slice(0, 16));
+    setDate(sgtNowInputDateTime());
     setKind("deposit");
     setError("");
   };

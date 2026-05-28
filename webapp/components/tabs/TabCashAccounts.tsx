@@ -15,6 +15,7 @@ import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
+import { sgtNowInputDateTime } from "@/lib/time/sgt";
 
 type CloudAccountsApi = {
   accounts: UserSavingsAccount[];
@@ -58,7 +59,7 @@ export function TabCashAccounts({
   const [transferFromId, setTransferFromId] = useState("");
   const [transferToId, setTransferToId] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 16));
+  const [transferDate, setTransferDate] = useState(() => sgtNowInputDateTime());
   const [transferNote, setTransferNote] = useState("");
   const [transferring, setTransferring] = useState(false);
   const [txRefresh, setTxRefresh] = useState(0);

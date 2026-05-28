@@ -6,6 +6,7 @@ import { TransactionList } from "@/components/savings/TransactionList";
 import { fmt2 } from "@/lib/finance/helpers";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { sgtNowInputDateTime } from "@/lib/time/sgt";
 
 export type LedgerKind = "deposit" | "withdrawal" | "adjustment";
 
@@ -72,7 +73,7 @@ export function SavingsLedgerModal({
   const [adjustmentMode, setAdjustmentMode] = useState<AdjustmentMode>("set_balance");
   const [goalId, setGoalId] = useState("");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 16));
+  const [date, setDate] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
   const [incomeCategoryId, setIncomeCategoryId] = useState("");
   const [busy, setBusy] = useState(false);

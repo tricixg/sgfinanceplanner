@@ -1,4 +1,5 @@
 import type { PokerSessionType, TournamentResult } from "@/lib/poker/types";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 export type PokerSessionBody = {
   sessionType?: PokerSessionType;
@@ -108,7 +109,7 @@ export function parsePokerSessionBody(
   const playedAt =
     typeof body.playedAt === "string" && body.playedAt.length >= 10
       ? body.playedAt.slice(0, 10)
-      : new Date().toISOString().slice(0, 10);
+      : sgtTodayYmd();
 
   let hours: number | null = null;
   if (body.hours != null) {

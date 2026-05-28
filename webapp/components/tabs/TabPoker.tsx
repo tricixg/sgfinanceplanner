@@ -8,6 +8,7 @@ import type { PokerGame, PokerSession, PokerSessionType, TournamentResult } from
 import { formatGameStakes, pokerProfit, sessionGameLabel } from "@/lib/poker/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 function monthBounds(): { from: string; to: string } {
   const d = new Date();
@@ -51,7 +52,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [location, setLocation] = useState("");
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
-  const [playedAt, setPlayedAt] = useState(new Date().toISOString().slice(0, 10));
+  const [playedAt, setPlayedAt] = useState(sgtTodayYmd());
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [gameId, setGameId] = useState("");
 
@@ -133,7 +134,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     setLocation("");
     setHours("");
     setNote("");
-    setPlayedAt(new Date().toISOString().slice(0, 10));
+    setPlayedAt(sgtTodayYmd());
     setFinancialAccountId("");
     setGameId("");
     setTournamentName("");

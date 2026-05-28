@@ -52,7 +52,7 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
 
 export function budgetToUnified(tx: BudgetTransaction): UnifiedTransaction {
   const sortAt = budgetSortAt(tx);
-  const when = `${tx.spentAt}T${tx.spentTime?.slice(0, 8) ?? "00:00:00"}`;
+  const when = `${tx.spentAt}T12:00:00`;
   return {
     id: tx.id,
     recordType: "budget",

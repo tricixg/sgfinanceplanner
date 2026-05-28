@@ -6,6 +6,7 @@ import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { sgtTodayYmd, sgtYmdDaysAgo } from "@/lib/time/sgt";
 
 const PAGE_SIZE = 50;
 
@@ -29,34 +30,31 @@ function readTypeFromSearchParams(searchParams: URLSearchParams): string {
   return searchParams.get("transactionType")?.trim() ?? "";
 }
 
-function isoTodayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+function isoTodaySgt(): string {
+  return sgtTodayYmd();
 }
 
-function isoDaysAgoUtc(days: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
+function isoDaysAgoSgt(days: number): string {
+  return sgtYmdDaysAgo(days);
 }
 
-function isoMonthStartUtc(): string {
-  const d = new Date();
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return `${d.getUTCFullYear()}-${month}-01`;
+function isoMonthStartSgt(): string {
+  const today = sgtTodayYmd();
+  return `${today.slice(0, 7)}-01`;
 }
 
 function periodToRange(period: Exclude<PeriodPreset, "" | "custom">): {
   dateFrom: string;
   dateTo: string;
 } {
-  const today = isoTodayUtc();
+  const today = isoTodaySgt();
   if (period === "this_month") {
-    return { dateFrom: isoMonthStartUtc(), dateTo: today };
+    return { dateFrom: isoMonthStartSgt(), dateTo: today };
   }
   if (period === "last_30") {
-    return { dateFrom: isoDaysAgoUtc(29), dateTo: today };
+    return { dateFrom: isoDaysAgoSgt(29), dateTo: today };
   }
-  return { dateFrom: isoDaysAgoUtc(89), dateTo: today };
+  return { dateFrom: isoDaysAgoSgt(89), dateTo: today };
 }
 
 function detectPeriod(dateFrom: string, dateTo: string): PeriodPreset {
@@ -217,7 +215,7 @@ export function TransactionsHistoryPage() {
     if (nextPeriod === "custom") {
       console.info("[TransactionsHistoryPage] custom date range");
       if (!dateFrom && !dateTo) {
-        const today = isoTodayUtc();
+        const today = isoTodaySgt();
         setFilters({ dateFrom: today, dateTo: today });
       }
       return;

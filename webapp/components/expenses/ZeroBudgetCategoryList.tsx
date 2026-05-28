@@ -6,6 +6,7 @@ import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -28,7 +29,7 @@ export function ZeroBudgetCategoryItem({
 }: Props) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [spentAt, setSpentAt] = useState(new Date().toISOString().slice(0, 10));
+  const [spentAt, setSpentAt] = useState(sgtTodayYmd());
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [saving, setSaving] = useState(false);
 

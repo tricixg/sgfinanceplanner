@@ -18,6 +18,7 @@ import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
   }
 
   const parsedSpentAt = toYmdOrNull(body.spentAt);
-  const spentAt = parsedSpentAt ?? new Date().toISOString().slice(0, 10);
+  const spentAt = parsedSpentAt ?? sgtTodayYmd();
 
   const supabase = await createAuthedSupabaseClient();
 

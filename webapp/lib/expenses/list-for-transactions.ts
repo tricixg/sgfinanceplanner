@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import {
   formatTransactionDate,
-  formatTransactionTime,
 } from "@/lib/savings/format-transaction-when";
 import type { Expense } from "@/lib/savings/types";
 import type { BudgetTransactionType, UnifiedTransaction } from "@/lib/transactions/types";
@@ -37,6 +36,7 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
   const spentAt = String(expense.spentAt ?? "").slice(0, 10);
   // Prefer user-entered spent date over created timestamp for transaction history display/sorting.
   const when = spentAt ? `${spentAt}T00:00:00` : expense.createdAt;
+  const displayDate = spentAt ? formatTransactionDate(`${spentAt}T12:00:00`) : formatTransactionDate(when);
   console.info("[transactions] expense timestamp resolved", {
     expenseId: expense.id,
     spentAt,
@@ -47,8 +47,8 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
     id: expense.id,
     recordType: "expense",
     sortAt: when,
-    date: formatTransactionDate(when),
-    time: formatTransactionTime(when),
+    date: displayDate,
+    time: "",
     typeLabel,
     amount: -expense.amount,
     accountName: expense.accountName,
