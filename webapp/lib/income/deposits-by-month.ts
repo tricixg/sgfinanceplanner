@@ -17,7 +17,8 @@ export function addAdditiveRowsToMonths(
     const ym = occurred.slice(0, 7);
     if (!(ym in result)) continue;
     const amt = Number(row.amount ?? 0);
-    result[ym] += Math.abs(amt);
+    if (!Number.isFinite(amt) || amt <= 0) continue;
+    result[ym] += amt;
   }
   return result;
 }

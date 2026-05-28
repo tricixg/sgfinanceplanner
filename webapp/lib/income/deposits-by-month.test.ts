@@ -16,4 +16,14 @@ describe("addAdditiveRowsToMonths", () => {
       "2026-06": 80,
     });
   });
+
+  it("ignores non-positive rows (e.g. negative adjustments)", () => {
+    const result = { "2026-05": 0 };
+    addAdditiveRowsToMonths(result, [
+      { occurred_at: "2026-05-01T00:00:00Z", amount: -30 },
+      { occurred_at: "2026-05-02T00:00:00Z", amount: 0 },
+      { occurred_at: "2026-05-03T00:00:00Z", amount: 45 },
+    ]);
+    expect(result["2026-05"]).toBe(45);
+  });
 });

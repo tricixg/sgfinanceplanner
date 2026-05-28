@@ -12,7 +12,7 @@ import {
   wealthSummary,
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
-import { DecimalInput } from "@/components/DecimalInput";
+import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
 
@@ -54,6 +54,13 @@ export function TabCashAccounts({
   const [cloudDraft, setCloudDraft] = useState<UserSavingsAccount[]>([]);
   const [accountsSaving, setAccountsSaving] = useState(false);
   const [accountsMsg, setAccountsMsg] = useState("");
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferFromId, setTransferFromId] = useState("");
+  const [transferToId, setTransferToId] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 16));
+  const [transferNote, setTransferNote] = useState("");
+  const [transferring, setTransferring] = useState(false);
   const [txRefresh, setTxRefresh] = useState(0);
   const [ledgerAccountId, setLedgerAccountId] = useState<string | null>(null);
   const useCloudAccounts = Boolean(accountsApi);
@@ -83,6 +90,8 @@ export function TabCashAccounts({
       ? (accountsApi.accounts.find((x) => x.id === ledgerAccountId) ?? null)
       : null;
 
+  const transferAccounts = useCloudAccounts ? accountsApi?.accounts ?? [] : [];
+
   useEffect(() => {
     if (editingAccounts && accountsApi) {
       setCloudDraft(accountsApi.accounts);
@@ -111,6 +120,57 @@ export function TabCashAccounts({
       accounts: prev.accounts.filter((_, j) => j !== i),
     }));
     console.log("[TabCashAccounts] removed account", i);
+  };
+
+  const submitTransfer = async () => {
+    if (!accountsApi) return;
+    const amt = parseFloat(transferAmount);
+    if (!transferFromId || !transferToId || transferFromId === transferToId) {
+      setAccountsMsg("Choose different From and To accounts");
+      return;
+    }
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setAccountsMsg("Enter a valid transfer amount");
+      return;
+    }
+
+    const fromName = transferAccounts.find((a) => a.id === transferFromId)?.name ?? "Account";
+    const toName = transferAccounts.find((a) => a.id === transferToId)?.name ?? "Account";
+    const when = new Date(transferDate).toISOString();
+    const noteSuffix = transferNote.trim();
+    setTransferring(true);
+    setAccountsMsg("");
+    try {
+      await accountsApi.recordAccountTransaction(transferFromId, {
+        amount: -amt,
+        kind: "adjustment",
+        occurredAt: when,
+        note: noteSuffix
+          ? `Transfer to ${toName} · ${noteSuffix}`
+          : `Transfer to ${toName}`,
+      });
+      await accountsApi.recordAccountTransaction(transferToId, {
+        amount: amt,
+        kind: "adjustment",
+        occurredAt: when,
+        note: noteSuffix
+          ? `Transfer from ${fromName} · ${noteSuffix}`
+          : `Transfer from ${fromName}`,
+      });
+      setTxRefresh((k) => k + 1);
+      setTransferAmount("");
+      setTransferNote("");
+      setShowTransfer(false);
+      console.info("[TabCashAccounts] transfer recorded", {
+        from: transferFromId,
+        to: transferToId,
+        amount: amt,
+      });
+    } catch (e) {
+      setAccountsMsg(e instanceof Error ? e.message : "Transfer failed");
+    } finally {
+      setTransferring(false);
+    }
   };
 
   return (
@@ -182,50 +242,139 @@ export function TabCashAccounts({
 
       <div className="section-head">
         <h2>Cash accounts</h2>
-        {editingAccounts ? (
-          <button
-            type="button"
-            className="btn sm"
-            disabled={accountsSaving}
-            onClick={() => {
-              if (useCloudAccounts && accountsApi) {
-                void (async () => {
-                  setAccountsSaving(true);
-                  setAccountsMsg("");
-                  try {
-                    await accountsApi.saveAccounts(cloudDraft);
-                    setEditingAccounts(false);
-                    console.log("[TabCashAccounts] cloud accounts saved");
-                  } catch (e) {
-                    setAccountsMsg(
-                      e instanceof Error ? e.message : "Failed to save accounts"
-                    );
-                  } finally {
-                    setAccountsSaving(false);
-                  }
-                })();
-              } else {
-                setEditingAccounts(false);
-                console.log("[TabCashAccounts] accounts edit off");
-              }
-            }}
-          >
-            {accountsSaving ? "Saving…" : "Save"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => {
-              setEditingAccounts(true);
-              console.log("[TabCashAccounts] accounts edit on");
-            }}
-          >
-            Edit
-          </button>
-        )}
+        <div className="toolbar" style={{ marginTop: 0 }}>
+          {useCloudAccounts && !editingAccounts && (accountsApi?.accounts.length ?? 0) >= 2 ? (
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setShowTransfer((v) => !v)}
+            >
+              {showTransfer ? "Cancel transfer" : "Add transfer"}
+            </button>
+          ) : null}
+          {editingAccounts ? (
+            <button
+              type="button"
+              className="btn sm"
+              disabled={accountsSaving}
+              onClick={() => {
+                if (useCloudAccounts && accountsApi) {
+                  void (async () => {
+                    setAccountsSaving(true);
+                    setAccountsMsg("");
+                    try {
+                      await accountsApi.saveAccounts(cloudDraft);
+                      setEditingAccounts(false);
+                      console.log("[TabCashAccounts] cloud accounts saved");
+                    } catch (e) {
+                      setAccountsMsg(
+                        e instanceof Error ? e.message : "Failed to save accounts"
+                      );
+                    } finally {
+                      setAccountsSaving(false);
+                    }
+                  })();
+                } else {
+                  setEditingAccounts(false);
+                  console.log("[TabCashAccounts] accounts edit off");
+                }
+              }}
+            >
+              {accountsSaving ? "Saving…" : "Save"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => {
+                setEditingAccounts(true);
+                console.log("[TabCashAccounts] accounts edit on");
+              }}
+            >
+              Edit
+            </button>
+          )}
+        </div>
       </div>
       {accountsMsg ? <p className="pin-error">{accountsMsg}</p> : null}
+      {useCloudAccounts && showTransfer && !editingAccounts ? (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="section-head" style={{ marginBottom: 8 }}>
+            <h3 style={{ marginTop: 0, marginBottom: 0 }}>Transfer between cash accounts</h3>
+            <span className="note" style={{ fontSize: 11 }}>
+              Records two adjustments (out/in), not cashflow.
+            </span>
+          </div>
+          <div className="toolbar" style={{ flexWrap: "wrap", alignItems: "end" }}>
+            <label className="ctrl">
+              <span className="note">From</span>
+              <select
+                value={transferFromId}
+                onChange={(e) => setTransferFromId(e.target.value)}
+                disabled={transferring}
+              >
+                <option value="">Select</option>
+                {transferAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="ctrl">
+              <span className="note">To</span>
+              <select
+                value={transferToId}
+                onChange={(e) => setTransferToId(e.target.value)}
+                disabled={transferring}
+              >
+                <option value="">Select</option>
+                {transferAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="ctrl">
+              <span className="note">Amount</span>
+              <DecimalTextInput
+                value={transferAmount}
+                onChange={setTransferAmount}
+                placeholder="0.00"
+                disabled={transferring}
+              />
+            </label>
+            <label className="ctrl">
+              <span className="note">When</span>
+              <input
+                type="datetime-local"
+                value={transferDate}
+                onChange={(e) => setTransferDate(e.target.value)}
+                disabled={transferring}
+              />
+            </label>
+            <label className="ctrl" style={{ minWidth: 220 }}>
+              <span className="note">Note (optional)</span>
+              <input
+                type="text"
+                value={transferNote}
+                onChange={(e) => setTransferNote(e.target.value)}
+                placeholder="e.g. Top up spending account"
+                disabled={transferring}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn sm"
+              disabled={transferring}
+              onClick={() => void submitTransfer()}
+            >
+              {transferring ? "Transferring…" : "Transfer"}
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="card">
         {useCloudAccounts && accountsApi ? (
           <>
