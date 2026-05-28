@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CreditCard, DashboardState } from "@/lib/types";
+import type { OtherLoan } from "@/lib/other-loans/types";
 import {
   aggregateOpenCycles,
   openCycleDisplayTotal,
@@ -989,6 +990,13 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
           onClose={() => setPayStatement(null)}
           onPaid={async () => {
             await reloadStatements({ silent: true });
+            const { res, data } = await fetchJson<{ otherLoans?: OtherLoan[] }>(
+              "/api/other-loans",
+              { credentials: "include" }
+            );
+            if (res.ok) {
+              setState((prev) => ({ ...prev, otherLoans: data.otherLoans ?? prev.otherLoans }));
+            }
             snackbar.show("Payment recorded");
           }}
         />

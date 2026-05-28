@@ -28,6 +28,9 @@ export async function recordOtherLoanPayment(
 
   if (error) throw new Error(error.message);
   if (!row) throw new Error("Loan not found");
+  if (String(row.loan_type) === "balance_transfer") {
+    throw new Error("Balance transfer is paid from Credit Cards statement payment");
+  }
 
   const outstanding = Number(row.outstanding ?? 0);
   if (amount > outstanding + 0.01) {

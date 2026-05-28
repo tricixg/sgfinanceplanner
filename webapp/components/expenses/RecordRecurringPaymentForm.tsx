@@ -7,9 +7,17 @@ import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { DecimalTextInput } from "@/components/DecimalInput";
 
+export type RecurringPaymentSuccessPayload = {
+  expenseId: string;
+  spentAt: string;
+  amount: number;
+  financialAccountId: string | null;
+  accountName: string | null;
+};
+
 type Props = {
   row: RecurringRow;
-  onSuccess: () => void | Promise<void>;
+  onSuccess: (payload: RecurringPaymentSuccessPayload) => void | Promise<void>;
   onCancel: () => void;
 };
 
@@ -46,13 +54,24 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
       if (row.kind === "subscription") body.subscriptionId = row.sourceId;
       if (financialAccountId) body.financialAccountId = financialAccountId;
 
-      const { res, data } = await fetchJson<{ error?: string }>("/api/expenses", {
+      const { res, data } = await fetchJson<{ error?: string; item?: { id?: string } }>(
+        "/api/expenses",
+        {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
+        }
+      );
       if (!res.ok) throw new Error(data.error ?? "Failed to record payment");
+      const expenseId = data.item?.id ? String(data.item.id) : "";
+      if (!expenseId) {
+        throw new Error("Payment saved but response is missing expense id");
+      }
+
+      const accountName = financialAccountId
+        ? accounts.find((a) => a.id === financialAccountId)?.name ?? null
+        : null;
 
       console.info("[RecordRecurringPayment] ok", {
         kind: row.kind,
@@ -60,7 +79,13 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         amt,
         spentAt,
       });
-      await onSuccess();
+      await onSuccess({
+        expenseId,
+        spentAt,
+        amount: amt,
+        financialAccountId: financialAccountId || null,
+        accountName,
+      });
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Failed");
       console.error("[RecordRecurringPayment] failed", err);

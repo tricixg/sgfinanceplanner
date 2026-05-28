@@ -10,6 +10,37 @@ export function cardPaymentNote(cardName: string, closeDate: string): string {
   return `Card payment: ${cardName} (${closeDate})`;
 }
 
+type BtRow = {
+  id: string;
+  outstanding: number;
+  amountPaid: number;
+  paidAt: string | null;
+};
+
+async function loadActiveBtRows(
+  supabase: SupabaseClient,
+  userId: string,
+  creditCardId: string
+): Promise<BtRow[]> {
+  const { data, error } = await supabase
+    .from("other_loans")
+    .select("id, outstanding, amount_paid, paid_at")
+    .eq("user_id", userId)
+    .eq("loan_type", "balance_transfer")
+    .eq("source_credit_card_id", creditCardId)
+    .is("paid_at", null)
+    .gt("outstanding", 0)
+    .order("due_date", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    outstanding: Number(r.outstanding ?? 0),
+    amountPaid: Number(r.amount_paid ?? 0),
+    paidAt: r.paid_at ? String(r.paid_at) : null,
+  }));
+}
+
 export async function recordCardStatementPayment(
   supabase: SupabaseClient,
   userId: string,
@@ -42,8 +73,12 @@ export async function recordCardStatementPayment(
     amountPaid: stmt.amountPaid,
   });
 
-  if (amount > outstanding + 0.01) {
-    throw new Error(`Payment exceeds outstanding balance (${outstanding})`);
+  const btRows = await loadActiveBtRows(supabase, userId, card.id);
+  const btOutstanding = btRows.reduce((sum, r) => sum + Math.max(0, r.outstanding), 0);
+  const maxPayable = roundMoney(outstanding);
+
+  if (amount > maxPayable + 0.01) {
+    throw new Error(`Payment exceeds outstanding balance (${maxPayable})`);
   }
 
   const account = await loadFinancialAccount(supabase, userId, financialAccountId);
@@ -60,7 +95,12 @@ export async function recordCardStatementPayment(
     note: cardPaymentNote(card.name, stmt.statementCloseDate),
   });
 
-  const newPaid = roundMoney(stmt.amountPaid + amount);
+  const btWithinStatement = Math.min(btOutstanding, outstanding);
+  const nonBtOutstanding = roundMoney(Math.max(0, outstanding - btWithinStatement));
+  const payToNonBt = Math.min(amount, nonBtOutstanding);
+  const btPayment = roundMoney(Math.min(Math.max(0, amount - payToNonBt), btWithinStatement));
+  const payToStatement = amount;
+  const newPaid = roundMoney(stmt.amountPaid + payToStatement);
   const newOutstanding = outstandingBalance({
     carriedForwardIn: stmt.carriedForwardIn,
     actualAmount: stmt.actualAmount,
@@ -68,6 +108,30 @@ export async function recordCardStatementPayment(
     amountPaid: newPaid,
   });
   const fullyPaid = newOutstanding <= 0;
+
+  let btRemaining = btPayment;
+  if (btRemaining > 0) {
+    for (const bt of btRows) {
+      if (btRemaining <= 0) break;
+      const apply = Math.min(btRemaining, bt.outstanding);
+      if (apply <= 0) continue;
+      const nextOutstanding = roundMoney(Math.max(0, bt.outstanding - apply));
+      const nextPaid = roundMoney(bt.amountPaid + apply);
+      const btPaid = nextOutstanding <= 0;
+      const { error: btErr } = await supabase
+        .from("other_loans")
+        .update({
+          outstanding: nextOutstanding,
+          amount_paid: nextPaid,
+          paid_at: btPaid ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", bt.id)
+        .eq("user_id", userId);
+      if (btErr) throw new Error(btErr.message);
+      btRemaining = roundMoney(btRemaining - apply);
+    }
+  }
 
   const { data: updated, error: updErr } = await supabase
     .from("card_statements")
@@ -88,6 +152,11 @@ export async function recordCardStatementPayment(
   console.info("[card-statements] payment recorded", {
     statementId,
     amount,
+    nonBtOutstanding,
+    btWithinStatement,
+    payToNonBt,
+    payToStatement,
+    btPayment,
     newPaid,
     fullyPaid,
     txId: tx.id,

@@ -201,6 +201,7 @@ export async function loadCardStatementsBundle(
       ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
       : new Map();
 
+
   await Promise.all(
     cards.map(async (card, cardIdx) => {
       const rows = rowsByCard[cardIdx]!;

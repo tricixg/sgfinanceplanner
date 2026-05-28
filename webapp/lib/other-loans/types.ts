@@ -11,6 +11,10 @@ export type OtherLoan = {
   feesPaid: number;
   /** Promo / final due date (YYYY-MM-DD). BT: no card interest before this date. */
   dueDate?: string;
+  /** BT start date (YYYY-MM-DD) used to post one-time finance charge to card spend. */
+  btStartDate?: string;
+  /** One-time manual finance charge applied on BT start date. */
+  financeCharge?: number;
   /** Credit card the BT was applied from (card_key in UI). */
   sourceCreditCardId?: string;
   defaultFinancialAccountId?: string;

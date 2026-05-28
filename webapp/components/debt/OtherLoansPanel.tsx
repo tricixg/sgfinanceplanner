@@ -13,6 +13,7 @@ type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   editing: boolean;
+  saveRequestToken?: number;
   onSaved: (msg: string) => void;
   onError: (msg: string) => void;
 };
@@ -125,6 +126,7 @@ export function OtherLoansPanel({
   state,
   setState,
   editing,
+  saveRequestToken = 0,
   onSaved,
   onError,
 }: Props) {
@@ -190,6 +192,13 @@ export function OtherLoansPanel({
     }
   };
 
+  useEffect(() => {
+    if (!editing || saveRequestToken <= 0) return;
+    void saveOtherLoans();
+    // saveRequestToken is an explicit trigger from parent header button
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveRequestToken, editing]);
+
   const reloadAfterPay = async () => {
     const { res, data } = await fetchJson<{ otherLoans?: OtherLoan[] }>(
       "/api/other-loans",
@@ -207,7 +216,8 @@ export function OtherLoansPanel({
     <>
       {editing ? (
         <div className="card">
-          <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
+          <div className="table-scroll">
+            <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
             <div className="editrow head other-loans">
               <span>Name</span>
               <span>Type</span>
@@ -216,6 +226,8 @@ export function OtherLoansPanel({
               <span>Outstanding</span>
               <span>Interest %</span>
               <span>Due date</span>
+              <span>BT start</span>
+              <span>BT charge</span>
               <span>Tenure (mo)</span>
               <span>Fees paid</span>
               <span>Pay from</span>
@@ -287,18 +299,43 @@ export function OtherLoansPanel({
                       patchLoan(i, { dueDate: e.target.value || undefined })
                     }
                   />
+                  {l.loanType === "balance_transfer" ? (
+                    <input
+                      type="date"
+                      value={l.btStartDate ?? ""}
+                      onChange={(e) =>
+                        patchLoan(i, { btStartDate: e.target.value || undefined })
+                      }
+                    />
+                  ) : (
+                    <span>—</span>
+                  )}
+                  {l.loanType === "balance_transfer" ? (
+                    <DecimalInput
+                      value={l.financeCharge ?? 0}
+                      step={0.01}
+                      disabled={saving}
+                      onChange={(v) => patchLoan(i, { financeCharge: v })}
+                    />
+                  ) : (
+                    <span>—</span>
+                  )}
                   <DecimalInput
                     value={l.tenureMonths ?? 0}
                     step={1}
                     disabled={saving}
                     onChange={(v) => patchLoan(i, { tenureMonths: v || undefined })}
                   />
-                  <DecimalInput
-                    value={l.feesPaid}
-                    step={0.01}
-                    disabled={saving}
-                    onChange={(v) => patchLoan(i, { feesPaid: v })}
-                  />
+                  {l.loanType === "balance_transfer" ? (
+                    <span>—</span>
+                  ) : (
+                    <DecimalInput
+                      value={l.feesPaid}
+                      step={0.01}
+                      disabled={saving}
+                      onChange={(v) => patchLoan(i, { feesPaid: v })}
+                    />
+                  )}
                   <select
                     value={l.defaultFinancialAccountId ?? ""}
                     onChange={(e) =>
@@ -344,20 +381,21 @@ export function OtherLoansPanel({
                 </div>
               ))
             )}
-            <div className="toolbar">
-              <button type="button" className="btn ghost sm" onClick={addLoan} disabled={saving}>
-                + Add other loan
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => void saveOtherLoans()}
-                disabled={saving}
-              >
-                {saving ? "Saving…" : "Save other loans"}
-              </button>
-            </div>
-          </fieldset>
+            </fieldset>
+          </div>
+          <div className="toolbar">
+            <button type="button" className="btn ghost sm" onClick={addLoan} disabled={saving}>
+              + Add other loan
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => void saveOtherLoans()}
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save other loans"}
+            </button>
+          </div>
         </div>
       ) : activeLoans.length === 0 ? (
         <p className="note" style={{ fontStyle: "italic" }}>
@@ -365,13 +403,15 @@ export function OtherLoansPanel({
         </p>
       ) : (
         <div className="card table-scroll">
-          <table>
+          <table className="other-loans-table">
             <thead>
               <tr>
                 <th>Loan</th>
                 <th>Type</th>
                 <th>Source card</th>
                 <th>Due</th>
+                <th>BT start</th>
+                <th>BT charge</th>
                 <th>Tenure</th>
                 <th>Principal</th>
                 <th>Outstanding</th>
@@ -394,18 +434,22 @@ export function OtherLoansPanel({
                       : "—"}
                   </td>
                   <td>{l.dueDate ? fmtDate(l.dueDate) : "—"}</td>
+                  <td>{l.btStartDate ? fmtDate(l.btStartDate) : "—"}</td>
+                  <td className="num">{l.loanType === "balance_transfer" ? fmt2(l.financeCharge ?? 0) : "—"}</td>
                   <td className="num">{l.tenureMonths ? `${l.tenureMonths} mo` : "—"}</td>
                   <td className="num">{fmt2(l.principal)}</td>
                   <td className="num">{fmt2(l.outstanding)}</td>
                   <td className="num">{l.interestRateApr.toFixed(2)}</td>
-                  <td className="num">{fmt2(l.feesPaid)}</td>
+                  <td className="num">
+                    {l.loanType === "balance_transfer" ? "—" : fmt2(l.feesPaid)}
+                  </td>
                   <td>
                     {l.loanType === "personal" && l.excludeFromNetWorth
                       ? "Excluded"
                       : "Included"}
                   </td>
                   <td>
-                    {l.outstanding > 0 && l.id && (
+                    {l.loanType !== "balance_transfer" && l.outstanding > 0 && l.id && (
                       <button type="button" className="btn sm" onClick={() => setPayLoan(l)}>
                         Pay
                       </button>

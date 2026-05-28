@@ -16,6 +16,8 @@ function mapRow(row: Record<string, unknown>, cardKey?: string): OtherLoan {
       row.tenure_months == null ? undefined : Number(row.tenure_months),
     feesPaid: Number(row.fees_paid ?? 0),
     dueDate: row.due_date ? String(row.due_date).slice(0, 10) : undefined,
+    btStartDate: row.bt_start_date ? String(row.bt_start_date).slice(0, 10) : undefined,
+    financeCharge: Number(row.finance_charge ?? 0),
     sourceCreditCardId: cardKey,
     defaultFinancialAccountId: row.default_financial_account_id
       ? String(row.default_financial_account_id)
@@ -54,6 +56,137 @@ async function cardUuidByKey(
     map.set(String(row.card_key), String(row.id));
   }
   return map;
+}
+
+async function financialAccountByCardUuid(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<Map<string, string | null>> {
+  const { data: faRows } = await supabase
+    .from("financial_accounts")
+    .select("id, card_key")
+    .eq("user_id", userId)
+    .eq("account_type", "credit_card");
+  const faByCardKey = new Map<string, string>();
+  for (const row of faRows ?? []) {
+    const key = row.card_key ? String(row.card_key) : "";
+    const id = row.id ? String(row.id) : "";
+    if (!key || !id) continue;
+    faByCardKey.set(key, id);
+  }
+
+  const { data } = await supabase
+    .from("credit_cards")
+    .select("id, card_key, financial_account_id")
+    .eq("user_id", userId);
+  const map = new Map<string, string | null>();
+  for (const row of data ?? []) {
+    const cardId = String(row.id);
+    const direct = row.financial_account_id ? String(row.financial_account_id) : null;
+    const cardKey = row.card_key ? String(row.card_key) : "";
+    const fallback = cardKey ? faByCardKey.get(cardKey) ?? null : null;
+    map.set(cardId, direct ?? fallback);
+  }
+  return map;
+}
+
+async function syncBtFinanceChargeExpense(
+  supabase: SupabaseClient,
+  userId: string,
+  loanId: string,
+  opts: {
+    loanName: string;
+    cardUuid: string | null;
+    payFromFinancialAccountId?: string;
+    btStartDate?: string;
+    financeCharge: number;
+    financeChargeExpenseId?: string | null;
+  },
+  cardToFinancialAccount: Map<string, string | null>
+): Promise<string | null> {
+  const charge = Number(opts.financeCharge ?? 0);
+  const btStartDate = opts.btStartDate ? String(opts.btStartDate).slice(0, 10) : "";
+  const hasValidDate = /^\d{4}-\d{2}-\d{2}$/.test(btStartDate);
+  const financialAccountId =
+    opts.payFromFinancialAccountId ??
+    (opts.cardUuid ? cardToFinancialAccount.get(opts.cardUuid) ?? null : null);
+
+  if (!(charge > 0) || !hasValidDate || !financialAccountId) {
+    console.info("[other-loans] skip BT charge expense sync", {
+      loanId,
+      charge,
+      hasValidDate,
+      hasFinancialAccount: Boolean(financialAccountId),
+      btStartDate: btStartDate || null,
+      cardUuid: opts.cardUuid,
+      payFromFinancialAccountId: opts.payFromFinancialAccountId ?? null,
+    });
+    if (opts.financeChargeExpenseId) {
+      const { error: delErr } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", opts.financeChargeExpenseId)
+        .eq("user_id", userId);
+      if (delErr) throw new Error(delErr.message);
+    }
+    return null;
+  }
+
+  const note = `BT finance charge: ${opts.loanName}`;
+  let targetExpenseId = opts.financeChargeExpenseId ?? null;
+  if (!targetExpenseId) {
+    const { data: existingExpense } = await supabase
+      .from("expenses")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("category", "Balance transfer finance charge")
+      .eq("note", note)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingExpense?.id) {
+      targetExpenseId = String(existingExpense.id);
+    }
+  }
+
+  if (targetExpenseId) {
+    const { error: updErr } = await supabase
+      .from("expenses")
+      .update({
+        amount: charge,
+        category: "Balance transfer finance charge",
+        spent_at: btStartDate,
+        note,
+        financial_account_id: financialAccountId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", targetExpenseId)
+      .eq("user_id", userId);
+    if (updErr) throw new Error(updErr.message);
+    return targetExpenseId;
+  }
+
+  const { data: inserted, error: insErr } = await supabase
+    .from("expenses")
+    .insert({
+      user_id: userId,
+      amount: charge,
+      category: "Balance transfer finance charge",
+      spent_at: btStartDate,
+      note,
+      financial_account_id: financialAccountId,
+    })
+    .select("id")
+    .single();
+  if (insErr) throw new Error(insErr.message);
+  console.info("[other-loans] created BT finance charge expense", {
+    loanId,
+    amount: charge,
+    spentAt: btStartDate,
+    financialAccountId,
+    expenseId: inserted?.id ?? null,
+  });
+  return inserted?.id ? String(inserted.id) : null;
 }
 
 /** Move legacy zero-monthly loans (e.g. balance transfer) into other_loans once. */
@@ -160,10 +293,11 @@ export async function saveOtherLoans(
   incoming: OtherLoan[]
 ): Promise<OtherLoan[]> {
   const keyToUuid = await cardUuidByKey(supabase, userId);
+  const cardToFinancialAccount = await financialAccountByCardUuid(supabase, userId);
 
   const { data: existing } = await supabase
     .from("other_loans")
-    .select("id")
+    .select("id, finance_charge_expense_id")
     .eq("user_id", userId);
 
   const keepIds = new Set<string>();
@@ -186,8 +320,10 @@ export async function saveOtherLoans(
       outstanding: o.outstanding ?? 0,
       interest_rate_apr: o.interestRateApr ?? 0,
       tenure_months: o.tenureMonths ?? null,
-      fees_paid: o.feesPaid ?? 0,
+      fees_paid: o.loanType === "balance_transfer" ? 0 : o.feesPaid ?? 0,
       due_date: o.dueDate ?? null,
+      bt_start_date: o.btStartDate ?? null,
+      finance_charge: o.financeCharge ?? 0,
       source_credit_card_id: sourceCreditCardId,
       default_financial_account_id: o.defaultFinancialAccountId ?? null,
       amount_paid: o.amountPaid ?? 0,
@@ -206,6 +342,46 @@ export async function saveOtherLoans(
     if (match?.id) {
       keepIds.add(match.id);
       await supabase.from("other_loans").update(payload).eq("id", match.id);
+      if (o.loanType === "balance_transfer") {
+        const expenseId = await syncBtFinanceChargeExpense(
+          supabase,
+          userId,
+          match.id,
+          {
+            loanName: o.name ?? "Balance transfer",
+            cardUuid: sourceCreditCardId,
+            payFromFinancialAccountId: o.defaultFinancialAccountId ?? undefined,
+            btStartDate: o.btStartDate,
+            financeCharge: o.financeCharge ?? 0,
+            financeChargeExpenseId: match.finance_charge_expense_id
+              ? String(match.finance_charge_expense_id)
+              : null,
+          },
+          cardToFinancialAccount
+        );
+        await supabase
+          .from("other_loans")
+          .update({
+            finance_charge_expense_id: expenseId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", match.id)
+          .eq("user_id", userId);
+      } else if (match.finance_charge_expense_id) {
+        await supabase
+          .from("expenses")
+          .delete()
+          .eq("id", String(match.finance_charge_expense_id))
+          .eq("user_id", userId);
+        await supabase
+          .from("other_loans")
+          .update({
+            finance_charge_expense_id: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", match.id)
+          .eq("user_id", userId);
+      }
     } else {
       const { data: ins } = await supabase
         .from("other_loans")
@@ -213,11 +389,42 @@ export async function saveOtherLoans(
         .select("id")
         .single();
       if (ins?.id) keepIds.add(String(ins.id));
+      if (ins?.id && o.loanType === "balance_transfer") {
+        const loanId = String(ins.id);
+        const expenseId = await syncBtFinanceChargeExpense(
+          supabase,
+          userId,
+          loanId,
+          {
+            loanName: o.name ?? "Balance transfer",
+            cardUuid: sourceCreditCardId,
+            payFromFinancialAccountId: o.defaultFinancialAccountId ?? undefined,
+            btStartDate: o.btStartDate,
+            financeCharge: o.financeCharge ?? 0,
+          },
+          cardToFinancialAccount
+        );
+        await supabase
+          .from("other_loans")
+          .update({
+            finance_charge_expense_id: expenseId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", loanId)
+          .eq("user_id", userId);
+      }
     }
   }
 
   for (const row of existing ?? []) {
     if (!keepIds.has(row.id)) {
+      if (row.finance_charge_expense_id) {
+        await supabase
+          .from("expenses")
+          .delete()
+          .eq("id", String(row.finance_charge_expense_id))
+          .eq("user_id", userId);
+      }
       await supabase.from("other_loans").delete().eq("id", row.id);
     }
   }

@@ -28,6 +28,8 @@ type Props = {
 export function TabDebt({ state: S, setState }: Props) {
   const appData = useContext(AppDataContext);
   const [editing, setEditing] = useState(false);
+  const [editingOtherLoans, setEditingOtherLoans] = useState(false);
+  const [otherLoansSaveRequest, setOtherLoansSaveRequest] = useState(0);
   const [saving, setSaving] = useState(false);
   const [loansDraft, setLoansDraft] = useState<Loan[]>(S.loans);
   const snackbar = useSnackbar();
@@ -313,12 +315,33 @@ export function TabDebt({ state: S, setState }: Props) {
 
       <div className="section-head">
         <h2>Other loans</h2>
+        {!editingOtherLoans ? (
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => setEditingOtherLoans(true)}
+          >
+            Edit
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => setOtherLoansSaveRequest((n) => n + 1)}
+          >
+            Save
+          </button>
+        )}
       </div>
       <OtherLoansPanel
         state={S}
         setState={setState}
-        editing={editing}
-        onSaved={(msg) => snackbar.show(msg)}
+        editing={editingOtherLoans}
+        saveRequestToken={otherLoansSaveRequest}
+        onSaved={(msg) => {
+          if (msg === "Other loans saved") setEditingOtherLoans(false);
+          snackbar.show(msg);
+        }}
         onError={(msg) => snackbar.show(msg, { error: true })}
       />
 

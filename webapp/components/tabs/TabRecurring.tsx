@@ -1,7 +1,10 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { RecordRecurringPaymentForm } from "@/components/expenses/RecordRecurringPaymentForm";
+import {
+  RecordRecurringPaymentForm,
+  type RecurringPaymentSuccessPayload,
+} from "@/components/expenses/RecordRecurringPaymentForm";
 import { fetchJson } from "@/lib/fetch-json";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
@@ -75,10 +78,30 @@ export function TabRecurring({ enabled, onReload }: Props) {
     await onReload?.();
   };
 
-  const onPaymentSuccess = async () => {
+  const onPaymentSuccess = async (
+    key: string,
+    payload: RecurringPaymentSuccessPayload
+  ) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        rowKey(r) === key
+          ? {
+              ...r,
+              paid: true,
+              payment: {
+                expenseId: payload.expenseId,
+                spentAt: payload.spentAt,
+                amount: payload.amount,
+                financialAccountId: payload.financialAccountId,
+                accountName: payload.accountName,
+              },
+            }
+          : r
+      )
+    );
     setPayRowKey(null);
-    await load();
-    await onReload?.();
+    void load();
+    void onReload?.();
   };
 
   const startEditSubs = () => {
@@ -204,7 +227,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
               <td colSpan={colSpan}>
                 <RecordRecurringPaymentForm
                   row={row}
-                  onSuccess={onPaymentSuccess}
+                  onSuccess={(payload) => onPaymentSuccess(key, payload)}
                   onCancel={() => setPayRowKey(null)}
                 />
               </td>

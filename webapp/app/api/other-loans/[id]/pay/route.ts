@@ -38,6 +38,22 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   try {
     const supabase = await createAuthedSupabaseClient();
+    const { data: loanRow, error: loanErr } = await supabase
+      .from("other_loans")
+      .select("loan_type")
+      .eq("id", id)
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+    if (loanErr) throw new Error(loanErr.message);
+    if (!loanRow) {
+      return NextResponse.json({ error: "Loan not found" }, { status: 404 });
+    }
+    if (loanRow.loan_type === "balance_transfer") {
+      return NextResponse.json(
+        { error: "Balance transfer is paid from Credit Cards statement payment" },
+        { status: 400 }
+      );
+    }
     await recordOtherLoanPayment(
       supabase,
       auth.user.id,

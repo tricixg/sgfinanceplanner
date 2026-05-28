@@ -543,7 +543,58 @@ tfoot td {
   grid-template-columns: 1.2fr 0.85fr 0.75fr 0.75fr 0.9fr 0.55fr 0.85fr auto;
 }
 .editrow.other-loans {
-  grid-template-columns: 1.1fr 0.7fr 0.85fr 0.65fr 0.65fr 0.55fr 0.85fr 0.55fr 0.55fr 0.75fr auto;
+  grid-template-columns:
+    minmax(140px, 1.35fr)
+    minmax(92px, 0.85fr)
+    minmax(140px, 1.05fr)
+    minmax(112px, 0.82fr)
+    minmax(112px, 0.82fr)
+    minmax(96px, 0.72fr)
+    minmax(88px, 0.62fr)
+    minmax(92px, 0.66fr)
+    minmax(88px, 0.62fr)
+    minmax(110px, 0.82fr)
+    minmax(100px, 0.74fr)
+    minmax(86px, 0.62fr)
+    minmax(94px, 0.68fr)
+    auto;
+  gap: 10px;
+}
+.editrow.other-loans input,
+.editrow.other-loans select {
+  min-width: 0;
+}
+.editrow.other-loans > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.editrow.other-loans select {
+  white-space: normal;
+  line-height: 1.25;
+  height: auto;
+  min-height: 34px;
+}
+.editrow.other-loans {
+  min-width: 1520px;
+}
+.other-loans-table {
+  table-layout: fixed;
+  min-width: 1300px;
+}
+.other-loans-table th,
+.other-loans-table td {
+  white-space: nowrap;
+}
+.other-loans-table td:first-child {
+  white-space: normal;
+}
+.other-loans-table th:nth-child(3),
+.other-loans-table td:nth-child(3) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 130px;
 }
 .editrow.holdings {
   grid-template-columns: 1.1fr 0.55fr 0.45fr 0.6fr 0.65fr 0.65fr 0.85fr auto;
@@ -557,6 +608,24 @@ tfoot td {
 @media (max-width: 900px) {
   .holdings-charts {
     grid-template-columns: 1fr;
+  }
+  .editrow.other-loans {
+    grid-template-columns:
+      minmax(130px, 1.3fr)
+      minmax(90px, 0.9fr)
+      minmax(130px, 1fr)
+      minmax(108px, 0.82fr)
+      minmax(108px, 0.82fr)
+      minmax(92px, 0.72fr)
+      minmax(86px, 0.64fr)
+      minmax(90px, 0.68fr)
+      minmax(86px, 0.64fr)
+      minmax(108px, 0.82fr)
+      minmax(96px, 0.72fr)
+      minmax(84px, 0.62fr)
+      minmax(90px, 0.66fr)
+      auto;
+    gap: 8px;
   }
 }
 .holdings-charts .chartbox {
