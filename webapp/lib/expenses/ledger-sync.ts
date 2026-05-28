@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
+import { applyTransaction } from "@/lib/savings/ledger";
 import type { Expense } from "@/lib/savings/types";
 
 export function expenseLedgerNote(expense: Expense): string {
