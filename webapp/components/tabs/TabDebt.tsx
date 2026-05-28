@@ -319,7 +319,10 @@ export function TabDebt({ state: S, setState }: Props) {
           <button
             type="button"
             className="btn ghost sm"
-            onClick={() => setEditingOtherLoans(true)}
+            onClick={() => {
+              setOtherLoansSaveRequest(0);
+              setEditingOtherLoans(true);
+            }}
           >
             Edit
           </button>
@@ -339,7 +342,10 @@ export function TabDebt({ state: S, setState }: Props) {
         editing={editingOtherLoans}
         saveRequestToken={otherLoansSaveRequest}
         onSaved={(msg) => {
-          if (msg === "Other loans saved") setEditingOtherLoans(false);
+          if (msg === "Other loans saved") {
+            setEditingOtherLoans(false);
+            setOtherLoansSaveRequest(0);
+          }
           snackbar.show(msg);
         }}
         onError={(msg) => snackbar.show(msg, { error: true })}

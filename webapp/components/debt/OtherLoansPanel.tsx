@@ -193,11 +193,11 @@ export function OtherLoansPanel({
   };
 
   useEffect(() => {
-    if (!editing || saveRequestToken <= 0) return;
+    // Only react to explicit Save clicks (token bump), not entering edit mode.
+    if (saveRequestToken <= 0) return;
     void saveOtherLoans();
-    // saveRequestToken is an explicit trigger from parent header button
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saveRequestToken, editing]);
+  }, [saveRequestToken]);
 
   const reloadAfterPay = async () => {
     const { res, data } = await fetchJson<{ otherLoans?: OtherLoan[] }>(
@@ -240,7 +240,7 @@ export function OtherLoansPanel({
               </p>
             ) : (
               loans.map((l, i) => (
-                <div className="editrow other-loans" key={i}>
+                <div className="editrow other-loans" key={l.id ?? `draft-${i}`}>
                   <input
                     type="text"
                     value={l.name}
