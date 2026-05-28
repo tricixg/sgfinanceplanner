@@ -76,7 +76,21 @@ export async function createTrip(
     .select("*")
     .single();
   if (error) throw new Error(error.message);
-  return mapTrip(data);
+  const trip = mapTrip(data);
+
+  const defaults = ["Flights/Transport", "Accomodation", "Attractions"];
+  const { error: budgetErr } = await supabase.from("travel_trip_budgets").insert(
+    defaults.map((subCategory, i) => ({
+      user_id: userId,
+      trip_id: trip.id,
+      sub_category: subCategory,
+      budget_amount: 0,
+      sort_order: i,
+    }))
+  );
+  if (budgetErr) throw new Error(budgetErr.message);
+
+  return trip;
 }
 
 export async function loadTrip(
@@ -221,8 +235,6 @@ export async function listTripExpenses(
     .select("*")
     .eq("user_id", userId)
     .eq("category", TRAVEL_CATEGORY)
-    .gte("spent_at", trip.startDate)
-    .lte("spent_at", trip.endDate)
     .order("spent_at", { ascending: false })
     .order("id", { ascending: false });
   if (error) throw new Error(error.message);

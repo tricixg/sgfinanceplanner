@@ -53,6 +53,22 @@ describe("buildTravelTripSummaries", () => {
         createdAt: "2026-03-11T00:00:00Z",
       },
       {
+        id: "e3",
+        userId: "u1",
+        amount: 300,
+        category: "Travel",
+        budgetLineId: null,
+        autoCategory: null,
+        loanId: null,
+        insurancePolicyId: null,
+        ilpPolicyId: null,
+        subscriptionId: null,
+        financialAccountId: null,
+        spentAt: "2026-02-01",
+        note: "Japan Spring - Accoms",
+        createdAt: "2026-02-01T00:00:00Z",
+      },
+      {
         id: "e2",
         userId: "u1",
         amount: 100,
@@ -72,6 +88,6 @@ describe("buildTravelTripSummaries", () => {
 
     const out = buildTravelTripSummaries(trips, budgets, expenses);
     expect(out[0]?.budgeted).toBe(2000);
-    expect(out[0]?.spent).toBe(900);
+    expect(out[0]?.spent).toBe(1200);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
@@ -13,6 +14,7 @@ function currentYear(): number {
 }
 
 export function TabTravel({ enabled }: Props) {
+  const router = useRouter();
   const [year, setYear] = useState(currentYear());
   const [items, setItems] = useState<TravelTripSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,6 +26,7 @@ export function TabTravel({ enabled }: Props) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [msg, setMsg] = useState("");
+  const [openingTrip, setOpeningTrip] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -53,6 +56,7 @@ export function TabTravel({ enabled }: Props) {
       return;
     }
     setSaving(true);
+    setOpeningTrip(false);
     setMsg("");
     const { res, data } = await fetchJson<{ item?: { id: string }; error?: string }>(
       "/api/travel/trips",
@@ -73,7 +77,8 @@ export function TabTravel({ enabled }: Props) {
       setMsg(data.error ?? "Failed to create trip");
       return;
     }
-    window.location.href = `/travel/${data.item.id}`;
+    setOpeningTrip(true);
+    router.push(`/travel/${data.item.id}`);
   };
 
   const net = useMemo(() => totals.budgeted - totals.spent, [totals]);
@@ -82,6 +87,18 @@ export function TabTravel({ enabled }: Props) {
     return (
       <section className="panel on">
         <p className="note">Sign in to manage travel trips and budgets.</p>
+      </section>
+    );
+  }
+
+  if (openingTrip) {
+    return (
+      <section className="panel on">
+        <div className="card" style={{ textAlign: "center", padding: "28px 20px" }}>
+          <p className="loading" style={{ padding: 0, margin: 0 }}>
+            Opening trip...
+          </p>
+        </div>
       </section>
     );
   }
@@ -122,7 +139,7 @@ export function TabTravel({ enabled }: Props) {
           />
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          <button type="submit" className="btn sm" disabled={saving}>
+          <button type="submit" className="btn sm" disabled={saving || openingTrip}>
             {saving ? "Creating…" : "Create trip"}
           </button>
         </div>

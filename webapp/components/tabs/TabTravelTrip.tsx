@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 import type { TravelExpenseRow, TravelTrip, TravelTripBudget } from "@/lib/travel/types";
 
 type Props = { tripId: string; enabled: boolean };
@@ -17,21 +19,24 @@ type BudgetDraft = {
 };
 
 export function TabTravelTrip({ tripId, enabled }: Props) {
+  const router = useRouter();
   const [trip, setTrip] = useState<TravelTrip | null>(null);
   const [budgets, setBudgets] = useState<TravelTripBudget[]>([]);
   const [expenses, setExpenses] = useState<TravelExpenseRow[]>([]);
   const [draft, setDraft] = useState<BudgetDraft[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingBudget, setSavingBudget] = useState(false);
+  const [editingBudget, setEditingBudget] = useState(false);
   const [msg, setMsg] = useState("");
 
   const { accounts } = useFinancialAccounts();
   const [subCategory, setSubCategory] = useState("");
   const [amount, setAmount] = useState("");
-  const [spentAt, setSpentAt] = useState("");
+  const [spentAt, setSpentAt] = useState(() => sgtTodayYmd());
   const [note, setNote] = useState("");
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [savingExpense, setSavingExpense] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -100,6 +105,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     setBudgets(next);
     setDraft(next.map((b) => ({ id: b.id, subCategory: b.subCategory, budgetAmount: b.budgetAmount })));
     if (!subCategory && next.length > 0) setSubCategory(next[0]!.subCategory);
+    setEditingBudget(false);
   };
 
   const addExpense = async (e: React.FormEvent) => {
@@ -144,6 +150,41 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     return out;
   }, [expenses]);
 
+  const totals = useMemo(() => {
+    const rows = editingBudget ? draft : budgets;
+    let budgetTotal = 0;
+    let spentTotal = 0;
+    for (const row of rows) {
+      const budgetAmount = Number(row.budgetAmount ?? 0);
+      const spent = Number(spentBySub.get(row.subCategory) ?? 0);
+      budgetTotal += budgetAmount;
+      spentTotal += spent;
+    }
+    return {
+      budget: budgetTotal,
+      spent: spentTotal,
+      remaining: budgetTotal - spentTotal,
+    };
+  }, [editingBudget, draft, budgets, spentBySub]);
+
+  const onDeleteTrip = async () => {
+    if (!trip) return;
+    const ok = window.confirm(`Delete trip "${trip.name}"? This will remove its budgets.`);
+    if (!ok) return;
+    setDeleting(true);
+    setMsg("");
+    const { res, data } = await fetchJson<{ error?: string }>(`/api/travel/trips/${tripId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      setDeleting(false);
+      setMsg(data.error ?? "Failed to delete trip");
+      return;
+    }
+    router.push("/travel");
+  };
+
   if (!enabled) {
     return (
       <section className="panel on">
@@ -156,9 +197,19 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     <section className="panel on">
       <div className="section-head">
         <h2>{trip ? `${trip.name} (${trip.country})` : "Trip"}</h2>
-        <Link href="/travel" className="btn ghost sm">
-          Back to Travel
-        </Link>
+        <div className="toolbar" style={{ marginTop: 0 }}>
+          <Link href="/travel" className="btn ghost sm">
+            Back to Travel
+          </Link>
+          <button
+            type="button"
+            className="btn del sm"
+            onClick={() => void onDeleteTrip()}
+            disabled={deleting}
+          >
+            {deleting ? "Deleting…" : "Delete travel"}
+          </button>
+        </div>
       </div>
 
       {loading ? <p className="note">Loading…</p> : null}
@@ -166,56 +217,154 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       <div className="card">
         <div className="section-head">
           <h3>Budget</h3>
-          <button type="button" className="btn sm" disabled={savingBudget} onClick={() => void saveBudgets()}>
-            {savingBudget ? "Saving…" : "Save budget"}
-          </button>
+          {editingBudget ? (
+            <div className="toolbar" style={{ marginTop: 0 }}>
+              <button
+                type="button"
+                className="btn ghost sm"
+                disabled={savingBudget}
+                onClick={() => {
+                  setDraft(
+                    budgets.map((b) => ({
+                      id: b.id,
+                      subCategory: b.subCategory,
+                      budgetAmount: b.budgetAmount,
+                    }))
+                  );
+                  setEditingBudget(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={savingBudget}
+                onClick={() => void saveBudgets()}
+              >
+                {savingBudget ? "Saving…" : "Save"}
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn ghost sm" onClick={() => setEditingBudget(true)}>
+              Edit
+            </button>
+          )}
         </div>
-        {draft.length === 0 ? <p className="note">No budget categories yet.</p> : null}
-        {draft.map((row, i) => (
-          <div className="editrow" key={`${row.id ?? "new"}-${i}`} style={{ gridTemplateColumns: "1.4fr 0.9fr auto" }}>
-            <input
-              type="text"
-              value={row.subCategory}
-              onChange={(e) =>
-                setDraft((prev) =>
-                  prev.map((r, idx) => (idx === i ? { ...r, subCategory: e.target.value } : r))
-                )
-              }
-              placeholder="Subcategory"
-            />
-            <DecimalTextInput
-              value={String(row.budgetAmount)}
-              onChange={(v) =>
-                setDraft((prev) =>
-                  prev.map((r, idx) =>
-                    idx === i ? { ...r, budgetAmount: Number(parseFloat(v) || 0) } : r
-                  )
-                )
-              }
-            />
+        <table>
+          <thead>
+            <tr>
+              <th>Subcategory</th>
+              <th className="num">Budget</th>
+              <th className="num">Spent</th>
+              <th className="num">Remaining</th>
+              {editingBudget ? <th style={{ width: 72 }}>Action</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {(editingBudget ? draft : budgets).length === 0 ? (
+              <tr>
+                <td colSpan={editingBudget ? 5 : 4} className="note">
+                  Add budget categories first.
+                </td>
+              </tr>
+            ) : (
+              (editingBudget ? draft : budgets).map((row, i) => {
+                const sub = row.subCategory;
+                const budgetAmount = row.budgetAmount;
+                const spent = spentBySub.get(sub) ?? 0;
+                const remaining = budgetAmount - spent;
+                const key = row.id ?? `draft-${i}`;
+                return (
+                  <tr key={key}>
+                    <td>
+                      {editingBudget ? (
+                        <input
+                          type="text"
+                          value={sub}
+                          onChange={(e) =>
+                            setDraft((prev) =>
+                              prev.map((r, idx) =>
+                                idx === i ? { ...r, subCategory: e.target.value } : r
+                              )
+                            )
+                          }
+                          placeholder="Subcategory"
+                        />
+                      ) : (
+                        sub
+                      )}
+                    </td>
+                    <td className="num">
+                      {editingBudget ? (
+                        <DecimalTextInput
+                          value={String(budgetAmount)}
+                          onChange={(v) =>
+                            setDraft((prev) =>
+                              prev.map((r, idx) =>
+                                idx === i
+                                  ? { ...r, budgetAmount: Number(parseFloat(v) || 0) }
+                                  : r
+                              )
+                            )
+                          }
+                        />
+                      ) : (
+                        fmt2(budgetAmount)
+                      )}
+                    </td>
+                    <td className="num">{fmt2(spent)}</td>
+                    <td className={`num ${remaining < 0 ? "neg" : ""}`}>{fmt2(remaining)}</td>
+                    {editingBudget ? (
+                      <td>
+                        <button
+                          type="button"
+                          className="btn del sm"
+                          onClick={() =>
+                            setDraft((prev) => prev.filter((_, idx) => idx !== i))
+                          }
+                        >
+                          del
+                        </button>
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total</th>
+              <th className="num">{fmt2(totals.budget)}</th>
+              <th className="num">{fmt2(totals.spent)}</th>
+              <th className={`num ${totals.remaining < 0 ? "neg" : ""}`}>
+                {fmt2(totals.remaining)}
+              </th>
+              {editingBudget ? <th /> : null}
+            </tr>
+          </tfoot>
+        </table>
+        {editingBudget ? (
+          <div className="toolbar" style={{ marginTop: 10 }}>
             <button
               type="button"
-              className="btn del sm"
-              onClick={() => setDraft((prev) => prev.filter((_, idx) => idx !== i))}
+              className="btn ghost sm"
+              onClick={() => setDraft((prev) => [...prev, { subCategory: "", budgetAmount: 0 }])}
             >
-              del
+              + Add category
             </button>
           </div>
-        ))}
-        <div className="toolbar">
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => setDraft((prev) => [...prev, { subCategory: "", budgetAmount: 0 }])}
-          >
-            + Add category
-          </button>
-        </div>
+        ) : null}
       </div>
 
       <div className="card">
         <h3>Add expense</h3>
-        <form className="editrow" style={{ gridTemplateColumns: "1fr 0.9fr 0.9fr 1.2fr 1fr auto" }} onSubmit={(e) => void addExpense(e)}>
+        <form
+          className="editrow"
+          style={{ gridTemplateColumns: "1fr 0.9fr 0.9fr 1.2fr 1fr auto" }}
+          onSubmit={(e) => void addExpense(e)}
+        >
           <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)}>
             <option value="">Subcategory…</option>
             {budgets.map((b) => (
@@ -225,7 +374,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
             ))}
           </select>
           <input type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} />
-          <DecimalTextInput value={amount} onChange={setAmount} />
+          <DecimalTextInput value={amount} onChange={setAmount} placeholder="Amount" />
           <input
             type="text"
             placeholder="Optional note"
@@ -251,35 +400,32 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       </div>
 
       <div className="card table-scroll">
+        <h3>Expense history</h3>
         <table>
           <thead>
             <tr>
+              <th>Date</th>
               <th>Subcategory</th>
-              <th className="num">Budget</th>
-              <th className="num">Spent</th>
-              <th className="num">Remaining</th>
+              <th>Note</th>
+              <th className="num">Amount</th>
             </tr>
           </thead>
           <tbody>
-            {budgets.length === 0 ? (
+            {expenses.length === 0 ? (
               <tr>
                 <td colSpan={4} className="note">
-                  Add budget categories first.
+                  No expenses yet.
                 </td>
               </tr>
             ) : (
-              budgets.map((b) => {
-                const spent = spentBySub.get(b.subCategory) ?? 0;
-                const remaining = b.budgetAmount - spent;
-                return (
-                  <tr key={b.id}>
-                    <td>{b.subCategory}</td>
-                    <td className="num">{fmt2(b.budgetAmount)}</td>
-                    <td className="num">{fmt2(spent)}</td>
-                    <td className={`num ${remaining < 0 ? "neg" : ""}`}>{fmt2(remaining)}</td>
-                  </tr>
-                );
-              })
+              expenses.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.spentAt}</td>
+                  <td>{row.subCategory}</td>
+                  <td>{row.note || "—"}</td>
+                  <td className="num">{fmt2(row.amount)}</td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

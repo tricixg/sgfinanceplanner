@@ -7,8 +7,6 @@ export function travelSpentForTrip(trip: TravelTrip, expenses: Expense[]): numbe
     .filter(
       (e) =>
         e.category === TRAVEL_CATEGORY &&
-        e.spentAt >= trip.startDate &&
-        e.spentAt <= trip.endDate &&
         parseTripSubCategoryFromNote(trip.name, e.note) != null
     )
     .reduce((sum, e) => sum + Number(e.amount ?? 0), 0);

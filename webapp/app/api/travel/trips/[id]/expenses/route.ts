@@ -75,5 +75,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     .select("*")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  console.info("[api/travel/trips/[id]/expenses] added", {
+    userId: auth.user.id,
+    tripId: trip.id,
+    expenseId: data.id,
+    spentAt,
+    subCategory,
+    amount,
+  });
   return NextResponse.json({ item: data });
 }
