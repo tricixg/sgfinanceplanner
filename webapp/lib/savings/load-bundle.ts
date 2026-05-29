@@ -4,7 +4,11 @@ import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import type { SavingsBundle, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
 import { mapGoal, mapPool } from "@/lib/savings/db-mappers";
 
-/** Pools + goals only; personal accounts come from loadAccountsBundle. */
+/**
+ * Pools + goals; personal account rows come from loadAccountsBundle.
+ * `accounts` only feeds `totals` via buildSavingsSnapshot — pass `[]` when loading
+ * in parallel with loadAccountsBundle and merge with mergeSavingsSnapshots afterward.
+ */
 export async function loadSavingsBundle(
   supabase: SupabaseClient,
   userId: string,

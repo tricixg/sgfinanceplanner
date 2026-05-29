@@ -18,12 +18,15 @@ export async function GET() {
 
   try {
     const supabase = await createAuthedSupabaseClient();
-    const accountsBundle = await loadAccountsBundle(supabase, user.id);
-    const savingsBundle = await loadSavingsBundle(
-      supabase,
-      user.id,
-      accountsBundle.accounts
-    );
+    const started = Date.now();
+    const [accountsBundle, savingsBundle] = await Promise.all([
+      loadAccountsBundle(supabase, user.id),
+      loadSavingsBundle(supabase, user.id, []),
+    ]);
+    console.info("[api/savings] GET loaded", {
+      userId: user.id,
+      loadMs: Date.now() - started,
+    });
     return NextResponse.json({
       configured: true,
       ...savingsBundle,
@@ -128,12 +131,15 @@ export async function PUT(req: NextRequest) {
     goals: body.goals?.length,
   });
 
-  const accountsBundle = await loadAccountsBundle(supabase, user.id);
-  const savingsBundle = await loadSavingsBundle(
-    supabase,
-    user.id,
-    accountsBundle.accounts
-  );
+  const reloadStarted = Date.now();
+  const [accountsBundle, savingsBundle] = await Promise.all([
+    loadAccountsBundle(supabase, user.id),
+    loadSavingsBundle(supabase, user.id, []),
+  ]);
+  console.info("[api/savings] PUT reloaded", {
+    userId: user.id,
+    loadMs: Date.now() - reloadStarted,
+  });
   return NextResponse.json({
     ...savingsBundle,
     totals: mergeSavingsSnapshots(accountsBundle.totals, savingsBundle),

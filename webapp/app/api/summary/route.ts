@@ -27,18 +27,15 @@ export async function GET() {
     const supabase = await createAuthedSupabaseClient();
     const userId = auth.user.id;
 
-    const [profile, cards, holdings, accountsBundle] = await Promise.all([
-      loadFinanceProfile(supabase, userId),
-      loadCreditCards(supabase, userId),
-      loadHoldings(supabase, userId),
-      loadAccountsBundle(supabase, userId),
-    ]);
-
-    const savingsBundle = await loadSavingsBundle(
-      supabase,
-      userId,
-      accountsBundle.accounts
-    );
+    const started = Date.now();
+    const [profile, cards, holdings, accountsBundle, savingsBundle] =
+      await Promise.all([
+        loadFinanceProfile(supabase, userId),
+        loadCreditCards(supabase, userId),
+        loadHoldings(supabase, userId),
+        loadAccountsBundle(supabase, userId),
+        loadSavingsBundle(supabase, userId, []),
+      ]);
     const savingsTotals = mergeSavingsSnapshots(
       accountsBundle.totals,
       savingsBundle
@@ -55,7 +52,10 @@ export async function GET() {
     const netWorth = netWorthTotal(state, false, savingsTotals);
     const netWorthWithCpf = netWorthTotal(state, true, savingsTotals);
 
-    console.info("[api/summary] GET ok", { userId });
+    console.info("[api/summary] GET ok", {
+      userId,
+      loadMs: Date.now() - started,
+    });
 
     return NextResponse.json({
       configured: true,
