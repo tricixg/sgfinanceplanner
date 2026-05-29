@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { appConfig } from "@/lib/config";
 import "./globals.css";
@@ -17,7 +18,12 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
-        {process.env.NODE_ENV === "production" && <SpeedInsights />}
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
       </body>
     </html>
   );

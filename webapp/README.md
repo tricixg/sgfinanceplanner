@@ -91,7 +91,7 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
 2. Set **Root Directory** to `webapp`.
 3. Add the same environment variables as `.env.example`.
 4. Deploy.
-5. In the Vercel project sidebar, open **Speed Insights** and click **Enable** (included on Hobby). Redeploy if you enable after the first deploy. Web Vitals are collected via `<SpeedInsights />` in [`app/layout.tsx`](app/layout.tsx) (production only).
+5. In the Vercel project sidebar, enable **Web Analytics** and **Speed Insights** (both included on Hobby). Redeploy if you enable after the first deploy. Page views and Web Vitals are collected via `<Analytics />` and `<SpeedInsights />` in [`app/layout.tsx`](app/layout.tsx) (production only).
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USER/sgfinanceplanner&root-directory=webapp)
 
