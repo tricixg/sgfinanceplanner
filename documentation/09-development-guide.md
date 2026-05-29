@@ -40,7 +40,7 @@ Full user-facing steps: [webapp/README.md](../webapp/README.md).
 
 Run SQL files in order in Supabase **SQL Editor**:
 
-`webapp/supabase/migrations/001_*.sql` … `025_*.sql`
+`webapp/supabase/migrations/001_*.sql` … `026_*.sql`
 
 See [05-database-schema.md](./05-database-schema.md) for what each migration adds.
 
@@ -64,6 +64,14 @@ Tests use Vitest ([webapp/vitest.config.ts](../webapp/vitest.config.ts)).
 ---
 
 ## Project conventions
+
+### Client data and cross-page refresh
+
+See [webapp/AGENTS.md](../webapp/AGENTS.md#client-data-and-cross-page-refresh) for the full rules:
+
+- **Session cache (`AppDataContext`):** profile, loans, budget, cards, holdings — load once per sign-in; persist via `save*` on the context.
+- **Per-tab fetch:** expenses, recurring, transactions, travel, poker — month/session scoped; refresh with `useDomainEvent` when related domains change.
+- **After every mutation:** `dispatchDomainEvent(...)` with affected domain(s); subscribe with `useDomainEvent`.
 
 ### API routes
 

@@ -28,8 +28,9 @@ export function AppShell({ children }: Props) {
             aria-controls="sidebar-nav"
             onClick={() => {
               setNavOpen((open) => {
-                console.log("[AppShell] nav toggle", !open);
-                return !open;
+                const next = !open;
+                console.info("[AppShell] nav toggle", { open: next });
+                return next;
               });
             }}
           >
@@ -50,7 +51,12 @@ export function AppShell({ children }: Props) {
         <footer>
           Personal planning tool — not financial advice. Data syncs to Supabase when configured;
           otherwise saves to your browser. Project:{" "}
-          <a href="https://github.com" style={{ color: "var(--moss)" }}>
+          <a
+            href="https://github.com/tricixg/sgfinanceplanner"
+            style={{ color: "var(--moss)" }}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             sgfinanceplanner
           </a>
         </footer>

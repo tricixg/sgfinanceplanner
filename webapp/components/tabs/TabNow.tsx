@@ -298,7 +298,7 @@ export function TabNow({
               const v = e.target.value;
               if (v) {
                 setStartYmDraft(v);
-                console.log("[TabNow] cashflowStartYm draft", v);
+                console.info("[TabNow] cashflowStartYm draft", v);
               }
             }}
           />

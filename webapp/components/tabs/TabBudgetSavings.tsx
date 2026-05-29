@@ -296,7 +296,7 @@ export function TabBudgetSavings({
   const startBudgetEdit = () => {
     setBudgetDraft(structuredClone(S.budget));
     setEditingAllocation(true);
-    console.log("[TabBudgetSavings] allocation edit on");
+    console.info("[TabBudgetSavings] allocation edit on");
   };
 
   const saveBudget = async () => {
@@ -320,7 +320,7 @@ export function TabBudgetSavings({
     setBudgetDraft((prev) =>
       prev.map((b, j) => (j === i ? { ...b, ...patchItem } : b))
     );
-    console.log("[TabBudgetSavings] updated budget draft line", i, patchItem);
+    console.info("[TabBudgetSavings] updated budget draft line", i, patchItem);
   };
 
   const addBudgetLine = () => {
@@ -328,12 +328,12 @@ export function TabBudgetSavings({
       ...prev,
       { cat: "New category", amt: 0, type: "spend" },
     ]);
-    console.log("[TabBudgetSavings] added budget draft line");
+    console.info("[TabBudgetSavings] added budget draft line");
   };
 
   const removeBudgetLine = (i: number) => {
     setBudgetDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabBudgetSavings] removed budget draft line", i);
+    console.info("[TabBudgetSavings] removed budget draft line", i);
   };
 
   const initBudgetTemplate = () => {
@@ -348,7 +348,7 @@ export function TabBudgetSavings({
         }
       })();
     }
-    console.log("[TabBudgetSavings] initialized budget template");
+    console.info("[TabBudgetSavings] initialized budget template");
   };
 
   let verdict = "";

@@ -422,7 +422,12 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
         <footer>
           Personal planning tool — not financial advice. Data syncs to Supabase when configured;
           otherwise saves to your browser. Project:{" "}
-          <a href="https://github.com" style={{ color: "var(--moss)" }}>
+          <a
+            href="https://github.com/tricixg/sgfinanceplanner"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--moss)" }}
+          >
             sgfinanceplanner
           </a>
         </footer>
