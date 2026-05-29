@@ -6,6 +6,6 @@ import { useAppData } from "@/hooks/useAppData";
 
 export function RecurringRoute() {
   const user = useAppSession();
-  const { reload } = useAppData();
-  return <TabRecurring enabled={Boolean(user?.id)} onReload={reload} />;
+  const { reloadLoans } = useAppData();
+  return <TabRecurring enabled={Boolean(user?.id)} onReload={reloadLoans} />;
 }

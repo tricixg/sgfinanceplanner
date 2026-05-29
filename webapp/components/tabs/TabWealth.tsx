@@ -34,6 +34,7 @@ type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
+  snapshotsLoading?: boolean;
 };
 
 function priceStale(lastPriceAt?: string): boolean {
@@ -42,7 +43,7 @@ function priceStale(lastPriceAt?: string): boolean {
   return age > 24 * 60 * 60 * 1000;
 }
 
-export function TabWealth({ state: S, setState, savings }: Props) {
+export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Props) {
   const appData = useContext(AppDataContext);
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
@@ -810,7 +811,10 @@ export function TabWealth({ state: S, setState, savings }: Props) {
               </table>
             </div>
 
-            {(allocationChart || pnlChart || growthChart) && (
+            {(allocationChart ||
+              pnlChart ||
+              growthChart ||
+              (snapshotsLoading && (S.portfolioHistory?.length ?? 0) < 2)) && (
               <div className="holdings-charts">
                 {allocationChart && (
                   <div className="card" style={{ margin: 0 }}>
@@ -833,12 +837,17 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                     <ChartBox type="bar" height={240} data={pnlChart} options={hBarOpts} />
                   </div>
                 )}
-                {growthChart && (
+                {snapshotsLoading && (S.portfolioHistory?.length ?? 0) < 2 ? (
+                  <div className="card holdings-charts-full" style={{ margin: 0 }}>
+                    <div className="section-lbl">Portfolio growth (on refresh)</div>
+                    <p className="note loading">Loading portfolio history…</p>
+                  </div>
+                ) : growthChart ? (
                   <div className="card holdings-charts-full" style={{ margin: 0 }}>
                     <div className="section-lbl">Portfolio growth (on refresh)</div>
                     <ChartBox type="line" tall data={growthChart} options={lineOpts} />
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </>

@@ -64,9 +64,9 @@ export function useAccountsProvider(enabled: boolean) {
       setAccounts(data.accounts ?? next);
       setTotals(data.totals ?? null);
       console.info("[useAccounts] saved", { count: next.length });
-      await load();
+      dispatchDomainEvent(["accounts:changed", "savings:changed"]);
     },
-    [load]
+    []
   );
 
   const recordAccountTransaction = useCallback(
