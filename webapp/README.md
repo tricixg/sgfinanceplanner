@@ -2,7 +2,7 @@
 
 Next.js personal finance planner with Supabase persistence. Clone this repo, add your own Supabase project, and deploy to Vercel.
 
-**Technical documentation:** See [../documentation/README.md](../documentation/README.md) for architecture, API reference, database schema, and data flows.
+**Documentation:** [User guide](../documentation/user-guide/README.md) (features & workflows) · [Technical docs](../documentation/README.md) (architecture, API, database)
 
 ## Prerequisites
 

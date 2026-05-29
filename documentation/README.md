@@ -1,8 +1,18 @@
-# SG Finance Planner — Technical Documentation
+# SG Finance Planner — Documentation
+
+## User guide (non-technical)
+
+For **what the app does**, **each page**, and **step-by-step workflows** (no code):
+
+**[user-guide/README.md](./user-guide/README.md)**
+
+---
+
+## Technical documentation
 
 Technical reference for the **webapp** (`webapp/`): architecture, routes, features, database schema, and data flows. All paths in this doc set are relative to the repository root unless noted.
 
-## Start here
+## Start here (developers)
 
 | If you are… | Read |
 |-------------|------|
