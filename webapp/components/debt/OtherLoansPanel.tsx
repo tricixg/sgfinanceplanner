@@ -7,6 +7,7 @@ import { creditCardLabel, ensureCreditCardIds } from "@/lib/finance/card-linking
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 
 type Props = {
@@ -206,6 +207,7 @@ export function OtherLoansPanel({
     );
     if (res.ok) {
       setState((prev) => ({ ...prev, otherLoans: data.otherLoans ?? [] }));
+      dispatchDomainEvent(["otherLoans:changed", "expense:changed", "cards:changed"]);
     }
     onSaved("Payment recorded");
   };

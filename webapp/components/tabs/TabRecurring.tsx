@@ -14,6 +14,8 @@ import { defaultRecurringSubscription } from "@/lib/finance/budget";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 const KIND_LABEL: Record<RecurringRow["kind"], string> = {
   debt: "Debt",
@@ -65,6 +67,14 @@ export function TabRecurring({ enabled, onReload }: Props) {
     void load();
   }, [load]);
 
+  useDomainEvent(
+    ["expense:changed", "loans:changed", "budget:changed", "recurring:changed"],
+    () => {
+      void load();
+    },
+    [load]
+  );
+
   const rowKey = (r: RecurringRow) => `${r.kind}:${r.sourceId}`;
 
   const deletePayment = async (expenseId: string) => {
@@ -74,6 +84,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to undo payment");
     console.info("[TabRecurring] payment deleted", { expenseId });
+    dispatchDomainEvent(["expense:changed", "recurring:changed", "loans:changed"]);
     await load();
     await onReload?.();
   };
@@ -125,6 +136,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
       setSubscriptions(data.items ?? []);
       setEditingSubs(false);
       console.info("[TabRecurring] subscriptions saved");
+      dispatchDomainEvent("recurring:changed");
       await load();
     } catch (e) {
       console.error("[TabRecurring] save subscriptions failed", e);

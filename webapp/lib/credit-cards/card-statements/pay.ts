@@ -22,6 +22,22 @@ type BtRow = {
   paidAt: string | null;
 };
 
+function mapBtRows(
+  data: Array<{
+    id: string;
+    outstanding: number | null;
+    amount_paid: number | null;
+    paid_at: string | null;
+  }>
+): BtRow[] {
+  return data.map((r) => ({
+    id: String(r.id),
+    outstanding: Number(r.outstanding ?? 0),
+    amountPaid: Number(r.amount_paid ?? 0),
+    paidAt: r.paid_at ? String(r.paid_at) : null,
+  }));
+}
+
 async function loadActiveBtRows(
   supabase: SupabaseClient,
   userId: string,
@@ -38,12 +54,132 @@ async function loadActiveBtRows(
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => ({
-    id: String(r.id),
-    outstanding: Number(r.outstanding ?? 0),
-    amountPaid: Number(r.amount_paid ?? 0),
-    paidAt: r.paid_at ? String(r.paid_at) : null,
-  }));
+  return mapBtRows(data ?? []);
+}
+
+/** All BT loans on a card (for undo reversal, including recently paid-off). */
+async function loadBtRowsForUndo(
+  supabase: SupabaseClient,
+  userId: string,
+  creditCardId: string
+): Promise<BtRow[]> {
+  const { data, error } = await supabase
+    .from("other_loans")
+    .select("id, outstanding, amount_paid, paid_at")
+    .eq("user_id", userId)
+    .eq("loan_type", "balance_transfer")
+    .eq("source_credit_card_id", creditCardId)
+    .order("due_date", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return mapBtRows(data ?? []);
+}
+
+/** Split payment between statement (non-BT) and balance-transfer loans — mirrors recordCardStatementPayment. */
+export function splitCardPaymentAmount(
+  amount: number,
+  statementOutstanding: number,
+  btOutstanding: number
+): { payToNonBt: number; btPayment: number } {
+  const btWithinStatement = Math.min(btOutstanding, statementOutstanding);
+  const nonBtOutstanding = roundMoney(Math.max(0, statementOutstanding - btWithinStatement));
+  const payToNonBt = Math.min(amount, nonBtOutstanding);
+  const btPayment = roundMoney(
+    Math.min(Math.max(0, amount - payToNonBt), btWithinStatement)
+  );
+  return { payToNonBt, btPayment };
+}
+
+/** Infer BT portion of a payment being undone (fixed-point on pre-payment BT outstanding). */
+export function inferBtPaymentForUndo(
+  paymentAmount: number,
+  statementOutstandingBefore: number,
+  btOutstandingNow: number
+): number {
+  let btOutstandingBefore = btOutstandingNow;
+  for (let i = 0; i < 16; i++) {
+    const { btPayment } = splitCardPaymentAmount(
+      paymentAmount,
+      statementOutstandingBefore,
+      btOutstandingBefore
+    );
+    const nextBefore = roundMoney(btOutstandingNow + btPayment);
+    if (Math.abs(nextBefore - btOutstandingBefore) < 0.01) {
+      return btPayment;
+    }
+    btOutstandingBefore = nextBefore;
+  }
+  return splitCardPaymentAmount(
+    paymentAmount,
+    statementOutstandingBefore,
+    btOutstandingNow
+  ).btPayment;
+}
+
+async function applyBtPaymentAllocation(
+  supabase: SupabaseClient,
+  userId: string,
+  btRows: BtRow[],
+  btPayment: number
+): Promise<void> {
+  let btRemaining = btPayment;
+  if (btRemaining <= 0) return;
+
+  for (const bt of btRows) {
+    if (btRemaining <= 0) break;
+    const apply = Math.min(btRemaining, bt.outstanding);
+    if (apply <= 0) continue;
+    const nextOutstanding = roundMoney(Math.max(0, bt.outstanding - apply));
+    const nextPaid = roundMoney(bt.amountPaid + apply);
+    const btPaid = nextOutstanding <= 0;
+    const { error: btErr } = await supabase
+      .from("other_loans")
+      .update({
+        outstanding: nextOutstanding,
+        amount_paid: nextPaid,
+        paid_at: btPaid ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", bt.id)
+      .eq("user_id", userId);
+    if (btErr) throw new Error(btErr.message);
+    btRemaining = roundMoney(btRemaining - apply);
+  }
+}
+
+/** Reverse BT allocation in opposite order of applyBtPaymentAllocation. */
+async function reverseBtPaymentAllocation(
+  supabase: SupabaseClient,
+  userId: string,
+  btRows: BtRow[],
+  btPayment: number
+): Promise<void> {
+  let remaining = btPayment;
+  if (remaining <= 0) return;
+
+  for (const bt of [...btRows].reverse()) {
+    if (remaining <= 0) break;
+    const restore = Math.min(remaining, bt.amountPaid);
+    if (restore <= 0) continue;
+    const nextOutstanding = roundMoney(bt.outstanding + restore);
+    const nextPaid = roundMoney(Math.max(0, bt.amountPaid - restore));
+    const { error: btErr } = await supabase
+      .from("other_loans")
+      .update({
+        outstanding: nextOutstanding,
+        amount_paid: nextPaid,
+        paid_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", bt.id)
+      .eq("user_id", userId);
+    if (btErr) throw new Error(btErr.message);
+    remaining = roundMoney(remaining - restore);
+  }
+
+  if (remaining > 0.01) {
+    console.warn("[card-statements] BT undo left unallocated remainder", { remaining });
+  }
 }
 
 export async function recordCardStatementPayment(
@@ -91,6 +227,22 @@ export async function recordCardStatementPayment(
     throw new Error("Payment must come from a cash account");
   }
 
+  const { data: savingsRow, error: savingsErr } = await supabase
+    .from("user_savings_accounts")
+    .select("balance")
+    .eq("id", account.savingsAccountId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (savingsErr) throw new Error(savingsErr.message);
+  if (!savingsRow) throw new Error("Cash account not found");
+
+  const cashAvailable = roundMoney(Number(savingsRow.balance ?? 0));
+  if (amount > cashAvailable + 0.01) {
+    throw new Error(
+      `Insufficient balance in ${account.name}. Available ${cashAvailable.toFixed(2)}, payment ${roundMoney(amount).toFixed(2)}.`
+    );
+  }
+
   const tx = await applyTransaction(supabase, {
     userId,
     accountId: account.savingsAccountId,
@@ -100,10 +252,7 @@ export async function recordCardStatementPayment(
     note: cardPaymentNote(card.name, stmt.statementCloseDate),
   });
 
-  const btWithinStatement = Math.min(btOutstanding, outstanding);
-  const nonBtOutstanding = roundMoney(Math.max(0, outstanding - btWithinStatement));
-  const payToNonBt = Math.min(amount, nonBtOutstanding);
-  const btPayment = roundMoney(Math.min(Math.max(0, amount - payToNonBt), btWithinStatement));
+  const { payToNonBt, btPayment } = splitCardPaymentAmount(amount, outstanding, btOutstanding);
   const payToStatement = amount;
   const newPaid = roundMoney(stmt.amountPaid + payToStatement);
   const newOutstanding = outstandingBalance({
@@ -114,29 +263,7 @@ export async function recordCardStatementPayment(
   });
   const fullyPaid = newOutstanding <= 0;
 
-  let btRemaining = btPayment;
-  if (btRemaining > 0) {
-    for (const bt of btRows) {
-      if (btRemaining <= 0) break;
-      const apply = Math.min(btRemaining, bt.outstanding);
-      if (apply <= 0) continue;
-      const nextOutstanding = roundMoney(Math.max(0, bt.outstanding - apply));
-      const nextPaid = roundMoney(bt.amountPaid + apply);
-      const btPaid = nextOutstanding <= 0;
-      const { error: btErr } = await supabase
-        .from("other_loans")
-        .update({
-          outstanding: nextOutstanding,
-          amount_paid: nextPaid,
-          paid_at: btPaid ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", bt.id)
-        .eq("user_id", userId);
-      if (btErr) throw new Error(btErr.message);
-      btRemaining = roundMoney(btRemaining - apply);
-    }
-  }
+  await applyBtPaymentAllocation(supabase, userId, btRows, btPayment);
 
   const { data: updated, error: updErr } = await supabase
     .from("card_statements")
@@ -157,8 +284,6 @@ export async function recordCardStatementPayment(
   console.info("[card-statements] payment recorded", {
     statementId,
     amount,
-    nonBtOutstanding,
-    btWithinStatement,
     payToNonBt,
     payToStatement,
     btPayment,
@@ -192,19 +317,6 @@ export async function undoCardStatementPayment(
     throw new Error("No payment to undo");
   }
 
-  const { count: btCount, error: btErr } = await supabase
-    .from("other_loans")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("loan_type", "balance_transfer")
-    .eq("source_credit_card_id", card.id);
-  if (btErr) throw new Error(btErr.message);
-  if ((btCount ?? 0) > 0) {
-    throw new Error(
-      "Undo payment is disabled for cards linked to balance transfer loans"
-    );
-  }
-
   const tx = await getSavingsTransactionById(
     supabase,
     userId,
@@ -220,6 +332,38 @@ export async function undoCardStatementPayment(
   const paymentAmount = roundMoney(Math.abs(tx.amount));
   if (paymentAmount > stmt.amountPaid + 0.01) {
     throw new Error("Undo exceeds statement amount paid");
+  }
+
+  const interestBeforeUndo = await recomputeInterestForStatement(
+    supabase,
+    userId,
+    card,
+    stmt
+  );
+  const paidBefore = roundMoney(stmt.amountPaid - paymentAmount);
+  const outstandingBefore = outstandingBalance({
+    carriedForwardIn: stmt.carriedForwardIn,
+    actualAmount: stmt.actualAmount,
+    interestAccrued: interestBeforeUndo,
+    amountPaid: paidBefore,
+  });
+  const btRowsForUndo = await loadBtRowsForUndo(supabase, userId, card.id);
+  const btOutstandingNow = btRowsForUndo.reduce(
+    (sum, r) => sum + Math.max(0, r.outstanding),
+    0
+  );
+  const btPayment = inferBtPaymentForUndo(
+    paymentAmount,
+    outstandingBefore,
+    btOutstandingNow
+  );
+
+  if (btPayment > 0) {
+    await reverseBtPaymentAllocation(supabase, userId, btRowsForUndo, btPayment);
+    console.info("[card-statements] BT portion reversed on undo", {
+      statementId,
+      btPayment,
+    });
   }
 
   await deleteSavingsTransaction(supabase, userId, tx.id);
@@ -250,6 +394,7 @@ export async function undoCardStatementPayment(
   console.info("[card-statements] payment undone", {
     statementId,
     paymentAmount,
+    btPayment,
     newPaid,
     txId: tx.id,
   });

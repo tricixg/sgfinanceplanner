@@ -72,8 +72,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Payment failed";
+    const status =
+      msg.startsWith("Insufficient balance") ||
+      msg.includes("Payment exceeds outstanding")
+        ? 400
+        : 500;
     console.error("[api/credit-cards/statements] POST pay failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status });
   }
 }
 

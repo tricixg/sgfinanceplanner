@@ -4,6 +4,7 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { AccountsBundle, UserSavingsAccount } from "@/lib/savings/types";
 import { AccountsContext } from "@/contexts/app-data-contexts";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 export function useAccountsProvider(enabled: boolean) {
   const [accounts, setAccounts] = useState<UserSavingsAccount[]>([]);
@@ -93,6 +94,7 @@ export function useAccountsProvider(enabled: boolean) {
         throw new Error(data.error ?? "Transaction failed");
       }
       console.info("[useAccounts] transaction recorded", { accountId, ...payload });
+      dispatchDomainEvent(["accounts:changed", "savings:changed"]);
       await load();
     },
     [load]

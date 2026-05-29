@@ -6,6 +6,7 @@ import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 export type RecurringPaymentSuccessPayload = {
   expenseId: string;
@@ -79,7 +80,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         amt,
         spentAt,
       });
-      window.dispatchEvent(new Event("expenses-changed"));
+      dispatchDomainEvent(["expense:changed", "recurring:changed", "loans:changed"]);
       await onSuccess({
         expenseId,
         spentAt,

@@ -6,6 +6,8 @@ import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fmtSigned2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import type { DomainEventName } from "@/lib/events/domain-events";
 
 type Props = {
   tx: UnifiedTransaction;
@@ -20,6 +22,18 @@ function toDateInput(tx: UnifiedTransaction): string {
 function toTimeInput(tx: UnifiedTransaction): string {
   const t = tx.spentTime ?? tx.occurredAt?.slice(11, 16) ?? "";
   return t.slice(0, 5);
+}
+
+function eventsForTransactionChange(
+  recordType: UnifiedTransaction["recordType"]
+): DomainEventName[] {
+  if (recordType === "savings") {
+    return ["savings:changed", "accounts:changed"];
+  }
+  if (recordType === "expense") {
+    return ["expense:changed", "recurring:changed", "loans:changed"];
+  }
+  return ["expense:changed"];
 }
 
 export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
@@ -72,6 +86,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      dispatchDomainEvent(eventsForTransactionChange(tx.recordType));
       onSaved("Transaction updated");
       onClose();
     } catch (e) {
@@ -98,6 +113,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Reimburse failed");
+      dispatchDomainEvent(eventsForTransactionChange(tx.recordType));
       onSaved("Reimbursement recorded");
       onClose();
     } catch (e) {
@@ -117,6 +133,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
         credentials: "include",
       });
       if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      dispatchDomainEvent(eventsForTransactionChange(tx.recordType));
       onSaved("Transaction deleted");
       onClose();
     } catch (e) {

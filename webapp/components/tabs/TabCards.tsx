@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CreditCard, DashboardState } from "@/lib/types";
 import type { OtherLoan } from "@/lib/other-loans/types";
 import {
@@ -28,10 +28,12 @@ import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { Snackbar } from "@/components/Snackbar";
 import { useAccounts } from "@/hooks/useAccounts";
+import { roundMoney } from "@/lib/cards/interest-accrual";
 import { useCardStatements } from "@/hooks/useCardStatements";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 type CardsApi = {
   cards: CreditCard[];
@@ -72,18 +74,71 @@ function CardPaymentModal({
   onClose: () => void;
   onPaid: () => Promise<void>;
 }) {
-  const { accounts } = useFinancialAccounts();
-  const cashAccounts = accounts.filter((a) => a.accountType === "cash");
-  const defaultPay =
+  const { accounts: financialAccounts } = useFinancialAccounts();
+  const { accounts: savingsAccounts } = useAccounts();
+
+  const cashPayOptions = useMemo(() => {
+    return financialAccounts
+      .filter((a) => a.accountType === "cash" && a.savingsAccountId)
+      .map((fa) => {
+        const savings = savingsAccounts.find((s) => s.id === fa.savingsAccountId);
+        return {
+          financialAccountId: fa.id,
+          name: fa.name,
+          balance: savings?.balance ?? 0,
+        };
+      });
+  }, [financialAccounts, savingsAccounts]);
+
+  const statementDue =
     statement.minimumDue != null && statement.minimumDue > 0
       ? statement.minimumDue
       : statement.outstandingBalance;
-  const [amount, setAmount] = useState(String(defaultPay));
-  const [financialAccountId, setFinancialAccountId] = useState(
-    cashAccounts[0]?.id ?? ""
+
+  const pickDefaultAccount = useCallback(
+    (options: typeof cashPayOptions, due: number) => {
+      const withFunds = options.filter((o) => o.balance >= due - 0.01);
+      if (withFunds.length > 0) return withFunds[0]!.financialAccountId;
+      const anyBalance = options.filter((o) => o.balance > 0);
+      if (anyBalance.length > 0) return anyBalance[0]!.financialAccountId;
+      return options[0]?.financialAccountId ?? "";
+    },
+    []
   );
+
+  const [financialAccountId, setFinancialAccountId] = useState(() =>
+    pickDefaultAccount(cashPayOptions, statementDue)
+  );
+  const [amount, setAmount] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+
+  const selectedCash = cashPayOptions.find((o) => o.financialAccountId === financialAccountId);
+  const cashAvailable = selectedCash?.balance ?? 0;
+  const maxPay = Math.min(
+    statement.outstandingBalance,
+    Math.max(0, cashAvailable)
+  );
+
+  useEffect(() => {
+    if (!cashPayOptions.length) {
+      setFinancialAccountId("");
+      setAmount("0");
+      return;
+    }
+    const accountId = pickDefaultAccount(cashPayOptions, statementDue);
+    setFinancialAccountId(accountId);
+    const acct = cashPayOptions.find((o) => o.financialAccountId === accountId);
+    const pay = Math.min(statementDue, acct?.balance ?? 0, statement.outstandingBalance);
+    setAmount(String(roundMoney(Math.max(0, pay))));
+    console.info("[TabCards] payment modal defaults", {
+      accountId,
+      pay,
+      cashAvailable: acct?.balance,
+      statementDue,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset defaults when modal opens or cash accounts load
+  }, [statement.id, cashPayOptions.map((o) => `${o.financialAccountId}:${o.balance}`).join("|")]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +149,16 @@ function CardPaymentModal({
     }
     if (!financialAccountId) {
       setMsg("Select a cash account");
+      return;
+    }
+    if (amt > cashAvailable + 0.01) {
+      setMsg(
+        `Insufficient balance in ${selectedCash?.name ?? "account"}. Available ${fmt2(cashAvailable)}.`
+      );
+      return;
+    }
+    if (amt > statement.outstandingBalance + 0.01) {
+      setMsg(`Payment cannot exceed statement outstanding (${fmt2(statement.outstandingBalance)}).`);
       return;
     }
     setSaving(true);
@@ -110,6 +175,13 @@ function CardPaymentModal({
       );
       if (!res.ok) throw new Error(data.error ?? "Payment failed");
       console.info("[TabCards] payment ok", { statementId: statement.id, amt });
+      dispatchDomainEvent([
+        "expense:changed",
+        "cards:changed",
+        "accounts:changed",
+        "savings:changed",
+        "otherLoans:changed",
+      ]);
       await onPaid();
       onClose();
     } catch (err) {
@@ -145,16 +217,28 @@ function CardPaymentModal({
               value={financialAccountId}
               onChange={(e) => setFinancialAccountId(e.target.value)}
               required
-              disabled={saving}
+              disabled={saving || cashPayOptions.length === 0}
             >
               <option value="">— Select —</option>
-              {cashAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
+              {cashPayOptions.map((o) => (
+                <option key={o.financialAccountId} value={o.financialAccountId}>
+                  {o.name} · {fmt2(o.balance)} available
                 </option>
               ))}
             </select>
           </label>
+          {selectedCash ? (
+            <p className="note" style={{ marginTop: 0 }}>
+              Available {fmt2(cashAvailable)}
+              {maxPay < statementDue
+                ? ` — max payment from this account: ${fmt2(maxPay)}`
+                : null}
+            </p>
+          ) : cashPayOptions.length === 0 ? (
+            <p className="note" style={{ color: "var(--rust)" }}>
+              No cash accounts with a linked savings balance. Add one under Cash accounts.
+            </p>
+          ) : null}
           </fieldset>
           {msg && <p className="note" style={{ color: "var(--rust)" }}>{msg}</p>}
           <div className="toolbar">
@@ -402,6 +486,13 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
       );
       if (!res.ok) throw new Error(data.error ?? "Failed to undo payment");
       console.info("[TabCards] undo payment ok", { statementId: stmt.id });
+      dispatchDomainEvent([
+        "expense:changed",
+        "cards:changed",
+        "accounts:changed",
+        "savings:changed",
+        "otherLoans:changed",
+      ]);
       await reloadStatements({ silent: true });
       await refreshBalancesAfterLedgerChange();
       snackbar.show("Payment undone");

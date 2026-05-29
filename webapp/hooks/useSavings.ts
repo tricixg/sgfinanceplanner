@@ -4,6 +4,8 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { SavingsBundle, SavingsGoal, SavingsPool } from "@/lib/savings/types";
 import { SavingsContext } from "@/contexts/app-data-contexts";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 const emptyTotals: SavingsBundle["totals"] = {
   personalSavingsCash: 0,
@@ -90,6 +92,10 @@ export function useSavingsProvider(enabled: boolean) {
     load();
   }, [load]);
 
+  useDomainEvent("savings:changed", () => {
+    void load({ silent: true });
+  }, [load]);
+
   const savePools = useCallback(
     async (pools: SavingsPool[]) => {
       const { res, data } = await fetchJson<SavingsBundle & { error?: string }>(
@@ -123,6 +129,7 @@ export function useSavingsProvider(enabled: boolean) {
     setBundle(bundleFromResponse(data));
     setHasLoaded(true);
     console.info("[useSavings] goals saved");
+    dispatchDomainEvent("savings:changed");
   }, []);
 
   const recordGoalDeposit = useCallback(
@@ -146,6 +153,7 @@ export function useSavingsProvider(enabled: boolean) {
       );
       if (!res.ok) throw new Error(data.error ?? "Deposit failed");
       console.info("[useSavings] goal deposit", { goalId, ...payload });
+      dispatchDomainEvent(["savings:changed", "accounts:changed"]);
       await load({ silent: true });
     },
     [load]
@@ -173,6 +181,7 @@ export function useSavingsProvider(enabled: boolean) {
       );
       if (!res.ok) throw new Error(data.error ?? "Transaction failed");
       console.info("[useSavings] pool transaction", { poolId, ...payload });
+      dispatchDomainEvent("savings:changed");
       await load({ silent: true });
     },
     [load]

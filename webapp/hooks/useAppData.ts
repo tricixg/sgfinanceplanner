@@ -6,6 +6,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { DashboardState, PortfolioSnapshot } from "@/lib/types";
 import type { FinanceProfile } from "@/lib/profile/load";
 import { AppDataContext } from "@/contexts/app-data-contexts";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 type ProfileBundle = {
   profile: FinanceProfile;
@@ -197,6 +198,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save loans");
     setLoans(data.loans ?? next);
+    dispatchDomainEvent("loans:changed");
   }, []);
 
   const saveBudget = useCallback(async (next: DashboardState["budget"]) => {
@@ -211,6 +213,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save budget");
     setBudget(data.budget ?? next);
+    dispatchDomainEvent("budget:changed");
   }, []);
 
   const saveCards = useCallback(async (next: DashboardState["creditCards"]) => {
@@ -225,6 +228,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save cards");
     setCreditCards(data.cards ?? next);
+    dispatchDomainEvent("cards:changed");
   }, []);
 
   const saveHoldings = useCallback(async (next: DashboardState["holdings"]) => {
@@ -239,6 +243,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save holdings");
     setHoldings(data.holdings ?? next);
+    dispatchDomainEvent("holdings:changed");
   }, []);
 
   const appendSnapshot = useCallback(async (snap: PortfolioSnapshot) => {
@@ -300,6 +305,7 @@ export function useAppDataProvider(enabled: boolean) {
         insurancePolicies: data.insurancePolicies ?? [],
         ilpPolicies: data.ilpPolicies ?? [],
       });
+      dispatchDomainEvent("profile:changed");
       console.info("[useAppData] saved profile policies", {
         insurance: patch.insurancePolicies?.length,
         ilp: patch.ilpPolicies?.length,
@@ -383,6 +389,7 @@ export function useAppDataProvider(enabled: boolean) {
             }
       );
       await patchProfile(patch);
+      dispatchDomainEvent("profile:changed");
       console.info("[useAppData] saveProfile ok", { keys: Object.keys(patch) });
     },
     [patchProfile]

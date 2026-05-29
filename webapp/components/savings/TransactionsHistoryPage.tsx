@@ -6,6 +6,7 @@ import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { sgtTodayYmd, sgtYmdDaysAgo } from "@/lib/time/sgt";
 import { Snackbar } from "@/components/Snackbar";
 import { useSnackbar } from "@/hooks/useSnackbar";
@@ -172,6 +173,15 @@ export function TransactionsHistoryPage() {
     void load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId, effectiveFinancialAccountId, type, source, dateFrom, dateTo]);
+
+  useDomainEvent(
+    ["expense:changed", "savings:changed", "accounts:changed"],
+    () => {
+      setOffset(0);
+      void load(false);
+    },
+    [load]
+  );
 
   const hasFilters = Boolean(
     accountId || financialAccountId || type || source !== "all" || dateFrom || dateTo

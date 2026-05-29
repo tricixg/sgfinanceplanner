@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import type { BudgetItem, DashboardState } from "@/lib/types";
 import {
   budgetProjection,
@@ -18,6 +18,7 @@ import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 import {
   COMPUTED_DEBT_LABEL,
   budgetBalanceLabel,
@@ -111,24 +112,34 @@ export function TabBudgetSavings({
   const activeBudget = editingAllocation ? budgetDraft : S.budget;
   const budgetState = editingAllocation ? { ...S, budget: budgetDraft } : S;
 
-  useEffect(() => {
+  const loadExpenseSummary = useCallback(async () => {
     if (editingAllocation) return;
-    void (async () => {
-      try {
-        const ym = currentYm();
-        const { res, data } = await fetchJson<BudgetExpenseSummary & { error?: string }>(
-          `/api/expenses/summary?ym=${ym}`,
-          { credentials: "include" }
-        );
-        if (res.ok) {
-          setExpenseSummary(data);
-          console.info("[TabBudgetSavings] expense summary loaded", { ym });
-        }
-      } catch (e) {
-        console.warn("[TabBudgetSavings] expense summary failed", e);
+    try {
+      const ym = currentYm();
+      const { res, data } = await fetchJson<BudgetExpenseSummary & { error?: string }>(
+        `/api/expenses/summary?ym=${ym}`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setExpenseSummary(data);
+        console.info("[TabBudgetSavings] expense summary loaded", { ym });
       }
-    })();
-  }, [editingAllocation, S.budget]);
+    } catch (e) {
+      console.warn("[TabBudgetSavings] expense summary failed", e);
+    }
+  }, [editingAllocation]);
+
+  useEffect(() => {
+    void loadExpenseSummary();
+  }, [loadExpenseSummary, S.budget]);
+
+  useDomainEvent(
+    ["expense:changed", "budget:changed", "loans:changed", "recurring:changed"],
+    () => {
+      void loadExpenseSummary();
+    },
+    [loadExpenseSummary]
+  );
 
   const income = stableTakeHome(S);
   const ym = currentYm();

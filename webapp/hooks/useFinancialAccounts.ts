@@ -4,6 +4,7 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { FinancialAccountsContext } from "@/contexts/app-data-contexts";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 export function useFinancialAccountsProvider(enabled: boolean) {
   const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
@@ -40,6 +41,10 @@ export function useFinancialAccountsProvider(enabled: boolean) {
   }, [enabled]);
 
   useEffect(() => {
+    void load();
+  }, [load]);
+
+  useDomainEvent(["accounts:changed", "cards:changed", "savings:changed"], () => {
     void load();
   }, [load]);
 

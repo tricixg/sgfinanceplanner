@@ -7,6 +7,8 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 export function TabExpenses({ enabled }: { enabled: boolean }) {
   const [viewYm, setViewYm] = useState(currentYm);
@@ -42,6 +44,14 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     void loadSummary();
   }, [loadSummary]);
 
+  useDomainEvent(
+    ["expense:changed", "recurring:changed", "budget:changed", "loans:changed"],
+    () => {
+      void loadSummary();
+    },
+    [loadSummary]
+  );
+
   const addExpense = async (payload: {
     budgetLineId: string;
     amount: number;
@@ -66,7 +76,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
       }),
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to add expense");
-    window.dispatchEvent(new Event("expenses-changed"));
+    dispatchDomainEvent("expense:changed");
     await loadSummary();
   };
 
@@ -77,7 +87,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to delete");
     console.info("[TabExpenses] deleted expense", { id });
-    window.dispatchEvent(new Event("expenses-changed"));
+    dispatchDomainEvent("expense:changed");
     await loadSummary();
   };
 
