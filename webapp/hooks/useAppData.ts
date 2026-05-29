@@ -354,7 +354,7 @@ export function useAppDataProvider(enabled: boolean) {
       const profilePatch: Partial<FinanceProfile> = {};
       for (const key of PROFILE_STATE_KEYS) {
         if (next[key] !== prev[key]) {
-          profilePatch[key] = next[key] as FinanceProfile[typeof key];
+          Object.assign(profilePatch, { [key]: next[key] });
         }
       }
 
