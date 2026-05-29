@@ -124,6 +124,8 @@ webapp/
 - Never commit `.env.local` or expose `SUPABASE_SERVICE_ROLE_KEY` in the browser.
 - Use a private Supabase project for real financial data.
 - Set `DASHBOARD_SECRET` on public deployments if you skip auth.
+- Never set `AUTH_BYPASS_DEV=true` on Vercel production or preview — it is ignored when `NODE_ENV=production` but would be dangerous if misconfigured.
+- `POST /api/quotes` requires a signed-in session and is rate-limited (Yahoo Finance proxy).
 
 ## License
 

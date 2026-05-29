@@ -72,6 +72,7 @@ export function useLiveQuotes(
         quotes?: QuoteMap;
       }>("/api/quotes", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbols }),
       });
