@@ -90,10 +90,10 @@ export function DecimalInput({
         if (s !== "" && !DECIMAL_RE.test(s)) return;
         setDraft(s);
         const parsed = parseDecimalInput(s);
+        // While typing: clamp only — do not round to step or force 0 on empty
+        // (step + zero commit happen on blur so rows do not jump / snap mid-edit).
         if (parsed !== null) {
-          onChange(roundToStep(clamp(parsed, min, max), step));
-        } else if (s === "" || s === ".") {
-          onChange(min != null && min > 0 ? min : 0);
+          onChange(clamp(parsed, min, max));
         }
       }}
       onBlur={(e) => {

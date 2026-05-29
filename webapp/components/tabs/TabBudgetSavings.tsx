@@ -165,10 +165,14 @@ export function TabBudgetSavings({
   const budgetLines = activeBudget.filter((b) => b.type !== "save");
   const { allocated: allocatedRows, zeroAllocated: zeroRows } =
     splitBudgetRows(activeBudget);
+  /** Stable draft order while editing — avoid jumping between $0 and allocated sections. */
+  const editBudgetRows: BudgetRow[] = editingAllocation
+    ? budgetDraft.map((b, i) => ({ b, i }))
+    : [];
   const balanceLbl = budgetBalanceLabel(left);
 
   const renderBudgetEditItem = ({ b, i }: BudgetRow) => (
-    <div className="budget-item" key={i} style={{ marginBottom: 14 }}>
+    <div className="budget-item" key={b.id ?? `budget-line-${i}`} style={{ marginBottom: 14 }}>
       <div className="editrow budget-line">
         <input
           type="text"
@@ -190,7 +194,7 @@ export function TabBudgetSavings({
         </select>
         <DecimalInput
           value={b.amt}
-          step={10}
+          step={1}
           min={0}
           max={Math.round(income) || 1}
           onChange={(v) => updateBudget(i, { amt: v })}
@@ -206,7 +210,7 @@ export function TabBudgetSavings({
         className="budget-slider"
         min={0}
         max={Math.round(income) || 1}
-        step={10}
+        step={1}
         value={b.amt}
         onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
       />
@@ -536,13 +540,7 @@ export function TabBudgetSavings({
               <span className="num">{fmt2(savingsPrem)}</span>
               <span></span>
             </div>
-            {allocatedRows.map(renderBudgetEditItem)}
-            {zeroRows.length > 0 ? (
-              <details className="budget-zero-section">
-                <summary>$0 budget · {zeroRows.length} categories</summary>
-                {zeroRows.map(renderBudgetEditItem)}
-              </details>
-            ) : null}
+            {editBudgetRows.map(renderBudgetEditItem)}
             <div className="toolbar">
               <button type="button" className="btn ghost sm" onClick={addBudgetLine}>
                 + Add category
