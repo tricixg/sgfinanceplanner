@@ -40,7 +40,7 @@ export function AppSidebar({ open, onClose }: Props) {
           aria-label="Close menu"
           onClick={() => {
             onClose();
-            console.log("[AppSidebar] closed via backdrop");
+            console.info("[AppSidebar] closed via backdrop");
           }}
         />
       ) : null}
@@ -81,7 +81,7 @@ export function AppSidebar({ open, onClose }: Props) {
                     className={`tab sidebar-tab ${isActive(t.href) ? "on" : ""}`}
                     onClick={() => {
                       onClose();
-                      console.log("[AppSidebar] nav", t.href);
+                      console.info("[AppSidebar] nav", t.href);
                     }}
                   >
                     {t.label}

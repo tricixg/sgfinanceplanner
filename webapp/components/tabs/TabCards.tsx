@@ -30,8 +30,6 @@ import { CardListSection } from "@/components/credit-cards/CardListSection";
 import { CardOpenCycleSection } from "@/components/credit-cards/CardOpenCycleSection";
 import { CardStatementList } from "@/components/credit-cards/CardStatementList";
 import { CardRewardsAdvisor } from "@/components/credit-cards/CardRewardsAdvisor";
-import { fmtCardDate } from "@/components/credit-cards/card-ui";
-
 type CardsApi = {
   cards: CreditCard[];
   saveCards: (next: CreditCard[]) => Promise<void>;
@@ -80,6 +78,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
   const [draftMinDue, setDraftMinDue] = useState<Record<string, string>>({});
   const [savingRow, setSavingRow] = useState<string | null>(null);
   const [undoingRow, setUndoingRow] = useState<string | null>(null);
+  const [confirmUndoStatementId, setConfirmUndoStatementId] = useState<string | null>(null);
   const [showOpenCycleDetail, setShowOpenCycleDetail] = useState(false);
   const [excludeCarriedFromOpenCycle, setExcludeCarriedFromOpenCycle] = useState(false);
 
@@ -244,12 +243,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
 
   const undoStatementPayment = async (stmt: CardStatementComputed) => {
     if (!stmt.paymentSavingsTransactionId) return;
-    const ok = window.confirm(
-      `Undo latest payment for ${stmt.cardName} statement ${fmtCardDate(
-        stmt.statementCloseDate
-      )}?`
-    );
-    if (!ok) return;
+    setConfirmUndoStatementId(null);
     setUndoingRow(stmt.id);
     try {
       const { res, data } = await fetchJson<{ error?: string }>(
@@ -427,6 +421,9 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
             onSaveRow={(stmt) => void saveStatementRow(stmt)}
             onUndoPayment={(stmt) => void undoStatementPayment(stmt)}
             onPay={setPayStatement}
+            confirmUndoStatementId={confirmUndoStatementId}
+            onRequestUndoPayment={(stmt) => setConfirmUndoStatementId(stmt.id)}
+            onCancelUndoPayment={() => setConfirmUndoStatementId(null)}
           />
         </>
       )}

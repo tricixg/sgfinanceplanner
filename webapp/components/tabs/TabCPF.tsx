@@ -25,7 +25,7 @@ export function TabCPF({ state: S, setState }: Props) {
   const startEdit = () => {
     setCpfDraft({ oa: S.oa, sa: S.sa, ma: S.ma });
     setEditing(true);
-    console.log("[TabCPF] edit mode on");
+    console.info("[TabCPF] edit mode on");
   };
 
   const saveCpf = async () => {
@@ -47,7 +47,7 @@ export function TabCPF({ state: S, setState }: Props) {
 
   const patchCpfDraft = (key: "oa" | "sa" | "ma", val: number) => {
     setCpfDraft((d) => ({ ...d, [key]: val }));
-    console.log("[TabCPF] draft CPF balance", key, val);
+    console.info("[TabCPF] draft CPF balance", key, val);
   };
 
   const chartData = {

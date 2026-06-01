@@ -102,7 +102,7 @@ export function TabYear({ state: S, setState, savings }: Props) {
             onChange={(v) => {
               invAmtUserEdited.current = true;
               setInvAmt(v);
-              console.log("[TabYear] inv contribution override", v);
+              console.info("[TabYear] inv contribution override", v);
             }}
           />
           <span style={{ fontSize: 11, color: "var(--muted)", display: "block", marginTop: 4 }}>
@@ -118,7 +118,7 @@ export function TabYear({ state: S, setState, savings }: Props) {
                   onClick={() => {
                     invAmtUserEdited.current = false;
                     setInvAmt(fromBudget);
-                    console.log("[TabYear] reset inv contribution to budget", fromBudget);
+                    console.info("[TabYear] reset inv contribution to budget", fromBudget);
                   }}
                 >
                   Reset to budget

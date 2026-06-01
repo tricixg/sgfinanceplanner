@@ -104,7 +104,7 @@ export function TabCashAccounts({
       ...prev,
       accounts: prev.accounts.map((a, j) => (j === i ? { ...a, ...patchAccount } : a)),
     }));
-    console.log("[TabCashAccounts] updated account", i, patchAccount);
+    console.info("[TabCashAccounts] updated account", i, patchAccount);
   };
 
   const addAccount = () => {
@@ -112,7 +112,7 @@ export function TabCashAccounts({
       ...prev,
       accounts: [...prev.accounts, defaultSavingsAccount()],
     }));
-    console.log("[TabCashAccounts] added savings account");
+    console.info("[TabCashAccounts] added savings account");
   };
 
   const removeAccount = (i: number) => {
@@ -120,7 +120,7 @@ export function TabCashAccounts({
       ...prev,
       accounts: prev.accounts.filter((_, j) => j !== i),
     }));
-    console.log("[TabCashAccounts] removed account", i);
+    console.info("[TabCashAccounts] removed account", i);
   };
 
   const submitTransfer = async () => {
@@ -184,7 +184,7 @@ export function TabCashAccounts({
             checked={includeCpf}
             onChange={(e) => {
               setIncludeCpf(e.target.checked);
-              console.log("[TabCashAccounts] include CPF", e.target.checked);
+              console.info("[TabCashAccounts] include CPF", e.target.checked);
             }}
           />
           Include CPF in total net worth
@@ -266,7 +266,7 @@ export function TabCashAccounts({
                     try {
                       await accountsApi.saveAccounts(cloudDraft);
                       setEditingAccounts(false);
-                      console.log("[TabCashAccounts] cloud accounts saved");
+                      console.info("[TabCashAccounts] cloud accounts saved");
                     } catch (e) {
                       setAccountsMsg(
                         e instanceof Error ? e.message : "Failed to save accounts"
@@ -277,7 +277,7 @@ export function TabCashAccounts({
                   })();
                 } else {
                   setEditingAccounts(false);
-                  console.log("[TabCashAccounts] accounts edit off");
+                  console.info("[TabCashAccounts] accounts edit off");
                 }
               }}
             >
@@ -289,7 +289,7 @@ export function TabCashAccounts({
               className="btn ghost sm"
               onClick={() => {
                 setEditingAccounts(true);
-                console.log("[TabCashAccounts] accounts edit on");
+                console.info("[TabCashAccounts] accounts edit on");
               }}
             >
               Edit

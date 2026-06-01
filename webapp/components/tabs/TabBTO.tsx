@@ -42,13 +42,13 @@ export function TabBTO({ state: S, setState }: Props) {
   const startSchemesEdit = () => {
     setPrefsDraft(resolveBtoPrefs(S));
     setEditingSchemes(true);
-    console.log("[TabBTO] schemes edit on");
+    console.info("[TabBTO] schemes edit on");
   };
 
   const startCalcEdit = () => {
     setPrefsDraft(resolveBtoPrefs(S));
     setEditingCalc(true);
-    console.log("[TabBTO] calc edit on");
+    console.info("[TabBTO] calc edit on");
   };
 
   const saveBtoPrefs = async () => {
@@ -72,7 +72,7 @@ export function TabBTO({ state: S, setState }: Props) {
   const updatePrefs = (patch: Partial<BtoPlannerPrefs>) => {
     setPrefsDraft((prev) => {
       const next = { ...prev, ...patch };
-      console.log("[TabBTO] updated prefs draft", patch);
+      console.info("[TabBTO] updated prefs draft", patch);
       return next;
     });
   };
@@ -114,7 +114,7 @@ export function TabBTO({ state: S, setState }: Props) {
       };
     });
     if (!editingSchemes) setEditingSchemes(true);
-    console.log("[TabBTO] scheme toggled", id, enabled);
+    console.info("[TabBTO] scheme toggled", id, enabled);
   };
 
   const setSchemeOverride = (id: BTOSchemeId, amount: number | null) => {
@@ -130,7 +130,7 @@ export function TabBTO({ state: S, setState }: Props) {
       };
     });
     if (!editingSchemes) setEditingSchemes(true);
-    console.log("[TabBTO] scheme amount override", id, amount);
+    console.info("[TabBTO] scheme amount override", id, amount);
   };
 
   const resetSchemeAmount = (id: BTOSchemeId) => {
@@ -145,7 +145,7 @@ export function TabBTO({ state: S, setState }: Props) {
         },
       };
     });
-    console.log("[TabBTO] scheme amount reset", id);
+    console.info("[TabBTO] scheme amount reset", id);
   };
 
   const timelineDates = useMemo(
@@ -331,7 +331,7 @@ export function TabBTO({ state: S, setState }: Props) {
                 value={p.applicationYm}
                 onChange={(e) => {
                   updatePrefs({ applicationYm: e.target.value });
-                  console.log("[TabBTO] application month", e.target.value);
+                  console.info("[TabBTO] application month", e.target.value);
                 }}
               />
             </label>

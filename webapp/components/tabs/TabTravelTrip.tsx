@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { InlineConfirm } from "@/components/InlineConfirm";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
@@ -38,6 +39,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [savingExpense, setSavingExpense] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteTrip, setConfirmDeleteTrip] = useState(false);
   const [editingTrip, setEditingTrip] = useState(false);
   const [savingTrip, setSavingTrip] = useState(false);
   const [tripDraft, setTripDraft] = useState({
@@ -258,8 +260,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
 
   const onDeleteTrip = async () => {
     if (!trip) return;
-    const ok = window.confirm(`Delete trip "${trip.name}"? This will remove its budgets.`);
-    if (!ok) return;
+    setConfirmDeleteTrip(false);
     setDeleting(true);
     setMsg("");
     const { res, data } = await fetchJson<{ error?: string }>(`/api/travel/trips/${tripId}`, {
@@ -629,14 +630,24 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
 
       {msg ? <p className="note">{msg}</p> : null}
       <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 16 }}>
-        <button
-          type="button"
-          className="btn del sm"
-          onClick={() => void onDeleteTrip()}
-          disabled={deleting}
-        >
-          {deleting ? "Deleting…" : "Delete travel"}
-        </button>
+        {confirmDeleteTrip && trip ? (
+          <InlineConfirm
+            prompt={`Delete "${trip.name}"? This will remove its budgets.`}
+            confirmLabel="Delete travel"
+            busy={deleting}
+            onConfirm={() => void onDeleteTrip()}
+            onCancel={() => setConfirmDeleteTrip(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="btn del sm"
+            onClick={() => setConfirmDeleteTrip(true)}
+            disabled={deleting || !trip}
+          >
+            Delete travel
+          </button>
+        )}
       </div>
     </section>
   );

@@ -244,7 +244,7 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
           aria-label="Close menu"
           onClick={() => {
             setNavOpen(false);
-            console.log("[dashboard] nav closed via backdrop");
+            console.info("[dashboard] nav closed via backdrop");
           }}
         />
       ) : null}
@@ -270,7 +270,7 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
                   onClick={() => {
                     setActive(t.id);
                     setNavOpen(false);
-                    console.log("[dashboard] tab", t.id, group.category);
+                    console.info("[dashboard] tab", t.id, group.category);
                   }}
                 >
                   {t.label}
@@ -303,7 +303,7 @@ export function Dashboard({ userId, userEmail }: DashboardProps = {}) {
             aria-controls="sidebar-nav"
             onClick={() => {
               setNavOpen((open) => {
-                console.log("[dashboard] nav toggle", !open);
+                console.info("[dashboard] nav toggle", !open);
                 return !open;
               });
             }}

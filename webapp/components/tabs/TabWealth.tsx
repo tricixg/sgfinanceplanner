@@ -102,7 +102,7 @@ export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Pro
   const startIlpEdit = () => {
     setIlpDraft(structuredClone(S.ilpPolicies));
     setEditingIlp(true);
-    console.log("[TabWealth] ILP edit on");
+    console.info("[TabWealth] ILP edit on");
   };
 
   const saveIlp = async () => {
@@ -126,24 +126,24 @@ export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Pro
     setIlpDraft((prev) =>
       prev.map((p, j) => (j === i ? { ...p, ...patch } : p))
     );
-    console.log("[TabWealth] updated ILP draft", i, patch);
+    console.info("[TabWealth] updated ILP draft", i, patch);
   };
 
   const addPolicy = () => {
     setIlpDraft((prev) => [...prev, defaultIlpPolicy()]);
-    console.log("[TabWealth] added ILP policy to draft");
+    console.info("[TabWealth] added ILP policy to draft");
   };
 
   const removePolicy = (i: number) => {
     setIlpDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabWealth] removed ILP policy from draft", i);
+    console.info("[TabWealth] removed ILP policy from draft", i);
   };
 
   const startHoldingsEdit = () => {
     setHoldingsDraft(structuredClone(S.holdings));
     setMarginDraft(S.margin);
     setEditingHoldings(true);
-    console.log("[TabWealth] holdings edit on");
+    console.info("[TabWealth] holdings edit on");
   };
 
   const saveHoldingsEdit = async () => {
@@ -174,22 +174,22 @@ export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Pro
     setHoldingsDraft((prev) =>
       prev.map((h, j) => (j === i ? { ...h, ...patch } : h))
     );
-    console.log("[TabWealth] updated holding draft", i, patch);
+    console.info("[TabWealth] updated holding draft", i, patch);
   };
 
   const addHolding = () => {
     setHoldingsDraft((prev) => [...prev, defaultHolding()]);
-    console.log("[TabWealth] added holding to draft");
+    console.info("[TabWealth] added holding to draft");
   };
 
   const removeHolding = (i: number) => {
     setHoldingsDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabWealth] removed holding from draft", i);
+    console.info("[TabWealth] removed holding from draft", i);
   };
 
   const patchMargin = (margin: number) => {
     setMarginDraft(margin);
-    console.log("[TabWealth] updated margin draft", margin);
+    console.info("[TabWealth] updated margin draft", margin);
   };
 
   const allocationChart = useMemo(() => {

@@ -4,6 +4,7 @@ import type { CreditCard } from "@/lib/types";
 import type { CardStatementComputed } from "@/lib/cards/types";
 import { fmt2 } from "@/lib/finance/helpers";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { InlineConfirm } from "@/components/InlineConfirm";
 import { fmtCardDate } from "@/components/credit-cards/card-ui";
 
 type Props = {
@@ -19,6 +20,9 @@ type Props = {
   onSaveRow: (stmt: CardStatementComputed) => void;
   onUndoPayment: (stmt: CardStatementComputed) => void;
   onPay: (stmt: CardStatementComputed) => void;
+  confirmUndoStatementId: string | null;
+  onRequestUndoPayment: (stmt: CardStatementComputed) => void;
+  onCancelUndoPayment: () => void;
 };
 
 export function CardStatementList({
@@ -34,6 +38,9 @@ export function CardStatementList({
   onSaveRow,
   onUndoPayment,
   onPay,
+  confirmUndoStatementId,
+  onRequestUndoPayment,
+  onCancelUndoPayment,
 }: Props) {
   if (cards.length === 0) {
     return (
@@ -162,24 +169,34 @@ export function CardStatementList({
                         </button>
                       ) : null}
                       {stmt.amountPaid > 0 ? (
-                        <button
-                          type="button"
-                          className="btn ghost sm"
-                          disabled={
-                            rowSaving ||
-                            rowUndoing ||
-                            savingConfig ||
-                            !stmt.paymentSavingsTransactionId
-                          }
-                          title={
-                            stmt.paymentSavingsTransactionId
-                              ? "Undo latest statement payment"
-                              : "Undo unavailable for unlinked/legacy payments"
-                          }
-                          onClick={() => onUndoPayment(stmt)}
-                        >
-                          {rowUndoing ? "Undoing…" : "Undo payment"}
-                        </button>
+                        confirmUndoStatementId === stmt.id ? (
+                          <InlineConfirm
+                            prompt={`Undo payment for ${stmt.cardName}?`}
+                            confirmLabel="Undo payment"
+                            busy={rowUndoing}
+                            onConfirm={() => onUndoPayment(stmt)}
+                            onCancel={onCancelUndoPayment}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            disabled={
+                              rowSaving ||
+                              rowUndoing ||
+                              savingConfig ||
+                              !stmt.paymentSavingsTransactionId
+                            }
+                            title={
+                              stmt.paymentSavingsTransactionId
+                                ? "Undo latest statement payment"
+                                : "Undo unavailable for unlinked/legacy payments"
+                            }
+                            onClick={() => onRequestUndoPayment(stmt)}
+                          >
+                            Undo payment
+                          </button>
+                        )
                       ) : null}
                     </div>
                   ) : null}
