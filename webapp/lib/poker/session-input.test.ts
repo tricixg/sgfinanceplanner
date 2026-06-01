@@ -48,4 +48,19 @@ describe("parsePokerSessionBody", () => {
     });
     expect(r.ok).toBe(false);
   });
+
+  it("allows missing financial account", () => {
+    const r = parsePokerSessionBody({
+      sessionType: "cash_game",
+      buyIn: 100,
+      cashOut: 150,
+      gameId: "g-1",
+      playedAt: "2026-05-20T18:00",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.financialAccountId).toBeNull();
+      expect(r.data.playedAt).toBe("2026-05-20T18:00:00+08:00");
+    }
+  });
 });

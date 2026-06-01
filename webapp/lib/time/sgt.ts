@@ -1,6 +1,6 @@
 const SGT_TIMEZONE = "Asia/Singapore";
 
-function sgtParts(now: Date = new Date()): {
+export function sgtParts(now: Date = new Date()): {
   year: string;
   month: string;
   day: string;

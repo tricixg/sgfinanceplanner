@@ -26,12 +26,8 @@ export function plClass(value: number): string {
   return "";
 }
 
+import { formatPokerPlayedAtDisplay } from "@/lib/poker/played-at";
+
 export function formatSessionDate(playedAt: string): string {
-  const d = new Date(playedAt + "T12:00:00");
-  return d.toLocaleDateString("en-SG", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatPokerPlayedAtDisplay(playedAt);
 }

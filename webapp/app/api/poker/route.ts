@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
     .order("id", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (from) query = query.gte("played_at", from);
-  if (to) query = query.lte("played_at", to);
+  if (from) query = query.gte("played_at", `${from}T00:00:00+08:00`);
+  if (to) query = query.lte("played_at", `${to}T23:59:59+08:00`);
 
   const { data: rows, error, count } = await query;
 

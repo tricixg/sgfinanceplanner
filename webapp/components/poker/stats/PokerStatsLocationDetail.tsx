@@ -11,6 +11,7 @@ import {
   formatHourly,
   formatPct,
   formatPl,
+  formatSessionDate,
   plClass,
 } from "@/components/poker/stats/format";
 
@@ -161,7 +162,7 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
               const pl = pokerProfit(s);
               return (
                 <tr key={s.id}>
-                  <td>{s.playedAt}</td>
+                  <td>{formatSessionDate(s.playedAt)}</td>
                   <td>{s.sessionType === "tournament" ? "MTT" : "Cash"}</td>
                   <td className="num">{fmt2(s.buyIn)}</td>
                   <td className={`num ${plClass(pl)}`}>{formatPl(pl)}</td>

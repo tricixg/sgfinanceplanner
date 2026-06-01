@@ -1,3 +1,4 @@
+import { ymFromPokerPlayedAt } from "@/lib/poker/played-at";
 import type { PokerSession, PokerSessionType } from "@/lib/poker/types";
 import { formatGameStakes, pokerProfit, sessionGameLabel } from "@/lib/poker/types";
 
@@ -208,7 +209,7 @@ export function locationBreakdown(sessions: PokerSession[]): LocationBreakdownRo
 }
 
 function ymFromDate(playedAt: string): string {
-  return playedAt.slice(0, 7);
+  return ymFromPokerPlayedAt(playedAt);
 }
 
 function periodComparison(
@@ -299,17 +300,29 @@ export function buildPokerStats(sessions: PokerSession[]): PokerStatsBundle {
       weekday: chartBuckets(
         sessions,
         (s) => {
-          const d = new Date(s.playedAt + "T12:00:00");
-          return WEEKDAY_LABELS[d.getDay()];
+          const d = new Date(s.playedAt);
+          const day = new Intl.DateTimeFormat("en-US", {
+            timeZone: "Asia/Singapore",
+            weekday: "short",
+          }).format(d);
+          return WEEKDAY_LABELS.includes(day) ? day : WEEKDAY_LABELS[d.getUTCDay()];
         },
         (a, b) => WEEKDAY_LABELS.indexOf(a) - WEEKDAY_LABELS.indexOf(b)
       ),
       month: chartBuckets(
         sessions,
-        (s) => monthNames[parseInt(s.playedAt.slice(5, 7), 10) - 1] ?? s.playedAt.slice(5, 7),
+        (s) => {
+          const ym = ymFromPokerPlayedAt(s.playedAt);
+          const m = parseInt(ym.slice(5, 7), 10);
+          return monthNames[m - 1] ?? ym.slice(5, 7);
+        },
         (a, b) => monthNames.indexOf(a) - monthNames.indexOf(b)
       ),
-      year: chartBuckets(sessions, (s) => s.playedAt.slice(0, 4), (a, b) => a.localeCompare(b)),
+      year: chartBuckets(
+        sessions,
+        (s) => ymFromPokerPlayedAt(s.playedAt).slice(0, 4),
+        (a, b) => a.localeCompare(b)
+      ),
     },
   };
 }

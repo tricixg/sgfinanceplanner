@@ -1,5 +1,5 @@
+import { parsePokerPlayedAtInput } from "@/lib/poker/played-at";
 import type { PokerSessionType, TournamentResult } from "@/lib/poker/types";
-import { sgtTodayYmd } from "@/lib/time/sgt";
 
 export type PokerSessionBody = {
   sessionType?: PokerSessionType;
@@ -28,7 +28,7 @@ export type ParsedPokerSession = {
   location: string;
   hours: number | null;
   note: string;
-  financialAccountId: string;
+  financialAccountId: string | null;
   gameId: string | null;
   tournamentName: string | null;
   eventName: string | null;
@@ -106,10 +106,7 @@ export function parsePokerSessionBody(
   const location =
     (typeof body.location === "string" ? body.location : body.venue ?? "").trim();
 
-  const playedAt =
-    typeof body.playedAt === "string" && body.playedAt.length >= 10
-      ? body.playedAt.slice(0, 10)
-      : sgtTodayYmd();
+  const playedAt = parsePokerPlayedAtInput(body.playedAt);
 
   let hours: number | null = null;
   if (body.hours != null) {
@@ -117,9 +114,10 @@ export function parsePokerSessionBody(
     if (Number.isFinite(h) && h >= 0) hours = h;
   }
 
-  if (!body.financialAccountId) {
-    return { ok: false, error: "financialAccountId required" };
-  }
+  const financialAccountId =
+    typeof body.financialAccountId === "string" && body.financialAccountId.trim()
+      ? body.financialAccountId.trim()
+      : null;
 
   return {
     ok: true,
@@ -131,7 +129,7 @@ export function parsePokerSessionBody(
       location,
       hours,
       note: body.note ?? "",
-      financialAccountId: body.financialAccountId,
+      financialAccountId,
       gameId,
       tournamentName,
       eventName,
@@ -161,7 +159,7 @@ export function pokerSessionRowFromParsed(parsed: ParsedPokerSession) {
     amount_won: isTournament ? parsed.amountWon : null,
     hours: parsed.hours,
     note: parsed.note,
-    financial_account_id: parsed.financialAccountId,
+    financial_account_id: parsed.financialAccountId ?? null,
     updated_at: new Date().toISOString(),
   };
 }
