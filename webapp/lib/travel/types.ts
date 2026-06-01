@@ -29,7 +29,10 @@ export type TravelExpenseRow = {
   id: string;
   amount: number;
   spentAt: string;
+  spentTime: string | null;
   note: string;
+  /** User-visible note after the trip subcategory prefix. */
+  extraNote: string;
   subCategory: string;
   financialAccountId: string | null;
 };
