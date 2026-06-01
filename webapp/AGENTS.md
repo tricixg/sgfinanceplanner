@@ -5,6 +5,7 @@
 - **After every mutation:** call `dispatchDomainEvent(...)` from [`lib/events/domain-events.ts`](lib/events/domain-events.ts) with the affected domain(s). Subscribe with [`hooks/useDomainEvent.ts`](hooks/useDomainEvent.ts).
 - **Logging:** prefer `console.info` / `console.error` with a `[Component]` or `[api/feature]` prefix; avoid noisy `console.log` in production UI paths.
 - **Large tabs:** credit card UI lives under [`components/credit-cards/`](components/credit-cards/); `TabCards.tsx` composes those pieces only.
+- **Page errors:** [`PageErrorBoundary`](components/app/PageErrorBoundary.tsx) wraps main content in `AppShell`; [`app/(app)/error.tsx`](app/(app)/error.tsx) handles segment failures. Prefer extending `PageErrorFallback` for shared copy/actions.
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
+import { PageErrorBoundary } from "@/components/app/PageErrorBoundary";
 import { navTabForPath } from "@/lib/nav-config";
 import { usePathname } from "next/navigation";
 
@@ -46,7 +47,7 @@ export function AppShell({ children }: Props) {
           </div>
         </header>
 
-        {children}
+        <PageErrorBoundary>{children}</PageErrorBoundary>
 
         <footer>
           Personal planning tool — not financial advice. Data syncs to Supabase when configured;
