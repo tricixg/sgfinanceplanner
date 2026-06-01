@@ -1,3 +1,5 @@
+import { sgtParts } from "@/lib/time/sgt";
+
 const SGT_TIMEZONE = "Asia/Singapore";
 
 /** Split occurred_at for table display (always Singapore time, en-SG). */
@@ -16,12 +18,9 @@ export function formatTransactionDate(iso: string): string {
 
 export function formatTransactionTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleTimeString("en-SG", {
-      timeZone: SGT_TIMEZONE,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
+    const p = sgtParts(new Date(iso));
+    const hour = String(Number(p.hour) % 24).padStart(2, "0");
+    return `${hour}:${p.minute}`;
   } catch {
     return "";
   }

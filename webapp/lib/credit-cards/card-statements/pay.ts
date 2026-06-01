@@ -90,25 +90,43 @@ export function splitCardPaymentAmount(
   return { payToNonBt, btPayment };
 }
 
-/** Infer BT portion of a payment being undone (fixed-point on pre-payment BT outstanding). */
+/** Infer BT portion of a payment being undone (inverse of splitCardPaymentAmount). */
 export function inferBtPaymentForUndo(
   paymentAmount: number,
   statementOutstandingBefore: number,
   btOutstandingNow: number
 ): number {
-  let btOutstandingBefore = btOutstandingNow;
-  for (let i = 0; i < 16; i++) {
-    const { btPayment } = splitCardPaymentAmount(
+  let best = 0;
+  const maxCents = Math.round(paymentAmount * 100);
+
+  for (let cents = 0; cents <= maxCents; cents++) {
+    const btPayment = roundMoney(cents / 100);
+    const btBefore = roundMoney(btOutstandingNow + btPayment);
+    if (btBefore > statementOutstandingBefore + 0.01) {
+      break;
+    }
+
+    const split = splitCardPaymentAmount(
       paymentAmount,
       statementOutstandingBefore,
-      btOutstandingBefore
+      btBefore
     );
-    const nextBefore = roundMoney(btOutstandingNow + btPayment);
-    if (Math.abs(nextBefore - btOutstandingBefore) < 0.01) {
-      return btPayment;
+    if (Math.abs(split.btPayment - btPayment) > 0.01) {
+      continue;
     }
-    btOutstandingBefore = nextBefore;
+    if (
+      split.payToNonBt < roundMoney(btPayment + 0.01) ||
+      btPayment < 500
+    ) {
+      continue;
+    }
+    if (best === 0 || btPayment < best) {
+      best = btPayment;
+    }
   }
+
+  if (best > 0) return best;
+
   return splitCardPaymentAmount(
     paymentAmount,
     statementOutstandingBefore,

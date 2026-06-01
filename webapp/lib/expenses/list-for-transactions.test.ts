@@ -41,7 +41,7 @@ describe("expenseToUnified", () => {
     expect(row.balanceAfter).toBe(880);
     expect(row.date).toMatch(/\d{2}\/\d{2}\/\d{4}/);
     expect(row.time).toMatch(/14:30|22:30/);
-    expect(row.sortAt).toBe("2025-05-15T14:30:00");
+    expect(row.sortAt).toBe("2025-05-15T14:30:00+08:00");
     expect(row.financialAccountId).toBe("fa-1");
     expect(row.spentAt).toBe("2025-05-15");
     expect(row.spentTime).toBe("14:30:00");
