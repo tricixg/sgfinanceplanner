@@ -9,6 +9,7 @@ import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
 import { parseTravelSpentAtInput } from "@/lib/travel/expense-input";
 import { loadTrip } from "@/lib/travel/load";
 import { formatTravelExpenseNote, TRAVEL_CATEGORY } from "@/lib/travel/notes";
+import { assertTelegramWriteScope } from "@/lib/telegram/auth-guard";
 import {
   findCategoryRemaining,
   loadMonthBudgetSummary,
@@ -18,6 +19,7 @@ import { currentYm } from "@/lib/finance/helpers";
 export async function createManualExpense(
   supabase: SupabaseClient,
   userId: string,
+  telegramChatId: number,
   input: {
     budgetLineId: string;
     amount: number;
@@ -27,6 +29,8 @@ export async function createManualExpense(
     financialAccountId?: string | null;
   }
 ): Promise<{ ok: true; category: string; remaining: number } | { ok: false; error: string }> {
+  await assertTelegramWriteScope(supabase, telegramChatId, userId);
+
   const spentAt = input.spentAt ?? sgtTodayYmd();
   const spentTime = input.spentTime ?? sgtNowTimeHms();
   const occurredAt = sgtSpentAtToIso(spentAt, spentTime);
@@ -100,6 +104,7 @@ export async function createManualExpense(
 export async function createTravelExpense(
   supabase: SupabaseClient,
   userId: string,
+  telegramChatId: number,
   tripId: string,
   input: {
     amount: number;
@@ -109,6 +114,8 @@ export async function createTravelExpense(
     financialAccountId?: string | null;
   }
 ): Promise<{ ok: true; tripName: string } | { ok: false; error: string }> {
+  await assertTelegramWriteScope(supabase, telegramChatId, userId);
+
   const trip = await loadTrip(supabase, userId, tripId);
   if (!trip) return { ok: false, error: "Trip not found" };
 
@@ -170,8 +177,11 @@ export async function createTravelExpense(
 export async function createPokerSessionFromBot(
   supabase: SupabaseClient,
   userId: string,
+  telegramChatId: number,
   body: PokerSessionBody
 ): Promise<{ ok: true; profit: number } | { ok: false; error: string }> {
+  await assertTelegramWriteScope(supabase, telegramChatId, userId);
+
   const result = await insertPokerSession(supabase, userId, body);
   if ("error" in result) {
     return { ok: false, error: result.error };

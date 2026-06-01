@@ -16,6 +16,7 @@ import {
   skipPlaceKeyboard,
 } from "@/lib/telegram/keyboards";
 import { POKER_PROMPTS } from "@/lib/telegram/poker-prompts";
+import { assertTelegramWriteScope } from "@/lib/telegram/auth-guard";
 import { getTelegramSupabase } from "@/lib/telegram/supabase";
 
 function chatId(ctx: Context): number {
@@ -145,6 +146,7 @@ export async function applyPokerLocation(
   const cid = chatId(ctx);
   const trimmed = location.trim();
   if (trimmed) {
+    await assertTelegramWriteScope(supabase, cid, userId);
     await upsertPokerLocation(supabase, userId, trimmed);
   }
 
@@ -241,7 +243,9 @@ export async function finishNewPokerGame(
   const bigBlind = Number(conv.payload.gameNewBb);
   const anteRaw = conv.payload.gameNewAnte;
 
+  const cid = chatId(ctx);
   try {
+    await assertTelegramWriteScope(supabase, cid, userId);
     const game = await createPokerGame(supabase, userId, {
       name,
       smallBlind,

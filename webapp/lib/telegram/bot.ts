@@ -6,6 +6,7 @@ import {
   getConversation,
   setConversation,
 } from "@/lib/telegram/conversations";
+import { getLinkedUserIdForChat } from "@/lib/telegram/auth-guard";
 import { consumeLinkCode, getLinkByChatId } from "@/lib/telegram/links";
 import {
   completeFlowWithAccount,
@@ -74,8 +75,7 @@ function chatId(ctx: Context): number {
 
 async function getLinkedUserId(ctx: Context): Promise<string | null> {
   const supabase = getTelegramSupabase();
-  const link = await getLinkByChatId(supabase, chatId(ctx));
-  return link?.userId ?? null;
+  return getLinkedUserIdForChat(supabase, chatId(ctx));
 }
 
 async function replyNeedLink(ctx: Context): Promise<void> {

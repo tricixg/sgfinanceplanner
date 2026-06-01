@@ -14,6 +14,7 @@ import { clearConversation, setConversation } from "@/lib/telegram/conversations
 import { fmtMoney } from "@/lib/telegram/format";
 import { accountPickerKeyboard } from "@/lib/telegram/keyboards";
 import { showMainMenu } from "@/lib/telegram/menu";
+import { assertTelegramWriteScope, TelegramScopeError } from "@/lib/telegram/auth-guard";
 import { getTelegramSupabase } from "@/lib/telegram/supabase";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 
@@ -253,6 +254,8 @@ export async function completeFlowWithAccount(
   const cid = chatId(ctx);
 
   try {
+    await assertTelegramWriteScope(supabase, cid, userId);
+
     if (conv.flow === "expense") {
       const budgetLineId = String(conv.payload.budgetLineId ?? "");
       const amount = Number(conv.payload.amount);
@@ -262,7 +265,7 @@ export async function completeFlowWithAccount(
         await clearConversation(supabase, cid);
         return false;
       }
-      const result = await createManualExpense(supabase, userId, {
+      const result = await createManualExpense(supabase, userId, cid, {
         budgetLineId,
         amount,
         note,
@@ -290,7 +293,7 @@ export async function completeFlowWithAccount(
       const subCategory = String(conv.payload.subCategory ?? "");
       const amount = Number(conv.payload.amount);
       const note = String(conv.payload.note ?? "");
-      const result = await createTravelExpense(supabase, userId, tripId, {
+      const result = await createTravelExpense(supabase, userId, cid, tripId, {
         amount,
         subCategory,
         note,
@@ -322,7 +325,7 @@ export async function completeFlowWithAccount(
       if (financialAccountId) {
         body.financialAccountId = financialAccountId;
       }
-      const result = await createPokerSessionFromBot(supabase, userId, body);
+      const result = await createPokerSessionFromBot(supabase, userId, cid, body);
       if (!result.ok) {
         if (financialAccountId && isInsufficientBalanceError(result.error)) {
           await repromptCashAccountStep(ctx, userId, conv, financialAccountId);
@@ -347,6 +350,12 @@ export async function completeFlowWithAccount(
     await ctx.reply("Nothing to save.");
     return false;
   } catch (e) {
+    if (e instanceof TelegramScopeError) {
+      console.error("[telegram] completeFlowWithAccount scope denied", { flow: conv.flow });
+      await clearConversation(supabase, cid);
+      await ctx.reply("Account not linked. Use /start with your link code from the app.");
+      return false;
+    }
     const msg = e instanceof Error ? e.message : "Save failed";
     console.error("[telegram] completeFlowWithAccount failed", { flow: conv.flow, msg });
     if (financialAccountId && isInsufficientBalanceError(msg)) {
