@@ -71,7 +71,7 @@ When Supabase env vars are missing, APIs return `{ configured: false }` and the 
 - Defines `NAV_GROUPS`, tab `href`, labels, and summaries.
 - [webapp/components/AppSidebar.tsx](../webapp/components/AppSidebar.tsx) + [webapp/components/app/AppShell.tsx](../webapp/components/app/AppShell.tsx) render the sidebar and map pathname → active tab (`navTabForPath`).
 
-**Legacy:** [webapp/components/Dashboard.tsx](../webapp/components/Dashboard.tsx) implements an older single-page tab switcher with `display: none` panels. Production routing uses **file-based routes** under `app/(app)/` (e.g. `/cards`, `/expenses`). Prefer `nav-config` + dedicated pages for new work.
+Production routing uses **file-based routes** under `app/(app)/` (e.g. `/cards`, `/expenses`). Prefer `nav-config` + dedicated pages for new work.
 
 ## Data storage model (high level)
 
