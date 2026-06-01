@@ -46,6 +46,19 @@ export function ymFromPokerPlayedAt(playedAt: string): string {
   return `${p.year}-${p.month}`;
 }
 
+/** Parse date/time typed in Telegram (SGT). Accepts YYYY-MM-DD HH:mm or YYYY-MM-DDTHH:mm. */
+export function parsePokerPlayedAtTelegram(text: string): string | null {
+  let v = text.trim();
+  const space = /^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}):(\d{2})$/.exec(v);
+  if (space) {
+    v = `${space[1]}T${String(Number(space[2])).padStart(2, "0")}:${space[3]}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v) || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) {
+    return parsePokerPlayedAtInput(v);
+  }
+  return null;
+}
+
 export function formatPokerPlayedAtDisplay(playedAt: string): string {
   const d = new Date(pokerPlayedAtToLedgerIso(playedAt));
   if (Number.isNaN(d.getTime())) return playedAt;

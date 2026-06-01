@@ -120,6 +120,10 @@ webapp/
 └── supabase/         # SQL migrations
 ```
 
+## Telegram bot
+
+Log expenses, poker sessions, and travel costs from Telegram. See [documentation/09-telegram-bot-setup.md](../documentation/09-telegram-bot-setup.md) for BotFather, env vars, and webhook setup. Link your account under **Me → Connect Telegram** after deploying migration `028_telegram_integration.sql`.
+
 ## Security
 
 - Never commit `.env.local` or expose `SUPABASE_SERVICE_ROLE_KEY` in the browser.

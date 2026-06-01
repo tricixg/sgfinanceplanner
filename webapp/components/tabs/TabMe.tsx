@@ -10,6 +10,7 @@ import {
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { PartnerCard } from "@/components/PartnerCard";
+import { TelegramLinkCard } from "@/components/integrations/TelegramLinkCard";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import type { useHousehold } from "@/hooks/useHousehold";
 import { DecimalInput } from "@/components/DecimalInput";
@@ -450,6 +451,7 @@ export function TabMe({
       {household ? (
         <PartnerCard household={household} onPartnerUnlinked={onPartnerUnlinked} />
       ) : null}
+      <TelegramLinkCard />
       {userEmail ? (
         <div className="card settings-account">
           <h3 className="settings-account-title">Account</h3>
