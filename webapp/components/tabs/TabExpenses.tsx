@@ -5,6 +5,7 @@ import { CategoryBudgetCard } from "@/components/expenses/CategoryBudgetCard";
 import { ZeroBudgetCategoryList } from "@/components/expenses/ZeroBudgetCategoryList";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary } from "@/lib/expenses/budget-summary";
+import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 
@@ -49,21 +50,27 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     note: string;
     financialAccountId?: string;
   }) => {
-    const { res, data } = await fetchJson<{ error?: string }>("/api/expenses", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        budgetLineId: payload.budgetLineId,
-        amount: payload.amount,
-        spentAt: payload.spentAt,
-        note: payload.note,
-        ...(payload.financialAccountId
-          ? { financialAccountId: payload.financialAccountId }
-          : {}),
-      }),
-    });
+    const { res, data } = await fetchJson<{ error?: string; item?: { id?: string } }>(
+      "/api/expenses",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budgetLineId: payload.budgetLineId,
+          amount: payload.amount,
+          spentAt: payload.spentAt,
+          note: payload.note,
+          ...(payload.financialAccountId
+            ? { financialAccountId: payload.financialAccountId }
+            : {}),
+        }),
+      }
+    );
     if (!res.ok) throw new Error(data.error ?? "Failed to add expense");
+    if (payload.financialAccountId) {
+      dispatchAccountsChanged("expense-create", { expenseId: data.item?.id });
+    }
     await loadSummary();
   };
 
@@ -74,6 +81,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to delete");
     console.info("[TabExpenses] deleted expense", { id });
+    dispatchAccountsChanged("expense-delete", { expenseId: id });
     await loadSummary();
   };
 

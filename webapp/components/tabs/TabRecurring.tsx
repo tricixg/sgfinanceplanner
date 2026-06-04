@@ -6,6 +6,7 @@ import {
   type RecurringPaymentSuccessPayload,
 } from "@/components/expenses/RecordRecurringPaymentForm";
 import { fetchJson } from "@/lib/fetch-json";
+import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { formatDeductionDayLabel } from "@/lib/recurring/prefill";
@@ -74,6 +75,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to undo payment");
     console.info("[TabRecurring] payment deleted", { expenseId });
+    dispatchAccountsChanged("recurring-undo", { expenseId });
     await load();
     await onReload?.();
   };
@@ -82,6 +84,9 @@ export function TabRecurring({ enabled, onReload }: Props) {
     key: string,
     payload: RecurringPaymentSuccessPayload
   ) => {
+    if (payload.financialAccountId) {
+      dispatchAccountsChanged("recurring-pay", { expenseId: payload.expenseId });
+    }
     setRows((prev) =>
       prev.map((r) =>
         rowKey(r) === key

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
@@ -79,6 +80,9 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         amt,
         spentAt,
       });
+      if (financialAccountId) {
+        dispatchAccountsChanged("recurring-pay", { expenseId });
+      }
       await onSuccess({
         expenseId,
         spentAt,

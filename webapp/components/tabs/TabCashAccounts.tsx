@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DashboardState, SavingsAccount } from "@/lib/types";
 import type { AccountsBundle, SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
 import {
@@ -92,6 +92,17 @@ export function TabCashAccounts({
       : null;
 
   const transferAccounts = useCloudAccounts ? accountsApi?.accounts ?? [] : [];
+
+  const accountsBalanceKey = useMemo(
+    () =>
+      accountsApi?.accounts.map((a) => `${a.id}:${a.balance}`).join("|") ?? "",
+    [accountsApi?.accounts]
+  );
+
+  useEffect(() => {
+    if (!useCloudAccounts || !accountsBalanceKey) return;
+    setTxRefresh((k) => k + 1);
+  }, [useCloudAccounts, accountsBalanceKey]);
 
   useEffect(() => {
     if (editingAccounts && accountsApi) {

@@ -8,6 +8,7 @@ import { DecimalTextInput } from "@/components/DecimalInput";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
+import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import type { TravelExpenseRow, TravelTrip, TravelTripBudget } from "@/lib/travel/types";
 
@@ -202,6 +203,9 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     if (!res.ok) {
       setMsg(data.error ?? "Failed to add expense");
       return;
+    }
+    if (financialAccountId) {
+      dispatchAccountsChanged("travel-expense", { tripId });
     }
     setAmount("");
     setNote("");

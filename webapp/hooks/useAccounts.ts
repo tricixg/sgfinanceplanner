@@ -2,6 +2,10 @@
 
 import { useCallback, useContext, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import {
+  ACCOUNTS_CHANGED_EVENT,
+  SAVINGS_LEDGER_RECORDED_EVENT,
+} from "@/lib/savings/accounts-events";
 import type { AccountsBundle, UserSavingsAccount } from "@/lib/savings/types";
 import { AccountsContext } from "@/contexts/app-data-contexts";
 
@@ -43,6 +47,24 @@ export function useAccountsProvider(enabled: boolean) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const onAccountsChanged = (event: Event) => {
+      const source =
+        event instanceof CustomEvent && typeof event.detail?.source === "string"
+          ? event.detail.source
+          : event.type;
+      console.info("[useAccounts] reload from event", { source });
+      void load();
+    };
+    window.addEventListener(ACCOUNTS_CHANGED_EVENT, onAccountsChanged);
+    window.addEventListener(SAVINGS_LEDGER_RECORDED_EVENT, onAccountsChanged);
+    return () => {
+      window.removeEventListener(ACCOUNTS_CHANGED_EVENT, onAccountsChanged);
+      window.removeEventListener(SAVINGS_LEDGER_RECORDED_EVENT, onAccountsChanged);
+    };
+  }, [enabled, load]);
 
   const saveAccounts = useCallback(
     async (next: UserSavingsAccount[]) => {
