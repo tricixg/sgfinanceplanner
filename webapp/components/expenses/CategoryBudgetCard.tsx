@@ -75,7 +75,8 @@ export function CategoryBudgetCard({
   const rows = [
     ...category.expenses.map((x) => ({
       id: x.id,
-      kind: "manual" as const,
+      kind: "expense" as const,
+      source: expenseEntrySourceLabel(x.entrySource),
       date: x.spentAt,
       amount: x.amount,
       note: x.note,
