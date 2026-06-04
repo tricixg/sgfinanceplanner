@@ -11,6 +11,10 @@ import {
   type ComputedAllocations,
 } from "@/lib/expenses/computed-categories";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
+import {
+  netBudgetSpend,
+  type ReimbursementTotalsBySource,
+} from "@/lib/transactions/reimburse-totals";
 
 /** Standalone budget_transactions (CSV / card ledger), not expense ledger mirrors. */
 export type BudgetImportRow = {
@@ -70,12 +74,18 @@ function importSpentAmount(amount: number, transactionType: string): number {
   return Math.abs(amount);
 }
 
+const EMPTY_REIMBURSEMENTS: ReimbursementTotalsBySource = {
+  expense: new Map(),
+  budget: new Map(),
+};
+
 export function buildBudgetExpenseSummary(
   ym: string,
   budgetLines: BudgetLineRow[],
   expenses: Expense[],
   imports: BudgetImportRow[],
-  computedAlloc?: ComputedAllocations
+  computedAlloc?: ComputedAllocations,
+  reimbursements: ReimbursementTotalsBySource = EMPTY_REIMBURSEMENTS
 ): BudgetExpenseSummary {
   const { from, to } = monthRange(ym);
   const buckets = expenseBudgetLines(budgetLines);
@@ -105,10 +115,12 @@ export function buildBudgetExpenseSummary(
     const lineId = resolveBudgetLineId(buckets, exp.category, exp.budgetLineId);
     if (lineId && categoryMap.has(lineId)) {
       const cat = categoryMap.get(lineId)!;
-      cat.spent += exp.amount;
+      const reimbursed = reimbursements.expense.get(exp.id) ?? 0;
+      cat.spent += netBudgetSpend(exp.amount, reimbursed);
       cat.expenses.push(exp);
     } else {
-      uncategorized.spent += exp.amount;
+      const reimbursed = reimbursements.expense.get(exp.id) ?? 0;
+      uncategorized.spent += netBudgetSpend(exp.amount, reimbursed);
       uncategorized.expenses.push(exp);
     }
   }
@@ -116,13 +128,16 @@ export function buildBudgetExpenseSummary(
   for (const imp of imports) {
     const spent = importSpentAmount(imp.amount, imp.transactionType);
     if (spent <= 0) continue;
+    const reimbursed = reimbursements.budget.get(imp.id) ?? 0;
+    const net = netBudgetSpend(spent, reimbursed);
+    if (net <= 0) continue;
     const lineId = resolveBudgetLineId(buckets, imp.category, null);
     if (lineId && categoryMap.has(lineId)) {
       const cat = categoryMap.get(lineId)!;
-      cat.spent += spent;
+      cat.spent += net;
       cat.imports.push(imp);
     } else {
-      uncategorized.spent += spent;
+      uncategorized.spent += net;
       uncategorized.imports.push(imp);
     }
   }

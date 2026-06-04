@@ -31,7 +31,7 @@ function eventsForTransactionChange(
     return ["savings:changed", "accounts:changed"];
   }
   if (recordType === "expense") {
-    return ["expense:changed", "recurring:changed", "loans:changed"];
+    return ["expense:changed", "recurring:changed", "loans:changed", "accounts:changed"];
   }
   return ["expense:changed"];
 }

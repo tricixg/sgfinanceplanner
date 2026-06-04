@@ -12,6 +12,7 @@ import { loadFinancialAccounts } from "@/lib/financial-accounts/sync";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
+import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 
 export async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
@@ -105,12 +106,15 @@ export async function GET(req: NextRequest) {
     subscription: computedSubscriptionMonthly(subscriptions),
   };
 
+  const reimbursements = await loadReimbursementTotals(supabase, user.id);
+
   const summary = buildBudgetExpenseSummary(
     ym,
     budgetLines,
     expenses,
     imports,
-    computedAlloc
+    computedAlloc,
+    reimbursements
   );
 
   console.info("[api/expenses/summary] GET", {

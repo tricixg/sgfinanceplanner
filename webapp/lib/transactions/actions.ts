@@ -6,6 +6,7 @@ import { createBudgetTransaction, deleteBudgetTransaction, getBudgetTransactionB
 import { syncStatementAfterPaymentTransactionDelete } from "@/lib/credit-cards/card-statements/pay";
 import { applyTransaction, deleteSavingsTransaction, getSavingsTransactionById } from "@/lib/savings/ledger";
 import { mapExpense } from "@/lib/savings/db-mappers";
+import { applyReimbursementBudgetImpact } from "@/lib/transactions/reimburse-budget-impact";
 
 export type TransactionRecordType = "expense" | "savings" | "budget";
 
@@ -177,6 +178,8 @@ export async function reimburseTransactionWithLedger(
       ? input.note.trim()
       : `Reimbursement for ${sourceLabel}`;
 
+  let result: { recordType: "savings" | "budget"; item: unknown };
+
   if (account.accountType === "cash" && account.savingsAccountId) {
     const row = await applyTransaction(supabase, {
       userId,
@@ -188,20 +191,33 @@ export async function reimburseTransactionWithLedger(
       sourceRecordType: recordType,
       sourceRecordId: id,
     });
-    return { recordType: "savings", item: row };
+    result = { recordType: "savings", item: row };
+  } else {
+    const row = await createBudgetTransaction(supabase, userId, {
+      financialAccountId: account.id,
+      ledger: account.name,
+      category,
+      amount,
+      spentAt: toYmd(nowIso),
+      spentTime: toTime(nowIso),
+      note,
+      transactionType: "income",
+      sourceRecordType: recordType,
+      sourceRecordId: id,
+    });
+    result = { recordType: "budget", item: row };
   }
 
-  const row = await createBudgetTransaction(supabase, userId, {
-    financialAccountId: account.id,
-    ledger: account.name,
-    category,
+  if (recordType === "expense" || recordType === "budget") {
+    await applyReimbursementBudgetImpact(supabase, userId, recordType, id, amount);
+  }
+
+  console.info("[tx-actions] reimbursement complete", {
+    recordType,
+    id,
     amount,
-    spentAt: toYmd(nowIso),
-    spentTime: toTime(nowIso),
-    note,
-    transactionType: "income",
-    sourceRecordType: recordType,
-    sourceRecordId: id,
+    ledgerRecordType: result.recordType,
   });
-  return { recordType: "budget", item: row };
+
+  return result;
 }

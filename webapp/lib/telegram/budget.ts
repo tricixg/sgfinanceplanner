@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
+import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { computedSubscriptionMonthly } from "@/lib/finance/budget";
@@ -77,7 +78,15 @@ export async function loadMonthBudgetSummary(
     subscription: computedSubscriptionMonthly(subscriptions),
   };
 
-  return buildBudgetExpenseSummary(ym, budgetLines, expenses, imports, computedAlloc);
+  const reimbursements = await loadReimbursementTotals(supabase, userId);
+  return buildBudgetExpenseSummary(
+    ym,
+    budgetLines,
+    expenses,
+    imports,
+    computedAlloc,
+    reimbursements
+  );
 }
 
 export function expenseCategoryRows(summary: MonthBudgetSummary): CategoryBudgetSummary[] {

@@ -84,6 +84,23 @@ describe("buildBudgetExpenseSummary", () => {
     expect(summary.totals.spent).toBe(400);
   });
 
+  it("nets reimbursements against expense amount for budget used only", () => {
+    const reimbursements = {
+      expense: new Map([["e1", 40]]),
+      budget: new Map(),
+    };
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [expense({ id: "e1", amount: 100, budgetLineId: "a1" })],
+      [],
+      undefined,
+      reimbursements
+    );
+    expect(summary.categories[0].spent).toBe(60);
+    expect(summary.categories[0].expenses[0].amount).toBe(100);
+  });
+
   it("puts unmatched spend in uncategorized", () => {
     const summary = buildBudgetExpenseSummary(
       "2025-05",
