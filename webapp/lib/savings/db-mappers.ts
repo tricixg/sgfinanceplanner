@@ -1,3 +1,7 @@
+import {
+  DEFAULT_EXPENSE_ENTRY_SOURCE,
+  parseExpenseEntrySource,
+} from "@/lib/expenses/entry-source";
 import type {
   Expense,
   PartnerInvite,
@@ -87,6 +91,8 @@ export function mapExpense(row: Record<string, unknown>): Expense {
     amount: Number(row.amount ?? 0),
     category: String(row.category ?? ""),
     budgetLineId: row.budget_line_id ? String(row.budget_line_id) : null,
+    entrySource:
+      parseExpenseEntrySource(row.entry_source) ?? DEFAULT_EXPENSE_ENTRY_SOURCE,
     autoCategory,
     loanId: row.loan_id ? String(row.loan_id) : null,
     insurancePolicyId: row.insurance_policy_id ? String(row.insurance_policy_id) : null,

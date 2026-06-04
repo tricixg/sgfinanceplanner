@@ -201,6 +201,7 @@ export function autoPaymentInsertRow(
     ilp_policy_id: null,
     subscription_id: null,
     financial_account_id: payload.financialAccountId ?? null,
+    entry_source: "recurring",
   };
   if (payload.autoCategory === "debt") row.loan_id = payload.loanId;
   if (payload.autoCategory === "insurance") row.insurance_policy_id = payload.insurancePolicyId;

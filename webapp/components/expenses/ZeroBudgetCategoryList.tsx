@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
+import { expenseEntrySourceLabel } from "@/lib/expenses/entry-source";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
@@ -37,7 +38,8 @@ export function ZeroBudgetCategoryItem({
   const rows = [
     ...category.expenses.map((x) => ({
       id: x.id,
-      kind: "manual" as const,
+      kind: "expense" as const,
+      source: expenseEntrySourceLabel(x.entrySource),
       date: x.spentAt,
       amount: x.amount,
       note: x.note,
@@ -118,7 +120,10 @@ export function ZeroBudgetCategoryItem({
                 <span className="zero-budget-item-tx-amt">{fmt2(r.amount)}</span>
                 {r.note ? <span className="zero-budget-item-tx-note">{r.note}</span> : null}
                 {r.kind === "import" ? <span className="tag t-warn">import</span> : null}
-                {r.kind === "manual" ? (
+                {r.kind === "expense" && r.source !== "manual" ? (
+                  <span className="tag t-live">{r.source}</span>
+                ) : null}
+                {r.kind === "expense" ? (
                   <button
                     type="button"
                     className="btn ghost sm zero-budget-item-del"

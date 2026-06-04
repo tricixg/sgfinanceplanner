@@ -51,6 +51,7 @@ describe("autoPaymentInsertRow", () => {
     expect(row.auto_category).toBe("debt");
     expect(row.loan_id).toBe("loan-1");
     expect(row.budget_line_id).toBeNull();
+    expect(row.entry_source).toBe("recurring");
     expect(row.category).toContain("Loans");
   });
 });

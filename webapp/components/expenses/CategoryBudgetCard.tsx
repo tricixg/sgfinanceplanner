@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
+import { expenseEntrySourceLabel } from "@/lib/expenses/entry-source";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
@@ -171,14 +172,18 @@ export function CategoryBudgetCard({
               <tr key={`${r.kind}-${r.id}`}>
                 <td>{r.date}</td>
                 <td>
-                  <span className={`tag ${r.kind === "import" ? "t-warn" : ""}`}>
-                    {r.kind === "import" ? "import" : "manual"}
+                  <span
+                    className={`tag ${
+                      r.kind === "import" ? "t-warn" : r.source === "telegram" ? "t-live" : ""
+                    }`}
+                  >
+                    {r.kind === "import" ? "import" : r.source}
                   </span>
                 </td>
                 <td>{r.note || "—"}</td>
                 <td className="num">{fmt2(r.amount)}</td>
                 <td>
-                  {r.kind === "manual" ? (
+                  {r.kind === "expense" ? (
                     <button
                       type="button"
                       className="btn ghost sm"

@@ -20,6 +20,7 @@ function expense(partial: Partial<Expense> & Pick<Expense, "id" | "amount">): Ex
     amount: partial.amount,
     category: partial.category ?? "",
     budgetLineId: partial.budgetLineId ?? null,
+    entrySource: partial.entrySource ?? "manual",
     autoCategory: partial.autoCategory ?? null,
     loanId: partial.loanId ?? null,
     insurancePolicyId: partial.insurancePolicyId ?? null,

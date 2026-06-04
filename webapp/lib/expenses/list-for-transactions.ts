@@ -5,6 +5,7 @@ import {
   formatTransactionTime,
 } from "@/lib/savings/format-transaction-when";
 import { sgtSpentAtToIso } from "@/lib/time/sgt";
+import { expenseEntrySourceLabel } from "@/lib/expenses/entry-source";
 import type { Expense } from "@/lib/savings/types";
 import type { BudgetTransactionType, UnifiedTransaction } from "@/lib/transactions/types";
 
@@ -62,7 +63,7 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
     category: expense.category || null,
     subcategory: null,
     currency: "SGD",
-    recorder: null,
+    recorder: expenseEntrySourceLabel(expense.entrySource),
     tag: null,
     note: expense.note,
     goalName: null,

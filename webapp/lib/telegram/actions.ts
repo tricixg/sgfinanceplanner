@@ -9,6 +9,7 @@ import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
 import { parseTravelSpentAtInput } from "@/lib/travel/expense-input";
 import { loadTrip } from "@/lib/travel/load";
 import { formatTravelExpenseNote, TRAVEL_CATEGORY } from "@/lib/travel/notes";
+import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
 import { assertTelegramWriteScope } from "@/lib/telegram/auth-guard";
 import {
   findCategoryRemaining,
@@ -70,6 +71,7 @@ export async function createManualExpense(
       spent_time: spentTime,
       note: input.note ?? "",
       financial_account_id: financialAccountId,
+      entry_source: "telegram",
     })
     .select("*")
     .single();
@@ -97,6 +99,9 @@ export async function createManualExpense(
     amount: input.amount,
     financialAccountId,
   });
+  if (financialAccountId) {
+    dispatchAccountsChanged("telegram-expense", { expenseId: expense.id });
+  }
 
   return { ok: true, category: budgetLine.category, remaining };
 }
@@ -146,6 +151,7 @@ export async function createTravelExpense(
       spent_time: spentTime,
       note,
       financial_account_id: financialAccountId,
+      entry_source: "telegram",
     })
     .select("*")
     .single();
@@ -170,6 +176,9 @@ export async function createTravelExpense(
     subCategory: input.subCategory,
     financialAccountId,
   });
+  if (financialAccountId) {
+    dispatchAccountsChanged("telegram-travel-expense", { expenseId: expense.id });
+  }
 
   return { ok: true, tripName: trip.name };
 }

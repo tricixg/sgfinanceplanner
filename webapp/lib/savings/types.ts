@@ -1,3 +1,5 @@
+import type { ExpenseEntrySource } from "@/lib/expenses/entry-source";
+
 /** Personal cash jar (user_savings_accounts) — managed on Cash Accounts tab. */
 export type UserSavingsAccount = {
   id: string;
@@ -115,6 +117,7 @@ export type Expense = {
   amount: number;
   category: string;
   budgetLineId: string | null;
+  entrySource: ExpenseEntrySource;
   autoCategory: "debt" | "insurance" | "ilp" | "subscription" | null;
   loanId: string | null;
   insurancePolicyId: string | null;

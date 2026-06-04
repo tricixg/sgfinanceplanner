@@ -14,6 +14,7 @@ function sampleExpense(
     amount: 120,
     category: "Groceries",
     budgetLineId: "bl-1",
+    entrySource: "manual",
     autoCategory: null,
     loanId: null,
     insurancePolicyId: null,

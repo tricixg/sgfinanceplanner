@@ -9,6 +9,7 @@ function expense(partial: Partial<Expense> & Pick<Expense, "id">): Expense {
     amount: partial.amount ?? 100,
     category: "",
     budgetLineId: null,
+    entrySource: partial.entrySource ?? "manual",
     autoCategory: partial.autoCategory ?? null,
     loanId: partial.loanId ?? null,
     insurancePolicyId: partial.insurancePolicyId ?? null,
