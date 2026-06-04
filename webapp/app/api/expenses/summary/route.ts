@@ -8,7 +8,6 @@ import { loadRecurringSubscriptions } from "@/lib/recurring/load";
 import { computedSubscriptionMonthly } from "@/lib/finance/budget";
 import { loanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
-import { loadFinancialAccounts } from "@/lib/financial-accounts/sync";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
@@ -44,7 +43,7 @@ export async function GET(req: NextRequest) {
     insurancePolicies,
     ilpPolicies,
     subscriptions,
-    financialAccounts,
+    reimbursements,
   ] = await Promise.all([
     supabase
       .from("budget_lines")
@@ -72,7 +71,7 @@ export async function GET(req: NextRequest) {
     loadInsurancePolicies(supabase, user.id),
     loadIlpPolicies(supabase, user.id),
     loadRecurringSubscriptions(supabase, user.id),
-    loadFinancialAccounts(supabase, user.id),
+    loadReimbursementTotals(supabase, user.id),
   ]);
 
   if (budgetRes.error) {
@@ -106,8 +105,6 @@ export async function GET(req: NextRequest) {
     subscription: computedSubscriptionMonthly(subscriptions),
   };
 
-  const reimbursements = await loadReimbursementTotals(supabase, user.id);
-
   const summary = buildBudgetExpenseSummary(
     ym,
     budgetLines,
@@ -129,8 +126,7 @@ export async function GET(req: NextRequest) {
       spent: c.spent,
     })),
     uncategorizedSpent: summary.uncategorized.spent,
-    accountCount: financialAccounts.length,
   });
 
-  return NextResponse.json({ configured: true, ...summary, financialAccounts });
+  return NextResponse.json({ configured: true, ...summary });
 }

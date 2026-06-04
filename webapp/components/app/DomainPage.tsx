@@ -19,17 +19,13 @@ export function DomainPage({ children }: Props) {
   const user = useAppSession();
   const { state, setState, coreLoading, snapshotsLoading, cardsApi } = useAppData();
 
-  if (coreLoading) {
-    return <p className="loading">Loading your financial data…</p>;
-  }
-
   return (
     <>
       {children({
         state: user?.id ? state : createEmptyState(),
         setState,
         cardsApi,
-        loading: false,
+        loading: coreLoading,
         snapshotsLoading,
       })}
     </>

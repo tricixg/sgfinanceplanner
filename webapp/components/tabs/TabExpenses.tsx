@@ -9,8 +9,10 @@ import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
+import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 
 export function TabExpenses({ enabled }: { enabled: boolean }) {
+  const { accounts: financialAccounts } = useFinancialAccounts();
   const [viewYm, setViewYm] = useState(currentYm);
   const [summary, setSummary] = useState<BudgetExpenseSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -169,7 +171,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
               <CategoryBudgetCard
                 key={cat.budgetLineId}
                 category={cat}
-                financialAccounts={summary.financialAccounts}
+                financialAccounts={financialAccounts}
                 onAddExpense={addExpense}
                 onDeleteExpense={deleteExpense}
               />
@@ -178,7 +180,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
 
           <ZeroBudgetCategoryList
             categories={summary.zeroAllocated}
-            financialAccounts={summary.financialAccounts}
+            financialAccounts={financialAccounts}
             onAddExpense={addExpense}
             onDeleteExpense={deleteExpense}
           />

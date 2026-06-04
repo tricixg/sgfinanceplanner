@@ -38,29 +38,6 @@ export function TabThisMonth({ state: S }: Props) {
   const todayYm = currentYm();
   const todayDay = new Date().getDate();
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const { res, data } = await fetchJson<{
-        items?: RecurringSubscription[];
-        subscriptions?: RecurringSubscription[];
-        error?: string;
-      }>("/api/recurring-subscriptions", { credentials: "include" });
-      if (cancelled) return;
-      const list = data.items ?? data.subscriptions ?? [];
-      if (res.ok) {
-        setSubscriptions(list);
-        console.info("[TabThisMonth] subscriptions loaded", list.length);
-      } else {
-        console.warn("[TabThisMonth] subscriptions load failed", data.error);
-        setSubscriptions([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const loadCalendarAmounts = useCallback(async () => {
     const { res, data } = await fetchJson<{
       configured?: boolean;
@@ -86,8 +63,54 @@ export function TabThisMonth({ state: S }: Props) {
   }, []);
 
   useEffect(() => {
-    void loadCalendarAmounts();
-  }, [loadCalendarAmounts]);
+    let cancelled = false;
+    void (async () => {
+      const [subsRes, calendarRes] = await Promise.all([
+        fetchJson<{
+          items?: RecurringSubscription[];
+          subscriptions?: RecurringSubscription[];
+          error?: string;
+        }>("/api/recurring-subscriptions", { credentials: "include" }),
+        fetchJson<{
+          configured?: boolean;
+          entries?: CardStatementAmountEntry[];
+          cards?: CalendarCardSchedule[];
+          error?: string;
+        }>("/api/credit-cards/calendar", { credentials: "include" }),
+      ]);
+      if (cancelled) return;
+
+      const subsData = subsRes.data;
+      const list = subsData.items ?? subsData.subscriptions ?? [];
+      if (subsRes.res.ok) {
+        setSubscriptions(list);
+        console.info("[TabThisMonth] subscriptions loaded", list.length);
+      } else {
+        console.warn("[TabThisMonth] subscriptions load failed", subsData.error);
+        setSubscriptions([]);
+      }
+
+      const calData = calendarRes.data;
+      if (calendarRes.res.ok && calData.configured) {
+        const cards = calData.cards ?? [];
+        setStatementEntries(
+          normalizeCardStatementAmountEntries(calData.entries ?? [], cards)
+        );
+        setCalendarCards(cards);
+        console.info("[TabThisMonth] calendar amounts loaded", {
+          entries: calData.entries?.length ?? 0,
+          cards: cards.length,
+        });
+      } else {
+        console.warn("[TabThisMonth] calendar amounts load failed", calData.error);
+        setStatementEntries([]);
+        setCalendarCards([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useDomainEvent(
     ["expense:changed", "cards:changed"],

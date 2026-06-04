@@ -1,5 +1,4 @@
 import type { Expense } from "@/lib/savings/types";
-import type { FinancialAccount } from "@/lib/transactions/types";
 import {
   expenseBudgetLines,
   normalizeCategoryKey,
@@ -57,7 +56,6 @@ export type BudgetExpenseSummary = {
   zeroAllocated: CategoryBudgetSummary[];
   computedCategories: CategoryBudgetSummary[];
   uncategorized: UncategorizedSummary;
-  financialAccounts?: FinancialAccount[];
 };
 
 function monthRange(ym: string): { from: string; to: string } {
