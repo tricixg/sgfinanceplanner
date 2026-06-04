@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeRelativeRedirectPath } from "@/lib/auth/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -10,13 +11,13 @@ export async function GET(request: Request) {
 
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const next = safeRelativeRedirectPath(searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      console.info("[auth/callback] session established");
+      console.info("[auth/callback] session established", { next });
       return NextResponse.redirect(`${origin}${next}`);
     }
     console.error("[auth/callback] exchange failed", error.message);
@@ -24,10 +25,10 @@ export async function GET(request: Request) {
     console.warn("[auth/callback] missing code param");
   }
 
-  const failNext = searchParams.get("next");
   const failUrl = new URL("/login", request.url);
   failUrl.searchParams.set("auth", "error");
-  if (failNext?.startsWith("/") && !failNext.startsWith("//")) {
+  const failNext = safeRelativeRedirectPath(searchParams.get("next"));
+  if (failNext !== "/") {
     failUrl.searchParams.set("next", failNext);
   }
   return NextResponse.redirect(failUrl);

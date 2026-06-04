@@ -35,34 +35,44 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createAuthedSupabaseClient();
 
-  const [budgetRes, expensesRes, importsRes, loans, insurancePolicies, ilpPolicies, subscriptions] =
-    await Promise.all([
-      supabase
-        .from("budget_lines")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("expenses")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("spent_at", from)
-        .lte("spent_at", to)
-        .order("spent_at", { ascending: false })
-        .order("id", { ascending: false }),
-      supabase
-        .from("budget_transactions")
-        .select("id, amount, spent_at, category, note, transaction_type")
-        .eq("user_id", user.id)
-        .gte("spent_at", from)
-        .lte("spent_at", to)
-        .in("transaction_type", ["expense", "subscription", "income"])
-        .order("spent_at", { ascending: false }),
-      loadLoans(supabase, user.id),
-      loadInsurancePolicies(supabase, user.id),
-      loadIlpPolicies(supabase, user.id),
-      loadRecurringSubscriptions(supabase, user.id),
-    ]);
+  const [
+    budgetRes,
+    expensesRes,
+    importsRes,
+    loans,
+    insurancePolicies,
+    ilpPolicies,
+    subscriptions,
+    financialAccounts,
+  ] = await Promise.all([
+    supabase
+      .from("budget_lines")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("expenses")
+      .select("*")
+      .eq("user_id", user.id)
+      .gte("spent_at", from)
+      .lte("spent_at", to)
+      .order("spent_at", { ascending: false })
+      .order("id", { ascending: false }),
+    supabase
+      .from("budget_transactions")
+      .select("id, amount, spent_at, category, note, transaction_type")
+      .eq("user_id", user.id)
+      .is("expense_id", null)
+      .gte("spent_at", from)
+      .lte("spent_at", to)
+      .in("transaction_type", ["expense", "subscription", "income"])
+      .order("spent_at", { ascending: false }),
+    loadLoans(supabase, user.id),
+    loadInsurancePolicies(supabase, user.id),
+    loadIlpPolicies(supabase, user.id),
+    loadRecurringSubscriptions(supabase, user.id),
+    loadFinancialAccounts(supabase, user.id),
+  ]);
 
   if (budgetRes.error) {
     console.error("[api/expenses/summary] budget load failed", budgetRes.error.message);
@@ -103,20 +113,11 @@ export async function GET(req: NextRequest) {
     computedAlloc
   );
 
-  // Read-only: sync runs when cards/accounts are saved, not on every summary load.
-  let financialAccounts: Awaited<ReturnType<typeof loadFinancialAccounts>> = [];
-  try {
-    financialAccounts = await loadFinancialAccounts(supabase, user.id);
-    console.info("[api/expenses/summary] financial accounts loaded", {
-      count: financialAccounts.length,
-    });
-  } catch (e) {
-    console.error("[api/expenses/summary] financial accounts load failed", e);
-  }
-
   console.info("[api/expenses/summary] GET", {
     userId: user.id,
     ym,
+    expenseCount: expenses.length,
+    importCount: imports.length,
     categories: summary.categories.length,
     zeroAllocated: summary.zeroAllocated.length,
     computed: summary.computedCategories.map((c) => ({

@@ -19,9 +19,15 @@ export type AppDataContextValue = {
   setState: (
     updater: DashboardState | ((prev: DashboardState) => DashboardState)
   ) => void;
+  /** Alias for coreLoading — blocks DomainPage until core domains are ready. */
   loading: boolean;
+  coreLoading: boolean;
+  snapshotsLoading: boolean;
   configured: boolean;
   reload: () => Promise<void>;
+  reloadLoans: () => Promise<void>;
+  reloadOtherLoans: () => Promise<void>;
+  reloadSnapshots: () => Promise<void>;
   saveProfile: (patch: Partial<FinanceProfile>) => Promise<void>;
   saveProfilePolicies: (patch: {
     insurancePolicies?: DashboardState["insurancePolicies"];

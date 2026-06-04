@@ -153,8 +153,7 @@ export type BtoPlannerPrefs = {
   schemes: BTOSchemeSelection;
 };
 
-export type DashboardPrefs = {
-};
+export type DashboardPrefs = Record<string, never>;
 
 export type DashboardState = {
   prefs?: DashboardPrefs;

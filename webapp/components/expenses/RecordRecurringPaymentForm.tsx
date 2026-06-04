@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
-import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 export type RecurringPaymentSuccessPayload = {
   expenseId: string;
@@ -80,9 +80,12 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         amt,
         spentAt,
       });
-      if (financialAccountId) {
-        dispatchAccountsChanged("recurring-pay", { expenseId });
-      }
+      dispatchDomainEvent([
+        "expense:changed",
+        "recurring:changed",
+        "loans:changed",
+        ...(financialAccountId ? (["accounts:changed"] as const) : []),
+      ]);
       await onSuccess({
         expenseId,
         spentAt,

@@ -20,6 +20,7 @@ import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import type { ChartOptions } from "chart.js";
 import { fetchJson } from "@/lib/fetch-json";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { isSystemIncomeSlug } from "@/lib/income/types";
 import type { IncomeCategoryInput } from "@/lib/income/types";
@@ -103,15 +104,9 @@ export function TabNow({
     preloadedAdditiveStartYm,
   ]);
 
-  useEffect(() => {
-    const onLedgerRecorded = () => {
-      void loadAdditive();
-      console.info("[TabNow] additive reload from ledger event", { startYm });
-    };
-    window.addEventListener("savings-ledger-recorded", onLedgerRecorded);
-    return () => {
-      window.removeEventListener("savings-ledger-recorded", onLedgerRecorded);
-    };
+  useDomainEvent("savings:changed", () => {
+    void loadAdditive();
+    console.info("[TabNow] additive reload from savings:changed", { startYm });
   }, [loadAdditive, startYm]);
 
   useEffect(() => {
@@ -303,7 +298,7 @@ export function TabNow({
               const v = e.target.value;
               if (v) {
                 setStartYmDraft(v);
-                console.log("[TabNow] cashflowStartYm draft", v);
+                console.info("[TabNow] cashflowStartYm draft", v);
               }
             }}
           />

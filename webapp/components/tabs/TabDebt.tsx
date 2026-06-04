@@ -45,7 +45,7 @@ export function TabDebt({ state: S, setState }: Props) {
   const startEditing = () => {
     setLoansDraft(structuredClone(S.loans));
     setEditing(true);
-    console.log("[TabDebt] edit mode on");
+    console.info("[TabDebt] edit mode on");
   };
 
   const saveLoans = async () => {
@@ -72,14 +72,14 @@ export function TabDebt({ state: S, setState }: Props) {
     setLoansDraft((prev) =>
       prev.map((l, j) => (j === i ? { ...l, [key]: val } : l))
     );
-    console.log("[TabDebt] updated loan draft", i, key, val);
+    console.info("[TabDebt] updated loan draft", i, key, val);
   };
 
   const patchLoan = (i: number, patch: Partial<Loan>) => {
     setLoansDraft((prev) =>
       prev.map((l, j) => (j === i ? { ...l, ...patch } : l))
     );
-    console.log("[TabDebt] patched loan draft", i, patch);
+    console.info("[TabDebt] patched loan draft", i, patch);
   };
 
   const setLoanCard = (i: number, cardId: string) => {
@@ -89,7 +89,7 @@ export function TabDebt({ state: S, setState }: Props) {
         j === i ? { ...l, cardId: cardId || undefined, card: label } : l
       )
     );
-    console.log("[TabDebt] linked loan to card", { index: i, cardId, label });
+    console.info("[TabDebt] linked loan to card", { index: i, cardId, label });
   };
 
   const addLoan = () => {
@@ -106,12 +106,12 @@ export function TabDebt({ state: S, setState }: Props) {
         end: "2027-01",
       },
     ]);
-    console.log("[TabDebt] added loan to draft");
+    console.info("[TabDebt] added loan to draft");
   };
 
   const removeLoan = (i: number) => {
     setLoansDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabDebt] removed loan from draft", i);
+    console.info("[TabDebt] removed loan from draft", i);
   };
 
   const loanTableHead = (
@@ -319,7 +319,10 @@ export function TabDebt({ state: S, setState }: Props) {
           <button
             type="button"
             className="btn ghost sm"
-            onClick={() => setEditingOtherLoans(true)}
+            onClick={() => {
+              setOtherLoansSaveRequest(0);
+              setEditingOtherLoans(true);
+            }}
           >
             Edit
           </button>
@@ -339,7 +342,10 @@ export function TabDebt({ state: S, setState }: Props) {
         editing={editingOtherLoans}
         saveRequestToken={otherLoansSaveRequest}
         onSaved={(msg) => {
-          if (msg === "Other loans saved") setEditingOtherLoans(false);
+          if (msg === "Other loans saved") {
+            setEditingOtherLoans(false);
+            setOtherLoansSaveRequest(0);
+          }
           snackbar.show(msg);
         }}
         onError={(msg) => snackbar.show(msg, { error: true })}

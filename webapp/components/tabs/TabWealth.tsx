@@ -34,6 +34,7 @@ type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
+  snapshotsLoading?: boolean;
 };
 
 function priceStale(lastPriceAt?: string): boolean {
@@ -42,7 +43,7 @@ function priceStale(lastPriceAt?: string): boolean {
   return age > 24 * 60 * 60 * 1000;
 }
 
-export function TabWealth({ state: S, setState, savings }: Props) {
+export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Props) {
   const appData = useContext(AppDataContext);
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
@@ -101,7 +102,7 @@ export function TabWealth({ state: S, setState, savings }: Props) {
   const startIlpEdit = () => {
     setIlpDraft(structuredClone(S.ilpPolicies));
     setEditingIlp(true);
-    console.log("[TabWealth] ILP edit on");
+    console.info("[TabWealth] ILP edit on");
   };
 
   const saveIlp = async () => {
@@ -125,24 +126,24 @@ export function TabWealth({ state: S, setState, savings }: Props) {
     setIlpDraft((prev) =>
       prev.map((p, j) => (j === i ? { ...p, ...patch } : p))
     );
-    console.log("[TabWealth] updated ILP draft", i, patch);
+    console.info("[TabWealth] updated ILP draft", i, patch);
   };
 
   const addPolicy = () => {
     setIlpDraft((prev) => [...prev, defaultIlpPolicy()]);
-    console.log("[TabWealth] added ILP policy to draft");
+    console.info("[TabWealth] added ILP policy to draft");
   };
 
   const removePolicy = (i: number) => {
     setIlpDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabWealth] removed ILP policy from draft", i);
+    console.info("[TabWealth] removed ILP policy from draft", i);
   };
 
   const startHoldingsEdit = () => {
     setHoldingsDraft(structuredClone(S.holdings));
     setMarginDraft(S.margin);
     setEditingHoldings(true);
-    console.log("[TabWealth] holdings edit on");
+    console.info("[TabWealth] holdings edit on");
   };
 
   const saveHoldingsEdit = async () => {
@@ -173,22 +174,22 @@ export function TabWealth({ state: S, setState, savings }: Props) {
     setHoldingsDraft((prev) =>
       prev.map((h, j) => (j === i ? { ...h, ...patch } : h))
     );
-    console.log("[TabWealth] updated holding draft", i, patch);
+    console.info("[TabWealth] updated holding draft", i, patch);
   };
 
   const addHolding = () => {
     setHoldingsDraft((prev) => [...prev, defaultHolding()]);
-    console.log("[TabWealth] added holding to draft");
+    console.info("[TabWealth] added holding to draft");
   };
 
   const removeHolding = (i: number) => {
     setHoldingsDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabWealth] removed holding from draft", i);
+    console.info("[TabWealth] removed holding from draft", i);
   };
 
   const patchMargin = (margin: number) => {
     setMarginDraft(margin);
-    console.log("[TabWealth] updated margin draft", margin);
+    console.info("[TabWealth] updated margin draft", margin);
   };
 
   const allocationChart = useMemo(() => {
@@ -810,7 +811,10 @@ export function TabWealth({ state: S, setState, savings }: Props) {
               </table>
             </div>
 
-            {(allocationChart || pnlChart || growthChart) && (
+            {(allocationChart ||
+              pnlChart ||
+              growthChart ||
+              (snapshotsLoading && (S.portfolioHistory?.length ?? 0) < 2)) && (
               <div className="holdings-charts">
                 {allocationChart && (
                   <div className="card" style={{ margin: 0 }}>
@@ -833,12 +837,17 @@ export function TabWealth({ state: S, setState, savings }: Props) {
                     <ChartBox type="bar" height={240} data={pnlChart} options={hBarOpts} />
                   </div>
                 )}
-                {growthChart && (
+                {snapshotsLoading && (S.portfolioHistory?.length ?? 0) < 2 ? (
+                  <div className="card holdings-charts-full" style={{ margin: 0 }}>
+                    <div className="section-lbl">Portfolio growth (on refresh)</div>
+                    <p className="note loading">Loading portfolio history…</p>
+                  </div>
+                ) : growthChart ? (
                   <div className="card holdings-charts-full" style={{ margin: 0 }}>
                     <div className="section-lbl">Portfolio growth (on refresh)</div>
                     <ChartBox type="line" tall data={growthChart} options={lineOpts} />
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </>

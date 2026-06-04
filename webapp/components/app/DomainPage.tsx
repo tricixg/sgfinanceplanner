@@ -10,15 +10,16 @@ type Props = {
     setState: ReturnType<typeof useAppData>["setState"];
     cardsApi: ReturnType<typeof useAppData>["cardsApi"];
     loading: boolean;
+    snapshotsLoading: boolean;
   }) => React.ReactNode;
 };
 
 /** Domain tab content — reads session-cached app data from AppDataProvider. */
 export function DomainPage({ children }: Props) {
   const user = useAppSession();
-  const { state, setState, loading, cardsApi } = useAppData();
+  const { state, setState, coreLoading, snapshotsLoading, cardsApi } = useAppData();
 
-  if (loading) {
+  if (coreLoading) {
     return <p className="loading">Loading your financial data…</p>;
   }
 
@@ -28,7 +29,8 @@ export function DomainPage({ children }: Props) {
         state: user?.id ? state : createEmptyState(),
         setState,
         cardsApi,
-        loading,
+        loading: false,
+        snapshotsLoading,
       })}
     </>
   );

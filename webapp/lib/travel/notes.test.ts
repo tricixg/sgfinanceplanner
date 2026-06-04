@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatTravelExpenseNote, parseTripSubCategoryFromNote } from "@/lib/travel/notes";
+import {
+  formatTravelExpenseNote,
+  parseTravelExpenseParts,
+  parseTripSubCategoryFromNote,
+} from "@/lib/travel/notes";
 
 describe("travel note format + parse", () => {
   it("formats trip note with subcategory and optional detail", () => {
@@ -14,5 +18,11 @@ describe("travel note format + parse", () => {
       "Accoms"
     );
     expect(parseTripSubCategoryFromNote("Japan Spring", "Bali - Flights")).toBeNull();
+  });
+
+  it("parses extra note separately", () => {
+    expect(
+      parseTravelExpenseParts("Japan Spring", "Japan Spring - Flights · SQ 638")
+    )?.toEqual({ subCategory: "Flights", extraNote: "SQ 638" });
   });
 });

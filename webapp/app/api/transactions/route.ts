@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
-import { parseBudgetCsv } from "@/lib/budget/parse-csv";
-import { importBudgetRows } from "@/lib/budget/transactions";
 import type { SavingsTransactionKind } from "@/lib/savings/types";
 import type { BudgetTransactionType } from "@/lib/transactions/types";
 import { parseDateRangeFilter } from "@/lib/transactions/date-range";
@@ -118,52 +116,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  void req;
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
 
   const auth = await requireSessionUser();
   if ("response" in auth) return auth.response;
-
-  let body: { csv?: string; createMissingAccounts?: boolean };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const csv = typeof body.csv === "string" ? body.csv : "";
-  if (!csv.trim()) {
-    return NextResponse.json({ error: "csv is required" }, { status: 400 });
-  }
-
-  const parsed = parseBudgetCsv(csv);
-  if (parsed.errors.length && !parsed.rows.length) {
-    return NextResponse.json(
-      { error: parsed.errors.join(" "), skipped: parsed.skipped, errors: parsed.errors },
-      { status: 400 }
-    );
-  }
-
-  try {
-    const supabase = await createAuthedSupabaseClient();
-    const result = await importBudgetRows(supabase, auth.user.id, parsed.rows, {
-      createMissingAccounts: body.createMissingAccounts !== false,
-    });
-    console.info("[api/transactions] import", {
-      userId: auth.user.id,
-      ...result,
-      parseSkipped: parsed.skipped,
-    });
-    return NextResponse.json({
-      configured: true,
-      ...result,
-      parseSkipped: parsed.skipped,
-      errors: parsed.errors,
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Import failed";
-    console.error("[api/transactions] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
+  console.info("[api/transactions] import disabled", { userId: auth.user.id });
+  return NextResponse.json(
+    { error: "Budget CSV import is disabled." },
+    { status: 410 }
+  );
 }

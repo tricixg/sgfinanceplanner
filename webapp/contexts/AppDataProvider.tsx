@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAppDataProvider } from "@/hooks/useAppData";
 import { useSavingsProvider } from "@/hooks/useSavings";
 import { useAccountsProvider } from "@/hooks/useAccounts";
@@ -27,7 +28,9 @@ export function AppDataProvider({ userId, children }: Props) {
   const household = useHouseholdProvider(enabled);
   const financialAccounts = useFinancialAccountsProvider(enabled);
 
-  console.info("[AppDataProvider] mounted", { userId: userId ?? null, enabled });
+  useEffect(() => {
+    console.info("[AppDataProvider] mounted", { userId: userId ?? null, enabled });
+  }, [userId, enabled]);
 
   return (
     <AppDataContext.Provider value={appData}>

@@ -7,14 +7,20 @@ export async function syncExpenseLedgerAfterCreate(
   supabase: SupabaseClient,
   userId: string,
   expense: Expense,
-  opts: { loanId?: string; loanPaymentAmount?: number } = {}
+  opts: {
+    loanId?: string;
+    loanPaymentAmount?: number;
+    occurredAt?: string;
+  } = {}
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!expense.financialAccountId) {
     return { ok: true };
   }
 
   try {
-    await createExpenseLedger(supabase, userId, expense);
+    await createExpenseLedger(supabase, userId, expense, {
+      occurredAt: opts.occurredAt,
+    });
     return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Ledger sync failed";

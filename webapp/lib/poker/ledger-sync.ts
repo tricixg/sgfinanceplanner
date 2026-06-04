@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { findIncomeCategoryBySlug } from "@/lib/income/load";
 import { applyTransaction } from "@/lib/savings/ledger";
+import { pokerPlayedAtToLedgerIso } from "@/lib/poker/played-at";
 import { pokerProfit, sessionGameLabel } from "@/lib/poker/types";
 import type { PokerSession } from "@/lib/poker/types";
 
@@ -45,7 +46,7 @@ export async function createPokerLedger(
   }
 
   const note = pokerLedgerNote(session);
-  const occurredAt = `${session.playedAt}T12:00:00.000Z`;
+  const occurredAt = pokerPlayedAtToLedgerIso(session.playedAt);
 
   if (profit > 0) {
     const pokerCat = await findIncomeCategoryBySlug(supabase, userId, "poker");

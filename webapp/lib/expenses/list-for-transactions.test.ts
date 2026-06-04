@@ -21,6 +21,7 @@ function sampleExpense(
     subscriptionId: null,
     financialAccountId: "fa-1",
     spentAt: "2025-05-15",
+    spentTime: "14:30:00",
     note: "NTUC",
     createdAt: "2025-05-15T00:00:00Z",
     accountName: "DBS",
@@ -39,8 +40,11 @@ describe("expenseToUnified", () => {
     expect(row.accountName).toBe("DBS");
     expect(row.balanceAfter).toBe(880);
     expect(row.date).toMatch(/\d{2}\/\d{2}\/\d{4}/);
-    expect(row.time).toBe("");
-    expect(row.sortAt).toBe("2025-05-15T00:00:00");
+    expect(row.time).toMatch(/14:30|22:30/);
+    expect(row.sortAt).toBe("2025-05-15T14:30:00+08:00");
+    expect(row.financialAccountId).toBe("fa-1");
+    expect(row.spentAt).toBe("2025-05-15");
+    expect(row.spentTime).toBe("14:30:00");
   });
 
   it("maps debt auto payment", () => {

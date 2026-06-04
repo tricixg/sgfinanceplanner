@@ -12,6 +12,7 @@ import {
 } from "@/lib/expenses/computed-categories";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 
+/** Standalone budget_transactions (CSV / card ledger), not expense ledger mirrors. */
 export type BudgetImportRow = {
   id: string;
   amount: number;

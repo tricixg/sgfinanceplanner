@@ -8,6 +8,7 @@ import {
 } from "@/lib/savings/accounts-events";
 import type { AccountsBundle, UserSavingsAccount } from "@/lib/savings/types";
 import { AccountsContext } from "@/contexts/app-data-contexts";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 export function useAccountsProvider(enabled: boolean) {
   const [accounts, setAccounts] = useState<UserSavingsAccount[]>([]);
@@ -60,9 +61,11 @@ export function useAccountsProvider(enabled: boolean) {
     };
     window.addEventListener(ACCOUNTS_CHANGED_EVENT, onAccountsChanged);
     window.addEventListener(SAVINGS_LEDGER_RECORDED_EVENT, onAccountsChanged);
+    window.addEventListener("accounts:changed", onAccountsChanged);
     return () => {
       window.removeEventListener(ACCOUNTS_CHANGED_EVENT, onAccountsChanged);
       window.removeEventListener(SAVINGS_LEDGER_RECORDED_EVENT, onAccountsChanged);
+      window.removeEventListener("accounts:changed", onAccountsChanged);
     };
   }, [enabled, load]);
 
@@ -85,9 +88,9 @@ export function useAccountsProvider(enabled: boolean) {
       setAccounts(data.accounts ?? next);
       setTotals(data.totals ?? null);
       console.info("[useAccounts] saved", { count: next.length });
-      await load();
+      dispatchDomainEvent(["accounts:changed", "savings:changed"]);
     },
-    [load]
+    []
   );
 
   const recordAccountTransaction = useCallback(
@@ -115,6 +118,7 @@ export function useAccountsProvider(enabled: boolean) {
         throw new Error(data.error ?? "Transaction failed");
       }
       console.info("[useAccounts] transaction recorded", { accountId, ...payload });
+      dispatchDomainEvent(["accounts:changed", "savings:changed"]);
       await load();
     },
     [load]

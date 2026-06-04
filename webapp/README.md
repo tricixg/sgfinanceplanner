@@ -2,6 +2,8 @@
 
 Next.js personal finance planner with Supabase persistence. Clone this repo, add your own Supabase project, and deploy to Vercel.
 
+**Documentation:** [User guide](../documentation/user-guide/README.md) (features & workflows) · [Technical docs](../documentation/README.md) (architecture, API, database)
+
 ## Prerequisites
 
 - Node.js 20+
@@ -89,6 +91,7 @@ Next.js personal finance planner with Supabase persistence. Clone this repo, add
 2. Set **Root Directory** to `webapp`.
 3. Add the same environment variables as `.env.example`.
 4. Deploy.
+5. In the Vercel project sidebar, enable **Web Analytics** and **Speed Insights** (both included on Hobby). Redeploy if you enable after the first deploy. Page views and Web Vitals are collected via `<Analytics />` and `<SpeedInsights />` in [`app/layout.tsx`](app/layout.tsx) (production only).
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USER/sgfinanceplanner&root-directory=webapp)
 
@@ -117,11 +120,17 @@ webapp/
 └── supabase/         # SQL migrations
 ```
 
+## Telegram bot
+
+Log expenses, poker sessions, and travel costs from Telegram. See [documentation/09-telegram-bot-setup.md](../documentation/09-telegram-bot-setup.md) for BotFather, env vars, and webhook setup. Link your account under **Me → Connect Telegram** after deploying migration `028_telegram_integration.sql`.
+
 ## Security
 
 - Never commit `.env.local` or expose `SUPABASE_SERVICE_ROLE_KEY` in the browser.
 - Use a private Supabase project for real financial data.
 - Set `DASHBOARD_SECRET` on public deployments if you skip auth.
+- Never set `AUTH_BYPASS_DEV=true` on Vercel production or preview — it is ignored when `NODE_ENV=production` but would be dangerous if misconfigured.
+- `POST /api/quotes` requires a signed-in session and is rate-limited (Yahoo Finance proxy).
 
 ## License
 

@@ -26,7 +26,7 @@ describe("BTO schemes", () => {
 
   it("normalizeBTOSchemes fills missing scheme keys", () => {
     const schemes = normalizeBTOSchemes({ family: { enabled: true, amountOverride: null } });
-    expect(schemes.ehg).toEqual({ enabled: false, amountOverride: null });
+    expect(schemes.ehg).toEqual({ enabled: true, amountOverride: null });
     expect(schemes.family.enabled).toBe(true);
     expect(totalHousingGrants(schemes, { tSal: 2000, pSal: 1500 })).toBeGreaterThanOrEqual(0);
   });

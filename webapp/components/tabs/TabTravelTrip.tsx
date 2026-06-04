@@ -5,11 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { InlineConfirm } from "@/components/InlineConfirm";
+import { Snackbar } from "@/components/Snackbar";
+import { TravelExpenseActionModal } from "@/components/travel/TravelExpenseActionModal";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { useSnackbar } from "@/hooks/useSnackbar";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
-import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
-import { sgtTodayYmd } from "@/lib/time/sgt";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { formatTravelSpentAtTable } from "@/lib/travel/expense-input";
+import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import type { TravelExpenseRow, TravelTrip, TravelTripBudget } from "@/lib/travel/types";
 
 type Props = { tripId: string; enabled: boolean };
@@ -34,11 +39,14 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
   const { accounts } = useFinancialAccounts();
   const [subCategory, setSubCategory] = useState("");
   const [amount, setAmount] = useState("");
-  const [spentAt, setSpentAt] = useState(() => sgtTodayYmd());
+  const [spentAt, setSpentAt] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [savingExpense, setSavingExpense] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<TravelExpenseRow | null>(null);
+  const snackbar = useSnackbar();
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteTrip, setConfirmDeleteTrip] = useState(false);
   const [editingTrip, setEditingTrip] = useState(false);
   const [savingTrip, setSavingTrip] = useState(false);
   const [tripDraft, setTripDraft] = useState({
@@ -204,13 +212,16 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       setMsg(data.error ?? "Failed to add expense");
       return;
     }
-    if (financialAccountId) {
-      dispatchAccountsChanged("travel-expense", { tripId });
-    }
     setAmount("");
     setNote("");
+    dispatchDomainEvent(["expense:changed", "accounts:changed"]);
     await load();
   };
+
+  const budgetSubCategories = useMemo(
+    () => budgets.map((b) => b.subCategory),
+    [budgets]
+  );
 
   const spentBySub = useMemo(() => {
     const out = new Map<string, number>();
@@ -262,8 +273,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
 
   const onDeleteTrip = async () => {
     if (!trip) return;
-    const ok = window.confirm(`Delete trip "${trip.name}"? This will remove its budgets.`);
-    if (!ok) return;
+    setConfirmDeleteTrip(false);
     setDeleting(true);
     setMsg("");
     const { res, data } = await fetchJson<{ error?: string }>(`/api/travel/trips/${tripId}`, {
@@ -573,7 +583,12 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
               </option>
             ))}
           </select>
-          <input type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} />
+          <input
+            type="datetime-local"
+            value={spentAt}
+            onChange={(e) => setSpentAt(e.target.value)}
+            aria-label="Date and time"
+          />
           <DecimalTextInput value={amount} onChange={setAmount} placeholder="Amount" />
           <input
             type="text"
@@ -605,6 +620,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
           <thead>
             <tr>
               <th>Date</th>
+              <th>Time</th>
               <th>Subcategory</th>
               <th>Note</th>
               <th className="num">Amount</th>
@@ -613,34 +629,71 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
           <tbody>
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={4} className="note">
+                <td colSpan={5} className="note">
                   No expenses yet.
                 </td>
               </tr>
             ) : (
-              expenses.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.spentAt}</td>
-                  <td>{row.subCategory}</td>
-                  <td>{row.note || "—"}</td>
-                  <td className="num">{fmt2(row.amount)}</td>
-                </tr>
-              ))
+              expenses.map((row) => {
+                const when = formatTravelSpentAtTable(row.spentAt, row.spentTime);
+                return (
+                  <tr
+                    key={row.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setSelectedExpense(row)}
+                  >
+                    <td>{when.date}</td>
+                    <td>{when.time || "—"}</td>
+                    <td>{row.subCategory}</td>
+                    <td>{row.extraNote || "—"}</td>
+                    <td className="num">{fmt2(row.amount)}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
+      {selectedExpense ? (
+        <TravelExpenseActionModal
+          tripId={tripId}
+          expense={selectedExpense}
+          subCategories={budgetSubCategories}
+          onClose={() => setSelectedExpense(null)}
+          onSaved={(m) => {
+            snackbar.show(m);
+            void load();
+          }}
+        />
+      ) : null}
+      <Snackbar
+        message={snackbar.message}
+        variant={snackbar.variant}
+        durationMs={snackbar.durationMs}
+        onDismiss={snackbar.dismiss}
+      />
+
       {msg ? <p className="note">{msg}</p> : null}
       <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 16 }}>
-        <button
-          type="button"
-          className="btn del sm"
-          onClick={() => void onDeleteTrip()}
-          disabled={deleting}
-        >
-          {deleting ? "Deleting…" : "Delete travel"}
-        </button>
+        {confirmDeleteTrip && trip ? (
+          <InlineConfirm
+            prompt={`Delete "${trip.name}"? This will remove its budgets.`}
+            confirmLabel="Delete travel"
+            busy={deleting}
+            onConfirm={() => void onDeleteTrip()}
+            onCancel={() => setConfirmDeleteTrip(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="btn del sm"
+            onClick={() => setConfirmDeleteTrip(true)}
+            disabled={deleting || !trip}
+          >
+            Delete travel
+          </button>
+        )}
       </div>
     </section>
   );

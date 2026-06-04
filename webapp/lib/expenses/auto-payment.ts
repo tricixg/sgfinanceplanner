@@ -15,6 +15,7 @@ export type AutoPaymentPayload = {
   subscriptionId?: string;
   amount: number;
   spentAt: string;
+  spentTime?: string;
   note?: string;
   financialAccountId?: string;
 };
@@ -192,6 +193,7 @@ export function autoPaymentInsertRow(
     category: autoPaymentCategoryLabel(payload.autoCategory),
     auto_category: payload.autoCategory,
     spent_at: payload.spentAt,
+    spent_time: payload.spentTime ?? null,
     note: payload.note ?? "",
     budget_line_id: null,
     loan_id: null,

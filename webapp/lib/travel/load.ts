@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import type { Expense } from "@/lib/savings/types";
-import { parseTripSubCategoryFromNote, TRAVEL_CATEGORY } from "@/lib/travel/notes";
+import { parseTravelExpenseParts, TRAVEL_CATEGORY } from "@/lib/travel/notes";
 import type {
   TravelExpenseRow,
   TravelTrip,
@@ -242,14 +242,16 @@ export async function listTripExpenses(
   const out: TravelExpenseRow[] = [];
   for (const row of data ?? []) {
     const exp = mapExpense(row);
-    const subCategory = parseTripSubCategoryFromNote(trip.name, exp.note);
-    if (!subCategory) continue;
+    const parts = parseTravelExpenseParts(trip.name, exp.note);
+    if (!parts) continue;
     out.push({
       id: exp.id,
       amount: exp.amount,
       spentAt: exp.spentAt,
+      spentTime: exp.spentTime ?? null,
       note: exp.note,
-      subCategory,
+      extraNote: parts.extraNote,
+      subCategory: parts.subCategory,
       financialAccountId: exp.financialAccountId,
     });
   }

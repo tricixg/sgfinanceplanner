@@ -8,6 +8,15 @@ import { createClient } from "@/lib/supabase/server";
  * filtering in routes) because there is no magic-link session cookie.
  */
 export async function createAuthedSupabaseClient(): Promise<SupabaseClient> {
+  if (
+    process.env.AUTH_BYPASS_DEV?.trim() === "true" &&
+    process.env.NODE_ENV === "production"
+  ) {
+    console.error(
+      "[supabase] AUTH_BYPASS_DEV is set but ignored in production — use session auth"
+    );
+  }
+
   if (isDevAuthBypass()) {
     const admin = createAdminClient();
     if (!admin) {

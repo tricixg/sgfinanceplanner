@@ -8,7 +8,11 @@ import type { PokerGame, PokerSession, PokerSessionType, TournamentResult } from
 import { formatGameStakes, pokerProfit, sessionGameLabel } from "@/lib/poker/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { DecimalTextInput } from "@/components/DecimalInput";
-import { sgtTodayYmd } from "@/lib/time/sgt";
+import {
+  formatPokerPlayedAtDisplay,
+  pokerPlayedAtToInput,
+} from "@/lib/poker/played-at";
+import { sgtNowInputDateTime } from "@/lib/time/sgt";
 
 function monthBounds(): { from: string; to: string } {
   const d = new Date();
@@ -52,7 +56,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [location, setLocation] = useState("");
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
-  const [playedAt, setPlayedAt] = useState(sgtTodayYmd());
+  const [playedAt, setPlayedAt] = useState(sgtNowInputDateTime());
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [gameId, setGameId] = useState("");
 
@@ -134,7 +138,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     setLocation("");
     setHours("");
     setNote("");
-    setPlayedAt(sgtTodayYmd());
+    setPlayedAt(sgtNowInputDateTime());
     setFinancialAccountId("");
     setGameId("");
     setTournamentName("");
@@ -190,7 +194,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     setEditingId(session.id);
     setFormError("");
     setSessionType(session.sessionType);
-    setPlayedAt(session.playedAt);
+    setPlayedAt(pokerPlayedAtToInput(session.playedAt));
     setBuyIn(String(session.buyIn));
     setCashOut(String(session.cashOut));
     ensureLocationOption(session.location);
@@ -257,10 +261,11 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     }
   };
 
-  const buildSessionBody = (): Record<string, unknown> | null => {
+  const buildSessionBody = (): { body: Record<string, unknown> } | { error: string } => {
     const buy = parseFloat(buyIn);
-    if (!Number.isFinite(buy) || buy < 0) return null;
-    if (!financialAccountId) return null;
+    if (!Number.isFinite(buy) || buy < 0) {
+      return { error: "Enter a valid buy-in." };
+    }
 
     const body: Record<string, unknown> = {
       sessionType,
@@ -269,16 +274,28 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       location: location.trim(),
       hours: hours === "" ? null : parseFloat(hours),
       note,
-      financialAccountId,
     };
+    if (financialAccountId) {
+      body.financialAccountId = financialAccountId;
+    }
 
     if (sessionType === "cash_game") {
       const out = cashOut === "" ? 0 : parseFloat(cashOut);
-      if (!Number.isFinite(out) || out < 0) return null;
-      if (!gameId) return null;
+      if (!Number.isFinite(out) || out < 0) {
+        return { error: "Enter a valid cash-out." };
+      }
+      if (!gameId) {
+        return { error: "Select a game (stakes)." };
+      }
       body.cashOut = out;
       body.gameId = gameId;
     } else {
+      if (!tournamentName.trim()) {
+        return { error: "Tournament name is required." };
+      }
+      if (!eventName.trim()) {
+        return { error: "Event name is required." };
+      }
       body.tournamentName = tournamentName.trim();
       body.eventName = eventName.trim();
       body.tournamentResult = tournamentResult;
@@ -290,7 +307,9 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       }
       if (tournamentResult === "placed") {
         const won = parseFloat(amountWon);
-        if (!Number.isFinite(won) || won < 0) return null;
+        if (!Number.isFinite(won) || won < 0) {
+          return { error: "Enter a valid amount won." };
+        }
         body.amountWon = won;
         if (tournamentPlace !== "") {
           const place = parseInt(tournamentPlace, 10);
@@ -301,16 +320,17 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       }
     }
 
-    return body;
+    return { body };
   };
 
   const saveSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    const body = buildSessionBody();
-    if (!body) {
-      setFormError("Please fill in all required fields.");
+    const built = buildSessionBody();
+    if ("error" in built) {
+      setFormError(built.error);
       return;
     }
+    const body = built.body;
 
     setSubmitting(true);
     setFormError("");
@@ -408,7 +428,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       <h2>{editingId ? "Edit session" : "Log session"}</h2>
       {editingId ? (
         <p className="note" style={{ marginBottom: 8 }}>
-          Updating session — changes will resync the linked cash account entry when P/L changes.
+          Updating session — changes will resync the linked cash account entry when P/L changes and an account is selected.
         </p>
       ) : null}
       <form className="card" onSubmit={saveSession}>
@@ -424,8 +444,12 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             </select>
           </label>
           <label>
-            Date
-            <input type="date" value={playedAt} onChange={(e) => setPlayedAt(e.target.value)} />
+            Date & time
+            <input
+              type="datetime-local"
+              value={playedAt}
+              onChange={(e) => setPlayedAt(e.target.value)}
+            />
           </label>
         </div>
 
@@ -632,9 +656,8 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             <select
               value={financialAccountId}
               onChange={(e) => setFinancialAccountId(e.target.value)}
-              required
             >
-              <option value="">Select account…</option>
+              <option value="">Select account (optional — no ledger sync)</option>
               {cashAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
@@ -674,7 +697,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
           <table>
             <thead>
               <tr>
-                <th>Date</th>
+                <th>When</th>
                 <th>Type</th>
                 <th>Location</th>
                 <th>Game / event</th>
@@ -698,7 +721,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                     : fmt2(x.cashOut);
                 return (
                   <tr key={x.id}>
-                    <td>{x.playedAt}</td>
+                    <td>{formatPokerPlayedAtDisplay(x.playedAt)}</td>
                     <td>{x.sessionType === "tournament" ? "MTT" : "Cash"}</td>
                     <td>{x.location || "—"}</td>
                     <td>

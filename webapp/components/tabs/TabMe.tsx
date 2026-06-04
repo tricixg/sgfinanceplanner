@@ -10,6 +10,7 @@ import {
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { PartnerCard } from "@/components/PartnerCard";
+import { TelegramLinkCard } from "@/components/integrations/TelegramLinkCard";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import type { useHousehold } from "@/hooks/useHousehold";
 import { DecimalInput } from "@/components/DecimalInput";
@@ -75,7 +76,7 @@ export function TabMe({
       salaryCreditDay: S.salaryCreditDay,
     });
     setEditingSalary(true);
-    console.log("[TabMe] salary edit on");
+    console.info("[TabMe] salary edit on");
   };
 
   const cancelSalaryEdit = () => {
@@ -85,7 +86,7 @@ export function TabMe({
       salaryCreditDay: S.salaryCreditDay,
     });
     setEditingSalary(false);
-    console.log("[TabMe] salary edit cancelled");
+    console.info("[TabMe] salary edit cancelled");
   };
 
   const handleLogout = async () => {
@@ -109,7 +110,7 @@ export function TabMe({
 
   const patch = <K extends keyof DashboardState>(key: K, val: DashboardState[K]) => {
     setState((prev) => ({ ...prev, [key]: val }));
-    console.log("[TabMe] patched", key, val);
+    console.info("[TabMe] patched", key, val);
   };
 
   const saveSalary = async () => {
@@ -140,7 +141,7 @@ export function TabMe({
   const startInsuranceEdit = () => {
     setInsuranceDraft(structuredClone(S.insurancePolicies));
     setEditingInsurance(true);
-    console.log("[TabMe] insurance edit on");
+    console.info("[TabMe] insurance edit on");
   };
 
   const saveInsurance = async () => {
@@ -166,17 +167,17 @@ export function TabMe({
     setInsuranceDraft((prev) =>
       prev.map((p, j) => (j === i ? { ...p, ...patchPolicy } : p))
     );
-    console.log("[TabMe] updated insurance draft", i, patchPolicy);
+    console.info("[TabMe] updated insurance draft", i, patchPolicy);
   };
 
   const addPolicy = () => {
     setInsuranceDraft((prev) => [...prev, defaultInsurancePolicy()]);
-    console.log("[TabMe] added insurance policy to draft");
+    console.info("[TabMe] added insurance policy to draft");
   };
 
   const removePolicy = (i: number) => {
     setInsuranceDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabMe] removed insurance policy from draft", i);
+    console.info("[TabMe] removed insurance policy from draft", i);
   };
 
   const exportJSON = () => {
@@ -193,13 +194,13 @@ export function TabMe({
         "Replace all current data with sample dummy data? You can still Reset or Import JSON to undo."
       )
     ) {
-      console.log("[TabMe] add dummy data cancelled");
+      console.info("[TabMe] add dummy data cancelled");
       return;
     }
     setState(createDummyState());
     onSaveNow();
     onApply();
-    console.log("[TabMe] loaded dummy data");
+    console.info("[TabMe] loaded dummy data");
   };
 
   const importJSON = (file: File) => {
@@ -450,6 +451,7 @@ export function TabMe({
       {household ? (
         <PartnerCard household={household} onPartnerUnlinked={onPartnerUnlinked} />
       ) : null}
+      <TelegramLinkCard />
       {userEmail ? (
         <div className="card settings-account">
           <h3 className="settings-account-title">Account</h3>

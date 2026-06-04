@@ -56,10 +56,9 @@ export function useIncomeCategories(enabled: boolean) {
         throw new Error(data.error ?? "Failed to save income categories");
       }
       setCategories(data.categories ?? []);
-      console.info("[useIncomeCategories] saved", data.categories?.length);
-      await load();
+      console.info("[useIncomeCategories] saved", { count: data.categories?.length });
     },
-    [load]
+    []
   );
 
   return { categories, loading, configured, reload: load, save };

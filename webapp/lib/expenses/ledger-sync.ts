@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { applyTransaction } from "@/lib/savings/ledger";
 import type { Expense } from "@/lib/savings/types";
+import { sgtSpentAtToIso } from "@/lib/time/sgt";
 
 export function expenseLedgerNote(expense: Expense): string {
   if (expense.note.trim()) return expense.note.trim();
@@ -14,10 +15,18 @@ export function expenseBudgetTransactionType(
   return expense.autoCategory === "subscription" ? "subscription" : "expense";
 }
 
+function expenseOccurredAt(expense: Expense): string {
+  if (expense.spentTime) {
+    return sgtSpentAtToIso(expense.spentAt, expense.spentTime);
+  }
+  return sgtSpentAtToIso(expense.spentAt, "00:00:00");
+}
+
 export async function createExpenseLedger(
   supabase: SupabaseClient,
   userId: string,
-  expense: Expense
+  expense: Expense,
+  opts: { occurredAt?: string } = {}
 ): Promise<void> {
   if (!expense.financialAccountId) {
     console.info("[ledger-sync] skip — no pay-from account", { expenseId: expense.id });
@@ -30,6 +39,8 @@ export async function createExpenseLedger(
   }
 
   const note = expenseLedgerNote(expense);
+  const occurredAt = opts.occurredAt ?? expenseOccurredAt(expense);
+  const spentTime = occurredAt.slice(11, 19);
 
   if (account.accountType === "cash" && account.savingsAccountId) {
     await applyTransaction(supabase, {
@@ -37,7 +48,7 @@ export async function createExpenseLedger(
       accountId: account.savingsAccountId,
       amount: -expense.amount,
       kind: "withdrawal",
-      occurredAt: `${expense.spentAt}T12:00:00.000Z`,
+      occurredAt,
       note,
       expenseId: expense.id,
     });
@@ -60,7 +71,7 @@ export async function createExpenseLedger(
       amount: expense.amount,
       recorder: "",
       spent_at: expense.spentAt,
-      spent_time: null,
+      spent_time: spentTime,
       tag: "",
       note,
       transaction_type: expenseBudgetTransactionType(expense),
@@ -109,14 +120,23 @@ export async function reverseExpenseLedger(
     const restoreAmount = -withdrawalAmount;
     if (restoreAmount === 0) continue;
 
-    await applyTransaction(supabase, {
-      userId,
-      accountId,
-      amount: restoreAmount,
-      kind: "deposit",
-      occurredAt: new Date().toISOString(),
-      note: `Reversal: ${expenseLedgerNote(expense)}`,
-    });
+    const { data: acct, error: acctErr } = await supabase
+      .from("user_savings_accounts")
+      .select("balance")
+      .eq("id", accountId)
+      .maybeSingle();
+    if (acctErr || !acct) {
+      throw new Error(acctErr?.message ?? "Account not found");
+    }
+    const nextBalance = Number(acct.balance ?? 0) + restoreAmount;
+    if (nextBalance < 0) {
+      throw new Error("Insufficient balance for reversal");
+    }
+    const { error: updErr } = await supabase
+      .from("user_savings_accounts")
+      .update({ balance: nextBalance, updated_at: new Date().toISOString() })
+      .eq("id", accountId);
+    if (updErr) throw new Error(updErr.message);
 
     const { error: delErr } = await supabase
       .from("savings_transactions")
@@ -128,7 +148,7 @@ export async function reverseExpenseLedger(
       throw new Error(delErr.message);
     }
 
-    console.info("[ledger-sync] savings reversal deposit", {
+    console.info("[ledger-sync] savings reversal balance restored", {
       expenseId: expense.id,
       accountId,
       amount: restoreAmount,

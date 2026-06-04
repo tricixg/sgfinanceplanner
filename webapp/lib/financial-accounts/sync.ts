@@ -4,7 +4,7 @@ import type { DbCreditCard } from "@/lib/credit-cards/mappers";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { mapFinancialAccount } from "@/lib/financial-accounts/mappers";
 
-/** Upsert financial_accounts for each user_savings_accounts row. */
+/** Upsert financial_accounts for each user_savings_accounts row (batched, O(1) reads). */
 export async function syncCashFinancialAccounts(
   supabase: SupabaseClient,
   userId: string
@@ -20,111 +20,224 @@ export async function syncCashFinancialAccounts(
     return;
   }
 
-  for (const row of savingsRows ?? []) {
+  const rows = savingsRows ?? [];
+  if (rows.length === 0) {
+    console.info("[financial-accounts] cash sync done", { userId, count: 0, updated: 0, inserted: 0 });
+    return;
+  }
+
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("financial_accounts")
+    .select("id, savings_account_id")
+    .eq("user_id", userId)
+    .not("savings_account_id", "is", null);
+
+  if (existingErr) {
+    console.warn("[financial-accounts] cash sync existing lookup failed", existingErr.message);
+    return;
+  }
+
+  const existingBySavingsId = new Map<string, string>();
+  for (const row of existingRows ?? []) {
+    if (row.savings_account_id) {
+      existingBySavingsId.set(String(row.savings_account_id), String(row.id));
+    }
+  }
+
+  const now = new Date().toISOString();
+  const toUpdate: Array<{
+    id: string;
+    name: string;
+    account_type: "cash";
+    sort_order: number;
+    updated_at: string;
+  }> = [];
+  const toInsert: Array<{
+    user_id: string;
+    name: string;
+    account_type: "cash";
+    savings_account_id: string;
+    sort_order: number;
+  }> = [];
+
+  for (const row of rows) {
     const savingsAccountId = String(row.id);
     const name = String(row.name ?? "").trim() || "Cash account";
     const sortOrder = Number(row.sort_order ?? 0);
+    const existingId = existingBySavingsId.get(savingsAccountId);
 
-    const { data: existing } = await supabase
-      .from("financial_accounts")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("savings_account_id", savingsAccountId)
-      .maybeSingle();
-
-    if (existing?.id) {
-      const { error: updErr } = await supabase
-        .from("financial_accounts")
-        .update({
-          name,
-          account_type: "cash",
-          sort_order: sortOrder,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-      if (updErr) {
-        console.warn("[financial-accounts] cash sync update failed", updErr.message);
-      }
+    if (existingId) {
+      toUpdate.push({
+        id: existingId,
+        name,
+        account_type: "cash",
+        sort_order: sortOrder,
+        updated_at: now,
+      });
     } else {
-      const { error: insErr } = await supabase.from("financial_accounts").insert({
+      toInsert.push({
         user_id: userId,
         name,
         account_type: "cash",
         savings_account_id: savingsAccountId,
         sort_order: sortOrder,
       });
-      if (insErr) {
-        console.warn("[financial-accounts] cash sync insert failed", insErr.message);
-      }
+    }
+  }
+
+  let updated = 0;
+  let inserted = 0;
+
+  if (toUpdate.length > 0) {
+    const { error: updErr } = await supabase.from("financial_accounts").upsert(toUpdate, {
+      onConflict: "id",
+    });
+    if (updErr) {
+      console.warn("[financial-accounts] cash sync batch update failed", updErr.message);
+    } else {
+      updated = toUpdate.length;
+    }
+  }
+
+  if (toInsert.length > 0) {
+    const { error: insErr } = await supabase.from("financial_accounts").insert(toInsert);
+    if (insErr) {
+      console.warn("[financial-accounts] cash sync batch insert failed", insErr.message);
+    } else {
+      inserted = toInsert.length;
     }
   }
 
   console.info("[financial-accounts] cash sync done", {
     userId,
-    count: savingsRows?.length ?? 0,
+    count: rows.length,
+    updated,
+    inserted,
   });
 }
 
-/** Upsert credit_card financial_accounts from credit_cards table rows. */
+/** Upsert credit_card financial_accounts from credit_cards table rows (batched). */
 export async function syncCreditCardFinancialAccountsFromRows(
   supabase: SupabaseClient,
   userId: string,
   rows: DbCreditCard[]
 ): Promise<void> {
+  if (rows.length === 0) {
+    console.info("[financial-accounts] card sync from table", { userId, count: 0 });
+    return;
+  }
+
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("financial_accounts")
+    .select("id, card_key")
+    .eq("user_id", userId)
+    .not("card_key", "is", null);
+
+  if (existingErr) {
+    console.warn("[financial-accounts] card sync existing lookup failed", existingErr.message);
+    return;
+  }
+
+  const existingByCardKey = new Map<string, string>();
+  for (const row of existingRows ?? []) {
+    if (row.card_key) {
+      existingByCardKey.set(String(row.card_key), String(row.id));
+    }
+  }
+
+  const now = new Date().toISOString();
   let sort = 1000;
+  const toUpdate: Array<{
+    id: string;
+    name: string;
+    card_key: string;
+    account_type: "credit_card";
+    sort_order: number;
+    updated_at: string;
+  }> = [];
+  const toInsert: Array<{
+    user_id: string;
+    name: string;
+    account_type: "credit_card";
+    card_key: string;
+    sort_order: number;
+  }> = [];
+  const pendingLinks: Array<{ creditCardId: string; cardKey: string }> = [];
+
   for (const card of rows) {
-    const name = card.name.trim() || "Card";
+    if (!card.id) continue;
     const cardKey = card.cardKey;
-
-    const { data: byKey } = await supabase
-      .from("financial_accounts")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("card_key", cardKey)
-      .maybeSingle();
-
-    const existingId = byKey?.id;
-    const now = new Date().toISOString();
+    const name = card.name.trim() || "Card";
+    const existingId = existingByCardKey.get(cardKey);
 
     if (existingId) {
-      await supabase
-        .from("financial_accounts")
-        .update({
-          name,
-          card_key: cardKey,
-          account_type: "credit_card",
-          sort_order: sort++,
-          updated_at: now,
-        })
-        .eq("id", existingId);
-      await supabase
-        .from("credit_cards")
-        .update({ financial_account_id: existingId, updated_at: now })
-        .eq("id", card.id);
+      toUpdate.push({
+        id: existingId,
+        name,
+        card_key: cardKey,
+        account_type: "credit_card",
+        sort_order: sort++,
+        updated_at: now,
+      });
+      pendingLinks.push({ creditCardId: card.id, cardKey });
     } else {
-      const { data: inserted } = await supabase
-        .from("financial_accounts")
-        .insert({
-          user_id: userId,
-          name,
-          account_type: "credit_card",
-          card_key: cardKey,
-          sort_order: sort++,
-        })
-        .select("id")
-        .single();
-      if (inserted?.id) {
-        await supabase
-          .from("credit_cards")
-          .update({ financial_account_id: inserted.id, updated_at: now })
-          .eq("id", card.id);
+      toInsert.push({
+        user_id: userId,
+        name,
+        account_type: "credit_card",
+        card_key: cardKey,
+        sort_order: sort++,
+      });
+      pendingLinks.push({ creditCardId: card.id, cardKey });
+    }
+  }
+
+  if (toUpdate.length > 0) {
+    const { error: updErr } = await supabase.from("financial_accounts").upsert(toUpdate, {
+      onConflict: "id",
+    });
+    if (updErr) {
+      console.warn("[financial-accounts] card sync batch update failed", updErr.message);
+    }
+  }
+
+  if (toInsert.length > 0) {
+    const { data: inserted, error: insErr } = await supabase
+      .from("financial_accounts")
+      .insert(toInsert)
+      .select("id, card_key");
+    if (insErr) {
+      console.warn("[financial-accounts] card sync batch insert failed", insErr.message);
+    } else {
+      for (const row of inserted ?? []) {
+        if (row.card_key) {
+          existingByCardKey.set(String(row.card_key), String(row.id));
+        }
       }
     }
+  }
+
+  const cardUpdates = pendingLinks
+    .map(({ creditCardId, cardKey }) => {
+      const financialAccountId = existingByCardKey.get(cardKey);
+      if (!financialAccountId) return null;
+      return supabase
+        .from("credit_cards")
+        .update({ financial_account_id: financialAccountId, updated_at: now })
+        .eq("id", creditCardId);
+    })
+    .filter((p): p is NonNullable<typeof p> => p != null);
+
+  if (cardUpdates.length > 0) {
+    await Promise.all(cardUpdates);
   }
 
   console.info("[financial-accounts] card sync from table", {
     userId,
     count: rows.length,
+    updated: toUpdate.length,
+    inserted: toInsert.length,
+    linked: cardUpdates.length,
   });
 }
 

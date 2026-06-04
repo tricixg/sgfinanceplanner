@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { CardStatementsBundle } from "@/lib/cards/types";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 const emptyBundle: CardStatementsBundle = {
   configured: false,
@@ -60,6 +61,30 @@ export function useCardStatements(enabled: boolean) {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useDomainEvent(
+    ["expense:changed", "cards:changed"],
+    () => {
+      console.info("[useCardStatements] refresh after domain event");
+      void reload({ silent: true });
+    },
+    [reload]
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void reload({ silent: true });
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [enabled, reload]);
 
   return { bundle, loading, reload };
 }

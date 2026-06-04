@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
+import { PageErrorBoundary } from "@/components/app/PageErrorBoundary";
 import { navTabForPath } from "@/lib/nav-config";
 import { usePathname } from "next/navigation";
 
@@ -28,8 +29,9 @@ export function AppShell({ children }: Props) {
             aria-controls="sidebar-nav"
             onClick={() => {
               setNavOpen((open) => {
-                console.log("[AppShell] nav toggle", !open);
-                return !open;
+                const next = !open;
+                console.info("[AppShell] nav toggle", { open: next });
+                return next;
               });
             }}
           >
@@ -45,12 +47,17 @@ export function AppShell({ children }: Props) {
           </div>
         </header>
 
-        {children}
+        <PageErrorBoundary>{children}</PageErrorBoundary>
 
         <footer>
           Personal planning tool — not financial advice. Data syncs to Supabase when configured;
           otherwise saves to your browser. Project:{" "}
-          <a href="https://github.com" style={{ color: "var(--moss)" }}>
+          <a
+            href="https://github.com/tricixg/sgfinanceplanner"
+            style={{ color: "var(--moss)" }}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             sgfinanceplanner
           </a>
         </footer>

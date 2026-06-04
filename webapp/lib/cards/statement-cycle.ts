@@ -34,21 +34,18 @@ export function addMonthsYmd(ymd: string, months: number): string {
   return clampDayInMonth(year, monthIndex, day);
 }
 
-/** Cycle for a statement labelled on `statementCloseDate` (on statement day). */
+/**
+ * Billing cycle for a statement that closes on `statementCloseDate` (statement day).
+ * Spend counts from the day after the previous close through the close date inclusive
+ * (e.g. statement day 21 → Apr 22 … May 21).
+ */
 export function cycleBoundsFromClose(
   statementCloseDate: string,
-  statementDay: number
+  _statementDay: number
 ): { cycleStart: string; cycleEnd: string } {
-  const close = parseYmd(statementCloseDate);
-  const cycleEnd = addDaysYmd(statementCloseDate, -1);
-  const prevMonth = close.getUTCMonth() - 1;
-  let year = close.getUTCFullYear();
-  let monthIndex = prevMonth;
-  if (monthIndex < 0) {
-    monthIndex = 11;
-    year -= 1;
-  }
-  const cycleStart = clampDayInMonth(year, monthIndex, statementDay);
+  const cycleEnd = statementCloseDate;
+  const previousClose = addMonthsYmd(statementCloseDate, -1);
+  const cycleStart = addDaysYmd(previousClose, 1);
   return { cycleStart, cycleEnd };
 }
 
@@ -69,25 +66,9 @@ export function openCycleBounds(
   statementDay: number,
   asOfDate: string
 ): { cycleStart: string; cycleEnd: string; statementClose: string } {
-  const d = parseYmd(asOfDate);
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth();
-  const dom = d.getUTCDate();
-
-  let startYear = y;
-  let startMonth = m;
-  if (dom < statementDay) {
-    startMonth -= 1;
-    if (startMonth < 0) {
-      startMonth = 11;
-      startYear -= 1;
-    }
-  }
-
-  const cycleStart = clampDayInMonth(startYear, startMonth, statementDay);
-  const nextClose = addMonthsYmd(cycleStart, 1);
-  const cycleEnd = addDaysYmd(nextClose, -1);
-  return { cycleStart, cycleEnd, statementClose: nextClose };
+  const statementClose = statementCloseForSpend(asOfDate, statementDay);
+  const { cycleStart, cycleEnd } = cycleBoundsFromClose(statementClose, statementDay);
+  return { cycleStart, cycleEnd, statementClose };
 }
 
 /** Assign expense `spentAt` to the statement close date for its cycle. */
@@ -102,7 +83,7 @@ export function statementCloseForSpend(
 
   let closeYear = y;
   let closeMonth = m;
-  if (dom >= statementDay) {
+  if (dom > statementDay) {
     closeMonth += 1;
     if (closeMonth > 11) {
       closeMonth = 0;

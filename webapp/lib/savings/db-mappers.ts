@@ -96,6 +96,7 @@ export function mapExpense(row: Record<string, unknown>): Expense {
       ? String(row.financial_account_id)
       : null,
     spentAt: String(row.spent_at),
+    spentTime: row.spent_time != null ? String(row.spent_time).slice(0, 8) : null,
     note: String(row.note ?? ""),
     createdAt: String(row.created_at),
   };

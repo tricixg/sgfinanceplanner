@@ -6,6 +6,25 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { DashboardState, PortfolioSnapshot } from "@/lib/types";
 import type { FinanceProfile } from "@/lib/profile/load";
 import { AppDataContext } from "@/contexts/app-data-contexts";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
+
+export const PORTFOLIO_HISTORY_LIMIT = 30;
+
+/** Profile scalar fields synced by setState — extend when FinanceProfile grows. */
+export const PROFILE_STATE_KEYS: (keyof FinanceProfile)[] = [
+  "monthlySal",
+  "comms",
+  "salaryCreditDay",
+  "oa",
+  "sa",
+  "ma",
+  "moo",
+  "margin",
+  "cash",
+  "ccDebt",
+  "cashflowStartYm",
+  "btoPlanner",
+];
 
 type ProfileBundle = {
   profile: FinanceProfile;
@@ -17,7 +36,8 @@ type ProfileBundle = {
  * Composes DashboardState from normalized domain APIs (no monolithic /api/state).
  */
 export function useAppDataProvider(enabled: boolean) {
-  const [loading, setLoading] = useState(enabled);
+  const [coreLoading, setCoreLoading] = useState(enabled);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [profileBundle, setProfileBundle] = useState<ProfileBundle | null>(null);
   const [loans, setLoans] = useState<DashboardState["loans"]>([]);
@@ -30,56 +50,62 @@ export function useAppDataProvider(enabled: boolean) {
   const [prefs, setPrefs] = useState<DashboardState["prefs"]>({});
   const [otherLoans, setOtherLoans] = useState<DashboardState["otherLoans"]>([]);
 
-  const snapshotRef = useRef({
-    profileBundle,
-    loans,
-    budget,
-    creditCards,
-    holdings,
-    portfolioHistory,
-    prefs,
-    otherLoans,
-  });
-  snapshotRef.current = {
-    profileBundle,
-    loans,
-    budget,
-    creditCards,
-    holdings,
-    portfolioHistory,
-    prefs,
-    otherLoans,
-  };
-
-  const buildState = useCallback((): DashboardState => {
-    const s = snapshotRef.current;
+  const state = useMemo((): DashboardState => {
     const base = createEmptyState();
-    const p = s.profileBundle?.profile;
+    const p = profileBundle?.profile;
     return mergeWithDefaults({
       ...base,
       ...(p ?? {}),
-      prefs: s.prefs,
-      insurancePolicies: s.profileBundle?.insurancePolicies ?? [],
-      ilpPolicies: s.profileBundle?.ilpPolicies ?? [],
-      loans: s.loans,
-      budget: s.budget,
-      creditCards: s.creditCards,
-      holdings: s.holdings,
-      portfolioHistory: s.portfolioHistory,
-      otherLoans: s.otherLoans,
+      prefs,
+      insurancePolicies: profileBundle?.insurancePolicies ?? [],
+      ilpPolicies: profileBundle?.ilpPolicies ?? [],
+      loans,
+      budget,
+      creditCards,
+      holdings,
+      portfolioHistory,
+      otherLoans,
       accounts: [],
       goals: [],
     });
-  }, []);
+  }, [profileBundle, loans, budget, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
+
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const loadSnapshots = useCallback(async () => {
+    if (!enabled) return;
+    setSnapshotsLoading(true);
+    try {
+      const { res, data } = await fetchJson<{
+        items?: DashboardState["portfolioHistory"];
+        configured?: boolean;
+      }>(`/api/portfolio/snapshots?limit=${PORTFOLIO_HISTORY_LIMIT}`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        setPortfolioHistory(data.items ?? []);
+        console.info("[useAppData] portfolio snapshots loaded", {
+          count: data.items?.length ?? 0,
+        });
+      }
+    } catch (e) {
+      console.warn("[useAppData] portfolio snapshots load failed", e);
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  }, [enabled]);
 
   const load = useCallback(async () => {
     if (!enabled) {
-      setLoading(false);
+      setCoreLoading(false);
+      setSnapshotsLoading(false);
       return;
     }
-    setLoading(true);
+    setCoreLoading(true);
+    void loadSnapshots();
     try {
-      const [prefsRes, profRes, loansRes, otherLoansRes, budgetRes, cardsRes, holdRes, snapRes] =
+      const [prefsRes, profRes, loansRes, otherLoansRes, budgetRes, cardsRes, holdRes] =
         await Promise.all([
           fetchJson<{ data?: { prefs?: DashboardState["prefs"] }; configured?: boolean }>(
             "/api/state",
@@ -108,10 +134,6 @@ export function useAppDataProvider(enabled: boolean) {
             "/api/holdings",
             { credentials: "include" }
           ),
-          fetchJson<{
-            items?: DashboardState["portfolioHistory"];
-            configured?: boolean;
-          }>("/api/portfolio/snapshots?limit=30", { credentials: "include" }),
         ]);
 
       setConfigured(profRes.data.configured !== false);
@@ -130,39 +152,42 @@ export function useAppDataProvider(enabled: boolean) {
       if (budgetRes.res.ok) setBudget(budgetRes.data.budget ?? []);
       if (cardsRes.res.ok) setCreditCards(cardsRes.data.cards ?? []);
       if (holdRes.res.ok) setHoldings(holdRes.data.holdings ?? []);
-      if (snapRes.res.ok) setPortfolioHistory(snapRes.data.items ?? []);
 
-      console.info("[useAppData] loaded domains");
+      console.info("[useAppData] core domains loaded");
     } catch (e) {
-      console.warn("[useAppData] load failed", e);
+      console.warn("[useAppData] core load failed", e);
     } finally {
-      setLoading(false);
+      setCoreLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, loadSnapshots]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const state = useMemo((): DashboardState => {
-    const base = createEmptyState();
-    const p = profileBundle?.profile;
-    return mergeWithDefaults({
-      ...base,
-      ...(p ?? {}),
-      prefs,
-      insurancePolicies: profileBundle?.insurancePolicies ?? [],
-      ilpPolicies: profileBundle?.ilpPolicies ?? [],
-      loans,
-      budget,
-      creditCards,
-      holdings,
-      portfolioHistory,
-      otherLoans,
-      accounts: [],
-      goals: [],
-    });
-  }, [profileBundle, loans, budget, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
+  const reloadLoans = useCallback(async () => {
+    const { res, data } = await fetchJson<{ loans?: DashboardState["loans"] }>(
+      "/api/loans",
+      { credentials: "include" }
+    );
+    if (res.ok) {
+      setLoans(data.loans ?? []);
+      console.info("[useAppData] reloadLoans ok", { count: data.loans?.length ?? 0 });
+    }
+  }, []);
+
+  const reloadOtherLoans = useCallback(async () => {
+    const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
+      "/api/other-loans",
+      { credentials: "include" }
+    );
+    if (res.ok) {
+      setOtherLoans(data.otherLoans ?? []);
+      console.info("[useAppData] reloadOtherLoans ok", {
+        count: data.otherLoans?.length ?? 0,
+      });
+    }
+  }, []);
 
   const patchProfile = useCallback(
     async (patch: Partial<FinanceProfile>) => {
@@ -197,6 +222,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save loans");
     setLoans(data.loans ?? next);
+    dispatchDomainEvent("loans:changed");
   }, []);
 
   const saveBudget = useCallback(async (next: DashboardState["budget"]) => {
@@ -211,6 +237,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save budget");
     setBudget(data.budget ?? next);
+    dispatchDomainEvent("budget:changed");
   }, []);
 
   const saveCards = useCallback(async (next: DashboardState["creditCards"]) => {
@@ -225,6 +252,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save cards");
     setCreditCards(data.cards ?? next);
+    dispatchDomainEvent("cards:changed");
   }, []);
 
   const saveHoldings = useCallback(async (next: DashboardState["holdings"]) => {
@@ -239,6 +267,7 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (!res.ok) throw new Error("Failed to save holdings");
     setHoldings(data.holdings ?? next);
+    dispatchDomainEvent("holdings:changed");
   }, []);
 
   const appendSnapshot = useCallback(async (snap: PortfolioSnapshot) => {
@@ -264,7 +293,7 @@ export function useAppDataProvider(enabled: boolean) {
       body: JSON.stringify({ snapshot: snap }),
     });
     setPortfolioHistory((hist) => {
-      const next = [...hist, snap].slice(-30);
+      const next = [...hist, snap].slice(-PORTFOLIO_HISTORY_LIMIT);
       return next;
     });
   }, []);
@@ -300,6 +329,7 @@ export function useAppDataProvider(enabled: boolean) {
         insurancePolicies: data.insurancePolicies ?? [],
         ilpPolicies: data.ilpPolicies ?? [],
       });
+      dispatchDomainEvent("profile:changed");
       console.info("[useAppData] saved profile policies", {
         insurance: patch.insurancePolicies?.length,
         ilp: patch.ilpPolicies?.length,
@@ -311,7 +341,7 @@ export function useAppDataProvider(enabled: boolean) {
   /** Update in-memory dashboard state only — persist via save* methods or tab Save buttons. */
   const setState = useCallback(
     (updater: DashboardState | ((prev: DashboardState) => DashboardState)) => {
-      const prev = buildState();
+      const prev = stateRef.current;
       const next = typeof updater === "function" ? updater(prev) : updater;
 
       if (next.loans !== prev.loans) setLoans(next.loans);
@@ -322,20 +352,11 @@ export function useAppDataProvider(enabled: boolean) {
       if (next.otherLoans !== prev.otherLoans) setOtherLoans(next.otherLoans ?? []);
 
       const profilePatch: Partial<FinanceProfile> = {};
-      if (next.monthlySal !== prev.monthlySal) profilePatch.monthlySal = next.monthlySal;
-      if (next.comms !== prev.comms) profilePatch.comms = next.comms;
-      if (next.salaryCreditDay !== prev.salaryCreditDay)
-        profilePatch.salaryCreditDay = next.salaryCreditDay;
-      if (next.oa !== prev.oa) profilePatch.oa = next.oa;
-      if (next.sa !== prev.sa) profilePatch.sa = next.sa;
-      if (next.ma !== prev.ma) profilePatch.ma = next.ma;
-      if (next.moo !== prev.moo) profilePatch.moo = next.moo;
-      if (next.margin !== prev.margin) profilePatch.margin = next.margin;
-      if (next.cash !== prev.cash) profilePatch.cash = next.cash;
-      if (next.ccDebt !== prev.ccDebt) profilePatch.ccDebt = next.ccDebt;
-      if (next.cashflowStartYm !== prev.cashflowStartYm)
-        profilePatch.cashflowStartYm = next.cashflowStartYm;
-      if (next.btoPlanner !== prev.btoPlanner) profilePatch.btoPlanner = next.btoPlanner;
+      for (const key of PROFILE_STATE_KEYS) {
+        if (next[key] !== prev[key]) {
+          Object.assign(profilePatch, { [key]: next[key] });
+        }
+      }
 
       if (Object.keys(profilePatch).length) {
         setProfileBundle((pb) =>
@@ -368,7 +389,7 @@ export function useAppDataProvider(enabled: boolean) {
         setPortfolioHistory(next.portfolioHistory);
       }
     },
-    [buildState]
+    []
   );
 
   const saveProfile = useCallback(
@@ -383,6 +404,7 @@ export function useAppDataProvider(enabled: boolean) {
             }
       );
       await patchProfile(patch);
+      dispatchDomainEvent("profile:changed");
       console.info("[useAppData] saveProfile ok", { keys: Object.keys(patch) });
     },
     [patchProfile]
@@ -391,9 +413,14 @@ export function useAppDataProvider(enabled: boolean) {
   return {
     state,
     setState,
-    loading,
+    loading: coreLoading,
+    coreLoading,
+    snapshotsLoading,
     configured,
     reload: load,
+    reloadLoans,
+    reloadOtherLoans,
+    reloadSnapshots: loadSnapshots,
     saveProfile,
     saveProfilePolicies,
     saveLoans,

@@ -64,7 +64,8 @@ describe("portfolioInvestmentValue", () => {
     };
     const { lnw, liab } = wealthSummary(withLoan);
     expect(liab).toBe(0);
-    expect(lnw).toBeCloseTo(wealthSummary(DEFAULTS).lnw, 2);
+    const baseline = wealthSummary({ ...DEFAULTS, margin: 0, ccDebt: 0, otherLoans: [] });
+    expect(lnw).toBeCloseTo(baseline.lnw, 2);
   });
 
   it("net worth includes accounts excluded from savings totals", () => {

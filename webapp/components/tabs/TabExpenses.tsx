@@ -5,9 +5,10 @@ import { CategoryBudgetCard } from "@/components/expenses/CategoryBudgetCard";
 import { ZeroBudgetCategoryList } from "@/components/expenses/ZeroBudgetCategoryList";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary } from "@/lib/expenses/budget-summary";
-import { dispatchAccountsChanged } from "@/lib/savings/accounts-events";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 export function TabExpenses({ enabled }: { enabled: boolean }) {
   const [viewYm, setViewYm] = useState(currentYm);
@@ -43,10 +44,19 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     void loadSummary();
   }, [loadSummary]);
 
+  useDomainEvent(
+    ["expense:changed", "recurring:changed", "budget:changed", "loans:changed"],
+    () => {
+      void loadSummary();
+    },
+    [loadSummary]
+  );
+
   const addExpense = async (payload: {
     budgetLineId: string;
     amount: number;
     spentAt: string;
+    spentTime?: string;
     note: string;
     financialAccountId?: string;
   }) => {
@@ -60,6 +70,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
           budgetLineId: payload.budgetLineId,
           amount: payload.amount,
           spentAt: payload.spentAt,
+          ...(payload.spentTime ? { spentTime: payload.spentTime } : {}),
           note: payload.note,
           ...(payload.financialAccountId
             ? { financialAccountId: payload.financialAccountId }
@@ -68,9 +79,10 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
       }
     );
     if (!res.ok) throw new Error(data.error ?? "Failed to add expense");
-    if (payload.financialAccountId) {
-      dispatchAccountsChanged("expense-create", { expenseId: data.item?.id });
-    }
+    dispatchDomainEvent([
+      "expense:changed",
+      ...(payload.financialAccountId ? (["accounts:changed"] as const) : []),
+    ]);
     await loadSummary();
   };
 
@@ -81,7 +93,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     });
     if (!res.ok) throw new Error(data.error ?? "Failed to delete");
     console.info("[TabExpenses] deleted expense", { id });
-    dispatchAccountsChanged("expense-delete", { expenseId: id });
+    dispatchDomainEvent(["expense:changed", "accounts:changed"]);
     await loadSummary();
   };
 

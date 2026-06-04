@@ -46,7 +46,7 @@ export function simulate5y(
   const loanState = S.loans.map((l) => ({ ...l, bal: l.out }));
 
   const startYM = "2026-08";
-  let curIdx = monIdx(startYM);
+  const curIdx = monIdx(startYM);
   const series: ProjectionRow[] = [];
 
   loanState.forEach((l) => {
@@ -115,7 +115,7 @@ export function simulateCPF(
   let ma = S.ma;
   let sal = S.monthlySal;
   const series = [{ label: "Now", oa, sa, ma }];
-  let curIdx = monIdx("2026-08");
+  const curIdx = monIdx("2026-08");
   const endIdx = monIdx("2031-12");
 
   for (let i = curIdx; i <= endIdx; i++) {

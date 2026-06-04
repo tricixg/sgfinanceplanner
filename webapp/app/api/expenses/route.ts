@@ -18,7 +18,7 @@ import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api";
-import { sgtTodayYmd } from "@/lib/time/sgt";
+import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -28,6 +28,14 @@ function toYmdOrNull(value: unknown): string | null {
   const trimmed = value.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
   return trimmed;
+}
+
+function toTimeOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (/^\d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
+  return null;
 }
 
 export async function GET(req: NextRequest) {
@@ -57,6 +65,7 @@ export async function GET(req: NextRequest) {
     .select("*", { count: "exact" })
     .eq("user_id", user.id)
     .order("spent_at", { ascending: false })
+    .order("spent_time", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -109,6 +118,7 @@ export async function POST(req: NextRequest) {
     subscriptionId?: string;
     financialAccountId?: string;
     spentAt?: string;
+    spentTime?: string;
     note?: string;
   };
   try {
@@ -124,6 +134,9 @@ export async function POST(req: NextRequest) {
 
   const parsedSpentAt = toYmdOrNull(body.spentAt);
   const spentAt = parsedSpentAt ?? sgtTodayYmd();
+  const parsedSpentTime = toTimeOrNull(body.spentTime);
+  const spentTime = parsedSpentTime ?? sgtNowTimeHms();
+  const occurredAt = sgtSpentAtToIso(spentAt, spentTime);
 
   const supabase = await createAuthedSupabaseClient();
 
@@ -153,6 +166,7 @@ export async function POST(req: NextRequest) {
       subscriptionId: body.subscriptionId,
       amount,
       spentAt,
+      spentTime,
       note: body.note,
       financialAccountId: body.financialAccountId,
     };
@@ -202,6 +216,7 @@ export async function POST(req: NextRequest) {
     const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, user.id, expense, {
       loanId: validated.autoCategory === "debt" ? body.loanId : undefined,
       loanPaymentAmount: validated.autoCategory === "debt" ? amount : undefined,
+      occurredAt,
     });
     if (!ledgerSync.ok) {
       return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
@@ -262,6 +277,7 @@ export async function POST(req: NextRequest) {
       category: budgetLine.category,
       budget_line_id: budgetLineId,
       spent_at: spentAt,
+      spent_time: spentTime,
       note: body.note ?? "",
       financial_account_id: body.financialAccountId ?? null,
     })
@@ -274,7 +290,9 @@ export async function POST(req: NextRequest) {
   }
 
   const expense = mapExpense(row);
-  const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, user.id, expense);
+  const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, user.id, expense, {
+    occurredAt,
+  });
   if (!ledgerSync.ok) {
     return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
   }

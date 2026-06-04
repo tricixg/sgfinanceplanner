@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import type { BudgetItem, DashboardState } from "@/lib/types";
 import {
   budgetProjection,
@@ -18,6 +18,7 @@ import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 import {
   COMPUTED_DEBT_LABEL,
   budgetBalanceLabel,
@@ -111,24 +112,34 @@ export function TabBudgetSavings({
   const activeBudget = editingAllocation ? budgetDraft : S.budget;
   const budgetState = editingAllocation ? { ...S, budget: budgetDraft } : S;
 
-  useEffect(() => {
+  const loadExpenseSummary = useCallback(async () => {
     if (editingAllocation) return;
-    void (async () => {
-      try {
-        const ym = currentYm();
-        const { res, data } = await fetchJson<BudgetExpenseSummary & { error?: string }>(
-          `/api/expenses/summary?ym=${ym}`,
-          { credentials: "include" }
-        );
-        if (res.ok) {
-          setExpenseSummary(data);
-          console.info("[TabBudgetSavings] expense summary loaded", { ym });
-        }
-      } catch (e) {
-        console.warn("[TabBudgetSavings] expense summary failed", e);
+    try {
+      const ym = currentYm();
+      const { res, data } = await fetchJson<BudgetExpenseSummary & { error?: string }>(
+        `/api/expenses/summary?ym=${ym}`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setExpenseSummary(data);
+        console.info("[TabBudgetSavings] expense summary loaded", { ym });
       }
-    })();
-  }, [editingAllocation, S.budget]);
+    } catch (e) {
+      console.warn("[TabBudgetSavings] expense summary failed", e);
+    }
+  }, [editingAllocation]);
+
+  useEffect(() => {
+    void loadExpenseSummary();
+  }, [loadExpenseSummary, S.budget]);
+
+  useDomainEvent(
+    ["expense:changed", "budget:changed", "loans:changed", "recurring:changed"],
+    () => {
+      void loadExpenseSummary();
+    },
+    [loadExpenseSummary]
+  );
 
   const income = stableTakeHome(S);
   const ym = currentYm();
@@ -154,10 +165,14 @@ export function TabBudgetSavings({
   const budgetLines = activeBudget.filter((b) => b.type !== "save");
   const { allocated: allocatedRows, zeroAllocated: zeroRows } =
     splitBudgetRows(activeBudget);
+  /** Stable draft order while editing — avoid jumping between $0 and allocated sections. */
+  const editBudgetRows: BudgetRow[] = editingAllocation
+    ? budgetDraft.map((b, i) => ({ b, i }))
+    : [];
   const balanceLbl = budgetBalanceLabel(left);
 
   const renderBudgetEditItem = ({ b, i }: BudgetRow) => (
-    <div className="budget-item" key={i} style={{ marginBottom: 14 }}>
+    <div className="budget-item" key={b.id ?? `budget-line-${i}`} style={{ marginBottom: 14 }}>
       <div className="editrow budget-line">
         <input
           type="text"
@@ -179,7 +194,7 @@ export function TabBudgetSavings({
         </select>
         <DecimalInput
           value={b.amt}
-          step={10}
+          step={1}
           min={0}
           max={Math.round(income) || 1}
           onChange={(v) => updateBudget(i, { amt: v })}
@@ -195,7 +210,7 @@ export function TabBudgetSavings({
         className="budget-slider"
         min={0}
         max={Math.round(income) || 1}
-        step={10}
+        step={1}
         value={b.amt}
         onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
       />
@@ -281,7 +296,7 @@ export function TabBudgetSavings({
   const startBudgetEdit = () => {
     setBudgetDraft(structuredClone(S.budget));
     setEditingAllocation(true);
-    console.log("[TabBudgetSavings] allocation edit on");
+    console.info("[TabBudgetSavings] allocation edit on");
   };
 
   const saveBudget = async () => {
@@ -305,7 +320,7 @@ export function TabBudgetSavings({
     setBudgetDraft((prev) =>
       prev.map((b, j) => (j === i ? { ...b, ...patchItem } : b))
     );
-    console.log("[TabBudgetSavings] updated budget draft line", i, patchItem);
+    console.info("[TabBudgetSavings] updated budget draft line", i, patchItem);
   };
 
   const addBudgetLine = () => {
@@ -313,12 +328,12 @@ export function TabBudgetSavings({
       ...prev,
       { cat: "New category", amt: 0, type: "spend" },
     ]);
-    console.log("[TabBudgetSavings] added budget draft line");
+    console.info("[TabBudgetSavings] added budget draft line");
   };
 
   const removeBudgetLine = (i: number) => {
     setBudgetDraft((prev) => prev.filter((_, j) => j !== i));
-    console.log("[TabBudgetSavings] removed budget draft line", i);
+    console.info("[TabBudgetSavings] removed budget draft line", i);
   };
 
   const initBudgetTemplate = () => {
@@ -333,7 +348,7 @@ export function TabBudgetSavings({
         }
       })();
     }
-    console.log("[TabBudgetSavings] initialized budget template");
+    console.info("[TabBudgetSavings] initialized budget template");
   };
 
   let verdict = "";
@@ -525,13 +540,7 @@ export function TabBudgetSavings({
               <span className="num">{fmt2(savingsPrem)}</span>
               <span></span>
             </div>
-            {allocatedRows.map(renderBudgetEditItem)}
-            {zeroRows.length > 0 ? (
-              <details className="budget-zero-section">
-                <summary>$0 budget · {zeroRows.length} categories</summary>
-                {zeroRows.map(renderBudgetEditItem)}
-              </details>
-            ) : null}
+            {editBudgetRows.map(renderBudgetEditItem)}
             <div className="toolbar">
               <button type="button" className="btn ghost sm" onClick={addBudgetLine}>
                 + Add category

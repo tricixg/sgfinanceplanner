@@ -6,8 +6,8 @@ import { TransactionList } from "@/components/savings/TransactionList";
 import { fmt2 } from "@/lib/finance/helpers";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { DecimalTextInput } from "@/components/DecimalInput";
-import { SAVINGS_LEDGER_RECORDED_EVENT } from "@/lib/savings/accounts-events";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 export type LedgerKind = "deposit" | "withdrawal" | "adjustment";
 
@@ -172,14 +172,7 @@ export function SavingsLedgerModal({
       setGoalId("");
       setIncomeCategoryId("");
       setHistoryKey((k) => k + 1);
-      const ledgerDetail = {
-        kind,
-        incomeCategoryId: showIncomeCategory ? incomeCategoryId : null,
-        occurredAt: new Date(date).toISOString(),
-      };
-      window.dispatchEvent(
-        new CustomEvent(SAVINGS_LEDGER_RECORDED_EVENT, { detail: ledgerDetail })
-      );
+      dispatchDomainEvent(["savings:changed", "accounts:changed"]);
       console.info("[SavingsLedgerModal] recorded", {
         variant: target.variant,
         kind,

@@ -6,7 +6,11 @@ import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { sgtTodayYmd, sgtYmdDaysAgo } from "@/lib/time/sgt";
+import { Snackbar } from "@/components/Snackbar";
+import { useSnackbar } from "@/hooks/useSnackbar";
+import { TransactionActionModal } from "@/components/savings/TransactionActionModal";
 
 const PAGE_SIZE = 50;
 
@@ -104,6 +108,8 @@ export function TransactionsHistoryPage() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<UnifiedTransaction | null>(null);
+  const snackbar = useSnackbar();
 
   const { accounts: financialAccounts } = useFinancialAccounts();
 
@@ -167,6 +173,15 @@ export function TransactionsHistoryPage() {
     void load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountId, effectiveFinancialAccountId, type, source, dateFrom, dateTo]);
+
+  useDomainEvent(
+    ["expense:changed", "savings:changed", "accounts:changed"],
+    () => {
+      setOffset(0);
+      void load(false);
+    },
+    [load]
+  );
 
   const hasFilters = Boolean(
     accountId || financialAccountId || type || source !== "all" || dateFrom || dateTo
@@ -279,7 +294,7 @@ export function TransactionsHistoryPage() {
           <select value={source} onChange={(e) => setFilters({ source: e.target.value })}>
             <option value="all">All</option>
             <option value="savings">Ledger</option>
-            <option value="budget">Import</option>
+            <option value="budget">Budget</option>
             <option value="expense">Recorded</option>
           </select>
         </label>
@@ -357,7 +372,11 @@ export function TransactionsHistoryPage() {
               </thead>
               <tbody>
                 {items.map((tx) => (
-                  <tr key={`${tx.recordType}-${tx.id}`}>
+                  <tr
+                    key={`${tx.recordType}-${tx.id}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setSelectedTx(tx)}
+                  >
                     <td>{tx.date}</td>
                     <td>{tx.time || "—"}</td>
                     <td>{tx.category || "—"}</td>
@@ -394,6 +413,22 @@ export function TransactionsHistoryPage() {
           </p>
         ) : null}
       </section>
+      {selectedTx ? (
+        <TransactionActionModal
+          tx={selectedTx}
+          onClose={() => setSelectedTx(null)}
+          onSaved={(m) => {
+            snackbar.show(m);
+            void load(false);
+          }}
+        />
+      ) : null}
+      <Snackbar
+        message={snackbar.message}
+        variant={snackbar.variant}
+        durationMs={snackbar.durationMs}
+        onDismiss={snackbar.dismiss}
+      />
     </>
   );
 }

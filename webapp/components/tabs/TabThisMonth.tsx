@@ -19,6 +19,7 @@ import {
   type CalendarCardSchedule,
 } from "@/lib/finance/build-calendar-cycles";
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 type Props = {
   state: DashboardState;
@@ -87,6 +88,15 @@ export function TabThisMonth({ state: S }: Props) {
   useEffect(() => {
     void loadCalendarAmounts();
   }, [loadCalendarAmounts]);
+
+  useDomainEvent(
+    ["expense:changed", "cards:changed"],
+    () => {
+      console.info("[TabThisMonth] refresh calendar amounts after domain event");
+      void loadCalendarAmounts();
+    },
+    [loadCalendarAmounts]
+  );
 
   useEffect(() => {
     const onFocus = () => {
