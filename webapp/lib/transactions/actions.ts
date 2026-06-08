@@ -7,19 +7,12 @@ import { syncStatementAfterPaymentTransactionDelete } from "@/lib/credit-cards/c
 import { applyTransaction, deleteSavingsTransaction, getSavingsTransactionById } from "@/lib/savings/ledger";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { applyReimbursementBudgetImpact } from "@/lib/transactions/reimburse-budget-impact";
+import { sgtNowTimeHms, sgtTodayYmd } from "@/lib/time/sgt";
 
 export type TransactionRecordType = "expense" | "savings" | "budget";
 
 export function normalizeRecordType(v: string): TransactionRecordType | null {
   return v === "expense" || v === "savings" || v === "budget" ? v : null;
-}
-
-function toYmd(iso: string): string {
-  return iso.slice(0, 10);
-}
-
-function toTime(iso: string): string {
-  return iso.slice(11, 19);
 }
 
 async function deleteLinkedReimbursements(
@@ -198,8 +191,8 @@ export async function reimburseTransactionWithLedger(
       ledger: account.name,
       category,
       amount,
-      spentAt: toYmd(nowIso),
-      spentTime: toTime(nowIso),
+      spentAt: sgtTodayYmd(),
+      spentTime: sgtNowTimeHms(),
       note,
       transactionType: "income",
       sourceRecordType: recordType,

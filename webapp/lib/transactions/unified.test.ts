@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { expenseToUnified } from "@/lib/expenses/list-for-transactions";
+import { compareSgtSortAtDescending } from "@/lib/time/sgt";
 import {
   budgetToUnified,
   savingsToUnified,
@@ -69,7 +70,7 @@ describe("unified transaction merge (unit sort)", () => {
       savingsToUnified(savings),
       budgetToUnified(budget),
       expense,
-    ].sort((a, b) => (a.sortAt < b.sortAt ? 1 : a.sortAt > b.sortAt ? -1 : 0));
+    ].sort((a, b) => compareSgtSortAtDescending(a.sortAt, b.sortAt));
 
     expect(merged.map((r) => r.id)).toEqual(["e1", "b1", "s1"]);
     expect(merged[0].recordType).toBe("expense");

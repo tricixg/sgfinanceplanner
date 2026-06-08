@@ -4,7 +4,7 @@ import {
   formatTransactionDate,
   formatTransactionTime,
 } from "@/lib/savings/format-transaction-when";
-import { sgtSpentAtToIso } from "@/lib/time/sgt";
+import { isoInstantToSgtSortAt, sgtSpentAtToIso } from "@/lib/time/sgt";
 import { expenseEntrySourceLabel } from "@/lib/expenses/entry-source";
 import type { Expense } from "@/lib/savings/types";
 import type { BudgetTransactionType, UnifiedTransaction } from "@/lib/transactions/types";
@@ -41,7 +41,7 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
   // Prefer user-entered spent date over created timestamp for transaction history display/sorting.
   const when = spentAt
     ? sgtSpentAtToIso(spentAt, spentTime || "00:00:00")
-    : expense.createdAt;
+    : isoInstantToSgtSortAt(expense.createdAt);
   const displayDate = spentAt ? formatTransactionDate(when) : formatTransactionDate(when);
   console.info("[transactions] expense timestamp resolved", {
     expenseId: expense.id,

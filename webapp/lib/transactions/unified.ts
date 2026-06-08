@@ -14,7 +14,11 @@ import {
 } from "@/lib/expenses/list-for-transactions";
 import { sumBudgetTransactionAmounts } from "@/lib/budget/transactions";
 import type { ListUnifiedOpts, UnifiedTransaction } from "@/lib/transactions/types";
-import { sgtSpentAtToIso } from "@/lib/time/sgt";
+import {
+  compareSgtSortAtDescending,
+  isoInstantToSgtSortAt,
+  sgtSpentAtToIso,
+} from "@/lib/time/sgt";
 
 function budgetSortAt(tx: BudgetTransaction): string {
   return sgtSpentAtToIso(tx.spentAt, tx.spentTime ?? "00:00:00");
@@ -32,7 +36,7 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
   return {
     id: tx.id,
     recordType: "savings",
-    sortAt: tx.occurredAt,
+    sortAt: isoInstantToSgtSortAt(tx.occurredAt),
     date: formatTransactionDate(tx.occurredAt),
     time: formatTransactionTime(tx.occurredAt),
     typeLabel: tx.kind,
@@ -240,7 +244,7 @@ export async function listUnifiedTransactions(
     ...savingsPage.items.map(savingsToUnified),
     ...budgetPage.items.map(budgetToUnified),
     ...expensePage.items.map(expenseToUnified),
-  ].sort((a, b) => (a.sortAt < b.sortAt ? 1 : a.sortAt > b.sortAt ? -1 : 0));
+  ].sort((a, b) => compareSgtSortAtDescending(a.sortAt, b.sortAt));
 
   const items = merged.slice(offset, offset + limit);
   const total = savingsTotal + budgetTotal + expenseTotal;

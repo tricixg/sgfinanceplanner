@@ -51,6 +51,31 @@ export function sgtSpentAtToIso(spentAt: string, spentTime: string): string {
   return `${date}T${normalizeSpentTimeHms(spentTime)}+08:00`;
 }
 
+/**
+ * Normalize any parseable ISO instant (UTC `Z`, offset, or SGT +08:00) to a single
+ * SGT wall-clock sort key used across transaction history.
+ */
+export function isoInstantToSgtSortAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    console.warn("[sgt] invalid iso for sortAt", { iso });
+    return iso;
+  }
+  const p = sgtParts(d);
+  const hour = String(Number(p.hour) % 24).padStart(2, "0");
+  return `${p.year}-${p.month}-${p.day}T${hour}:${p.minute}:${p.second}+08:00`;
+}
+
+/** Newest-first compare for unified transaction history (parses real instants). */
+export function compareSgtSortAtDescending(a: string, b: string): number {
+  const ta = new Date(a).getTime();
+  const tb = new Date(b).getTime();
+  if (Number.isNaN(ta) || Number.isNaN(tb)) {
+    return a < b ? 1 : a > b ? -1 : 0;
+  }
+  return tb - ta;
+}
+
 /** YYYY-MM-DD in Singapore time (UTC+8). */
 export function sgtTodayYmd(now?: Date): string {
   const p = sgtParts(now);
