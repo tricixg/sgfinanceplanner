@@ -373,6 +373,32 @@ export async function listAllTransactions(
   };
 }
 
+/** Sum signed amounts for savings ledger rows matching list filters. */
+export async function sumSavingsTransactionAmounts(
+  supabase: SupabaseClient,
+  opts: Omit<ListTransactionsOpts, "limit" | "offset"> = {}
+): Promise<number> {
+  let query = supabase
+    .from("savings_transactions")
+    .select("amount")
+    .is("expense_id", null);
+
+  if (opts.accountId) query = query.eq("account_id", opts.accountId);
+  if (opts.poolId) query = query.eq("pool_id", opts.poolId);
+  if (opts.kind) query = query.eq("kind", opts.kind);
+  if (opts.dateFrom) {
+    query = query.gte("occurred_at", savingsOccurredAtLowerBound(opts.dateFrom));
+  }
+  if (opts.dateTo) {
+    query = query.lt("occurred_at", savingsOccurredAtUpperBoundExclusive(opts.dateTo));
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+}
+
 export async function listAccountTransactions(
   supabase: SupabaseClient,
   accountId: string,

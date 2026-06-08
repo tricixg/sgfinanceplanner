@@ -105,6 +105,7 @@ export function TransactionsHistoryPage() {
 
   const [items, setItems] = useState<UnifiedTransaction[]>([]);
   const [total, setTotal] = useState(0);
+  const [amountTotal, setAmountTotal] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -140,6 +141,7 @@ export function TransactionsHistoryPage() {
           items?: UnifiedTransaction[];
           total?: number;
           nextOffset?: number | null;
+          amountTotal?: number | null;
           error?: string;
         }>(`/api/transactions?${qs}`, { credentials: "include" });
 
@@ -150,6 +152,7 @@ export function TransactionsHistoryPage() {
         const nextItems = data.items ?? [];
         setItems((prev) => (append ? [...prev, ...nextItems] : nextItems));
         setTotal(data.total ?? 0);
+        setAmountTotal(data.amountTotal ?? null);
         if (data.nextOffset != null) setOffset(data.nextOffset);
         else if (!append) setOffset(0);
 
@@ -157,6 +160,7 @@ export function TransactionsHistoryPage() {
           append,
           count: nextItems.length,
           total: data.total,
+          amountTotal: data.amountTotal,
         });
       } catch (e) {
         console.error("[TransactionsHistoryPage] load failed", e);
@@ -391,6 +395,15 @@ export function TransactionsHistoryPage() {
                   </tr>
                 ))}
               </tbody>
+              {hasFilters && amountTotal != null ? (
+                <tfoot>
+                  <tr>
+                    <th colSpan={4}>Total ({total})</th>
+                    <th className="num">{fmtSigned2(amountTotal)}</th>
+                    <th colSpan={4} />
+                  </tr>
+                </tfoot>
+              ) : null}
             </table>
           </div>
         )}

@@ -154,3 +154,32 @@ export async function listExpensesForTransactions(
       offset + (data?.length ?? 0) < (count ?? 0) ? offset + limit : null,
   };
 }
+
+/** Sum signed amounts (−expense.amount) for expense rows matching list filters. */
+export async function sumExpenseAmountsForTransactions(
+  supabase: SupabaseClient,
+  userId: string,
+  opts: Omit<ListExpensesForTransactionsOpts, "limit" | "offset"> = {}
+): Promise<number> {
+  if (opts.transactionType === "income") {
+    return 0;
+  }
+
+  let query = supabase.from("expenses").select("amount").eq("user_id", userId);
+
+  if (opts.financialAccountId) {
+    query = query.eq("financial_account_id", opts.financialAccountId);
+  }
+  if (opts.transactionType === "subscription") {
+    query = query.eq("auto_category", "subscription");
+  } else if (opts.transactionType === "expense") {
+    query = query.or("auto_category.is.null,auto_category.neq.subscription");
+  }
+  if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
+  if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).reduce((sum, row) => sum - Number(row.amount ?? 0), 0);
+}

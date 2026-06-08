@@ -59,6 +59,36 @@ export async function listBudgetTransactions(
   };
 }
 
+/** Sum signed amounts (income +, expense/subscription −) for budget rows matching list filters. */
+export async function sumBudgetTransactionAmounts(
+  supabase: SupabaseClient,
+  userId: string,
+  opts: Omit<ListBudgetOpts, "limit" | "offset"> = {}
+): Promise<number> {
+  let query = supabase
+    .from("budget_transactions")
+    .select("amount, transaction_type")
+    .eq("user_id", userId)
+    .is("expense_id", null);
+
+  if (opts.financialAccountId) {
+    query = query.eq("financial_account_id", opts.financialAccountId);
+  }
+  if (opts.transactionType) {
+    query = query.eq("transaction_type", opts.transactionType);
+  }
+  if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
+  if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).reduce((sum, row) => {
+    const amount = Number(row.amount ?? 0);
+    return sum + (row.transaction_type === "income" ? amount : -amount);
+  }, 0);
+}
+
 export async function countBudgetTransactions(
   supabase: SupabaseClient,
   userId: string,

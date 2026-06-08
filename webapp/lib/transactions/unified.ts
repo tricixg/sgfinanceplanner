@@ -3,14 +3,16 @@ import {
   formatTransactionDate,
   formatTransactionTime,
 } from "@/lib/savings/format-transaction-when";
-import { listAllTransactions } from "@/lib/savings/ledger";
+import { listAllTransactions, sumSavingsTransactionAmounts } from "@/lib/savings/ledger";
 import type { SavingsTransaction } from "@/lib/savings/types";
 import { listBudgetTransactions } from "@/lib/budget/transactions";
 import type { BudgetTransaction } from "@/lib/transactions/types";
 import {
   expenseToUnified,
   listExpensesForTransactions,
+  sumExpenseAmountsForTransactions,
 } from "@/lib/expenses/list-for-transactions";
+import { sumBudgetTransactionAmounts } from "@/lib/budget/transactions";
 import type { ListUnifiedOpts, UnifiedTransaction } from "@/lib/transactions/types";
 import { sgtSpentAtToIso } from "@/lib/time/sgt";
 
@@ -148,6 +150,23 @@ export async function resolveAccountFilters(
   return resolved;
 }
 
+function roundCents(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function unifiedListHasFilters(opts: ListUnifiedOpts): boolean {
+  return Boolean(
+    opts.accountId ||
+      opts.poolId ||
+      opts.financialAccountId ||
+      opts.kind ||
+      opts.transactionType ||
+      (opts.source && opts.source !== "all") ||
+      opts.dateFrom ||
+      opts.dateTo
+  );
+}
+
 export async function listUnifiedTransactions(
   supabase: SupabaseClient,
   userId: string,
@@ -227,6 +246,45 @@ export async function listUnifiedTransactions(
   const total = savingsTotal + budgetTotal + expenseTotal;
   const nextOffset = offset + items.length < total ? offset + limit : null;
 
+  let amountTotal: number | null = null;
+  if (unifiedListHasFilters(opts)) {
+    const [savingsSum, budgetSum, expenseSum] = await Promise.all([
+      fetchSavings
+        ? sumSavingsTransactionAmounts(supabase, {
+            accountId: accountFilters.accountId,
+            poolId: accountFilters.poolId,
+            kind: opts.kind,
+            dateFrom: opts.dateFrom,
+            dateTo: opts.dateTo,
+          })
+        : Promise.resolve(0),
+      fetchBudget
+        ? sumBudgetTransactionAmounts(supabase, userId, {
+            financialAccountId: accountFilters.financialAccountId,
+            transactionType: opts.transactionType,
+            dateFrom: opts.dateFrom,
+            dateTo: opts.dateTo,
+          })
+        : Promise.resolve(0),
+      fetchExpenses
+        ? sumExpenseAmountsForTransactions(supabase, userId, {
+            financialAccountId: accountFilters.financialAccountId,
+            transactionType: opts.transactionType,
+            dateFrom: opts.dateFrom,
+            dateTo: opts.dateTo,
+          })
+        : Promise.resolve(0),
+    ]);
+    amountTotal = roundCents(savingsSum + budgetSum + expenseSum);
+    console.info("[transactions] filtered amount total", {
+      userId,
+      amountTotal,
+      savingsSum,
+      budgetSum,
+      expenseSum,
+    });
+  }
+
   console.info("[transactions] unified list", {
     userId,
     returned: items.length,
@@ -238,5 +296,5 @@ export async function listUnifiedTransactions(
     dateTo: opts.dateTo ?? null,
   });
 
-  return { items, total, nextOffset };
+  return { items, total, nextOffset, amountTotal };
 }

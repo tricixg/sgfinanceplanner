@@ -3,6 +3,7 @@ import { expenseToUnified } from "@/lib/expenses/list-for-transactions";
 import {
   budgetToUnified,
   savingsToUnified,
+  unifiedListHasFilters,
 } from "@/lib/transactions/unified";
 import type { BudgetTransaction } from "@/lib/transactions/types";
 import type { SavingsTransaction } from "@/lib/savings/types";
@@ -96,5 +97,18 @@ describe("unified transaction merge (unit sort)", () => {
 
     expect(expense.recordType).toBe("expense");
     expect(`${expense.recordType}-${expense.id}`).toBe("expense-same-id");
+  });
+});
+
+describe("unifiedListHasFilters", () => {
+  it("is false with default list opts", () => {
+    expect(unifiedListHasFilters({})).toBe(false);
+    expect(unifiedListHasFilters({ source: "all" })).toBe(false);
+  });
+
+  it("is true when any filter is set", () => {
+    expect(unifiedListHasFilters({ dateFrom: "2026-05-01" })).toBe(true);
+    expect(unifiedListHasFilters({ transactionType: "expense" })).toBe(true);
+    expect(unifiedListHasFilters({ source: "savings" })).toBe(true);
   });
 });
