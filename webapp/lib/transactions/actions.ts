@@ -7,7 +7,8 @@ import { syncStatementAfterPaymentTransactionDelete } from "@/lib/credit-cards/c
 import { applyTransaction, deleteSavingsTransaction, getSavingsTransactionById } from "@/lib/savings/ledger";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { applyReimbursementBudgetImpact } from "@/lib/transactions/reimburse-budget-impact";
-import { sgtNowTimeHms, sgtTodayYmd } from "@/lib/time/sgt";
+import { formatReimbursementNote } from "@/lib/transactions/reimbursement-note";
+import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
 
 export type TransactionRecordType = "expense" | "savings" | "budget";
 
@@ -122,7 +123,12 @@ export async function reimburseTransactionWithLedger(
 
   let defaultFinancialAccountId: string | null = null;
   let category = "Reimbursement";
-  let sourceLabel = "transaction";
+  let sourceMeta: {
+    id: string;
+    amount: number;
+    note: string;
+    whenIso: string;
+  } | null = null;
 
   if (recordType === "expense") {
     const { data, error } = await supabase
@@ -136,13 +142,26 @@ export async function reimburseTransactionWithLedger(
     const exp = mapExpense(data);
     defaultFinancialAccountId = exp.financialAccountId ?? null;
     category = exp.category || "Expense";
-    sourceLabel = `expense:${exp.id}`;
+    const spentAt = String(exp.spentAt ?? "").slice(0, 10);
+    sourceMeta = {
+      id: exp.id,
+      amount: exp.amount,
+      note: exp.note ?? "",
+      whenIso: spentAt
+        ? sgtSpentAtToIso(spentAt, exp.spentTime ?? "00:00:00")
+        : exp.createdAt,
+    };
   } else if (recordType === "budget") {
     const tx = await getBudgetTransactionById(supabase, userId, id);
     if (!tx) throw new Error("Not found");
     defaultFinancialAccountId = tx.financialAccountId;
     category = tx.category || "Budget";
-    sourceLabel = `budget:${tx.id}`;
+    sourceMeta = {
+      id: tx.id,
+      amount: tx.amount,
+      note: tx.note ?? "",
+      whenIso: sgtSpentAtToIso(tx.spentAt, tx.spentTime ?? "00:00:00"),
+    };
   } else {
     const data = await getSavingsTransactionById(supabase, userId, id);
     if (!data) throw new Error("Not found");
@@ -156,7 +175,12 @@ export async function reimburseTransactionWithLedger(
       if (faErr) throw new Error(faErr.message);
       defaultFinancialAccountId = fa?.id ? String(fa.id) : null;
     }
-    sourceLabel = `savings:${id}`;
+    sourceMeta = {
+      id,
+      amount: Math.abs(data.amount),
+      note: data.note ?? "",
+      whenIso: data.occurredAt,
+    };
   }
 
   const financialAccountId = input.financialAccountId ?? defaultFinancialAccountId;
@@ -169,7 +193,9 @@ export async function reimburseTransactionWithLedger(
   const note =
     typeof input.note === "string" && input.note.trim()
       ? input.note.trim()
-      : `Reimbursement for ${sourceLabel}`;
+      : sourceMeta
+        ? formatReimbursementNote(sourceMeta)
+        : "Reimbursement";
 
   let result: { recordType: "savings" | "budget"; item: unknown };
 
