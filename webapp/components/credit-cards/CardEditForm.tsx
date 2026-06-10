@@ -1,7 +1,7 @@
 "use client";
 
 import type { CreditCard } from "@/lib/types";
-import { BANKS, CARDS_BY_BANK } from "@/lib/cards/sg-card-catalog";
+import { BANKS, CARDS_BY_BANK, getCatalogEntry } from "@/lib/cards/sg-card-catalog";
 import { DecimalInput } from "@/components/DecimalInput";
 
 type Props = {
@@ -116,9 +116,25 @@ export function CardEditForm({
                   del
                 </button>
               </div>
-              {c.rewardHeadline && (
-                <p className="note card-edit-reward">{c.rewardHeadline}</p>
-              )}
+              <label className="note card-edit-reward">
+                Rewards note
+                <textarea
+                  className="card-edit-reward-input"
+                  rows={2}
+                  value={c.rewardHeadline ?? ""}
+                  placeholder={
+                    c.catalogId
+                      ? (getCatalogEntry(c.catalogId)?.headline ??
+                        "Rewards summary for this card")
+                      : "Describe this card's rewards"
+                  }
+                  onChange={(e) =>
+                    onUpdate(i, {
+                      rewardHeadline: e.target.value.trim() || undefined,
+                    })
+                  }
+                />
+              </label>
             </div>
           ))
         )}

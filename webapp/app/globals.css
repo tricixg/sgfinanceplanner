@@ -781,7 +781,27 @@ tfoot td {
   flex-shrink: 0;
 }
 .card-edit-reward {
-  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+.card-edit-reward-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+.card-edit-reward-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .reward-tag,
 .tag.t-live,

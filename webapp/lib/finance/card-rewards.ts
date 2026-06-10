@@ -131,6 +131,30 @@ export function recommendCardForSpend(
   return best;
 }
 
+function mergeCatalogDefaults(
+  base: CreditCard,
+  entry: CardCatalogEntry
+): CreditCard {
+  const fromCatalog = applyCatalogEntry(entry);
+  return {
+    ...base,
+    bank: base.bank ?? fromCatalog.bank,
+    catalogId: base.catalogId,
+    rewardType: base.rewardType ?? fromCatalog.rewardType,
+    rewardHeadline: base.rewardHeadline ?? fromCatalog.rewardHeadline,
+    rewardRules:
+      base.rewardRules && base.rewardRules.length > 0
+        ? base.rewardRules
+        : fromCatalog.rewardRules,
+    name: base.name || fromCatalog.name!,
+    statementDay: base.statementDay,
+    paymentDueDay: base.paymentDueDay,
+    statementAmount: base.statementAmount,
+    interestRateApr: base.interestRateApr,
+    includeOutstandingOnStatement: base.includeOutstandingOnStatement,
+  };
+}
+
 export function normalizeCreditCard(raw: Partial<CreditCard>): CreditCard {
   const base: CreditCard = {
     id: raw.id,
@@ -149,28 +173,16 @@ export function normalizeCreditCard(raw: Partial<CreditCard>): CreditCard {
   if (base.catalogId) {
     const entry = getCatalogEntry(base.catalogId);
     if (entry) {
-      return {
-        ...base,
-        ...applyCatalogEntry(entry),
-        statementDay: base.statementDay,
-        paymentDueDay: base.paymentDueDay,
-        statementAmount: base.statementAmount,
-        interestRateApr: base.interestRateApr,
-        includeOutstandingOnStatement: base.includeOutstandingOnStatement,
-      };
+      return mergeCatalogDefaults(base, entry);
     }
   }
   if (!base.catalogId && base.name) {
     const found = findCatalogByName(base.name);
     if (found) {
-      return {
-        ...base,
-        ...applyCatalogEntry(found),
-        statementDay: base.statementDay,
-        paymentDueDay: base.paymentDueDay,
-        statementAmount: base.statementAmount,
-        includeOutstandingOnStatement: base.includeOutstandingOnStatement,
-      };
+      return mergeCatalogDefaults(
+        { ...base, catalogId: found.id },
+        found
+      );
     }
   }
   return base;

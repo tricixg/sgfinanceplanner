@@ -28,6 +28,30 @@ describe("card-rewards", () => {
     expect(partial.rewardHeadline).toContain("mpd");
   });
 
+  it("normalizeCreditCard fills catalog headline when missing", () => {
+    const normalized = normalizeCreditCard({
+      name: "DBS Altitude",
+      statementDay: 5,
+      paymentDueDay: 20,
+      statementAmount: 0,
+      catalogId: "dbs-altitude-visa",
+    });
+    expect(normalized.rewardHeadline).toContain("mpd");
+  });
+
+  it("normalizeCreditCard preserves custom reward headline", () => {
+    const custom = "My promo: 5 mpd on dining until Dec 2026";
+    const normalized = normalizeCreditCard({
+      name: "DBS Altitude",
+      statementDay: 5,
+      paymentDueDay: 20,
+      statementAmount: 0,
+      catalogId: "dbs-altitude-visa",
+      rewardHeadline: custom,
+    });
+    expect(normalized.rewardHeadline).toBe(custom);
+  });
+
   it("recommends higher mpd card for foreign spend", () => {
     const cards: CreditCard[] = [
       {
