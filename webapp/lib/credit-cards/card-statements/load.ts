@@ -2,13 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DbCreditCard } from "@/lib/credit-cards/mappers";
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import {
-  accrueDailyInterest,
-  interestStartAfterDue,
   outstandingBalance,
   principalAtDue,
   roundMoney,
 } from "@/lib/cards/interest-accrual";
-import { recomputeInterestForStatement } from "./interest";
+import { estimateInterestAfterDue, recomputeInterestForStatement } from "./interest";
 import {
   cycleBoundsFromClose,
   openCycleBounds,
@@ -302,19 +300,14 @@ export async function loadCardStatementsBundle(
           today > priorClosed.paymentDueDate &&
           carriedForward > 0
         ) {
-          const start = interestStartAfterDue(priorClosed.paymentDueDate);
-          const dailySpend = spendIndex.dailySpendInRange(start, today);
-          interestEstimate = accrueDailyInterest({
-            aprPercent: card.interestRateApr,
-            principalAtDue: principalAtDue({
-              carriedForwardIn: priorClosed.carriedForwardIn,
-              actualAmount: priorClosed.actualAmount,
-              amountPaid: priorClosed.amountPaid,
-            }),
-            dailySpend,
-            interestStartDate: start,
-            throughDate: today,
-          });
+          interestEstimate = await estimateInterestAfterDue(
+            supabase,
+            userId,
+            card,
+            priorClosed,
+            spendIndex,
+            today
+          );
         }
       }
 
