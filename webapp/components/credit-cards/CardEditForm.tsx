@@ -128,11 +128,20 @@ export function CardEditForm({
                         "Rewards summary for this card")
                       : "Describe this card's rewards"
                   }
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const value = e.target.value;
                     onUpdate(i, {
-                      rewardHeadline: e.target.value.trim() || undefined,
-                    })
-                  }
+                      rewardHeadline: value.length > 0 ? value : undefined,
+                    });
+                  }}
+                  onBlur={(e) => {
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== (c.rewardHeadline ?? "")) {
+                      onUpdate(i, {
+                        rewardHeadline: trimmed.length > 0 ? trimmed : undefined,
+                      });
+                    }
+                  }}
                 />
               </label>
             </div>
