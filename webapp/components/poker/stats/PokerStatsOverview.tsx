@@ -155,22 +155,22 @@ export function PokerStatsOverview({ stats }: Props) {
 
   return (
     <>
-      <div className="grid g3" style={{ marginBottom: 16 }}>
-        <div className="stat accent">
-          <div className="lbl">Total net profit</div>
-          <div className={`val ${plClass(overview.totalNetProfit)}`}>
+      <div className="poker-stats-summary">
+        <div className="poker-stats-summary-stat poker-stats-summary-stat--accent">
+          <span className="poker-stats-summary-label">Net profit</span>
+          <span className={`poker-stats-summary-value ${plClass(overview.totalNetProfit)}`}>
             {formatPl(overview.totalNetProfit)}
-          </div>
+          </span>
         </div>
-        <div className="stat">
-          <div className="lbl">Sessions (all)</div>
-          <div className="val">{met.all.sessions}</div>
+        <div className="poker-stats-summary-stat">
+          <span className="poker-stats-summary-label">Sessions</span>
+          <span className="poker-stats-summary-value">{met.all.sessions}</span>
         </div>
-        <div className="stat">
-          <div className="lbl">Hourly (all)</div>
-          <div className={`val ${plClass(met.all.hourly ?? 0)}`}>
+        <div className="poker-stats-summary-stat">
+          <span className="poker-stats-summary-label">Hourly</span>
+          <span className={`poker-stats-summary-value ${plClass(met.all.hourly ?? 0)}`}>
             {formatHourly(met.all.hourly)}
-          </div>
+          </span>
         </div>
       </div>
 

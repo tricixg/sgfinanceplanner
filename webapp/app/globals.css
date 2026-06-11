@@ -2251,7 +2251,14 @@ footer {
   max-width: 720px;
   width: min(96vw, 720px);
   max-height: 90vh;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.poker-session-edit-modal .poker-session-form {
+  min-width: 0;
+  max-width: 100%;
 }
 .poker-session-detail-modal {
   max-width: 420px;
@@ -2472,12 +2479,17 @@ footer {
   gap: 10px;
 }
 .poker-location-card {
+  display: block;
   width: 100%;
   text-align: left;
+  text-decoration: none;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
   padding: 12px 14px;
   border: 1.5px solid var(--line);
   background: var(--card);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 .poker-location-card:hover {
   border-color: var(--moss);
@@ -2697,9 +2709,36 @@ footer {
     font-size: 13px;
   }
 
-  .modal-backdrop:has(.poker-session-detail-modal) {
+  .modal-backdrop:has(.poker-session-detail-modal),
+  .modal-backdrop:has(.poker-session-edit-modal) {
     align-items: flex-end;
     padding: 0;
+    overflow-x: hidden;
+  }
+  .poker-session-edit-modal {
+    width: 100%;
+    max-width: none;
+    max-height: 92vh;
+    border-radius: 12px 12px 0 0;
+    padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    touch-action: pan-y;
+  }
+  .poker-session-edit-modal .modal-header {
+    margin-bottom: 10px;
+  }
+  .poker-session-edit-modal .poker-session-form,
+  .poker-session-edit-modal .toolbar,
+  .poker-session-edit-modal .poker-fx-panel {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  .poker-session-edit-modal .toolbar > label {
+    min-width: 0;
+  }
+  .poker-session-edit-modal .poker-fx-meta {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .poker-session-detail-modal {
     width: 100%;

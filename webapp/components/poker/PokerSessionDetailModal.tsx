@@ -196,9 +196,6 @@ export function PokerSessionDetailModal({ session, onClose, onEdit }: Props) {
           <button type="button" className="btn" onClick={onEdit}>
             Edit session
           </button>
-          <button type="button" className="btn ghost" onClick={onClose}>
-            Close
-          </button>
         </div>
       </div>
     </div>
