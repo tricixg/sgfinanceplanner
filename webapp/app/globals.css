@@ -2541,6 +2541,55 @@ footer {
   width: 100%;
   min-width: 22rem;
 }
+.poker-stats-table-scroll td.num,
+.poker-stats-table-scroll th.num {
+  white-space: nowrap;
+}
+.poker-stats-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.poker-stats-summary-stat {
+  min-width: 0;
+  padding: 8px 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 4px;
+}
+.poker-stats-summary-stat--accent {
+  background: var(--moss);
+  border-color: var(--moss);
+}
+.poker-stats-summary-label {
+  display: block;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+}
+.poker-stats-summary-stat--accent .poker-stats-summary-label {
+  color: #cde0cf;
+}
+.poker-stats-summary-value {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  word-break: break-word;
+}
+.poker-stats-summary-stat--accent .poker-stats-summary-value {
+  color: #fff;
+}
+.poker-stats-summary-stat--accent .poker-stats-summary-value.pl-pos,
+.poker-stats-summary-stat--accent .poker-stats-summary-value.pl-neg {
+  color: #fff;
+}
 
 @media (max-width: 760px) {
   .poker-only-mobile:not(.poker-recent-cards) {
@@ -2643,6 +2692,9 @@ footer {
 
   .poker-stats-table-scroll table {
     min-width: 18rem;
+  }
+  .poker-stats-summary-value {
+    font-size: 13px;
   }
 
   .modal-backdrop:has(.poker-session-detail-modal) {

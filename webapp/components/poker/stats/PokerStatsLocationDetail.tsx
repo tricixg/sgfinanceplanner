@@ -12,6 +12,7 @@ import {
   formatSessionPlCell,
 } from "@/lib/poker/format-session-amount";
 import {
+  formatChartDate,
   formatHourly,
   formatPct,
   formatPl,
@@ -30,7 +31,7 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
   const lineChart = useMemo(() => {
     if (detail.cumulativeProfit.length < 2) return null;
     return {
-      labels: detail.cumulativeProfit.map((p) => p.date),
+      labels: detail.cumulativeProfit.map((p) => formatChartDate(p.date)),
       datasets: [
         {
           label: "Cumulative profit",
@@ -49,6 +50,13 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
+      x: {
+        ticks: {
+          maxRotation: 40,
+          autoSkip: true,
+          maxTicksLimit: 10,
+        },
+      },
       y: {
         ticks: {
           callback: (v) => "$" + Number(v).toFixed(0),
@@ -66,28 +74,28 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
         </button>
       </div>
 
-      <div className="grid g3" style={{ marginBottom: 16 }}>
-        <div className="stat accent">
-          <div className="lbl">Net profit</div>
-          <div className={`val ${plClass(detail.totals.netProfit)}`}>
+      <div className="poker-stats-summary">
+        <div className="poker-stats-summary-stat poker-stats-summary-stat--accent">
+          <span className="poker-stats-summary-label">Net profit</span>
+          <span className={`poker-stats-summary-value ${plClass(detail.totals.netProfit)}`}>
             {formatPl(detail.totals.netProfit)}
-          </div>
+          </span>
         </div>
-        <div className="stat">
-          <div className="lbl">Sessions</div>
-          <div className="val">
+        <div className="poker-stats-summary-stat">
+          <span className="poker-stats-summary-label">Sessions</span>
+          <span className="poker-stats-summary-value">
             {detail.cash.sessions + detail.tournament.sessions}
-          </div>
+          </span>
         </div>
-        <div className="stat">
-          <div className="lbl">ROI</div>
-          <div className="val">
+        <div className="poker-stats-summary-stat">
+          <span className="poker-stats-summary-label">ROI</span>
+          <span className="poker-stats-summary-value">
             {formatPct(
               detail.totals.buyIn > 0
                 ? (detail.totals.netProfit / detail.totals.buyIn) * 100
                 : null
             )}
-          </div>
+          </span>
         </div>
       </div>
 

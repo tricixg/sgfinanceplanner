@@ -26,8 +26,22 @@ export function plClass(value: number): string {
   return "";
 }
 
-import { formatPokerPlayedAtDisplay } from "@/lib/poker/played-at";
+import { formatPokerPlayedAtDisplay, pokerPlayedAtToLedgerIso } from "@/lib/poker/played-at";
 
 export function formatSessionDate(playedAt: string): string {
   return formatPokerPlayedAtDisplay(playedAt);
+}
+
+/** Date-only label for charts (no time). */
+export function formatChartDate(playedAt: string): string {
+  const d = new Date(pokerPlayedAtToLedgerIso(playedAt));
+  if (Number.isNaN(d.getTime())) {
+    return playedAt.trim().slice(0, 10);
+  }
+  return d.toLocaleDateString("en-SG", {
+    timeZone: "Asia/Singapore",
+    day: "numeric",
+    month: "short",
+    year: "2-digit",
+  });
 }
