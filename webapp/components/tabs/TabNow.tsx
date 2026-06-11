@@ -9,7 +9,6 @@ import {
   loanLoadForMonth,
   budgetFixedTotal,
   budgetSpendTotal,
-  computedDebtMonthly,
   computedIlpMonthly,
   computedInsuranceMonthly,
   COMPUTED_DEBT_LABEL,
@@ -107,7 +106,7 @@ export function TabNow({
   useDomainEvent("savings:changed", () => {
     void loadAdditive();
     console.info("[TabNow] additive reload from savings:changed", { startYm });
-  }, [loadAdditive, startYm]);
+  });
 
   useEffect(() => {
     setStartYmDraft(S.cashflowStartYm);
@@ -157,7 +156,7 @@ export function TabNow({
     void loadSubscriptions();
   }, [loadSubscriptions]);
 
-  const rows = buildMonths(S, startYm, 5, savings, {}, subscriptionsMonthly);
+  const rows = buildMonths(S, startYm, 5, savings, additiveByYm, subscriptionsMonthly);
   const newCash = stableTakeHome(S);
   const firstYm = rows[0]?.ym ?? startYm;
   const lastYm = rows[rows.length - 1]?.ym ?? startYm;

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CreditCard, DashboardState } from "@/lib/types";
+import type { DashboardState } from "@/lib/types";
 import { ensureCreditCardIds } from "@/lib/finance/card-linking";
 import { saveCreditCards, loadCreditCards } from "@/lib/credit-cards/load";
 

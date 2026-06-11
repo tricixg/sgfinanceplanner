@@ -84,8 +84,7 @@ export function useCardStatements(enabled: boolean, cycleOffset = 0) {
     () => {
       console.info("[useCardStatements] refresh after domain event");
       void reload({ silent: true });
-    },
-    [reload]
+    }
   );
 
   useEffect(() => {

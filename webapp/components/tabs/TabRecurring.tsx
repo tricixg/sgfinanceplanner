@@ -71,8 +71,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
     ["expense:changed", "loans:changed", "budget:changed", "recurring:changed"],
     () => {
       void load();
-    },
-    [load]
+    }
   );
 
   const rowKey = (r: RecurringRow) => `${r.kind}:${r.sourceId}`;

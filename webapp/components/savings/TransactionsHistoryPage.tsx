@@ -183,8 +183,7 @@ export function TransactionsHistoryPage() {
     () => {
       setOffset(0);
       void load(false);
-    },
-    [load]
+    }
   );
 
   const hasFilters = Boolean(

@@ -46,7 +46,7 @@ export function useFinancialAccountsProvider(enabled: boolean) {
 
   useDomainEvent(["accounts:changed", "cards:changed", "savings:changed"], () => {
     void load();
-  }, [load]);
+  });
 
   return {
     accounts,

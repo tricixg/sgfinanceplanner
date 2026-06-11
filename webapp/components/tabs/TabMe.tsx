@@ -108,11 +108,6 @@ export function TabMe({
     }
   };
 
-  const patch = <K extends keyof DashboardState>(key: K, val: DashboardState[K]) => {
-    setState((prev) => ({ ...prev, [key]: val }));
-    console.info("[TabMe] patched", key, val);
-  };
-
   const saveSalary = async () => {
     setSavingSalary(true);
     try {

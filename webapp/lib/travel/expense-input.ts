@@ -4,7 +4,6 @@ import {
 } from "@/lib/savings/format-transaction-when";
 import {
   normalizeSpentTimeHms,
-  sgtNowInputDateTime,
   sgtNowTimeHms,
   sgtSpentAtToIso,
   sgtTodayYmd,

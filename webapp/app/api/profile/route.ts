@@ -13,7 +13,7 @@ import {
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
-import { mergeWithDefaults, createEmptyState } from "@/lib/finance/defaults";
+import { mergeWithDefaults } from "@/lib/finance/defaults";
 import type { DashboardState } from "@/lib/types";
 
 export async function GET() {

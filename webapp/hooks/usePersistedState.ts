@@ -125,7 +125,7 @@ export function usePersistedState(userId?: string) {
         flash("Saved locally only");
       }
     },
-    [flash]
+    [flash, userId]
   );
 
   const setStateAndSave = useCallback(

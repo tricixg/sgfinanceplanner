@@ -73,8 +73,7 @@ export function TabPastSpendings({ enabled }: Props) {
     ["expense:changed", "budget:changed", "cards:changed"],
     () => {
       void load({ soft: true });
-    },
-    [load]
+    }
   );
 
   if (!enabled) {

@@ -73,7 +73,7 @@ export function sanitizeCsvCell(raw: string): string {
   return s;
 }
 
-function parseAmount(raw: string, field: string): number | null {
+function parseAmount(raw: string): number | null {
   const s = sanitizeCsvCell(raw).replace(/,/g, "");
   if (!s) return null;
   const n = parseFloat(s);
@@ -186,7 +186,7 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
     }
     const playedAt = parsePokerPlayedAtInput(playedAtRaw);
 
-    const buyIn = parseAmount(get(cells, "BuyIn"), "BuyIn");
+    const buyIn = parseAmount(get(cells, "BuyIn"));
     if (buyIn == null) {
       errors.push({ row: rowNumber, message: "Valid BuyIn is required" });
       continue;
@@ -247,7 +247,7 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
     let tournamentEntries: number | null = null;
 
     if (sessionType === "cash_game") {
-      const out = parseAmount(get(cells, "CashOut"), "CashOut");
+      const out = parseAmount(get(cells, "CashOut"));
       if (out == null) {
         errors.push({ row: rowNumber, message: "Valid CashOut is required for cash games" });
         continue;
@@ -255,8 +255,8 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       cashOut = out;
 
       gameName = clampText(get(cells, "GameName"), POKER_IMPORT_MAX_FIELD_LEN);
-      const sb = parseAmount(get(cells, "SmallBlind"), "SmallBlind");
-      const bb = parseAmount(get(cells, "BigBlind"), "BigBlind");
+      const sb = parseAmount(get(cells, "SmallBlind"));
+      const bb = parseAmount(get(cells, "BigBlind"));
       if (!gameName || sb == null || bb == null) {
         errors.push({
           row: rowNumber,
@@ -268,7 +268,7 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       bigBlind = bb;
       const anteRaw = sanitizeCsvCell(get(cells, "Ante"));
       if (anteRaw) {
-        const a = parseAmount(anteRaw, "Ante");
+        const a = parseAmount(anteRaw);
         if (a == null) {
           errors.push({ row: rowNumber, message: "Invalid Ante" });
           continue;
@@ -308,7 +308,7 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
 
       const rebuyRaw = sanitizeCsvCell(get(cells, "RebuyAmount"));
       if (rebuyRaw) {
-        const rebuy = parseAmount(rebuyRaw, "RebuyAmount");
+        const rebuy = parseAmount(rebuyRaw);
         if (rebuy == null) {
           errors.push({ row: rowNumber, message: "Invalid RebuyAmount" });
           continue;
@@ -317,7 +317,7 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       }
       const bountyRaw = sanitizeCsvCell(get(cells, "BountyAmount"));
       if (bountyRaw) {
-        const bounty = parseAmount(bountyRaw, "BountyAmount");
+        const bounty = parseAmount(bountyRaw);
         if (bounty == null) {
           errors.push({ row: rowNumber, message: "Invalid BountyAmount" });
           continue;
@@ -326,7 +326,7 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       }
 
       if (tournamentResult === "placed") {
-        const won = parseAmount(get(cells, "AmountWon"), "AmountWon");
+        const won = parseAmount(get(cells, "AmountWon"));
         if (won == null) {
           errors.push({
             row: rowNumber,

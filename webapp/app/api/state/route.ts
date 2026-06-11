@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
+import { mergeWithDefaults } from "@/lib/finance/defaults";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { migrateAllDomainsFromDashboard } from "@/lib/migrate-all-domains";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";

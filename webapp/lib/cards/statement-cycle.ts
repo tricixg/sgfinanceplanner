@@ -40,8 +40,7 @@ export function addMonthsYmd(ymd: string, months: number): string {
  * (e.g. statement day 21 → Apr 22 … May 21).
  */
 export function cycleBoundsFromClose(
-  statementCloseDate: string,
-  _statementDay: number
+  statementCloseDate: string
 ): { cycleStart: string; cycleEnd: string } {
   const cycleEnd = statementCloseDate;
   const previousClose = addMonthsYmd(statementCloseDate, -1);
@@ -67,7 +66,7 @@ export function openCycleBounds(
   asOfDate: string
 ): { cycleStart: string; cycleEnd: string; statementClose: string } {
   const statementClose = statementCloseForSpend(asOfDate, statementDay);
-  const { cycleStart, cycleEnd } = cycleBoundsFromClose(statementClose, statementDay);
+  const { cycleStart, cycleEnd } = cycleBoundsFromClose(statementClose);
   return { cycleStart, cycleEnd, statementClose };
 }
 

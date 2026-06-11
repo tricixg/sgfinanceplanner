@@ -13,7 +13,7 @@ import {
 
 describe("statement-cycle", () => {
   it("May 21 statement covers Apr 22 – May 21 (cycle starts day after statement day)", () => {
-    const { cycleStart, cycleEnd } = cycleBoundsFromClose("2026-05-21", 21);
+    const { cycleStart, cycleEnd } = cycleBoundsFromClose("2026-05-21");
     expect(cycleStart).toBe("2026-04-22");
     expect(cycleEnd).toBe("2026-05-21");
   });

@@ -7,7 +7,6 @@ import {
   calcEhgFamilyGrant,
   buildBTOTimeline,
   computeBTO,
-  defaultBtoPlannerPrefs,
   enabledSchemeRows,
   normalizeBtoPlannerPrefs,
   schemeComputedAmount,

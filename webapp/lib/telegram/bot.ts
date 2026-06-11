@@ -38,7 +38,6 @@ import {
   afterTournamentResult,
   finishNewPokerGame,
   promptPokerAnteStep,
-  promptPokerGameStep,
   promptPokerHoursStep,
   promptTournamentEntriesStep,
   startNewPokerGameFlow,

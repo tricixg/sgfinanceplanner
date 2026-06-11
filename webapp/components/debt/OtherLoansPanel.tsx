@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CreditCard, DashboardState } from "@/lib/types";
+import type { DashboardState } from "@/lib/types";
 import type { OtherLoan, OtherLoanType } from "@/lib/other-loans/types";
 import type { OtherLoanPaymentRow } from "@/lib/other-loans/payment-history";
 import { creditCardLabel, ensureCreditCardIds } from "@/lib/finance/card-linking";
@@ -281,7 +281,7 @@ export function OtherLoansPanel({
 }: Props) {
   const cardsWithIds = ensureCreditCardIds(state.creditCards);
   const { accounts } = useFinancialAccounts();
-  const loans = state.otherLoans ?? [];
+  const loans = useMemo(() => state.otherLoans ?? [], [state.otherLoans]);
   const [payLoan, setPayLoan] = useState<OtherLoan | null>(null);
   const [saving, setSaving] = useState(false);
 

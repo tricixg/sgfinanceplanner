@@ -57,7 +57,7 @@ export async function recordOtherLoanPayment(
   const newOutstanding = roundMoney(outstanding - amount);
   const fullyPaid = newOutstanding <= 0;
 
-  const { data: updated, error: updErr } = await supabase
+  const { error: updErr } = await supabase
     .from("other_loans")
     .update({
       amount_paid: newPaid,

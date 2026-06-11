@@ -95,8 +95,6 @@ export function wealthSummary(
   const otherDebt = activeOtherLoansOutstanding(S);
   const liab = S.margin + otherDebt + (otherDebt > 0 ? 0 : S.ccDebt);
   const { cash, personal, joint } = resolveDashboardCash(S, savings);
-  const personalSavings =
-    savings?.personalSavingsCash ?? savings?.personalCash ?? personal;
   const lnw = invTotal + cash - liab;
   const cpf = S.oa + S.sa + S.ma;
   return {

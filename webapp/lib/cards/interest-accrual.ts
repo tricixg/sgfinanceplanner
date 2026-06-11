@@ -1,4 +1,4 @@
-import { addDaysYmd, parseYmd, formatYmd } from "./statement-cycle";
+import { addDaysYmd, formatYmd } from "./statement-cycle";
 
 export type DailySpendMap = Record<string, number>;
 

@@ -1,6 +1,5 @@
 import type { DashboardState } from "@/lib/types";
 import { ALLOC_MA, ALLOC_OA, ALLOC_SA, cpfEmp, cpfTotal } from "./cpf";
-import { stableTakeHome } from "./cashflow";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import { resolveDashboardCash } from "./wealth";

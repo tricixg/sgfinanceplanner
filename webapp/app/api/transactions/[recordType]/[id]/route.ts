@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import {
-  getBudgetTransactionById,
-  updateBudgetTransaction,
-} from "@/lib/budget/transactions";
+import { updateBudgetTransaction } from "@/lib/budget/transactions";
 import {
   getSavingsTransactionById,
 } from "@/lib/savings/ledger";

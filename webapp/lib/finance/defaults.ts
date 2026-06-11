@@ -1,7 +1,7 @@
 import type { DashboardState, Loan } from "@/lib/types";
 import type { OtherLoan } from "@/lib/other-loans/types";
 import { normalizeBtoPlannerPrefs } from "./bto";
-import { defaultBudgetTemplate, migrateBudget } from "./budget";
+import { migrateBudget } from "./budget";
 import { migrateInsurancePolicies } from "./insurance";
 import { migrateIlpPolicies } from "./ilp";
 import { migrateAccounts } from "./accounts";

@@ -123,8 +123,7 @@ export function TabThisMonth({ state: S }: Props) {
     () => {
       console.info("[TabThisMonth] refresh calendar amounts after domain event");
       void loadCalendarAmounts();
-    },
-    [loadCalendarAmounts]
+    }
   );
 
   useEffect(() => {

@@ -108,7 +108,7 @@ export function TabCashAccounts({
     if (editingAccounts && accountsApi) {
       setCloudDraft(accountsApi.accounts);
     }
-  }, [editingAccounts, accountsApi?.accounts]);
+  }, [editingAccounts, accountsApi]);
 
   const updateAccount = (i: number, patchAccount: Partial<SavingsAccount>) => {
     setState((prev) => ({

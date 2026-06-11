@@ -94,7 +94,7 @@ export function useSavingsProvider(enabled: boolean) {
 
   useDomainEvent("savings:changed", () => {
     void load({ silent: true });
-  }, [load]);
+  });
 
   const savePools = useCallback(
     async (pools: SavingsPool[]) => {

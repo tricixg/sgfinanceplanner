@@ -20,7 +20,7 @@ function CashAccountsContent({
     if (!user?.id || !accountsApi.configured) return;
     console.info("[CashAccountsRoute] refresh accounts on tab enter");
     void accountsApi.reload();
-  }, [user?.id, accountsApi.configured, accountsApi.reload]);
+  }, [user?.id, accountsApi]);
 
   return (
     <TabCashAccounts

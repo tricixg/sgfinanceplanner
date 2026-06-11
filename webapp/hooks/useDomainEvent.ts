@@ -16,15 +16,11 @@ function namesKeyFrom(names: DomainEventName | DomainEventName[]): string {
 /**
  * Re-run handler when one or more domain mutation events fire.
  * SSR-safe: only attaches listeners in useEffect.
- *
- * The optional `deps` argument is for call-site documentation only; the handler
- * always reads the latest closure via ref. Effect deps are fixed length
- * `[debounceMs, namesKey]` so React never sees a changing array size.
+ * The handler always reads the latest closure via ref.
  */
 export function useDomainEvent(
   names: DomainEventName | DomainEventName[],
   handler: () => void,
-  _deps: React.DependencyList = [],
   options?: Options
 ): void {
   const handlerRef = useRef(handler);

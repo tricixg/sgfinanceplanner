@@ -50,8 +50,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
     ["expense:changed", "recurring:changed", "budget:changed", "loans:changed"],
     () => {
       void loadSummary();
-    },
-    [loadSummary]
+    }
   );
 
   const addExpense = async (payload: {

@@ -137,8 +137,7 @@ export function TabBudgetSavings({
     ["expense:changed", "budget:changed", "loans:changed", "recurring:changed"],
     () => {
       void loadExpenseSummary();
-    },
-    [loadExpenseSummary]
+    }
   );
 
   const income = stableTakeHome(S);

@@ -15,12 +15,12 @@ type Props = {
   savings?: SavingsSnapshot | null;
 };
 
-export function TabYear({ state: S, setState, savings }: Props) {
+export function TabYear({ state: S, savings }: Props) {
   const [growth, setGrowth] = useState(3.5);
   const [invRet, setInvRet] = useState(6);
   const [showMargin, setShowMargin] = useState(true);
 
-  const fromBudget = useMemo(() => monthlyInvestContribution(S), [S.budget]);
+  const fromBudget = useMemo(() => monthlyInvestContribution(S), [S]);
   const [invAmt, setInvAmt] = useState(fromBudget);
   const invAmtUserEdited = useRef(false);
 
