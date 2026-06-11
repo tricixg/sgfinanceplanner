@@ -10,6 +10,14 @@
   --sky: #3d6b8e;
   --line: #dcd4bd;
   --muted: #7d7560;
+  --kpi-gap: 10px;
+  --kpi-gap-mobile: 8px;
+  --kpi-stat-padding: 14px 16px;
+  --kpi-stat-padding-mobile: 10px 8px;
+  --kpi-label-size: 10px;
+  --kpi-label-size-mobile: 9px;
+  --kpi-value-size: 26px;
+  --kpi-value-size-mobile: clamp(13px, 3.8vw, 20px);
 }
 
 * {
@@ -2578,12 +2586,12 @@ footer {
 .poker-stats-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--kpi-gap);
   margin-bottom: 12px;
 }
 .poker-stats-summary-stat {
   min-width: 0;
-  padding: 14px 16px;
+  padding: var(--kpi-stat-padding);
   border: 1px solid var(--line);
   background: var(--card);
   border-radius: 4px;
@@ -2595,7 +2603,7 @@ footer {
 .poker-stats-summary-label {
   display: block;
   font-family: "SF Mono", ui-monospace, monospace;
-  font-size: 10px;
+  font-size: var(--kpi-label-size);
   letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--muted);
@@ -2607,7 +2615,7 @@ footer {
 .poker-stats-summary-value {
   display: block;
   margin-top: 6px;
-  font-size: 26px;
+  font-size: var(--kpi-value-size);
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.02em;
@@ -2623,6 +2631,59 @@ footer {
 }
 
 @media (max-width: 760px) {
+  /* Compact KPI strips: keep stats in a row instead of tall stacked cards */
+  .grid.g2:has(> .stat) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--kpi-gap-mobile);
+  }
+  .grid.g3:has(> .stat) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--kpi-gap-mobile);
+  }
+  .grid.g4:has(> .stat) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--kpi-gap-mobile);
+  }
+  .grid:has(> .stat) > .stat {
+    min-width: 0;
+    padding: var(--kpi-stat-padding-mobile);
+    border-width: 1px;
+    border-radius: 4px;
+  }
+  .grid:has(> .stat) > .stat .lbl {
+    font-size: var(--kpi-label-size-mobile);
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+  }
+  .grid:has(> .stat) > .stat .val {
+    font-size: var(--kpi-value-size-mobile);
+    margin-top: 4px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .grid:has(> .stat) > .stat .note {
+    font-size: 10px;
+    line-height: 1.3;
+    margin-top: 3px;
+    font-style: normal;
+  }
+
+  .poker-stats-summary {
+    gap: var(--kpi-gap-mobile);
+  }
+  .poker-stats-summary-stat {
+    padding: var(--kpi-stat-padding-mobile);
+  }
+  .poker-stats-summary-label {
+    font-size: var(--kpi-label-size-mobile);
+  }
+  .poker-stats-summary-value {
+    font-size: var(--kpi-value-size-mobile);
+    margin-top: 4px;
+  }
+
   .poker-only-mobile:not(.poker-recent-cards) {
     display: block;
   }
@@ -2719,15 +2780,6 @@ footer {
 
   .poker-stats-table-scroll table {
     min-width: 18rem;
-  }
-  .poker-stats-summary {
-    gap: 8px;
-  }
-  .poker-stats-summary-stat {
-    padding: 12px 10px;
-  }
-  .poker-stats-summary-value {
-    font-size: 22px;
   }
 
   .modal-backdrop:has(.poker-session-detail-modal),
