@@ -11,6 +11,7 @@ import { PokerStatsSessions } from "@/components/poker/stats/PokerStatsSessions"
 import { PokerStatsLocations } from "@/components/poker/stats/PokerStatsLocations";
 import { PokerStatsLocationDetail } from "@/components/poker/stats/PokerStatsLocationDetail";
 import { PokerStatsCharts } from "@/components/poker/stats/PokerStatsCharts";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 export type PokerStatsTab = "overview" | "sessions" | "locations" | "charts";
 
@@ -114,7 +115,32 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
       ) : activeTab === "overview" ? (
         <PokerStatsOverview stats={stats} />
       ) : activeTab === "sessions" ? (
-        <PokerStatsSessions sessions={stats.sessions} />
+        <PokerStatsSessions
+          sessions={stats.sessions}
+          onSessionUpdated={(updated) => {
+            setStats((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    sessions: prev.sessions.map((s) => (s.id === updated.id ? updated : s)),
+                  }
+                : prev
+            );
+            void load();
+            console.info("[PokerStatsPage] session updated", { id: updated.id });
+          }}
+          onImported={({ imported, ledgerSynced }) => {
+            void load();
+            if (ledgerSynced) {
+              dispatchDomainEvent("savings:changed");
+            }
+            console.info("[PokerStatsPage] import applied", { imported, ledgerSynced });
+          }}
+          onCatalogChanged={() => {
+            void load();
+            console.info("[PokerStatsPage] catalog changed, reloading stats");
+          }}
+        />
       ) : activeTab === "locations" ? (
         locationDetail ? (
           <PokerStatsLocationDetail

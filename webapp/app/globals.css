@@ -2214,6 +2214,28 @@ footer {
 .poker-session-card {
   padding: 12px 14px;
 }
+.poker-session-card--clickable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface, #fff);
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.poker-session-edit-modal {
+  max-width: 720px;
+  width: min(96vw, 720px);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.poker-session-card--clickable:hover {
+  border-color: var(--accent, #c4a35a);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
 .poker-fx-panel {
   display: flex;
   flex-wrap: wrap;

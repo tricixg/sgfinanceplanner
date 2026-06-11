@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { listPokerLocations, upsertPokerLocation } from "@/lib/poker/locations";
+import { listPokerLocationRecords, upsertPokerLocation } from "@/lib/poker/locations";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -13,7 +13,7 @@ export async function GET() {
   if ("response" in auth) return auth.response;
 
   const supabase = await createAuthedSupabaseClient();
-  const items = await listPokerLocations(supabase, auth.user.id);
+  const items = await listPokerLocationRecords(supabase, auth.user.id);
   console.info("[api/poker/locations] GET", { userId: auth.user.id, count: items.length });
   return NextResponse.json({ configured: true, items });
 }
@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createAuthedSupabaseClient();
   try {
-    await upsertPokerLocation(supabase, auth.user.id, name);
-    return NextResponse.json({ item: name });
+    const item = await upsertPokerLocation(supabase, auth.user.id, name);
+    return NextResponse.json({ item });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save location";
     console.error("[api/poker/locations] POST failed", msg);

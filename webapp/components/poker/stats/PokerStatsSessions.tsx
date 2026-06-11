@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal";
+import { PokerImportMenu } from "@/components/poker/PokerImportMenu";
+import { PokerManageCatalogModal } from "@/components/poker/PokerManageCatalogModal";
 import type { PokerSession } from "@/lib/poker/types";
 import { sessionGameLabel } from "@/lib/poker/types";
 import { pokerProfitSgd } from "@/lib/fx/convert";
@@ -12,12 +16,27 @@ import {
   plClass,
 } from "@/components/poker/stats/format";
 
-type Props = { sessions: PokerSession[] };
+type ImportResult = {
+  imported: number;
+  warnings: { row: number; message: string }[];
+  ledgerSynced?: boolean;
+};
 
-export function PokerStatsSessions({ sessions }: Props) {
-  if (sessions.length === 0) {
-    return <p className="note">No sessions logged yet.</p>;
-  }
+type Props = {
+  sessions: PokerSession[];
+  onSessionUpdated: (session: PokerSession) => void;
+  onImported: (result: ImportResult) => void;
+  onCatalogChanged: () => void;
+};
+
+export function PokerStatsSessions({
+  sessions,
+  onSessionUpdated,
+  onImported,
+  onCatalogChanged,
+}: Props) {
+  const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const byYear = new Map<string, PokerSession[]>();
   for (const s of sessions) {
@@ -30,42 +49,85 @@ export function PokerStatsSessions({ sessions }: Props) {
   const years = [...byYear.keys()].sort((a, b) => b.localeCompare(a));
 
   return (
-    <div className="poker-session-list">
-      {years.map((year) => (
-        <div key={year} style={{ marginBottom: 20 }}>
-          <div className="lbl" style={{ marginBottom: 8 }}>
-            {year}
-          </div>
-          {byYear.get(year)!.map((s) => {
-            const pl = pokerProfitSgd(s);
-            const gameLabel =
-              s.sessionType === "tournament"
-                ? s.tournamentName
-                  ? `${s.tournamentName} · ${sessionGameLabel(s)}`
-                  : sessionGameLabel(s)
-                : sessionGameLabel(s);
-            return (
-              <div key={s.id} className="card poker-session-card">
-                <div className="poker-session-card-top">
-                  <div>
-                    <div style={{ fontWeight: 600 }}>
-                      {s.sessionType === "tournament" ? "Tournament" : "Cash"} · {gameLabel}
-                    </div>
-                    <div className="note">{s.location || "—"}</div>
-                  </div>
-                  <div className={`poker-session-pl ${plClass(pl)}`}>
-                    {formatSessionPlCell(s)}
-                  </div>
-                </div>
-                <div className="poker-session-card-bottom note">
-                  <span>Buy-in {formatSessionAmountWithSgd(s.buyIn, s)}</span>
-                  <span>{formatSessionDate(s.playedAt)}</span>
-                </div>
+    <>
+      <div
+        className="toolbar"
+        style={{ marginBottom: 16, width: "100%", justifyContent: "flex-end" }}
+      >
+        <button type="button" className="btn ghost sm" onClick={() => setManageOpen(true)}>
+          Manage games &amp; locations
+        </button>
+        <PokerImportMenu onImported={onImported} />
+      </div>
+
+      {sessions.length === 0 ? (
+        <p className="note">No sessions logged yet.</p>
+      ) : (
+        <div className="poker-session-list">
+          {years.map((year) => (
+            <div key={year} style={{ marginBottom: 20 }}>
+              <div className="lbl" style={{ marginBottom: 8 }}>
+                {year}
               </div>
-            );
-          })}
+              {byYear.get(year)!.map((s) => {
+                const pl = pokerProfitSgd(s);
+                const gameLabel =
+                  s.sessionType === "tournament"
+                    ? s.tournamentName
+                      ? `${s.tournamentName} · ${sessionGameLabel(s)}`
+                      : sessionGameLabel(s)
+                    : sessionGameLabel(s);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="card poker-session-card poker-session-card--clickable"
+                    aria-label={`Edit ${s.sessionType === "tournament" ? "tournament" : "cash"} session`}
+                    onClick={() => setEditingSession(s)}
+                  >
+                    <div className="poker-session-card-top">
+                      <div>
+                        <div style={{ fontWeight: 600 }}>
+                          {s.sessionType === "tournament" ? "Tournament" : "Cash"} · {gameLabel}
+                        </div>
+                        <div className="note">{s.location || "—"}</div>
+                      </div>
+                      <div className={`poker-session-pl ${plClass(pl)}`}>
+                        {formatSessionPlCell(s)}
+                      </div>
+                    </div>
+                    <div className="poker-session-card-bottom note">
+                      <span>Buy-in {formatSessionAmountWithSgd(s.buyIn, s)}</span>
+                      <span>{formatSessionDate(s.playedAt)}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+
+      {manageOpen ? (
+        <PokerManageCatalogModal
+          onClose={() => setManageOpen(false)}
+          onChanged={() => {
+            onCatalogChanged();
+            console.info("[PokerStatsSessions] catalog changed");
+          }}
+        />
+      ) : null}
+
+      {editingSession ? (
+        <PokerSessionEditModal
+          session={editingSession}
+          onClose={() => setEditingSession(null)}
+          onSaved={(updated) => {
+            onSessionUpdated(updated);
+            setEditingSession(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

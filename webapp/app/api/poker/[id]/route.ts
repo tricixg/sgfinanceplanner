@@ -9,6 +9,36 @@ import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  if (!isSupabaseAuthConfigured()) {
+    return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
+  }
+
+  const auth = await requireSessionUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
+  const { id } = await params;
+
+  const supabase = await createAuthedSupabaseClient();
+  const { data, error } = await supabase
+    .from("poker_sessions")
+    .select("*, poker_games(*)")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[api/poker] GET failed", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!data) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  console.info("[api/poker] GET ok", { id, userId: user.id });
+  return NextResponse.json({ item: mapPokerSession(data) });
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });

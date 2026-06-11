@@ -189,7 +189,10 @@ export function TabThisMonth({ state: S }: Props) {
           <div className="val">
             Day {salaryDayThisMonth}
             {salaryDayThisMonth !== S.salaryCreditDay ? (
-              <span className="note" style={{ display: "block", fontSize: "0.85em" }}>
+              <span
+                className="note"
+                style={{ display: "block", fontSize: "0.7em", lineHeight: 1.3, marginTop: 2 }}
+              >
                 (day {S.salaryCreditDay} → last day this month)
               </span>
             ) : null}
