@@ -192,7 +192,11 @@ export function navTabForPath(pathname: string): NavTab | undefined {
     (t) => pathname === t.href || pathname.startsWith(`${t.href}/`)
   );
   if (tab?.id === "poker" && pathname.startsWith("/poker/stats")) {
-    return { ...tab, label: "Poker statistics", summary: "Bankroll overview, sessions, locations, and charts." };
+    return {
+      ...tab,
+      label: "Poker statistics",
+      summary: "Bankroll overview, trends, sessions, locations, and charts.",
+    };
   }
   return tab;
 }

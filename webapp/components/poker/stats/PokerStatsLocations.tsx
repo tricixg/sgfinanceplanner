@@ -1,9 +1,9 @@
 "use client";
 
 import type { LocationBreakdownRow } from "@/lib/poker/stats";
-import { fmt2 } from "@/lib/finance/helpers";
 import {
   formatHourly,
+  formatHours,
   formatPct,
   formatPl,
   plClass,
@@ -43,7 +43,24 @@ export function PokerStatsLocations({ locations, onSelect }: Props) {
             <span>
               {loc.sessions} {loc.sessions === 1 ? "session" : "sessions"}
             </span>
-            <span>{loc.hours ? `${fmt2(loc.hours)}h` : "—"}</span>
+            <span className="poker-location-meta-hours">
+              <svg
+                className="poker-location-meta-hours-icon"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden
+              >
+                <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.25" />
+                <path
+                  d="M8 4.75V8l2.25 1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {formatHours(loc.hours)}
+            </span>
             <span className={plClass(loc.hourly ?? 0)}>{formatHourly(loc.hourly)}</span>
             <span>{formatPct(loc.wonPct)} won</span>
           </div>

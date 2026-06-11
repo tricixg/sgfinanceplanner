@@ -62,6 +62,67 @@ export type ChartBucket = {
   sessions: number;
 };
 
+const CASH_SESSION_LENGTH_RANGES: { label: string; min: number; max: number }[] = [
+  { label: "1-2h", min: 1, max: 2 },
+  { label: "2-3h", min: 2, max: 3 },
+  { label: "3-4h", min: 3, max: 4 },
+  { label: "4-5h", min: 4, max: 5 },
+  { label: "5-6h", min: 5, max: 6 },
+  { label: "6-7h", min: 6, max: 7 },
+  { label: "7h+", min: 7, max: Infinity },
+];
+
+function sessionLengthBucket(hours: number): (typeof CASH_SESSION_LENGTH_RANGES)[number] | null {
+  if (!Number.isFinite(hours) || hours < 1) return null;
+  return (
+    CASH_SESSION_LENGTH_RANGES.find((b) => hours >= b.min && (b.max === Infinity || hours < b.max)) ??
+    null
+  );
+}
+
+type SessionLengthAccumulator = {
+  label: string;
+  sessions: number;
+  hours: number;
+  netProfit: number;
+};
+
+/** Cash-game P/L by session length (hours), SGD. */
+export function cashGameSessionLengthBuckets(sessions: PokerSession[]): ChartBucket[] {
+  const map = new Map<string, SessionLengthAccumulator>();
+
+  for (const range of CASH_SESSION_LENGTH_RANGES) {
+    map.set(range.label, {
+      label: range.label,
+      sessions: 0,
+      hours: 0,
+      netProfit: 0,
+    });
+  }
+
+  for (const s of sessions) {
+    if (s.sessionType !== "cash_game") continue;
+    const h = s.hours;
+    if (h == null || h < 1) continue;
+    const range = sessionLengthBucket(h);
+    if (!range) continue;
+    const row = map.get(range.label)!;
+    row.sessions += 1;
+    row.hours += h;
+    row.netProfit += pokerProfitSgd(s);
+  }
+
+  return [...map.values()]
+    .filter((r) => r.sessions > 0)
+    .map((r) => ({
+      label: r.label,
+      sessions: r.sessions,
+      hours: r.hours,
+      netProfit: r.netProfit,
+      hourly: r.hours > 0 ? r.netProfit / r.hours : null,
+    }));
+}
+
 export type LocationDetailStats = {
   location: string;
   totals: FinancialTotals;
@@ -89,6 +150,7 @@ export type PokerStatsBundle = {
     weekday: ChartBucket[];
     month: ChartBucket[];
     year: ChartBucket[];
+    cashSessionLength: ChartBucket[];
   };
 };
 
@@ -323,6 +385,7 @@ export function buildPokerStats(sessions: PokerSession[]): PokerStatsBundle {
         (s) => ymFromPokerPlayedAt(s.playedAt).slice(0, 4),
         (a, b) => a.localeCompare(b)
       ),
+      cashSessionLength: cashGameSessionLengthBuckets(sessions),
     },
   };
 }

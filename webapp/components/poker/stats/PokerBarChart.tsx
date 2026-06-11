@@ -68,7 +68,7 @@ export function PokerBarChart({ title, buckets, valueKey = "hourly" }: Props) {
   return (
     <div className="card">
       <h3 style={{ marginTop: 0 }}>{title}</h3>
-      <div style={{ height: 220 }}>
+      <div className="poker-bar-chart-wrap">
         <Chart type="bar" data={chart} options={options} />
       </div>
     </div>

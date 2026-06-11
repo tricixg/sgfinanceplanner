@@ -2249,6 +2249,93 @@ footer {
   flex-direction: column;
   gap: 16px;
 }
+.poker-charts-metric-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 4px;
+}
+.poker-bar-chart-wrap {
+  position: relative;
+  height: 220px;
+  min-width: 0;
+}
+.poker-trend-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin-bottom: 14px;
+}
+.poker-trend-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.poker-trend-control-label {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.poker-trend-segment button {
+  min-width: 2.25rem;
+}
+.poker-trend-card {
+  min-width: 0;
+}
+.poker-trend-chart-wrap {
+  position: relative;
+  height: 300px;
+  min-width: 0;
+  overflow: hidden;
+}
+.poker-trend-corner {
+  position: absolute;
+  bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--muted);
+  pointer-events: none;
+  max-width: 42%;
+  overflow-wrap: anywhere;
+  z-index: 2;
+}
+.poker-trend-corner--br {
+  right: 10px;
+  text-align: right;
+}
+.poker-trend-tooltip {
+  position: absolute;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  padding: 8px 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 5;
+  white-space: nowrap;
+  max-width: calc(100% - 12px);
+  box-sizing: border-box;
+}
+.poker-trend-tooltip-date {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+.poker-trend-tooltip-neg {
+  color: var(--rust);
+}
 .poker-import-progress-label {
   display: flex;
   justify-content: space-between;
@@ -2545,6 +2632,17 @@ footer {
   margin-top: 8px;
   justify-content: flex-start;
 }
+.poker-location-meta-hours {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.poker-location-meta-hours-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.72;
+}
 
 .poker-only-mobile,
 .poker-recent-cards.poker-only-mobile {
@@ -2810,15 +2908,67 @@ footer {
     width: 100%;
   }
 
+  .poker-charts-metric-toggle {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .poker-charts-metric-toggle .poker-fx-segment {
+    display: flex;
+    width: 100%;
+  }
+  .poker-charts-metric-toggle .poker-fx-segment button {
+    flex: 1 1 0;
+    min-height: 40px;
+  }
+  .poker-bar-chart-wrap {
+    height: 200px;
+  }
   .poker-stats-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
   .poker-stats-tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     width: 100%;
+  }
+  .poker-trend-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .poker-trend-control-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .poker-trend-segment {
+    display: flex;
+    width: 100%;
+  }
+  .poker-trend-segment button {
+    flex: 1 1 0;
+    min-height: 40px;
+    font-size: 10px;
+    padding: 5px 4px;
+  }
+  .poker-trend-chart-wrap--mobile {
+    height: 240px;
+  }
+  .poker-trend-corner {
+    bottom: 2px;
+    max-width: 44%;
+  }
+  .poker-trend-corner--br {
+    right: 8px;
+  }
+  .poker-trend-tooltip {
+    font-size: 11px;
+    padding: 7px 9px;
+    max-width: calc(100% - 12px);
+    white-space: normal;
   }
   .poker-stats-tabs .btn {
     width: 100%;

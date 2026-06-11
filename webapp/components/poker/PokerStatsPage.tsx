@@ -11,15 +11,17 @@ import { PokerStatsSessions } from "@/components/poker/stats/PokerStatsSessions"
 import { PokerStatsLocations } from "@/components/poker/stats/PokerStatsLocations";
 import { PokerStatsLocationDetail } from "@/components/poker/stats/PokerStatsLocationDetail";
 import { PokerStatsCharts } from "@/components/poker/stats/PokerStatsCharts";
+import { PokerStatsTrends } from "@/components/poker/stats/PokerStatsTrends";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
-export type PokerStatsTab = "overview" | "sessions" | "locations" | "charts";
+export type PokerStatsTab = "overview" | "sessions" | "locations" | "charts" | "trends";
 
 const TABS: { id: PokerStatsTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "sessions", label: "Sessions" },
   { id: "locations", label: "Locations" },
   { id: "charts", label: "Charts" },
+  { id: "trends", label: "Trends" },
 ];
 
 export function PokerStatsPage({ enabled }: { enabled: boolean }) {
@@ -161,8 +163,10 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
             onSelect={(loc) => setTab("locations", loc)}
           />
         )
-      ) : (
+      ) : activeTab === "charts" ? (
         <PokerStatsCharts stats={stats} />
+      ) : (
+        <PokerStatsTrends sessions={stats.sessions} />
       )}
     </section>
   );
