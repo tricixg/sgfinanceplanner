@@ -431,6 +431,7 @@ export function TransactionsHistoryPage() {
           tx={selectedTx}
           onClose={() => setSelectedTx(null)}
           onSaved={(m) => {
+            setSelectedTx(null);
             snackbar.show(m);
             void load(false);
           }}

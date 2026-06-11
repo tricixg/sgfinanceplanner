@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { fetchJson } from "@/lib/fetch-json";
@@ -44,6 +44,7 @@ export function TravelExpenseActionModal({
   );
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const reimburseLock = useRef(false);
 
   const accountOptions = useMemo(() => accounts, [accounts]);
   const txRoute = `/api/transactions/expense/${expense.id}`;
@@ -86,6 +87,11 @@ export function TravelExpenseActionModal({
   };
 
   const reimburse = async () => {
+    if (reimburseLock.current || busy) {
+      console.info("[TravelExpenseActionModal] reimburse skipped — already in flight");
+      return;
+    }
+    reimburseLock.current = true;
     setBusy(true);
     setMsg("");
     try {
@@ -102,12 +108,19 @@ export function TravelExpenseActionModal({
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Reimburse failed");
+      console.info("[TravelExpenseActionModal] reimburse ok", { expenseId: expense.id });
+      onClose();
       dispatchDomainEvent(["expense:changed", "accounts:changed", "savings:changed"]);
       onSaved("Reimbursement recorded");
-      onClose();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Reimburse failed");
+      const message = e instanceof Error ? e.message : "Reimburse failed";
+      console.warn("[TravelExpenseActionModal] reimburse failed", {
+        expenseId: expense.id,
+        message,
+      });
+      setMsg(message);
     } finally {
+      reimburseLock.current = false;
       setBusy(false);
     }
   };
@@ -223,7 +236,7 @@ export function TravelExpenseActionModal({
             onClick={() => void reimburse()}
             disabled={busy}
           >
-            Reimburse
+            {busy ? "Working…" : "Reimburse"}
           </button>
           <button type="button" className="btn sm" onClick={() => void saveEdit()} disabled={busy}>
             Save

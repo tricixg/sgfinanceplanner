@@ -189,6 +189,10 @@ export async function reimburseTransactionWithLedger(
   const account = await loadFinancialAccount(supabase, userId, financialAccountId);
   if (!account) throw new Error("Invalid account");
 
+  if (recordType === "expense" || recordType === "budget") {
+    await applyReimbursementBudgetImpact(supabase, userId, recordType, id, amount);
+  }
+
   const nowIso = new Date().toISOString();
   const note =
     typeof input.note === "string" && input.note.trim()
@@ -225,10 +229,6 @@ export async function reimburseTransactionWithLedger(
       sourceRecordId: id,
     });
     result = { recordType: "budget", item: row };
-  }
-
-  if (recordType === "expense" || recordType === "budget") {
-    await applyReimbursementBudgetImpact(supabase, userId, recordType, id, amount);
   }
 
   console.info("[tx-actions] reimbursement complete", {

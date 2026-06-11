@@ -662,6 +662,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
           subCategories={budgetSubCategories}
           onClose={() => setSelectedExpense(null)}
           onSaved={(m) => {
+            setSelectedExpense(null);
             snackbar.show(m);
             void load();
           }}
