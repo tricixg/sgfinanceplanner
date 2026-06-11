@@ -8,12 +8,14 @@ import { pokerProfitSgd } from "@/lib/fx/convert";
 import {
   formatSessionAmountWithSgd,
   formatSessionPlCell,
+  formatSessionReturnCell,
 } from "@/lib/poker/format-session-amount";
 import type { PokerGame, PokerSession } from "@/lib/poker/types";
 import { sessionGameLabel } from "@/lib/poker/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { usePokerSessionForm } from "@/hooks/usePokerSessionForm";
 import { formatPokerPlayedAtDisplay } from "@/lib/poker/played-at";
+import { PokerManageCatalogModal } from "@/components/poker/PokerManageCatalogModal";
 import { PokerSessionForm } from "@/components/poker/PokerSessionForm";
 import { PokerSessionMobileCard } from "@/components/poker/PokerSessionMobileCard";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
@@ -52,6 +54,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const { accounts: financialAccounts } = useFinancialAccounts();
   const cashAccounts = financialAccounts.filter((a) => a.savingsAccountId);
@@ -174,10 +177,23 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
         className="toolbar"
         style={{ marginBottom: 16, marginTop: 0, width: "100%", justifyContent: "flex-end", gap: 12 }}
       >
+        <button type="button" className="btn ghost sm" onClick={() => setManageOpen(true)}>
+          Manage games &amp; locations
+        </button>
         <Link href="/poker/stats" className="btn ghost sm">
           View statistics
         </Link>
       </div>
+
+      {manageOpen ? (
+        <PokerManageCatalogModal
+          onClose={() => setManageOpen(false)}
+          onChanged={() => {
+            void load(false);
+            console.info("[TabPoker] catalog changed, reloaded");
+          }}
+        />
+      ) : null}
       <div className="grid g3">
         <div className="stat accent">
           <div className="lbl">P/L this month (SGD, loaded)</div>
@@ -221,14 +237,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
         <>
           <div className="poker-recent-cards poker-only-mobile">
             {items.map((x) => {
-              const outAmount =
-                x.sessionType === "tournament"
-                  ? x.tournamentResult === "busted"
-                    ? null
-                    : (x.amountWon ?? 0)
-                  : x.cashOut;
-              const outLabel =
-                outAmount == null ? "—" : formatSessionAmountWithSgd(outAmount, x);
+              const outLabel = formatSessionReturnCell(x);
               return (
                 <PokerSessionMobileCard
                   key={x.id}
@@ -250,7 +259,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                 <th>Location</th>
                 <th>Game / event</th>
                 <th>Buy-in</th>
-                <th>Out / won</th>
+                <th>Cash-out / won</th>
                 <th>P/L</th>
                 <th>Result</th>
                 <th>Hrs</th>
@@ -260,16 +269,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             </thead>
             <tbody>
               {items.map((x) => {
-                const outAmount =
-                  x.sessionType === "tournament"
-                    ? x.tournamentResult === "busted"
-                      ? null
-                      : (x.amountWon ?? 0)
-                    : x.cashOut;
-                const outLabel =
-                  outAmount == null
-                    ? "—"
-                    : formatSessionAmountWithSgd(outAmount, x);
+                const outLabel = formatSessionReturnCell(x);
                 return (
                   <tr key={x.id}>
                     <td>{formatPokerPlayedAtDisplay(x.playedAt)}</td>

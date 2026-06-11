@@ -19,6 +19,8 @@ function session(partial: Partial<PokerSession> & Pick<PokerSession, "playedAt">
     tournamentPlace: null,
     tournamentEntries: null,
     amountWon: null,
+    rebuyAmount: 0,
+    bountyAmount: 0,
     hours: 2,
     note: "",
     currency: "SGD",

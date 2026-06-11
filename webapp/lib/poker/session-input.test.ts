@@ -28,13 +28,17 @@ describe("parsePokerSessionBody", () => {
       eventName: "Main",
       tournamentResult: "placed",
       amountWon: 1200,
+      rebuyAmount: 200,
+      bountyAmount: 50,
       tournamentPlace: 8,
       tournamentEntries: 200,
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.data.amountWon).toBe(1200);
-      expect(r.data.cashOut).toBe(1200);
+      expect(r.data.rebuyAmount).toBe(200);
+      expect(r.data.bountyAmount).toBe(50);
+      expect(r.data.cashOut).toBe(1250);
       expect(r.data.tournamentPlace).toBe(8);
     }
   });

@@ -6,6 +6,7 @@ import { pokerProfitSgd } from "@/lib/fx/convert";
 import {
   formatSessionAmountWithSgd,
   formatSessionPlCell,
+  sessionReturnColumnLabel,
 } from "@/lib/poker/format-session-amount";
 import { formatPokerPlayedAtDisplay } from "@/lib/poker/played-at";
 import { plClass } from "@/components/poker/stats/format";
@@ -49,7 +50,7 @@ export function PokerSessionMobileCard({
           <dd>{formatSessionAmountWithSgd(session.buyIn, session)}</dd>
         </div>
         <div>
-          <dt>Out / won</dt>
+          <dt>{sessionReturnColumnLabel(session)}</dt>
           <dd>{outLabel}</dd>
         </div>
         <div>

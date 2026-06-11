@@ -136,10 +136,6 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
             }
             console.info("[PokerStatsPage] import applied", { imported, ledgerSynced });
           }}
-          onCatalogChanged={() => {
-            void load();
-            console.info("[PokerStatsPage] catalog changed, reloading stats");
-          }}
         />
       ) : activeTab === "locations" ? (
         locationDetail ? (

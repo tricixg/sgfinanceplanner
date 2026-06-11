@@ -54,6 +54,10 @@ export function PokerSessionForm({
     setTournamentEntries,
     amountWon,
     setAmountWon,
+    rebuyAmount,
+    setRebuyAmount,
+    bountyAmount,
+    setBountyAmount,
     showNewLocation,
     setShowNewLocation,
     newLocationName,
@@ -359,11 +363,19 @@ export function PokerSessionForm({
                 />
               </label>
               <label>
-                Amount won ({currency})
+                Prize won ({currency})
                 <DecimalTextInput value={amountWon} onChange={setAmountWon} required />
               </label>
             </>
           ) : null}
+          <label>
+            Bounties ({currency})
+            <DecimalTextInput
+              value={bountyAmount}
+              onChange={setBountyAmount}
+              placeholder="Optional PKO bounties"
+            />
+          </label>
           <label>
             Total entries
             <input
@@ -379,9 +391,19 @@ export function PokerSessionForm({
 
       <div className="toolbar">
         <label>
-          Buy-in ({currency})
+          {sessionType === "tournament" ? "Initial buy-in" : "Buy-in"} ({currency})
           <DecimalTextInput value={buyIn} onChange={setBuyIn} required />
         </label>
+        {sessionType === "tournament" ? (
+          <label>
+            Rebuy ({currency})
+            <DecimalTextInput
+              value={rebuyAmount}
+              onChange={setRebuyAmount}
+              placeholder="Optional total rebuys"
+            />
+          </label>
+        ) : null}
         {sessionType === "cash_game" ? (
           <label>
             Cash-out ({currency})

@@ -172,6 +172,12 @@ export function PokerImportMenu({ onImported }: Props) {
               <code>.csv</code> files are accepted (max{" "}
               {Math.round(POKER_IMPORT_MAX_FILE_BYTES / 1024)} KB, 100 rows).
             </p>
+            <p className="note" style={{ marginTop: 0 }}>
+              <code>CashOut</code> is for cash games only. Tournaments leave it empty and use{" "}
+              <code>AmountWon</code> for the prize (plus <code>BountyAmount</code> for PKO
+              bounties). <code>BuyIn</code> is the initial entry; <code>RebuyAmount</code> is total
+              rebuys.
+            </p>
 
             <div className="toolbar" style={{ flexWrap: "wrap" }}>
               <button type="button" className="btn ghost" onClick={downloadTemplate}>

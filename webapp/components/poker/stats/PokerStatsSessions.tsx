@@ -4,7 +4,6 @@ import { useState } from "react";
 import { PokerSessionDetailModal } from "@/components/poker/PokerSessionDetailModal";
 import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal";
 import { PokerImportMenu } from "@/components/poker/PokerImportMenu";
-import { PokerManageCatalogModal } from "@/components/poker/PokerManageCatalogModal";
 import type { PokerSession } from "@/lib/poker/types";
 import { sessionGameLabel } from "@/lib/poker/types";
 import { pokerProfitSgd } from "@/lib/fx/convert";
@@ -27,18 +26,15 @@ type Props = {
   sessions: PokerSession[];
   onSessionUpdated: (session: PokerSession) => void;
   onImported: (result: ImportResult) => void;
-  onCatalogChanged: () => void;
 };
 
 export function PokerStatsSessions({
   sessions,
   onSessionUpdated,
   onImported,
-  onCatalogChanged,
 }: Props) {
   const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
   const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
-  const [manageOpen, setManageOpen] = useState(false);
 
   const byYear = new Map<string, PokerSession[]>();
   for (const s of sessions) {
@@ -56,9 +52,6 @@ export function PokerStatsSessions({
         className="toolbar"
         style={{ marginBottom: 16, width: "100%", justifyContent: "flex-end" }}
       >
-        <button type="button" className="btn ghost sm" onClick={() => setManageOpen(true)}>
-          Manage games &amp; locations
-        </button>
         <PokerImportMenu onImported={onImported} />
       </div>
 
@@ -109,16 +102,6 @@ export function PokerStatsSessions({
           ))}
         </div>
       )}
-
-      {manageOpen ? (
-        <PokerManageCatalogModal
-          onClose={() => setManageOpen(false)}
-          onChanged={() => {
-            onCatalogChanged();
-            console.info("[PokerStatsSessions] catalog changed");
-          }}
-        />
-      ) : null}
 
       {viewingSession && !editingSession ? (
         <PokerSessionDetailModal

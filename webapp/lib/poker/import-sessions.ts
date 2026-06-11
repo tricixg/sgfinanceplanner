@@ -63,7 +63,6 @@ function csvRowToBodyBase(row: ParsedPokerCsvRow): PokerSessionBody {
   const body: PokerSessionBody = {
     sessionType: row.sessionType,
     buyIn: row.buyIn,
-    cashOut: row.cashOut,
     playedAt: row.playedAt,
     location: row.location,
     hours: row.hours,
@@ -78,11 +77,17 @@ function csvRowToBodyBase(row: ParsedPokerCsvRow): PokerSessionBody {
     body.fxRateToSgd = row.fxRateToSgd;
   }
 
+  if (row.sessionType === "cash_game") {
+    body.cashOut = row.cashOut;
+  }
+
   if (row.sessionType === "tournament") {
     body.tournamentName = row.tournamentName;
     body.eventName = row.eventName;
     body.tournamentResult = row.tournamentResult ?? undefined;
     body.amountWon = row.amountWon;
+    if (row.rebuyAmount > 0) body.rebuyAmount = row.rebuyAmount;
+    if (row.bountyAmount > 0) body.bountyAmount = row.bountyAmount;
     body.tournamentPlace = row.tournamentPlace;
     body.tournamentEntries = row.tournamentEntries;
   }

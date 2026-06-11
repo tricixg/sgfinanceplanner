@@ -28,6 +28,8 @@ function sampleSession(overrides: Partial<PokerSession> = {}): PokerSession {
     tournamentPlace: null,
     tournamentEntries: null,
     amountWon: null,
+    rebuyAmount: 0,
+    bountyAmount: 0,
     hours: null,
     note: "",
     currency: "SGD",
@@ -74,7 +76,7 @@ describe("pokerProfit", () => {
     ).toBe(-150);
   });
 
-  it("uses amount won for tournaments", () => {
+  it("uses prize minus buy-in for tournaments", () => {
     expect(
       pokerProfit({
         sessionType: "tournament",
@@ -83,5 +85,29 @@ describe("pokerProfit", () => {
         amountWon: 500,
       })
     ).toBe(300);
+  });
+
+  it("includes rebuys in tournament cost", () => {
+    expect(
+      pokerProfit({
+        sessionType: "tournament",
+        buyIn: 500,
+        cashOut: 1200,
+        amountWon: 1200,
+        rebuyAmount: 200,
+      })
+    ).toBe(500);
+  });
+
+  it("includes bounties in tournament return", () => {
+    expect(
+      pokerProfit({
+        sessionType: "tournament",
+        buyIn: 500,
+        cashOut: 150,
+        amountWon: 0,
+        bountyAmount: 150,
+      })
+    ).toBe(-350);
   });
 });

@@ -16,6 +16,8 @@ export type PokerSessionBody = {
   tournamentPlace?: number | null;
   tournamentEntries?: number | null;
   amountWon?: number | null;
+  rebuyAmount?: number | null;
+  bountyAmount?: number | null;
   hours?: number | null;
   note?: string;
   currency?: string;
@@ -40,6 +42,8 @@ export type ParsedPokerSession = {
   tournamentPlace: number | null;
   tournamentEntries: number | null;
   amountWon: number | null;
+  rebuyAmount: number;
+  bountyAmount: number;
   currency: string;
   fxRateToSgd: number;
   fxRateManual: boolean;
@@ -65,6 +69,9 @@ export function parsePokerSessionBody(
   let eventName: string | null = null;
   let gameId: string | null = null;
 
+  let rebuyAmount = 0;
+  let bountyAmount = 0;
+
   if (sessionType === "tournament") {
     tournamentName =
       typeof body.tournamentName === "string" ? body.tournamentName.trim() : "";
@@ -79,21 +86,37 @@ export function parsePokerSessionBody(
       return { ok: false, error: "Result must be placed or busted" };
     }
     tournamentResult = body.tournamentResult;
+
+    if (body.rebuyAmount != null) {
+      const rebuy = Number(body.rebuyAmount);
+      if (!Number.isFinite(rebuy) || rebuy < 0) {
+        return { ok: false, error: "Valid rebuy amount required" };
+      }
+      rebuyAmount = rebuy;
+    }
+    if (body.bountyAmount != null) {
+      const bounty = Number(body.bountyAmount);
+      if (!Number.isFinite(bounty) || bounty < 0) {
+        return { ok: false, error: "Valid bounty amount required" };
+      }
+      bountyAmount = bounty;
+    }
+
     if (tournamentResult === "placed") {
       const won = typeof body.amountWon === "number" ? body.amountWon : NaN;
       if (!Number.isFinite(won) || won < 0) {
         return { ok: false, error: "Valid amount won required" };
       }
       amountWon = won;
-      cashOut = won;
       if (body.tournamentPlace != null) {
         const place = Number(body.tournamentPlace);
         if (Number.isFinite(place) && place >= 1) tournamentPlace = Math.round(place);
       }
     } else {
       amountWon = 0;
-      cashOut = 0;
     }
+    cashOut = (amountWon ?? 0) + bountyAmount;
+
     if (body.tournamentEntries != null) {
       const entries = Number(body.tournamentEntries);
       if (Number.isFinite(entries) && entries >= 1) {
@@ -161,6 +184,8 @@ export function parsePokerSessionBody(
       tournamentPlace,
       tournamentEntries,
       amountWon,
+      rebuyAmount,
+      bountyAmount,
       currency,
       fxRateToSgd,
       fxRateManual,
@@ -184,6 +209,8 @@ export function pokerSessionRowFromParsed(parsed: ParsedPokerSession) {
     tournament_place: isTournament ? parsed.tournamentPlace : null,
     tournament_entries: isTournament ? parsed.tournamentEntries : null,
     amount_won: isTournament ? parsed.amountWon : null,
+    rebuy_amount: isTournament ? parsed.rebuyAmount : 0,
+    bounty_amount: isTournament ? parsed.bountyAmount : 0,
     hours: parsed.hours,
     note: parsed.note,
     currency: parsed.currency,

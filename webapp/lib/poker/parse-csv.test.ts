@@ -19,7 +19,7 @@ describe("parsePokerCsv", () => {
   it("parses the official template", () => {
     const { rows, errors } = parsePokerCsv(POKER_IMPORT_TEMPLATE_CSV);
     expect(errors).toHaveLength(0);
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({
       sessionType: "cash_game",
       buyIn: 300,
@@ -37,16 +37,27 @@ describe("parsePokerCsv", () => {
       eventName: "Main Event",
       tournamentResult: "placed",
       amountWon: 1200,
+      rebuyAmount: 200,
+      bountyAmount: 0,
       currency: "USD",
       fxRateManual: true,
       fxRateToSgd: 1.35,
+    });
+    expect(rows[2]).toMatchObject({
+      sessionType: "tournament",
+      buyIn: 300,
+      tournamentResult: "busted",
+      rebuyAmount: 100,
+      bountyAmount: 150,
+      amountWon: 0,
+      cashOut: 150,
     });
   });
 
   it("parses tournament placed row", () => {
     const csv = [
       POKER_IMPORT_HEADERS.join(","),
-      "tournament,2026-05-10T14:00,RWS,500,,USD,1.35,true,8,Day 1,,,,,APT,Main Event,placed,1200,8,200,",
+      "tournament,2026-05-10T14:00,RWS,500,,USD,1.35,true,8,Day 1,,,,,APT,Main Event,placed,1200,100,25,8,200,",
     ].join("\n");
     const { rows, errors } = parsePokerCsv(csv);
     expect(errors).toHaveLength(0);
@@ -57,6 +68,9 @@ describe("parsePokerCsv", () => {
       eventName: "Main Event",
       tournamentResult: "placed",
       amountWon: 1200,
+      rebuyAmount: 100,
+      bountyAmount: 25,
+      cashOut: 1225,
       tournamentPlace: 8,
       tournamentEntries: 200,
       fxRateManual: true,
@@ -72,7 +86,7 @@ describe("parsePokerCsv", () => {
   it("rejects invalid session type", () => {
     const csv = [
       POKER_IMPORT_HEADERS.join(","),
-      "sit_and_go,2026-01-01,Home,100,150,SGD,,false,,,,1,3,,,,,,,,",
+      "sit_and_go,2026-01-01,Home,100,150,SGD,,false,,,,1,3,,,,,,,,,,",
     ].join("\n");
     const { errors } = parsePokerCsv(csv);
     expect(errors.some((e) => e.message.includes("SessionType"))).toBe(true);
@@ -81,7 +95,7 @@ describe("parsePokerCsv", () => {
   it("rejects cash game without stakes", () => {
     const csv = [
       POKER_IMPORT_HEADERS.join(","),
-      "cash_game,2026-01-01,Home,100,150,SGD,,false,,,,,,,,,,,,,",
+      "cash_game,2026-01-01,Home,100,150,SGD,,false,,,,,,,,,,,,,,",
     ].join("\n");
     const { errors } = parsePokerCsv(csv);
     expect(errors.some((e) => e.message.includes("GameName"))).toBe(true);
@@ -96,10 +110,19 @@ describe("parsePokerCsv", () => {
     expect(errors.some((e) => e.message.includes("Too many rows"))).toBe(true);
   });
 
+  it("rejects CashOut on tournament rows", () => {
+    const csv = [
+      POKER_IMPORT_HEADERS.join(","),
+      "tournament,2026-05-10T14:00,RWS,500,100,USD,1.35,true,8,Day 1,,,,,APT,Main Event,placed,1200,0,0,8,200,",
+    ].join("\n");
+    const { errors } = parsePokerCsv(csv);
+    expect(errors.some((e) => e.message.includes("CashOut is for cash games only"))).toBe(true);
+  });
+
   it("rejects unsupported currency", () => {
     const csv = [
       POKER_IMPORT_HEADERS.join(","),
-      "cash_game,2026-01-01,Home,100,150,XYZ,,false,,,1/3,1,3,,,,,,,,",
+      "cash_game,2026-01-01,Home,100,150,XYZ,,false,,,1/3,1,3,,,,,,,,,,",
     ].join("\n");
     const { errors } = parsePokerCsv(csv);
     expect(errors.some((e) => e.message.includes("Unsupported currency"))).toBe(true);

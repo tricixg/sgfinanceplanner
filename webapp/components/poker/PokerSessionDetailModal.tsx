@@ -9,7 +9,7 @@ import {
 } from "@/lib/poker/format-session-amount";
 import { sessionMetrics } from "@/lib/poker/stats";
 import type { PokerSession } from "@/lib/poker/types";
-import { formatGameStakes } from "@/lib/poker/types";
+import { formatGameStakes, pokerTournamentCost, pokerTournamentReturn } from "@/lib/poker/types";
 import {
   formatHourly,
   formatPct,
@@ -132,9 +132,19 @@ export function PokerSessionDetailModal({ session, onClose, onEdit }: Props) {
                 <DetailRow label="Game">{formatGameStakes(session.game)}</DetailRow>
               ) : null}
               <DetailRow label="Result">{formatTournamentResult(session)}</DetailRow>
-              {session.amountWon != null ? (
-                <DetailRow label="Amount won">
+              {session.tournamentResult === "placed" && session.amountWon != null ? (
+                <DetailRow label="Prize won">
                   {formatSessionAmountWithSgd(session.amountWon, session)}
+                </DetailRow>
+              ) : null}
+              {session.bountyAmount > 0 ? (
+                <DetailRow label="Bounties">
+                  {formatSessionAmountWithSgd(session.bountyAmount, session)}
+                </DetailRow>
+              ) : null}
+              {session.rebuyAmount > 0 || session.bountyAmount > 0 ? (
+                <DetailRow label="Total cashed">
+                  {formatSessionAmountWithSgd(pokerTournamentReturn(session), session)}
                 </DetailRow>
               ) : null}
             </>
@@ -156,9 +166,19 @@ export function PokerSessionDetailModal({ session, onClose, onEdit }: Props) {
 
         <div className="poker-session-detail-section">
           <div className="poker-session-detail-section-title">Session</div>
-          <DetailRow label="Buy-in">
+          <DetailRow label={isTournament ? "Initial buy-in" : "Buy-in"}>
             {formatSessionAmountWithSgd(session.buyIn, session)}
           </DetailRow>
+          {isTournament && session.rebuyAmount > 0 ? (
+            <DetailRow label="Rebuy">
+              {formatSessionAmountWithSgd(session.rebuyAmount, session)}
+            </DetailRow>
+          ) : null}
+          {isTournament && session.rebuyAmount > 0 ? (
+            <DetailRow label="Total invested">
+              {formatSessionAmountWithSgd(pokerTournamentCost(session), session)}
+            </DetailRow>
+          ) : null}
           {!isTournament ? (
             <DetailRow label="Cash-out">
               {formatSessionAmountWithSgd(session.cashOut, session)}

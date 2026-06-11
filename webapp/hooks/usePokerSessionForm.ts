@@ -38,6 +38,8 @@ export function usePokerSessionForm({
   const [tournamentPlace, setTournamentPlace] = useState("");
   const [tournamentEntries, setTournamentEntries] = useState("");
   const [amountWon, setAmountWon] = useState("");
+  const [rebuyAmount, setRebuyAmount] = useState("");
+  const [bountyAmount, setBountyAmount] = useState("");
   const [showNewLocation, setShowNewLocation] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
   const [creatingLocation, setCreatingLocation] = useState(false);
@@ -87,6 +89,8 @@ export function usePokerSessionForm({
     setTournamentPlace("");
     setTournamentEntries("");
     setAmountWon("");
+    setRebuyAmount("");
+    setBountyAmount("");
     setShowNewLocation(false);
     setNewLocationName("");
     setShowNewGame(false);
@@ -105,7 +109,7 @@ export function usePokerSessionForm({
       setSessionType(session.sessionType);
       setPlayedAt(pokerPlayedAtToInput(session.playedAt));
       setBuyIn(String(session.buyIn));
-      setCashOut(String(session.cashOut));
+      setCashOut(session.sessionType === "cash_game" ? String(session.cashOut) : "");
       ensureLocationOption(session.location);
       setLocation(session.location);
       setHours(session.hours != null ? String(session.hours) : "");
@@ -133,6 +137,8 @@ export function usePokerSessionForm({
           ? String(session.amountWon)
           : ""
       );
+      setRebuyAmount(session.rebuyAmount > 0 ? String(session.rebuyAmount) : "");
+      setBountyAmount(session.bountyAmount > 0 ? String(session.bountyAmount) : "");
       skipFxFetch.current = true;
       setCurrency(session.currency);
       setFxRateManual(session.fxRateManual);
@@ -314,6 +320,20 @@ export function usePokerSessionForm({
           body.tournamentEntries = entries;
         }
       }
+      if (rebuyAmount !== "") {
+        const rebuy = parseFloat(rebuyAmount);
+        if (!Number.isFinite(rebuy) || rebuy < 0) {
+          return { error: "Enter a valid rebuy amount." };
+        }
+        if (rebuy > 0) body.rebuyAmount = rebuy;
+      }
+      if (bountyAmount !== "") {
+        const bounty = parseFloat(bountyAmount);
+        if (!Number.isFinite(bounty) || bounty < 0) {
+          return { error: "Enter a valid bounty amount." };
+        }
+        if (bounty > 0) body.bountyAmount = bounty;
+      }
       if (tournamentResult === "placed") {
         const won = parseFloat(amountWon);
         if (!Number.isFinite(won) || won < 0) {
@@ -400,6 +420,10 @@ export function usePokerSessionForm({
     setTournamentEntries,
     amountWon,
     setAmountWon,
+    rebuyAmount,
+    setRebuyAmount,
+    bountyAmount,
+    setBountyAmount,
     showNewLocation,
     setShowNewLocation,
     newLocationName,

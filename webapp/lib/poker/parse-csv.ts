@@ -38,6 +38,8 @@ export type ParsedPokerCsvRow = {
   eventName: string;
   tournamentResult: TournamentResult | null;
   amountWon: number | null;
+  rebuyAmount: number;
+  bountyAmount: number;
   tournamentPlace: number | null;
   tournamentEntries: number | null;
   account: string;
@@ -239,6 +241,8 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
     let eventName = "";
     let tournamentResult: TournamentResult | null = null;
     let amountWon: number | null = null;
+    let rebuyAmount = 0;
+    let bountyAmount = 0;
     let tournamentPlace: number | null = null;
     let tournamentEntries: number | null = null;
 
@@ -272,6 +276,16 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
         ante = a;
       }
     } else {
+      const cashOutCell = sanitizeCsvCell(get(cells, "CashOut"));
+      if (cashOutCell) {
+        errors.push({
+          row: rowNumber,
+          message:
+            "CashOut is for cash games only — leave it empty for tournaments and use AmountWon instead",
+        });
+        continue;
+      }
+
       tournamentName = clampText(get(cells, "TournamentName"), POKER_IMPORT_MAX_FIELD_LEN);
       eventName = clampText(get(cells, "EventName"), POKER_IMPORT_MAX_FIELD_LEN);
       if (!tournamentName || !eventName) {
@@ -292,6 +306,25 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       }
       tournamentResult = resultRaw as TournamentResult;
 
+      const rebuyRaw = sanitizeCsvCell(get(cells, "RebuyAmount"));
+      if (rebuyRaw) {
+        const rebuy = parseAmount(rebuyRaw, "RebuyAmount");
+        if (rebuy == null) {
+          errors.push({ row: rowNumber, message: "Invalid RebuyAmount" });
+          continue;
+        }
+        rebuyAmount = rebuy;
+      }
+      const bountyRaw = sanitizeCsvCell(get(cells, "BountyAmount"));
+      if (bountyRaw) {
+        const bounty = parseAmount(bountyRaw, "BountyAmount");
+        if (bounty == null) {
+          errors.push({ row: rowNumber, message: "Invalid BountyAmount" });
+          continue;
+        }
+        bountyAmount = bounty;
+      }
+
       if (tournamentResult === "placed") {
         const won = parseAmount(get(cells, "AmountWon"), "AmountWon");
         if (won == null) {
@@ -302,12 +335,11 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
           continue;
         }
         amountWon = won;
-        cashOut = won;
         tournamentPlace = parseOptionalInt(get(cells, "TournamentPlace"));
       } else {
         amountWon = 0;
-        cashOut = 0;
       }
+      cashOut = (amountWon ?? 0) + bountyAmount;
       tournamentEntries = parseOptionalInt(get(cells, "TournamentEntries"));
     }
 
@@ -331,6 +363,8 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       eventName,
       tournamentResult,
       amountWon,
+      rebuyAmount,
+      bountyAmount,
       tournamentPlace,
       tournamentEntries,
       account,

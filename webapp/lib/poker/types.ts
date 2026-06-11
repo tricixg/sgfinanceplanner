@@ -27,6 +27,8 @@ export type PokerSession = {
   tournamentPlace: number | null;
   tournamentEntries: number | null;
   amountWon: number | null;
+  rebuyAmount: number;
+  bountyAmount: number;
   hours: number | null;
   note: string;
   currency: string;
@@ -37,12 +39,31 @@ export type PokerSession = {
   createdAt: string;
 };
 
-export function pokerProfit(
-  session: Pick<PokerSession, "buyIn" | "cashOut" | "sessionType" | "amountWon">
+export type PokerProfitInput = Pick<
+  PokerSession,
+  "buyIn" | "cashOut" | "sessionType" | "amountWon"
+> & {
+  rebuyAmount?: number;
+  bountyAmount?: number;
+};
+
+/** Initial buy-in plus any rebuys (tournaments only). */
+export function pokerTournamentCost(
+  session: Pick<PokerSession, "buyIn"> & { rebuyAmount?: number }
 ): number {
+  return session.buyIn + (session.rebuyAmount ?? 0);
+}
+
+/** Prize pool winnings plus bounty payouts (tournaments only). */
+export function pokerTournamentReturn(
+  session: Pick<PokerSession, "amountWon"> & { bountyAmount?: number }
+): number {
+  return (session.amountWon ?? 0) + (session.bountyAmount ?? 0);
+}
+
+export function pokerProfit(session: PokerProfitInput): number {
   if (session.sessionType === "tournament") {
-    const won = session.amountWon ?? 0;
-    return won - session.buyIn;
+    return pokerTournamentReturn(session) - pokerTournamentCost(session);
   }
   return session.cashOut - session.buyIn;
 }

@@ -45,6 +45,8 @@ export function mapPokerSession(row: Record<string, unknown>): PokerSession {
     tournamentEntries:
       row.tournament_entries == null ? null : Number(row.tournament_entries),
     amountWon: amountWonRaw == null ? null : Number(amountWonRaw),
+    rebuyAmount: Number(row.rebuy_amount ?? 0),
+    bountyAmount: Number(row.bounty_amount ?? 0),
     hours: hoursRaw == null ? null : Number(hoursRaw),
     note: String(row.note ?? ""),
     currency: String(row.currency ?? "SGD").toUpperCase(),
