@@ -7,7 +7,13 @@ import { ChartBox } from "@/components/ChartBox";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { InlineConfirm } from "@/components/InlineConfirm";
 import { Snackbar } from "@/components/Snackbar";
+import {
+  buildSplitPayload,
+  TravelExpenseSplitFields,
+} from "@/components/travel/TravelExpenseSplitFields";
+import { TravelCompanionsModal } from "@/components/travel/TravelCompanionsModal";
 import { TravelExpenseActionModal } from "@/components/travel/TravelExpenseActionModal";
+import { TravelSettlementModal } from "@/components/travel/TravelSettlementModal";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { fmt2 } from "@/lib/finance/helpers";
@@ -15,7 +21,13 @@ import { fetchJson } from "@/lib/fetch-json";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { formatTravelSpentAtTable } from "@/lib/travel/expense-input";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
-import type { TravelExpenseRow, TravelTrip, TravelTripBudget } from "@/lib/travel/types";
+import type {
+  CompanionBalanceRow,
+  TravelCompanion,
+  TravelExpenseRow,
+  TravelTrip,
+  TravelTripBudget,
+} from "@/lib/travel/types";
 
 type Props = { tripId: string; enabled: boolean };
 
@@ -42,6 +54,16 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
   const [spentAt, setSpentAt] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
   const [financialAccountId, setFinancialAccountId] = useState("");
+  const [companions, setCompanions] = useState<TravelCompanion[]>([]);
+  const [balances, setBalances] = useState<CompanionBalanceRow[]>([]);
+  const [totalPending, setTotalPending] = useState(0);
+  const [companionsOpen, setCompanionsOpen] = useState(false);
+  const [settlementRow, setSettlementRow] = useState<CompanionBalanceRow | null>(null);
+  const [splitEnabled, setSplitEnabled] = useState(false);
+  const [paidByCompanionId, setPaidByCompanionId] = useState<string | null>(null);
+  const [myShare, setMyShare] = useState("");
+  const [companionShares, setCompanionShares] = useState<Record<string, string>>({});
+  const [selectedCompanionIds, setSelectedCompanionIds] = useState<string[]>([]);
   const [savingExpense, setSavingExpense] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<TravelExpenseRow | null>(null);
   const snackbar = useSnackbar();
@@ -58,7 +80,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
 
   const load = async () => {
     setLoading(true);
-    const [tripRes, budgetRes, expenseRes] = await Promise.all([
+    const [tripRes, budgetRes, expenseRes, companionRes, balanceRes] = await Promise.all([
       fetchJson<{ item?: TravelTrip; error?: string }>(`/api/travel/trips/${tripId}`, {
         credentials: "include",
       }),
@@ -68,6 +90,14 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       ),
       fetchJson<{ items?: TravelExpenseRow[]; error?: string }>(
         `/api/travel/trips/${tripId}/expenses`,
+        { credentials: "include" }
+      ),
+      fetchJson<{ items?: TravelCompanion[]; error?: string }>(
+        `/api/travel/trips/${tripId}/companions`,
+        { credentials: "include" }
+      ),
+      fetchJson<{ items?: CompanionBalanceRow[]; totalPending?: number; error?: string }>(
+        `/api/travel/trips/${tripId}/balances`,
         { credentials: "include" }
       ),
     ]);
@@ -95,8 +125,37 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     if (expenseRes.res.ok) {
       setExpenses(expenseRes.data.items ?? []);
     }
+    if (companionRes.res.ok) {
+      setCompanions(companionRes.data.items ?? []);
+    }
+    if (balanceRes.res.ok) {
+      setBalances(balanceRes.data.items ?? []);
+      setTotalPending(balanceRes.data.totalPending ?? 0);
+    }
     setLoading(false);
   };
+
+  const resetSplitForm = () => {
+    setSplitEnabled(false);
+    setPaidByCompanionId(null);
+    setMyShare("");
+    setCompanionShares({});
+    setSelectedCompanionIds([]);
+  };
+
+  const onSplitEnabledChange = (enabled: boolean) => {
+    setSplitEnabled(enabled);
+    if (!enabled) {
+      setPaidByCompanionId(null);
+      setMyShare("");
+      setCompanionShares({});
+      setSelectedCompanionIds([]);
+    }
+  };
+
+  useEffect(() => {
+    resetSplitForm();
+  }, [tripId]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -190,6 +249,22 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       setMsg("Choose subcategory, date, and amount");
       return;
     }
+    const split = buildSplitPayload(
+      splitEnabled,
+      amt,
+      paidByCompanionId,
+      myShare,
+      companionShares,
+      selectedCompanionIds
+    );
+    if (splitEnabled && split) {
+      const sum = split.shares.reduce((s, x) => s + x.shareAmount, 0);
+      if (Math.abs(sum - amt) > 0.005) {
+        setMsg("Split shares must equal the expense amount");
+        return;
+      }
+    }
+
     setSavingExpense(true);
     setMsg("");
     const { res, data } = await fetchJson<{ error?: string }>(
@@ -203,7 +278,8 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
           spentAt,
           subCategory,
           note,
-          financialAccountId: financialAccountId || undefined,
+          financialAccountId: paidByCompanionId ? undefined : financialAccountId || undefined,
+          split,
         }),
       }
     );
@@ -214,6 +290,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     }
     setAmount("");
     setNote("");
+    resetSplitForm();
     dispatchDomainEvent(["expense:changed", "accounts:changed"]);
     await load();
   };
@@ -226,7 +303,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
   const spentBySub = useMemo(() => {
     const out = new Map<string, number>();
     for (const e of expenses) {
-      out.set(e.subCategory, (out.get(e.subCategory) ?? 0) + e.amount);
+      out.set(e.subCategory, (out.get(e.subCategory) ?? 0) + e.budgetAmount);
     }
     return out;
   }, [expenses]);
@@ -304,6 +381,13 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
           <Link href="/travel" className="btn ghost sm">
             Back to Travel
           </Link>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => setCompanionsOpen(true)}
+          >
+            People{companions.length > 0 ? ` (${companions.length})` : ""}
+          </button>
           {editingTrip ? (
             <>
               <button
@@ -389,6 +473,57 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
               }
             />
           </div>
+        </div>
+      ) : null}
+
+      {companions.length > 0 ? (
+        <div className="card table-scroll travel-settlements-card">
+          <div className="section-head">
+            <h3>Bill splitting</h3>
+            <span className="note">
+              Pending reimbursement total: {fmt2(totalPending)}
+            </span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th className="num">Paid</th>
+                <th className="num">Owes you</th>
+                <th className="num">You owe</th>
+                <th className="num">Received</th>
+                <th className="num">You paid them</th>
+                <th className="num">Pending</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {balances.map((row) => (
+                <tr key={row.companionId}>
+                  <td>{row.name}</td>
+                  <td className="num">{fmt2(row.paid)}</td>
+                  <td className="num">{fmt2(row.owesYou)}</td>
+                  <td className="num">{fmt2(row.youOwe)}</td>
+                  <td className="num">{fmt2(row.received)}</td>
+                  <td className="num">{fmt2(row.youPaidThem)}</td>
+                  <td
+                    className={`num ${row.pendingReimbursement > 0 ? "pl-pos" : row.pendingReimbursement < 0 ? "pl-neg" : ""}`}
+                  >
+                    {fmt2(row.pendingReimbursement)}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      onClick={() => setSettlementRow(row)}
+                    >
+                      Record
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : null}
 
@@ -569,48 +704,76 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
         ) : null}
       </div>
 
-      <div className="card">
+      <div className="card travel-expense-add-card">
         <h3>Add expense</h3>
-        <form
-          className="editrow travel-expense-form"
-          onSubmit={(e) => void addExpense(e)}
-        >
-          <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)}>
-            <option value="">Subcategory…</option>
-            {budgets.map((b) => (
-              <option key={b.id} value={b.subCategory}>
-                {b.subCategory}
-              </option>
-            ))}
-          </select>
-          <input
-            type="datetime-local"
-            value={spentAt}
-            onChange={(e) => setSpentAt(e.target.value)}
-            aria-label="Date and time"
+        <form className="travel-expense-add" onSubmit={(e) => void addExpense(e)}>
+          <div className="travel-expense-add-grid">
+            <select
+              value={subCategory}
+              onChange={(e) => setSubCategory(e.target.value)}
+              aria-label="Subcategory"
+            >
+              <option value="">Subcategory…</option>
+              {budgets.map((b) => (
+                <option key={b.id} value={b.subCategory}>
+                  {b.subCategory}
+                </option>
+              ))}
+            </select>
+            <input
+              type="datetime-local"
+              value={spentAt}
+              onChange={(e) => setSpentAt(e.target.value)}
+              aria-label="Date and time"
+            />
+            <DecimalTextInput value={amount} onChange={setAmount} placeholder="Amount" />
+            <input
+              type="text"
+              placeholder="Note (optional)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              aria-label="Note"
+            />
+            {!paidByCompanionId ? (
+              <select
+                value={financialAccountId}
+                onChange={(e) => setFinancialAccountId(e.target.value)}
+                aria-label="Pay from account"
+              >
+                <option value="">Pay from…</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="note travel-expense-add-paid-note">Companion paid — no account</span>
+            )}
+          </div>
+
+          <TravelExpenseSplitFields
+            companions={companions}
+            totalAmount={parseFloat(amount) || 0}
+            splitEnabled={splitEnabled}
+            onSplitEnabledChange={onSplitEnabledChange}
+            paidByCompanionId={paidByCompanionId}
+            onPaidByCompanionIdChange={setPaidByCompanionId}
+            myShare={myShare}
+            onMyShareChange={setMyShare}
+            companionShares={companionShares}
+            onCompanionShareChange={(id, v) =>
+              setCompanionShares((prev) => ({ ...prev, [id]: v }))
+            }
+            selectedCompanionIds={selectedCompanionIds}
+            onSelectedCompanionIdsChange={setSelectedCompanionIds}
           />
-          <DecimalTextInput value={amount} onChange={setAmount} placeholder="Amount" />
-          <input
-            type="text"
-            placeholder="Optional note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <select
-            value={financialAccountId}
-            onChange={(e) => setFinancialAccountId(e.target.value)}
-            aria-label="Pay from account"
-          >
-            <option value="">Pay from…</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="btn sm" disabled={savingExpense}>
-            {savingExpense ? "Adding…" : "Add"}
-          </button>
+
+          <div className="travel-expense-add-actions">
+            <button type="submit" className="btn sm" disabled={savingExpense}>
+              {savingExpense ? "Adding…" : "Add expense"}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -624,18 +787,25 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
               <th>Subcategory</th>
               <th>Note</th>
               <th className="num">Amount</th>
+              <th className="num">Your share</th>
             </tr>
           </thead>
           <tbody>
             {expenses.length === 0 ? (
               <tr>
-                <td colSpan={5} className="note">
+                <td colSpan={6} className="note">
                   No expenses yet.
                 </td>
               </tr>
             ) : (
               expenses.map((row) => {
                 const when = formatTravelSpentAtTable(row.spentAt, row.spentTime);
+                const splitLabel =
+                  row.split && row.budgetAmount !== row.amount
+                    ? "Split"
+                    : row.split
+                      ? "Split"
+                      : null;
                 return (
                   <tr
                     key={row.id}
@@ -644,9 +814,17 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
                   >
                     <td>{when.date}</td>
                     <td>{when.time || "—"}</td>
-                    <td>{row.subCategory}</td>
+                    <td>
+                      {row.subCategory}
+                      {splitLabel ? (
+                        <span className="tag t-soon" style={{ marginLeft: 6 }}>
+                          {splitLabel}
+                        </span>
+                      ) : null}
+                    </td>
                     <td>{row.extraNote || "—"}</td>
                     <td className="num">{fmt2(row.amount)}</td>
+                    <td className="num">{fmt2(row.budgetAmount)}</td>
                   </tr>
                 );
               })
@@ -655,10 +833,30 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
         </table>
       </div>
 
+      {companionsOpen ? (
+        <TravelCompanionsModal
+          tripId={tripId}
+          companions={companions}
+          onClose={() => setCompanionsOpen(false)}
+          onChanged={() => void load()}
+        />
+      ) : null}
+
+      {settlementRow && trip ? (
+        <TravelSettlementModal
+          tripId={tripId}
+          tripName={trip.name}
+          row={settlementRow}
+          onClose={() => setSettlementRow(null)}
+          onSaved={() => void load()}
+        />
+      ) : null}
+
       {selectedExpense ? (
         <TravelExpenseActionModal
           tripId={tripId}
           expense={selectedExpense}
+          companions={companions}
           subCategories={budgetSubCategories}
           onClose={() => setSelectedExpense(null)}
           onSaved={(m) => {

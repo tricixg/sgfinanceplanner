@@ -3,7 +3,12 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureTravelBudgetLine } from "@/lib/travel/budget-line";
 import { formatTravelExpenseNote } from "@/lib/travel/notes";
 import { buildTravelTripSummaries } from "@/lib/travel/summary";
-import { createTrip, listTravelExpensesInRange, listTripsForYear } from "@/lib/travel/load";
+import {
+  createTrip,
+  listTravelExpensesInRange,
+  listTripsForYear,
+  loadSplitsForExpenses,
+} from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -36,6 +41,11 @@ export async function GET(req: NextRequest) {
     const from = `${year}-01-01`;
     const to = `${year}-12-31`;
     const expenses = await listTravelExpensesInRange(supabase, userId, from, to);
+    const splitMap = await loadSplitsForExpenses(
+      supabase,
+      userId,
+      expenses.map((e) => e.id)
+    );
     const budgets = (budgetRows ?? []).map((r) => ({
       id: String(r.id),
       userId: String(r.user_id),
@@ -44,7 +54,7 @@ export async function GET(req: NextRequest) {
       budgetAmount: Number(r.budget_amount ?? 0),
       sortOrder: Number(r.sort_order ?? 0),
     }));
-    const items = buildTravelTripSummaries(trips, budgets, expenses);
+    const items = buildTravelTripSummaries(trips, budgets, expenses, splitMap);
     const totals = {
       budgeted: items.reduce((sum, t) => sum + t.budgeted, 0),
       spent: items.reduce((sum, t) => sum + t.spent, 0),

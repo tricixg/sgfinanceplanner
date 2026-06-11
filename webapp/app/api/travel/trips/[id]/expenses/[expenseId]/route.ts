@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
+import { parseSplitBody, resolveAndSaveExpenseSplit } from "@/lib/travel/expense-split-api";
 import { formatTravelExpenseNote } from "@/lib/travel/notes";
 import { parseTravelSpentAtInput } from "@/lib/travel/expense-input";
 import { loadTrip, listTripExpenses } from "@/lib/travel/load";
@@ -24,6 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     subCategory?: string;
     note?: string;
     financialAccountId?: string | null;
+    split?: unknown;
   };
   try {
     body = await req.json();
@@ -51,14 +53,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Expense not found for this trip" }, { status: 404 });
   }
 
-  const financialAccountId =
+  const splitInput = parseSplitBody(body.split);
+  const paidByCompanion =
+    splitInput === undefined
+      ? tripExpenses.find((e) => e.id === expenseId)?.split?.paidByCompanionId ?? null
+      : splitInput?.paidByCompanionId ?? null;
+
+  let financialAccountId =
     body.financialAccountId === null || body.financialAccountId === ""
       ? null
       : body.financialAccountId
         ? String(body.financialAccountId)
         : undefined;
 
-  if (financialAccountId) {
+  if (paidByCompanion) {
+    financialAccountId = null;
+  } else if (financialAccountId) {
     const ok = await verifyFinancialAccount(supabase, auth.user.id, financialAccountId);
     if (!ok) return NextResponse.json({ error: "Invalid financial account" }, { status: 400 });
   }
@@ -87,6 +97,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (error) {
     console.error("[api/travel/trips/expenses] PATCH failed", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const splitSave = await resolveAndSaveExpenseSplit(
+    supabase,
+    auth.user.id,
+    tripId,
+    expenseId,
+    amount,
+    splitInput
+  );
+  if (!splitSave.ok) {
+    return NextResponse.json({ error: splitSave.error }, { status: 400 });
   }
 
   console.info("[api/travel/trips/expenses] PATCH ok", {

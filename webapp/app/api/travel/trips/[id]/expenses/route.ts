@@ -5,6 +5,7 @@ import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api"
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { sgtSpentAtToIso } from "@/lib/time/sgt";
 import { parseTravelSpentAtInput } from "@/lib/travel/expense-input";
+import { parseSplitBody, resolveAndSaveExpenseSplit } from "@/lib/travel/expense-split-api";
 import { formatTravelExpenseNote, TRAVEL_CATEGORY } from "@/lib/travel/notes";
 import { loadTrip, listTripExpenses } from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     subCategory?: string;
     note?: string;
     financialAccountId?: string;
+    split?: unknown;
   };
   try {
     body = await req.json();
@@ -58,7 +60,19 @@ export async function POST(req: NextRequest, { params }: Params) {
   const trip = await loadTrip(supabase, auth.user.id, id);
   if (!trip) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const financialAccountId = body.financialAccountId ? String(body.financialAccountId) : null;
+  const splitInput = parseSplitBody(body.split);
+  const paidByCompanion = splitInput?.paidByCompanionId ?? null;
+
+  let financialAccountId = body.financialAccountId ? String(body.financialAccountId) : null;
+  if (paidByCompanion && financialAccountId) {
+    return NextResponse.json(
+      { error: "Cannot link an account when a companion paid" },
+      { status: 400 }
+    );
+  }
+  if (paidByCompanion) {
+    financialAccountId = null;
+  }
   if (financialAccountId) {
     const ok = await verifyFinancialAccount(supabase, auth.user.id, financialAccountId);
     if (!ok) return NextResponse.json({ error: "Invalid financial account" }, { status: 400 });
@@ -84,10 +98,25 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const expense = mapExpense(data);
+
+  const splitSave = await resolveAndSaveExpenseSplit(
+    supabase,
+    auth.user.id,
+    trip.id,
+    expense.id,
+    amount,
+    splitInput
+  );
+  if (!splitSave.ok) {
+    await supabase.from("expenses").delete().eq("id", expense.id).eq("user_id", auth.user.id);
+    return NextResponse.json({ error: splitSave.error }, { status: 400 });
+  }
+
   const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, auth.user.id, expense, {
     occurredAt,
   });
   if (!ledgerSync.ok) {
+    await supabase.from("expenses").delete().eq("id", expense.id).eq("user_id", auth.user.id);
     return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
   }
 

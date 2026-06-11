@@ -4,6 +4,7 @@ import {
   listTravelExpensesInRange,
   listTripBudgets,
   listTripsForYear,
+  loadSplitsForExpenses,
 } from "@/lib/travel/load";
 import { buildTravelTripSummaries } from "@/lib/travel/summary";
 import type { TravelTripSummary } from "@/lib/travel/types";
@@ -27,6 +28,11 @@ export async function loadTravelTripsForYear(
   const from = `${year}-01-01`;
   const to = `${year}-12-31`;
   const expenses = await listTravelExpensesInRange(supabase, userId, from, to);
+  const splitMap = await loadSplitsForExpenses(
+    supabase,
+    userId,
+    expenses.map((e) => e.id)
+  );
   const budgets = (budgetRows ?? []).map((r) => ({
     id: String(r.id),
     userId: String(r.user_id),
@@ -36,7 +42,7 @@ export async function loadTravelTripsForYear(
     sortOrder: Number(r.sort_order ?? 0),
   }));
 
-  return buildTravelTripSummaries(trips, budgets, expenses);
+  return buildTravelTripSummaries(trips, budgets, expenses, splitMap);
 }
 
 export { listTripBudgets };

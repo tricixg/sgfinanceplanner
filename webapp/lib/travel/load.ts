@@ -1,9 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import type { Expense } from "@/lib/savings/types";
+import { DEFAULT_TRAVEL_SUBCATEGORIES } from "@/lib/travel/defaults";
 import { parseTravelExpenseParts, TRAVEL_CATEGORY } from "@/lib/travel/notes";
+import { mapSplitFromDb, myShareFromSplit } from "@/lib/travel/split";
 import type {
+  TravelCompanion,
   TravelExpenseRow,
+  TravelSettlement,
+  TravelSettlementDirection,
   TravelTrip,
   TravelTripBudget,
   TravelTripStatus,
@@ -19,6 +24,35 @@ function mapTrip(row: Record<string, unknown>): TravelTrip {
     endDate: String(row.end_date).slice(0, 10),
     status: (row.status ?? "planned") as TravelTripStatus,
     sortOrder: Number(row.sort_order ?? 0),
+  };
+}
+
+function mapCompanion(row: Record<string, unknown>): TravelCompanion {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    tripId: String(row.trip_id),
+    name: String(row.name ?? ""),
+    sortOrder: Number(row.sort_order ?? 0),
+  };
+}
+
+function mapSettlement(row: Record<string, unknown>): TravelSettlement {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    tripId: String(row.trip_id),
+    companionId: String(row.companion_id),
+    direction: row.direction as TravelSettlementDirection,
+    amount: Number(row.amount ?? 0),
+    settledAt: String(row.settled_at).slice(0, 10),
+    note: String(row.note ?? ""),
+    financialAccountId: row.financial_account_id
+      ? String(row.financial_account_id)
+      : null,
+    savingsTransactionId: row.savings_transaction_id
+      ? String(row.savings_transaction_id)
+      : null,
   };
 }
 
@@ -78,9 +112,8 @@ export async function createTrip(
   if (error) throw new Error(error.message);
   const trip = mapTrip(data);
 
-  const defaults = ["Flights/Transport", "Accomodation", "Attractions", "Food"];
   const { error: budgetErr } = await supabase.from("travel_trip_budgets").insert(
-    defaults.map((subCategory, i) => ({
+    DEFAULT_TRAVEL_SUBCATEGORIES.map((subCategory, i) => ({
       user_id: userId,
       trip_id: trip.id,
       sub_category: subCategory,
@@ -225,6 +258,170 @@ export async function saveTripBudgets(
   return listTripBudgets(supabase, userId, tripId);
 }
 
+export async function listTripCompanions(
+  supabase: SupabaseClient,
+  userId: string,
+  tripId: string
+): Promise<TravelCompanion[]> {
+  const { data, error } = await supabase
+    .from("travel_trip_companions")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("trip_id", tripId)
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => mapCompanion(r));
+}
+
+export async function addTripCompanion(
+  supabase: SupabaseClient,
+  userId: string,
+  tripId: string,
+  name: string
+): Promise<TravelCompanion> {
+  const existing = await listTripCompanions(supabase, userId, tripId);
+  const { data, error } = await supabase
+    .from("travel_trip_companions")
+    .insert({
+      user_id: userId,
+      trip_id: tripId,
+      name: name.trim(),
+      sort_order: existing.length,
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  console.info("[travel] companion added", { userId, tripId, name: name.trim() });
+  return mapCompanion(data);
+}
+
+export async function updateTripCompanion(
+  supabase: SupabaseClient,
+  userId: string,
+  tripId: string,
+  companionId: string,
+  name: string
+): Promise<TravelCompanion> {
+  const { data, error } = await supabase
+    .from("travel_trip_companions")
+    .update({ name: name.trim(), updated_at: new Date().toISOString() })
+    .eq("id", companionId)
+    .eq("user_id", userId)
+    .eq("trip_id", tripId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return mapCompanion(data);
+}
+
+export async function deleteTripCompanion(
+  supabase: SupabaseClient,
+  userId: string,
+  tripId: string,
+  companionId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("travel_trip_companions")
+    .delete()
+    .eq("id", companionId)
+    .eq("user_id", userId)
+    .eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+}
+
+export async function listTripSettlements(
+  supabase: SupabaseClient,
+  userId: string,
+  tripId: string
+): Promise<TravelSettlement[]> {
+  const { data, error } = await supabase
+    .from("travel_companion_settlements")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("trip_id", tripId)
+    .order("settled_at", { ascending: false })
+    .order("id", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => mapSettlement(r));
+}
+
+export async function createTripSettlement(
+  supabase: SupabaseClient,
+  userId: string,
+  tripId: string,
+  input: {
+    companionId: string;
+    direction: TravelSettlementDirection;
+    amount: number;
+    settledAt: string;
+    note?: string;
+    financialAccountId?: string | null;
+    savingsTransactionId?: string | null;
+  }
+): Promise<TravelSettlement> {
+  const { data, error } = await supabase
+    .from("travel_companion_settlements")
+    .insert({
+      user_id: userId,
+      trip_id: tripId,
+      companion_id: input.companionId,
+      direction: input.direction,
+      amount: input.amount,
+      settled_at: input.settledAt,
+      note: input.note?.trim() ?? "",
+      financial_account_id: input.financialAccountId ?? null,
+      savings_transaction_id: input.savingsTransactionId ?? null,
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  console.info("[travel] settlement recorded", {
+    userId,
+    tripId,
+    companionId: input.companionId,
+    direction: input.direction,
+    amount: input.amount,
+  });
+  return mapSettlement(data);
+}
+
+export async function loadSplitsForExpenses(
+  supabase: SupabaseClient,
+  userId: string,
+  expenseIds: string[]
+): Promise<Map<string, ReturnType<typeof mapSplitFromDb>>> {
+  const out = new Map<string, ReturnType<typeof mapSplitFromDb>>();
+  if (expenseIds.length === 0) return out;
+
+  const { data: splits, error: splitErr } = await supabase
+    .from("travel_expense_splits")
+    .select("*")
+    .eq("user_id", userId)
+    .in("expense_id", expenseIds);
+  if (splitErr) throw new Error(splitErr.message);
+
+  const { data: shares, error: shareErr } = await supabase
+    .from("travel_expense_split_shares")
+    .select("*")
+    .eq("user_id", userId)
+    .in("expense_id", expenseIds);
+  if (shareErr) throw new Error(shareErr.message);
+
+  const sharesByExpense = new Map<string, Record<string, unknown>[]>();
+  for (const row of shares ?? []) {
+    const eid = String(row.expense_id);
+    const list = sharesByExpense.get(eid) ?? [];
+    list.push(row);
+    sharesByExpense.set(eid, list);
+  }
+
+  for (const row of splits ?? []) {
+    const eid = String(row.expense_id);
+    out.set(eid, mapSplitFromDb(row, sharesByExpense.get(eid) ?? []));
+  }
+  return out;
+}
+
 export async function listTripExpenses(
   supabase: SupabaseClient,
   userId: string,
@@ -239,23 +436,36 @@ export async function listTripExpenses(
     .order("id", { ascending: false });
   if (error) throw new Error(error.message);
 
-  const out: TravelExpenseRow[] = [];
+  const matched: { exp: ReturnType<typeof mapExpense>; parts: NonNullable<ReturnType<typeof parseTravelExpenseParts>> }[] = [];
   for (const row of data ?? []) {
     const exp = mapExpense(row);
     const parts = parseTravelExpenseParts(trip.name, exp.note);
     if (!parts) continue;
-    out.push({
+    matched.push({ exp, parts });
+  }
+
+  const splitMap = await loadSplitsForExpenses(
+    supabase,
+    userId,
+    matched.map((m) => m.exp.id)
+  );
+
+  return matched.map(({ exp, parts }) => {
+    const split = splitMap.get(exp.id) ?? null;
+    const budgetAmount = myShareFromSplit(split, exp.amount);
+    return {
       id: exp.id,
       amount: exp.amount,
+      budgetAmount,
       spentAt: exp.spentAt,
       spentTime: exp.spentTime ?? null,
       note: exp.note,
       extraNote: parts.extraNote,
       subCategory: parts.subCategory,
       financialAccountId: exp.financialAccountId,
-    });
-  }
-  return out;
+      split,
+    };
+  });
 }
 
 export async function listTravelExpensesInRange(

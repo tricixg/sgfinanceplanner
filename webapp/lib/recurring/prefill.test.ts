@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatDeductionDayLabel, prefillSpentAt } from "@/lib/recurring/prefill";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 describe("prefillSpentAt", () => {
   it("builds date for month and day", () => {
@@ -11,8 +12,7 @@ describe("prefillSpentAt", () => {
   });
 
   it("falls back to today when no deduction day", () => {
-    const today = new Date().toISOString().slice(0, 10);
-    expect(prefillSpentAt("2025-05", null)).toBe(today);
+    expect(prefillSpentAt("2025-05", null)).toBe(sgtTodayYmd());
   });
 });
 

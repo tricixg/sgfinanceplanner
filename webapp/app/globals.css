@@ -2022,8 +2022,152 @@ footer {
   color: var(--muted);
 }
 
-.travel-expense-form {
-  grid-template-columns: 1fr 0.9fr 0.9fr 1.2fr 1fr auto;
+.travel-expense-add-card h3 {
+  margin-top: 0;
+}
+.travel-expense-add {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.travel-expense-add-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 0.75fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.travel-expense-add-paid-note {
+  font-size: 12px;
+  padding: 6px 0;
+}
+.travel-expense-add-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.travel-expense-split--off {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.travel-expense-split--on {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(255, 253, 246, 0.45);
+}
+.travel-expense-split-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.travel-expense-split-label {
+  font-size: 10px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.travel-expense-split-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.travel-expense-split-paid select {
+  min-width: 6.5rem;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+.travel-expense-split-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.travel-expense-split-shares {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.travel-expense-split-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.travel-expense-split-table th {
+  font-size: 10px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--line);
+}
+.travel-expense-split-table td {
+  padding: 6px 0;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(220, 212, 189, 0.45);
+}
+.travel-expense-split-table tr:last-child td {
+  border-bottom: none;
+}
+.travel-expense-split-table td.num {
+  width: 6.5rem;
+  text-align: right;
+}
+.travel-expense-split-table td.num input.decimal-input {
+  width: 100%;
+  max-width: 6.5rem;
+  font-size: 13px;
+  padding: 4px 6px;
+  min-height: 0;
+}
+.travel-expense-split-row--off {
+  opacity: 0.55;
+}
+.travel-expense-split-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.travel-expense-split-person input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+.travel-expense-split-person label {
+  display: inline;
+  margin: 0;
+  font-weight: inherit;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1.3;
+}
+.travel-expense-split-total {
+  margin: 6px 0 0;
+  font-size: 12px;
+  text-align: right;
+}
+.travel-expense-modal fieldset > label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.travel-expense-modal fieldset > label input,
+.travel-expense-modal fieldset > label select,
+.travel-expense-modal fieldset > label .decimal-input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
 }
 
 @media (max-width: 760px) {
@@ -2043,23 +2187,62 @@ footer {
     width: 100%;
   }
 
-  .travel-expense-form {
+  .travel-expense-add-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
-    align-items: stretch;
+    gap: 8px;
   }
 
-  .travel-expense-form input,
-  .travel-expense-form select,
-  .travel-expense-form .decimal-input,
-  .travel-expense-form .btn {
-    min-height: 42px;
+  .travel-expense-add-grid input,
+  .travel-expense-add-grid select,
+  .travel-expense-add-grid .decimal-input {
+    min-height: 40px;
     font-size: 15px;
   }
 
-  .travel-expense-form .btn {
+  .travel-expense-add-actions .btn {
     width: 100%;
+    min-height: 40px;
   }
+
+  .travel-expense-split-bar {
+    gap: 8px;
+  }
+
+  .travel-expense-split-paid {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .travel-expense-split-paid select {
+    flex: 1;
+    min-height: 36px;
+  }
+
+  .travel-settlements-card table {
+    min-width: 640px;
+  }
+}
+
+.travel-companion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.travel-companion-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.travel-split-mismatch {
+  color: var(--rust);
+}
+.travel-settlements-card .section-head {
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .modal-backdrop {
