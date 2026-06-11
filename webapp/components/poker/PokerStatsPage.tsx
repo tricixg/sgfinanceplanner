@@ -129,6 +129,18 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
             void load();
             console.info("[PokerStatsPage] session updated", { id: updated.id });
           }}
+          onSessionDeleted={(id) => {
+            setStats((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    sessions: prev.sessions.filter((s) => s.id !== id),
+                  }
+                : prev
+            );
+            void load();
+            console.info("[PokerStatsPage] session deleted", { id });
+          }}
           onImported={({ imported, ledgerSynced }) => {
             void load();
             if (ledgerSynced) {

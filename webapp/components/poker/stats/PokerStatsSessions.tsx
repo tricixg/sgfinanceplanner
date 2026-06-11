@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { fetchJson } from "@/lib/fetch-json";
 import { PokerSessionDetailModal } from "@/components/poker/PokerSessionDetailModal";
 import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal";
 import { PokerImportMenu } from "@/components/poker/PokerImportMenu";
+import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import type { PokerSession } from "@/lib/poker/types";
 import { sessionGameLabel } from "@/lib/poker/types";
 import { pokerProfitSgd } from "@/lib/fx/convert";
@@ -25,16 +27,36 @@ type ImportResult = {
 type Props = {
   sessions: PokerSession[];
   onSessionUpdated: (session: PokerSession) => void;
+  onSessionDeleted: (id: string) => void;
   onImported: (result: ImportResult) => void;
 };
 
 export function PokerStatsSessions({
   sessions,
   onSessionUpdated,
+  onSessionDeleted,
   onImported,
 }: Props) {
   const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
   const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
+  const removeSession = async (session: PokerSession) => {
+    if (!confirm("Delete this poker session?")) return;
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(`/api/poker/${session.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(data.error ?? "Failed to delete");
+      setViewingSession(null);
+      setEditingSession(null);
+      onSessionDeleted(session.id);
+      dispatchDomainEvent("savings:changed");
+      console.info("[PokerStatsSessions] deleted session", { id: session.id });
+    } catch (e) {
+      console.error("[PokerStatsSessions] delete failed", e);
+      alert(e instanceof Error ? e.message : "Failed to delete session");
+    }
+  };
 
   const byYear = new Map<string, PokerSession[]>();
   for (const s of sessions) {
@@ -112,6 +134,7 @@ export function PokerStatsSessions({
             setViewingSession(null);
             console.info("[PokerStatsSessions] edit from detail", { id: viewingSession.id });
           }}
+          onDelete={() => void removeSession(viewingSession)}
         />
       ) : null}
 

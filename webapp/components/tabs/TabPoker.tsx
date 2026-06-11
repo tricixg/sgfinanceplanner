@@ -16,6 +16,8 @@ import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { usePokerSessionForm } from "@/hooks/usePokerSessionForm";
 import { formatPokerPlayedAtDisplay } from "@/lib/poker/played-at";
 import { PokerManageCatalogModal } from "@/components/poker/PokerManageCatalogModal";
+import { PokerSessionDetailModal } from "@/components/poker/PokerSessionDetailModal";
+import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal";
 import { PokerSessionForm } from "@/components/poker/PokerSessionForm";
 import { PokerSessionMobileCard } from "@/components/poker/PokerSessionMobileCard";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
@@ -55,6 +57,8 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
+  const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
 
   const { accounts: financialAccounts } = useFinancialAccounts();
   const cashAccounts = financialAccounts.filter((a) => a.savingsAccountId);
@@ -116,47 +120,43 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- enabled gate only
   }, [enabled]);
 
-  const startEdit = (session: PokerSession) => {
-    form.populateFromSession(session);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   const saveSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isEdit = Boolean(form.editingId);
     const saved = await form.saveSession();
     if (!saved) return;
 
-    if (isEdit) {
-      setItems((prev) => prev.map((x) => (x.id === saved.id ? saved : x)));
-      console.info("[TabPoker] updated session", { id: saved.id });
-    } else {
-      setItems((prev) => [saved, ...prev]);
-      setTotal((t) => t + 1);
-      console.info("[TabPoker] added session", { id: saved.id });
-    }
+    setItems((prev) => [saved, ...prev]);
+    setTotal((t) => t + 1);
+    console.info("[TabPoker] added session", { id: saved.id });
     if (saved.financialAccountId && saved.savingsTransactionId) {
       dispatchDomainEvent("savings:changed");
     }
     form.resetForm();
   };
 
-  const removeSession = async (id: string) => {
+  const removeSession = async (session: PokerSession) => {
     if (!confirm("Delete this poker session?")) return;
     try {
-      const { res, data } = await fetchJson<{ error?: string }>(`/api/poker/${id}`, {
+      const { res, data } = await fetchJson<{ error?: string }>(`/api/poker/${session.id}`, {
         method: "DELETE",
         credentials: "include",
       });
       if (!res.ok) throw new Error(data.error ?? "Failed to delete");
-      setItems((prev) => prev.filter((x) => x.id !== id));
+      setItems((prev) => prev.filter((x) => x.id !== session.id));
       setTotal((t) => Math.max(0, t - 1));
-      if (form.editingId === id) form.resetForm();
+      setViewingSession(null);
+      setEditingSession(null);
       dispatchDomainEvent("savings:changed");
-      console.info("[TabPoker] deleted session", { id });
+      console.info("[TabPoker] deleted session", { id: session.id });
     } catch (err) {
       console.error("[TabPoker] delete failed", err);
+      alert(err instanceof Error ? err.message : "Failed to delete session");
     }
+  };
+
+  const openSession = (session: PokerSession) => {
+    setViewingSession(session);
+    console.info("[TabPoker] view session", { id: session.id });
   };
 
   const monthProfit = items.reduce((s, x) => s + pokerProfitSgd(x), 0);
@@ -211,17 +211,11 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
         </div>
       </div>
 
-      <h2>{form.editingId ? "Edit session" : "Log session"}</h2>
-      {form.editingId ? (
-        <p className="note" style={{ marginBottom: 8 }}>
-          Updating session — changes will resync the linked cash account entry when P/L changes and an account is selected.
-        </p>
-      ) : null}
+      <h2>Log session</h2>
       <PokerSessionForm
         form={form}
         cashAccounts={cashAccounts}
         onSubmit={(e) => void saveSession(e)}
-        onCancel={form.resetForm}
       />
 
       <h2>Recent sessions</h2>
@@ -244,8 +238,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                   session={x}
                   outLabel={outLabel}
                   resultLabel={tournamentResultLabel(x)}
-                  onEdit={() => startEdit(x)}
-                  onDelete={() => void removeSession(x.id)}
+                  onClick={() => openSession(x)}
                 />
               );
             })}
@@ -264,14 +257,26 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                 <th>Result</th>
                 <th>Hrs</th>
                 <th>Note</th>
-                <th />
               </tr>
             </thead>
             <tbody>
               {items.map((x) => {
                 const outLabel = formatSessionReturnCell(x);
                 return (
-                  <tr key={x.id}>
+                  <tr
+                    key={x.id}
+                    className="poker-recent-row--clickable"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View ${x.sessionType === "tournament" ? "tournament" : "cash"} session`}
+                    onClick={() => openSession(x)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openSession(x);
+                      }
+                    }}
+                  >
                     <td>{formatPokerPlayedAtDisplay(x.playedAt)}</td>
                     <td>{x.sessionType === "tournament" ? "MTT" : "Cash"}</td>
                     <td>{x.location || "—"}</td>
@@ -291,22 +296,6 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                     <td>{tournamentResultLabel(x)}</td>
                     <td className="num">{x.hours != null ? x.hours : "—"}</td>
                     <td>{x.note || "—"}</td>
-                    <td className="recurring-actions">
-                      <button
-                        type="button"
-                        className="btn ghost sm"
-                        onClick={() => startEdit(x)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn ghost sm"
-                        onClick={() => void removeSession(x.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
                   </tr>
                 );
               })}
@@ -326,6 +315,31 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
           ) : null}
         </>
       )}
+
+      {viewingSession && !editingSession ? (
+        <PokerSessionDetailModal
+          session={viewingSession}
+          onClose={() => setViewingSession(null)}
+          onEdit={() => {
+            setEditingSession(viewingSession);
+            setViewingSession(null);
+            console.info("[TabPoker] edit from detail", { id: viewingSession.id });
+          }}
+          onDelete={() => void removeSession(viewingSession)}
+        />
+      ) : null}
+
+      {editingSession ? (
+        <PokerSessionEditModal
+          session={editingSession}
+          onClose={() => setEditingSession(null)}
+          onSaved={(updated) => {
+            setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+            setEditingSession(null);
+            console.info("[TabPoker] updated session", { id: updated.id });
+          }}
+        />
+      ) : null}
     </section>
   );
 }

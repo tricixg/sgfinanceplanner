@@ -15,16 +15,14 @@ type Props = {
   session: PokerSession;
   outLabel: string;
   resultLabel: string;
-  onEdit: () => void;
-  onDelete: () => void;
+  onClick: () => void;
 };
 
 export function PokerSessionMobileCard({
   session,
   outLabel,
   resultLabel,
-  onEdit,
-  onDelete,
+  onClick,
 }: Props) {
   const pl = pokerProfitSgd(session);
   const gameLabel =
@@ -33,7 +31,12 @@ export function PokerSessionMobileCard({
       : sessionGameLabel(session);
 
   return (
-    <div className="card poker-session-card poker-recent-card">
+    <button
+      type="button"
+      className="card poker-session-card poker-session-card--clickable poker-recent-card"
+      aria-label={`View ${session.sessionType === "tournament" ? "tournament" : "cash"} session`}
+      onClick={onClick}
+    >
       <div className="poker-session-card-top">
         <div className="poker-recent-card-main">
           <div style={{ fontWeight: 600 }}>
@@ -63,14 +66,6 @@ export function PokerSessionMobileCard({
         </div>
       </dl>
       {session.note ? <p className="note poker-recent-card-note">{session.note}</p> : null}
-      <div className="poker-recent-card-actions">
-        <button type="button" className="btn ghost sm" onClick={onEdit}>
-          Edit
-        </button>
-        <button type="button" className="btn ghost sm" onClick={onDelete}>
-          Delete
-        </button>
-      </div>
-    </div>
+    </button>
   );
 }

@@ -21,6 +21,7 @@ type Props = {
   session: PokerSession;
   onClose: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 };
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -45,7 +46,7 @@ function formatTournamentResult(session: PokerSession): string {
   return "—";
 }
 
-export function PokerSessionDetailModal({ session, onClose, onEdit }: Props) {
+export function PokerSessionDetailModal({ session, onClose, onEdit, onDelete }: Props) {
   const pl = pokerProfitSgd(session);
   const metrics = sessionMetrics([session]);
   const isTournament = session.sessionType === "tournament";
@@ -195,6 +196,9 @@ export function PokerSessionDetailModal({ session, onClose, onEdit }: Props) {
         <div className="toolbar poker-session-detail-actions">
           <button type="button" className="btn" onClick={onEdit}>
             Edit session
+          </button>
+          <button type="button" className="btn del sm" onClick={onDelete}>
+            Delete session
           </button>
         </div>
       </div>

@@ -2539,11 +2539,23 @@ footer {
 .poker-recent-card-note {
   margin: 8px 0 0;
 }
-.poker-recent-card-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+.poker-recent-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  font: inherit;
+}
+.poker-recent-row--clickable {
+  cursor: pointer;
+}
+.poker-recent-row--clickable:hover {
+  background: var(--sand);
+}
+.poker-recent-row--clickable:focus-visible {
+  outline: 2px solid var(--moss);
+  outline-offset: -2px;
 }
 .poker-recent-table table {
   width: 100%;
@@ -2599,7 +2611,8 @@ footer {
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.02em;
-  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .poker-stats-summary-stat--accent .poker-stats-summary-value {
   color: #fff;
@@ -2703,10 +2716,6 @@ footer {
   .poker-session-card-top {
     align-items: flex-start;
   }
-  .poker-recent-card-actions .btn {
-    flex: 1 1 calc(50% - 4px);
-    min-height: 40px;
-  }
 
   .poker-stats-table-scroll table {
     min-width: 18rem;
@@ -2789,7 +2798,7 @@ footer {
     font-size: 13px;
   }
   .poker-session-detail-actions {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
   }
   .poker-session-detail-actions .btn {
