@@ -78,6 +78,21 @@ describe("parsePokerSessionBody", () => {
     }
   });
 
+  it("defaults to SGD when currency omitted", () => {
+    const r = parsePokerSessionBody({
+      sessionType: "cash_game",
+      buyIn: 100,
+      cashOut: 150,
+      gameId: "g-1",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.currency).toBe("SGD");
+      expect(r.data.fxRateToSgd).toBe(1);
+      expect(r.data.fxRateManual).toBe(false);
+    }
+  });
+
   it("allows missing financial account", () => {
     const r = parsePokerSessionBody({
       sessionType: "cash_game",

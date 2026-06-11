@@ -132,7 +132,7 @@ export function parsePokerSessionBody(
   }
 
   let fxRateToSgd = 1;
-  let fxRateManual = body.fxRateManual === true;
+  const fxRateManual = body.fxRateManual === true;
   if (body.fxRateManual === true) {
     const rate = typeof body.fxRateToSgd === "number" ? body.fxRateToSgd : NaN;
     if (!Number.isFinite(rate) || rate <= 0) {

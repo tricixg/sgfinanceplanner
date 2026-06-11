@@ -5,6 +5,7 @@ import { Chart } from "react-chartjs-2";
 import type { ChartOptions } from "chart.js";
 import { ensureChartsRegistered } from "@/components/chart-setup";
 import type { LocationDetailStats } from "@/lib/poker/stats";
+import { fmt2 } from "@/lib/finance/helpers";
 import { pokerProfitSgd } from "@/lib/fx/convert";
 import {
   formatSessionAmountWithSgd,

@@ -5,7 +5,7 @@ import {
 } from "@/lib/fx/convert";
 import { ymFromPokerPlayedAt } from "@/lib/poker/played-at";
 import type { PokerSession, PokerSessionType } from "@/lib/poker/types";
-import { formatGameStakes, sessionGameLabel } from "@/lib/poker/types";
+import { sessionGameLabel } from "@/lib/poker/types";
 
 export type StatsSlice = PokerSessionType | "all";
 

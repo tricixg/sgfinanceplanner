@@ -1,4 +1,5 @@
 import type { Context } from "grammy";
+import { BASE_REPORTING_CURRENCY } from "@/lib/fx/currencies";
 import type { PokerSessionBody } from "@/lib/poker/save-session";
 import {
   accountPickerKindForFlow,
@@ -166,6 +167,7 @@ function applyOptionalPokerFields(
   }
 }
 
+/** Telegram poker sessions are always logged in SGD (no currency prompt in bot). */
 export function buildPokerBodyFromPayload(
   payload: Record<string, unknown>
 ): PokerSessionBody | null {
@@ -175,6 +177,12 @@ export function buildPokerBodyFromPayload(
   const location =
     typeof payload.location === "string" ? payload.location.trim() : "";
 
+  const sgdDefaults = {
+    currency: BASE_REPORTING_CURRENCY,
+    fxRateToSgd: 1,
+    fxRateManual: false,
+  } as const;
+
   if (sessionType === "cash_game") {
     const body: PokerSessionBody = {
       sessionType: "cash_game",
@@ -183,6 +191,7 @@ export function buildPokerBodyFromPayload(
       cashOut: Number(payload.cashOut),
       playedAt: String(payload.playedAt ?? sgtNowInputDateTime()),
       location,
+      ...sgdDefaults,
     };
     if (hours != null) body.hours = hours;
     applyOptionalPokerFields(body, payload);
@@ -199,6 +208,7 @@ export function buildPokerBodyFromPayload(
       amountWon: tournamentResult === "placed" ? Number(payload.amountWon) : 0,
       playedAt: String(payload.playedAt ?? sgtNowInputDateTime()),
       location,
+      ...sgdDefaults,
     };
     if (hours != null) body.hours = hours;
     applyOptionalPokerFields(body, payload);

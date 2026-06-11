@@ -7,7 +7,6 @@ import { fmt2 } from "@/lib/finance/helpers";
 import { BASE_REPORTING_CURRENCY, POKER_CURRENCIES } from "@/lib/fx/currencies";
 import { pokerProfitSgd } from "@/lib/fx/convert";
 import {
-  formatNativeMoney,
   formatSessionAmountWithSgd,
   formatSessionPlCell,
 } from "@/lib/poker/format-session-amount";
@@ -87,7 +86,6 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
   const [currency, setCurrency] = useState(BASE_REPORTING_CURRENCY);
-  const [fxRateToSgd, setFxRateToSgd] = useState(1);
   const [fxRateManual, setFxRateManual] = useState(false);
   const [fxRateDate, setFxRateDate] = useState("");
   const [fxSource, setFxSource] = useState("");
@@ -144,12 +142,13 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   useEffect(() => {
     setOffset(0);
     void load(false);
+    // Reload when sign-in becomes available; offset reset is intentional on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- enabled gate only
   }, [enabled]);
 
   const loadFxRate = useCallback(async () => {
     if (!enabled || fxRateManual) return;
     if (currency === BASE_REPORTING_CURRENCY) {
-      setFxRateToSgd(1);
       setFxDraft("1");
       setFxRateDate("");
       setFxSource("identity");
@@ -175,7 +174,6 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
         setFxRateManual(true);
         return;
       }
-      setFxRateToSgd(data.rate);
       setFxDraft(String(data.rate));
       setFxRateDate(data.rateDate ?? date);
       setFxSource(data.source ?? "");
@@ -221,7 +219,6 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     setNewLocationName("");
     setShowNewGame(false);
     setCurrency(BASE_REPORTING_CURRENCY);
-    setFxRateToSgd(1);
     setFxRateManual(false);
     setFxRateDate("");
     setFxSource("");
@@ -295,7 +292,6 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     );
     skipFxFetch.current = true;
     setCurrency(session.currency);
-    setFxRateToSgd(session.fxRateToSgd);
     setFxRateManual(session.fxRateManual);
     setFxDraft(String(session.fxRateToSgd));
     setFxRateDate("");

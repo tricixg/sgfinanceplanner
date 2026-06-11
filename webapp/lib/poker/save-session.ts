@@ -12,7 +12,6 @@ import { resolveSessionFx } from "@/lib/poker/resolve-fx";
 
 export type { PokerSessionBody } from "@/lib/poker/session-input";
 import type { PokerSession } from "@/lib/poker/types";
-import { pokerProfit } from "@/lib/poker/types";
 import { pokerProfitSgd } from "@/lib/fx/convert";
 
 export async function insertPokerSession(
