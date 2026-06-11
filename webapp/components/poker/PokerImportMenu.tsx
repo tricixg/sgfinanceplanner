@@ -185,7 +185,11 @@ export function PokerImportMenu({ onImported }: Props) {
         return;
       }
 
-      if ((event.warnings?.length ?? 0) > 0) {
+      if (event.type !== "complete") {
+        throw new Error("Import ended unexpectedly");
+      }
+
+      if (event.warnings.length > 0) {
         console.info("[PokerImportMenu] import warnings", event.warnings);
       }
 
@@ -193,7 +197,7 @@ export function PokerImportMenu({ onImported }: Props) {
       close();
       onImported({
         imported: event.imported,
-        warnings: event.warnings ?? [],
+        warnings: event.warnings,
         ledgerSynced: event.ledgerSynced,
         sessions: event.sessions,
       });
