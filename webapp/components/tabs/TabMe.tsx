@@ -296,7 +296,9 @@ export function TabMe({
                   }))
                 }
               />
-              <span></span>
+              <span className="note" style={{ gridColumn: "2 / -1" }}>
+                Shorter months use the last day (e.g. 31 → 30 in Apr, 28/29 in Feb).
+              </span>
               <span></span>
               <span></span>
             </div>

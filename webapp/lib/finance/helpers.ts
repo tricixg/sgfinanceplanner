@@ -62,5 +62,12 @@ export function clampDay(year: number, month: number, day: number): number {
   return Math.min(Math.max(1, day), last);
 }
 
+/** Calendar day for a YM — e.g. day 31 in Feb becomes 28/29. Month is 1-based in `ym`. */
+export function effectiveCalendarDay(day: number, ym: string): number {
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return Math.min(31, Math.max(1, Math.round(day)));
+  return clampDay(y, m - 1, day);
+}
+
 export const CHART_FONT = "'SF Mono',ui-monospace,Menlo,monospace";
 export const CHART_COLOR = "#7d7560";

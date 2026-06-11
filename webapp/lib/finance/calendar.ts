@@ -7,7 +7,7 @@ import {
 import { creditCardLabel } from "./card-linking";
 import { stableTakeHome } from "./cashflow";
 import { getRecurringCalendarEvents } from "@/lib/recurring/calendar-events";
-import { clampDay, formatMonthLabel } from "./helpers";
+import { clampDay, effectiveCalendarDay, formatMonthLabel } from "./helpers";
 
 export type { CardCalendarCycle } from "@/lib/finance/calendar-cards";
 
@@ -46,7 +46,7 @@ export function getCalendarEvents(
   const events: CalendarEvent[] = [];
   const takeHome = stableTakeHome(S);
 
-  const salDay = clampDay(year, month, S.salaryCreditDay);
+  const salDay = effectiveCalendarDay(S.salaryCreditDay, viewYm);
   events.push({
     day: salDay,
     type: "salary",

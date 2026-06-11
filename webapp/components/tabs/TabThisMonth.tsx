@@ -18,7 +18,13 @@ import {
   buildCardCyclesForMonth,
   type CalendarCardSchedule,
 } from "@/lib/finance/build-calendar-cycles";
-import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import {
+  currentYm,
+  effectiveCalendarDay,
+  fmt,
+  fmt2,
+  formatMonthLabel,
+} from "@/lib/finance/helpers";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 type Props = {
@@ -156,6 +162,10 @@ export function TabThisMonth({ state: S }: Props) {
     return sumStatementBalancesFromCycles(viewYm, cardCycles);
   }, [cardCycles, viewYm]);
   const stmtDueYm = addMonthsYm(viewYm, 1);
+  const salaryDayThisMonth = useMemo(
+    () => effectiveCalendarDay(S.salaryCreditDay, viewYm),
+    [S.salaryCreditDay, viewYm]
+  );
 
   return (
     <section className="panel on">
@@ -176,7 +186,14 @@ export function TabThisMonth({ state: S }: Props) {
         </div>
         <div className="stat">
           <div className="lbl">Salary credit day</div>
-          <div className="val">Day {S.salaryCreditDay}</div>
+          <div className="val">
+            Day {salaryDayThisMonth}
+            {salaryDayThisMonth !== S.salaryCreditDay ? (
+              <span className="note" style={{ display: "block", fontSize: "0.85em" }}>
+                (day {S.salaryCreditDay} → last day this month)
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
