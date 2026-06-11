@@ -674,6 +674,17 @@ tfoot td {
 .other-loan-pay-history-table td:last-child {
   white-space: normal;
 }
+.statement-cycle-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.statement-cycle-month {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 8rem;
+  text-align: center;
+}
 .other-loans-table {
   table-layout: fixed;
   min-width: 1300px;

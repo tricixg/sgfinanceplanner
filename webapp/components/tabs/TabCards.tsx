@@ -45,11 +45,13 @@ type Props = {
 export function TabCards({ state: S, setState, cardsApi }: Props) {
   const creditCards = cardsApi?.configured ? cardsApi.cards : S.creditCards;
   const statementsEnabled = Boolean(cardsApi?.configured);
+  const [statementCycleOffset, setStatementCycleOffset] = useState(0);
   const {
     bundle,
     loading: statementsLoading,
+    navigating: statementsNavigating,
     reload: reloadStatements,
-  } = useCardStatements(statementsEnabled);
+  } = useCardStatements(statementsEnabled, statementCycleOffset);
   const { reload: reloadFinancialAccounts } = useFinancialAccounts();
   const { configured: accountsConfigured, reload: reloadCashAccounts } = useAccounts();
 
@@ -403,11 +405,52 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
 
       {statementsEnabled && (
         <>
-          <h2 style={{ marginTop: 24 }}>Statements</h2>
+          <div className="section-head" style={{ marginTop: 24 }}>
+            <h2>Statements</h2>
+            <div className="statement-cycle-nav">
+              <button
+                type="button"
+                className="btn ghost sm"
+                disabled={statementsNavigating || !bundle.navigation?.canGoOlder}
+                onClick={() => {
+                  setStatementCycleOffset((n) => n + 1);
+                  console.info("[TabCards] statement cycle prev", {
+                    nextOffset: statementCycleOffset + 1,
+                  });
+                }}
+              >
+                {statementsNavigating ? "…" : "Prev"}
+              </button>
+              <span className="statement-cycle-month">
+                {bundle.navigation?.batchMonthLabel ?? "—"}
+              </span>
+              {statementCycleOffset > 0 ? (
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  disabled={statementsNavigating}
+                  onClick={() => {
+                    setStatementCycleOffset((n) => Math.max(0, n - 1));
+                    console.info("[TabCards] statement cycle next", {
+                      nextOffset: Math.max(0, statementCycleOffset - 1),
+                    });
+                  }}
+                >
+                  {statementsNavigating ? "…" : "Next"}
+                </button>
+              ) : null}
+            </div>
+          </div>
           <p className="note" style={{ marginBottom: 8 }}>
-            Latest closed cycle per card. Enter amounts from your bank statement, then save
-            and record payment.
+            {statementCycleOffset === 0
+              ? "Current statement month for all cards — updates together on the earliest statement day among your cards (e.g. day 12 unlocks June for every card, including a day-21 card). Enter amounts from your bank statement, then save and record payment."
+              : "Earlier statement month for all cards (Prev steps back one month together)."}
           </p>
+          {statementsNavigating ? (
+            <p className="note" style={{ marginBottom: 8 }}>
+              Loading statements…
+            </p>
+          ) : null}
           <CardStatementList
             cards={creditCards}
             statementByCardKey={statementByCardKey}

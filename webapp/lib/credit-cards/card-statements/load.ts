@@ -8,10 +8,17 @@ import {
 } from "@/lib/cards/interest-accrual";
 import { estimateInterestAfterDue, recomputeInterestForStatement } from "./interest";
 import {
+  canViewOlderStatementBatch,
+  findStatementForBatchOffset,
+  resolveEarliestStatementDay,
+} from "./batch-statement";
+import {
   cycleBoundsFromClose,
+  isStatementClosed,
   openCycleBounds,
   paymentDueDate,
   recentStatementCloseDates,
+  statementBatchMonthLabel,
 } from "@/lib/cards/statement-cycle";
 import {
   buildCardSpendIndex,
@@ -153,16 +160,38 @@ export async function ensureStatementRows(
   );
 }
 
+function closedStatementsNewestFirst(
+  rows: DbCardStatement[],
+  today: string
+): DbCardStatement[] {
+  return rows
+    .filter((r) => isStatementClosed(r.statementCloseDate, today))
+    .sort((a, b) => b.statementCloseDate.localeCompare(a.statementCloseDate));
+}
+
+/** Closed statement at `offset` cycles before the latest (0 = latest closed). */
+export function findClosedStatementAtOffset(
+  rows: DbCardStatement[],
+  today: string,
+  offset: number
+): DbCardStatement | undefined {
+  if (offset < 0) return undefined;
+  const closed = closedStatementsNewestFirst(rows, today);
+  if (offset < closed.length) return closed[offset];
+  if (offset === 0 && closed.length === 0 && rows.length > 0) {
+    return [...rows].sort((a, b) =>
+      b.statementCloseDate.localeCompare(a.statementCloseDate)
+    )[0];
+  }
+  return undefined;
+}
+
 /** Most recent statement whose billing cycle has ended. */
 export function findLatestClosedStatement(
   rows: DbCardStatement[],
   today: string
 ): DbCardStatement | undefined {
-  const closed = rows.filter((r) => r.cycleEndDate < today);
-  if (closed.length === 0) return undefined;
-  return closed.sort((a, b) =>
-    b.statementCloseDate.localeCompare(a.statementCloseDate)
-  )[0];
+  return findClosedStatementAtOffset(rows, today, 0);
 }
 
 function enrichStatement(
@@ -186,7 +215,7 @@ function enrichStatement(
     interestAccrued: interest,
     amountPaid: base.amountPaid,
   });
-  const isClosed = today > base.cycleEndDate;
+  const isClosed = isStatementClosed(base.statementCloseDate, today);
   const isOverdue =
     today > base.paymentDueDate && outstanding > 0 && !base.paidAt;
 
@@ -202,9 +231,11 @@ function enrichStatement(
 export async function loadCardStatementsBundle(
   supabase: SupabaseClient,
   userId: string,
-  cardsInput: DbCreditCard[]
+  cardsInput: DbCreditCard[],
+  cycleOffset = 0
 ): Promise<CardStatementsBundle> {
   const today = sgtTodayYmd();
+  const safeOffset = Math.max(0, Math.min(HISTORY_CYCLES - 1, Math.floor(cycleOffset)));
   const statements: CardStatementComputed[] = [];
   const openCycles: OpenCycleEstimate[] = [];
 
@@ -237,6 +268,7 @@ export async function loadCardStatementsBundle(
       ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
       : new Map();
 
+  const earliestDay = resolveEarliestStatementDay(cards);
 
   await Promise.all(
     cards.map(async (card, cardIdx) => {
@@ -254,22 +286,30 @@ export async function loadCardStatementsBundle(
         latestClosed =
           rows.find((r) => r.statementCloseDate !== openClose) ?? rows[0];
       }
-      if (latestClosed) {
+
+      const viewedClosed = findStatementForBatchOffset(
+        rows,
+        card,
+        today,
+        earliestDay,
+        safeOffset
+      );
+      if (viewedClosed) {
         const tracked = cycleSpendTotal(
           spendIndex,
-          latestClosed.cycleStartDate,
-          latestClosed.cycleEndDate
+          viewedClosed.cycleStartDate,
+          viewedClosed.cycleEndDate
         );
         const interest = await recomputeInterestForStatement(
           supabase,
           userId,
           card,
-          latestClosed,
+          viewedClosed,
           spendIndex
         );
         statements.push(
           enrichStatement(
-            latestClosed,
+            viewedClosed,
             { creditCardKey: card.cardKey, cardName: card.name },
             interest,
             tracked
@@ -343,13 +383,33 @@ export async function loadCardStatementsBundle(
   statements.sort((a, b) => a.cardName.localeCompare(b.cardName));
   openCycles.sort((a, b) => a.cardName.localeCompare(b.cardName));
 
+  const closeDates = statements
+    .map((s) => s.statementCloseDate)
+    .sort((a, b) => a.localeCompare(b));
+
+  const navigation = {
+    cycleOffset: safeOffset,
+    canGoOlder: canViewOlderStatementBatch(
+      cards,
+      rowsByCard,
+      today,
+      earliestDay,
+      safeOffset
+    ),
+    canGoNewer: safeOffset > 0,
+    batchMonthLabel: statementBatchMonthLabel(today, earliestDay, safeOffset),
+    oldestCloseDate: closeDates[0] ?? null,
+    newestCloseDate: closeDates[closeDates.length - 1] ?? null,
+  };
+
   console.info("[card-statements] loaded bundle", {
     userId,
     statements: statements.length,
     openCycles: openCycles.length,
+    cycleOffset: safeOffset,
   });
 
-  return { configured: true, statements, openCycles };
+  return { configured: true, statements, openCycles, navigation };
 }
 
 export async function updateStatementFields(

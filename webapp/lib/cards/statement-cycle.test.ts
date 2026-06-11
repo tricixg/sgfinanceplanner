@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeStatementBatchMonth,
   cycleBoundsFromClose,
+  earliestStatementDay,
+  isStatementClosed,
   openCycleBounds,
   paymentDueDate,
   statementCloseForSpend,
+  statementBatchMonthLabel,
+  targetStatementCloseForBatch,
 } from "./statement-cycle";
 
 describe("statement-cycle", () => {
@@ -38,5 +43,55 @@ describe("statement-cycle", () => {
     expect(cycleStart).toBe("2026-05-22");
     expect(cycleEnd).toBe("2026-06-21");
     expect(statementClose).toBe("2026-06-21");
+  });
+
+  it("statement is closed on its statement close date", () => {
+    expect(isStatementClosed("2026-06-12", "2026-06-12")).toBe(true);
+    expect(isStatementClosed("2026-06-12", "2026-06-11")).toBe(false);
+    expect(isStatementClosed("2026-06-12", "2026-06-13")).toBe(true);
+  });
+
+  it("unlocks statement batch on earliest card day for all cards", () => {
+    const earliest = earliestStatementDay([12, 21]);
+    expect(earliest).toBe(12);
+
+    expect(activeStatementBatchMonth("2026-06-11", earliest)).toEqual({
+      year: 2026,
+      monthIndex: 4,
+    });
+    expect(targetStatementCloseForBatch(12, "2026-06-11", earliest)).toBe(
+      "2026-05-12"
+    );
+    expect(targetStatementCloseForBatch(21, "2026-06-11", earliest)).toBe(
+      "2026-05-21"
+    );
+
+    expect(activeStatementBatchMonth("2026-06-12", earliest)).toEqual({
+      year: 2026,
+      monthIndex: 5,
+    });
+    expect(targetStatementCloseForBatch(12, "2026-06-12", earliest)).toBe(
+      "2026-06-12"
+    );
+    expect(targetStatementCloseForBatch(21, "2026-06-12", earliest)).toBe(
+      "2026-06-21"
+    );
+
+    expect(targetStatementCloseForBatch(21, "2026-06-20", earliest)).toBe(
+      "2026-06-21"
+    );
+    expect(targetStatementCloseForBatch(12, "2026-07-05", earliest)).toBe(
+      "2026-06-12"
+    );
+    expect(targetStatementCloseForBatch(21, "2026-07-05", earliest)).toBe(
+      "2026-06-21"
+    );
+    expect(targetStatementCloseForBatch(12, "2026-07-12", earliest)).toBe(
+      "2026-07-12"
+    );
+
+    expect(statementBatchMonthLabel("2026-06-12", earliest)).toBe("June 2026");
+    expect(statementBatchMonthLabel("2026-06-11", earliest)).toBe("May 2026");
+    expect(statementBatchMonthLabel("2026-06-12", earliest, 1)).toBe("May 2026");
   });
 });

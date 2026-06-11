@@ -15,3 +15,4 @@ export function fmtCardDate(ymd: string): string {
     year: "numeric",
   });
 }
+

@@ -39,8 +39,19 @@ export type OpenCycleEstimate = {
   daysLeftInCycle: number;
 };
 
+export type StatementCycleNavigation = {
+  cycleOffset: number;
+  canGoOlder: boolean;
+  canGoNewer: boolean;
+  /** Statement batch month shown in the table, e.g. "June 2026". */
+  batchMonthLabel: string;
+  oldestCloseDate: string | null;
+  newestCloseDate: string | null;
+};
+
 export type CardStatementsBundle = {
   configured: boolean;
   statements: CardStatementComputed[];
   openCycles: OpenCycleEstimate[];
+  navigation?: StatementCycleNavigation;
 };

@@ -124,3 +124,104 @@ export function isDateInRange(
 ): boolean {
   return ymd >= start && ymd <= end;
 }
+
+/** Statement appears in the closed table on its statement close date (inclusive). */
+export function isStatementClosed(
+  statementCloseDate: string,
+  asOfDate: string
+): boolean {
+  return statementCloseDate <= asOfDate;
+}
+
+/** Earliest statement day across cards — batch unlocks for all cards on this day each month. */
+export function earliestStatementDay(statementDays: number[]): number {
+  if (statementDays.length === 0) return 1;
+  return Math.min(...statementDays);
+}
+
+export function statementBatchUnlockDateForMonth(
+  year: number,
+  monthIndex: number,
+  earliestStatementDay: number
+): string {
+  return clampDayInMonth(year, monthIndex, earliestStatementDay);
+}
+
+/**
+ * Calendar month whose statement batch is shown in the statements table.
+ * Unlocks on the earliest statement day each month for all cards together.
+ */
+export function activeStatementBatchMonth(
+  today: string,
+  earliestStatementDay: number
+): { year: number; monthIndex: number } {
+  const d = parseYmd(today);
+  let year = d.getUTCFullYear();
+  let monthIndex = d.getUTCMonth();
+  const unlock = statementBatchUnlockDateForMonth(
+    year,
+    monthIndex,
+    earliestStatementDay
+  );
+  if (today < unlock) {
+    monthIndex -= 1;
+    if (monthIndex < 0) {
+      monthIndex = 11;
+      year -= 1;
+    }
+  }
+  return { year, monthIndex };
+}
+
+/** Statement close date for a card in the active batch month (0 = current batch). */
+export function targetStatementCloseForBatch(
+  cardStatementDay: number,
+  today: string,
+  earliestStatementDay: number,
+  batchOffset = 0
+): string {
+  const active = activeStatementBatchMonth(today, earliestStatementDay);
+  const { year, monthIndex } = shiftBatchMonth(
+    active.year,
+    active.monthIndex,
+    batchOffset
+  );
+  return clampDayInMonth(year, monthIndex, cardStatementDay);
+}
+
+function shiftBatchMonth(
+  year: number,
+  monthIndex: number,
+  batchOffset: number
+): { year: number; monthIndex: number } {
+  let y = year;
+  let m = monthIndex - batchOffset;
+  while (m < 0) {
+    m += 12;
+    y -= 1;
+  }
+  while (m > 11) {
+    m -= 12;
+    y += 1;
+  }
+  return { year: y, monthIndex: m };
+}
+
+/** Display label for the statement batch month shown in the table (e.g. "June 2026"). */
+export function statementBatchMonthLabel(
+  today: string,
+  earliestStatementDay: number,
+  batchOffset = 0
+): string {
+  const active = activeStatementBatchMonth(today, earliestStatementDay);
+  const { year, monthIndex } = shiftBatchMonth(
+    active.year,
+    active.monthIndex,
+    batchOffset
+  );
+  return new Date(Date.UTC(year, monthIndex, 1)).toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
