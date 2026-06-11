@@ -35,6 +35,14 @@ export function plClass(value: number): string {
   return "";
 }
 
+/** Green above 50% session win rate, red below. */
+export function wonPctClass(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return "";
+  if (value > 50) return "pl-pos";
+  if (value < 50) return "pl-neg";
+  return "";
+}
+
 import { formatPokerPlayedAtDisplay, pokerPlayedAtToLedgerIso } from "@/lib/poker/played-at";
 
 export function formatSessionDate(playedAt: string): string {

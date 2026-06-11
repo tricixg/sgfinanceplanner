@@ -4,10 +4,12 @@ import type { PokerStatsBundle, StatsSlice } from "@/lib/poker/stats";
 import { fmt2 } from "@/lib/finance/helpers";
 import {
   formatHourly,
+  formatHours,
   formatPct,
   formatPl,
   formatPlPlain,
   plClass,
+  wonPctClass,
 } from "@/components/poker/stats/format";
 
 type Props = { stats: PokerStatsBundle };
@@ -18,13 +20,13 @@ const SLICE_LABEL: Record<StatsSlice, string> = {
   all: "Total",
 };
 
-function MetricTable({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: { label: string; values: Record<StatsSlice, string> }[];
-}) {
+type MetricRow = {
+  label: string;
+  values: Record<StatsSlice, string>;
+  cellClass?: Partial<Record<StatsSlice, string>>;
+};
+
+function MetricTable({ title, rows }: { title: string; rows: MetricRow[] }) {
   const cols: StatsSlice[] = ["cash_game", "tournament", "all"];
   return (
     <div className="card table-scroll poker-stats-table-scroll" style={{ marginBottom: 16 }}>
@@ -45,7 +47,7 @@ function MetricTable({
             <tr key={row.label}>
               <td>{row.label}</td>
               {cols.map((c) => (
-                <td key={c} className="num">
+                <td key={c} className={["num", row.cellClass?.[c]].filter(Boolean).join(" ")}>
                   {row.values[c]}
                 </td>
               ))}
@@ -86,6 +88,11 @@ export function PokerStatsOverview({ stats }: Props) {
         tournament: formatPl(fin.tournament.netProfit),
         all: formatPl(fin.all.netProfit),
       },
+      cellClass: {
+        cash_game: plClass(fin.cash_game.netProfit),
+        tournament: plClass(fin.tournament.netProfit),
+        all: plClass(fin.all.netProfit),
+      },
     },
   ];
 
@@ -101,9 +108,9 @@ export function PokerStatsOverview({ stats }: Props) {
     {
       label: "Hours",
       values: {
-        cash_game: met.cash_game.hours ? fmt2(met.cash_game.hours) : "—",
-        tournament: met.tournament.hours ? fmt2(met.tournament.hours) : "—",
-        all: met.all.hours ? fmt2(met.all.hours) : "—",
+        cash_game: formatHours(met.cash_game.hours),
+        tournament: formatHours(met.tournament.hours),
+        all: formatHours(met.all.hours),
       },
     },
     {
@@ -113,6 +120,11 @@ export function PokerStatsOverview({ stats }: Props) {
         tournament: formatHourly(met.tournament.hourly),
         all: formatHourly(met.all.hourly),
       },
+      cellClass: {
+        cash_game: plClass(met.cash_game.hourly ?? 0),
+        tournament: plClass(met.tournament.hourly ?? 0),
+        all: plClass(met.all.hourly ?? 0),
+      },
     },
     {
       label: "ROI",
@@ -121,6 +133,11 @@ export function PokerStatsOverview({ stats }: Props) {
         tournament: formatPct(met.tournament.roi),
         all: formatPct(met.all.roi),
       },
+      cellClass: {
+        cash_game: plClass(met.cash_game.roi ?? 0),
+        tournament: plClass(met.tournament.roi ?? 0),
+        all: plClass(met.all.roi ?? 0),
+      },
     },
     {
       label: "Won",
@@ -128,6 +145,11 @@ export function PokerStatsOverview({ stats }: Props) {
         cash_game: formatPct(met.cash_game.wonPct),
         tournament: formatPct(met.tournament.wonPct),
         all: formatPct(met.all.wonPct),
+      },
+      cellClass: {
+        cash_game: wonPctClass(met.cash_game.wonPct),
+        tournament: wonPctClass(met.tournament.wonPct),
+        all: wonPctClass(met.all.wonPct),
       },
     },
     {
@@ -147,6 +169,12 @@ export function PokerStatsOverview({ stats }: Props) {
         tournament:
           met.tournament.avgProfit != null ? formatPl(met.tournament.avgProfit) : "—",
         all: met.all.avgProfit != null ? formatPl(met.all.avgProfit) : "—",
+      },
+      cellClass: {
+        cash_game: met.cash_game.avgProfit != null ? plClass(met.cash_game.avgProfit) : "",
+        tournament:
+          met.tournament.avgProfit != null ? plClass(met.tournament.avgProfit) : "",
+        all: met.all.avgProfit != null ? plClass(met.all.avgProfit) : "",
       },
     },
   ];
@@ -251,8 +279,8 @@ export function PokerStatsOverview({ stats }: Props) {
             </tr>
             <tr>
               <td>ROI</td>
-              <td className="num">{formatPct(current.roi)}</td>
-              <td className="num">{formatPct(previous.roi)}</td>
+              <td className={`num ${plClass(current.roi ?? 0)}`}>{formatPct(current.roi)}</td>
+              <td className={`num ${plClass(previous.roi ?? 0)}`}>{formatPct(previous.roi)}</td>
             </tr>
           </tbody>
         </table>
