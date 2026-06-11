@@ -29,6 +29,9 @@ export type PokerSession = {
   amountWon: number | null;
   hours: number | null;
   note: string;
+  currency: string;
+  fxRateToSgd: number;
+  fxRateManual: boolean;
   financialAccountId: string | null;
   savingsTransactionId: string | null;
   createdAt: string;

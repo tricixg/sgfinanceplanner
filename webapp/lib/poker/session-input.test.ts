@@ -49,6 +49,35 @@ describe("parsePokerSessionBody", () => {
     expect(r.ok).toBe(false);
   });
 
+  it("rejects unsupported currency", () => {
+    const r = parsePokerSessionBody({
+      sessionType: "cash_game",
+      buyIn: 100,
+      cashOut: 150,
+      gameId: "g-1",
+      currency: "XYZ",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("parses manual fx rate", () => {
+    const r = parsePokerSessionBody({
+      sessionType: "cash_game",
+      buyIn: 100,
+      cashOut: 150,
+      gameId: "g-1",
+      currency: "USD",
+      fxRateManual: true,
+      fxRateToSgd: 1.34,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.currency).toBe("USD");
+      expect(r.data.fxRateToSgd).toBe(1.34);
+      expect(r.data.fxRateManual).toBe(true);
+    }
+  });
+
   it("allows missing financial account", () => {
     const r = parsePokerSessionBody({
       sessionType: "cash_game",

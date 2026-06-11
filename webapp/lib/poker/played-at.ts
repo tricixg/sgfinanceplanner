@@ -39,6 +39,18 @@ export function pokerPlayedAtToLedgerIso(playedAt: string): string {
   return parsePokerPlayedAtInput(v);
 }
 
+/** Calendar date (YYYY-MM-DD) in SGT for FX lookups. */
+export function pokerPlayedAtYmd(playedAt: string): string {
+  const v = playedAt.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  const d = new Date(v);
+  if (!Number.isNaN(d.getTime())) {
+    const p = sgtParts(d);
+    return `${p.year}-${p.month}-${p.day}`;
+  }
+  return sgtTodayYmd();
+}
+
 /** YYYY-MM in Singapore for stats / month filters. */
 export function ymFromPokerPlayedAt(playedAt: string): string {
   const d = new Date(pokerPlayedAtToLedgerIso(playedAt));

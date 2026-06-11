@@ -5,13 +5,12 @@ import { pokerProfit } from "@/lib/poker/types";
 
 function session(partial: Partial<PokerSession> & Pick<PokerSession, "playedAt">): PokerSession {
   return {
-    id: partial.id ?? "s1",
+    id: "s1",
     userId: "u1",
-    sessionType: partial.sessionType ?? "cash_game",
-    playedAt: partial.playedAt,
-    buyIn: partial.buyIn ?? 100,
-    cashOut: partial.cashOut ?? 150,
-    location: partial.location ?? "Home",
+    sessionType: "cash_game",
+    buyIn: 100,
+    cashOut: 150,
+    location: "Home",
     tournamentName: null,
     gameId: null,
     game: null,
@@ -20,8 +19,11 @@ function session(partial: Partial<PokerSession> & Pick<PokerSession, "playedAt">
     tournamentPlace: null,
     tournamentEntries: null,
     amountWon: null,
-    hours: partial.hours ?? 2,
+    hours: 2,
     note: "",
+    currency: "SGD",
+    fxRateToSgd: 1,
+    fxRateManual: false,
     financialAccountId: null,
     savingsTransactionId: null,
     createdAt: "",
@@ -46,6 +48,21 @@ describe("buildPokerStats", () => {
     expect(stats.overview.financial.all.netProfit).toBe(50);
     expect(stats.overview.financial.cash_game.netProfit).toBe(100);
     expect(stats.overview.financial.tournament.netProfit).toBe(-50);
+  });
+
+  it("converts mixed currencies to SGD for totals", () => {
+    const stats = buildPokerStats([
+      session({ id: "1", playedAt: "2026-05-01", buyIn: 100, cashOut: 200, currency: "SGD" }),
+      session({
+        id: "2",
+        playedAt: "2026-05-02",
+        buyIn: 100,
+        cashOut: 200,
+        currency: "USD",
+        fxRateToSgd: 1.35,
+      }),
+    ]);
+    expect(stats.overview.financial.all.netProfit).toBe(235);
   });
 
   it("groups locations", () => {

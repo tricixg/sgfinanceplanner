@@ -47,6 +47,9 @@ export function mapPokerSession(row: Record<string, unknown>): PokerSession {
     amountWon: amountWonRaw == null ? null : Number(amountWonRaw),
     hours: hoursRaw == null ? null : Number(hoursRaw),
     note: String(row.note ?? ""),
+    currency: String(row.currency ?? "SGD").toUpperCase(),
+    fxRateToSgd: Number(row.fx_rate_to_sgd ?? 1),
+    fxRateManual: Boolean(row.fx_rate_manual),
     financialAccountId: row.financial_account_id
       ? String(row.financial_account_id)
       : null,

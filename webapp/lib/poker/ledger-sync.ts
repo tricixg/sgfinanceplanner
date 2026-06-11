@@ -3,7 +3,8 @@ import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { findIncomeCategoryBySlug } from "@/lib/income/load";
 import { applyTransaction } from "@/lib/savings/ledger";
 import { pokerPlayedAtToLedgerIso } from "@/lib/poker/played-at";
-import { pokerProfit, sessionGameLabel } from "@/lib/poker/types";
+import { pokerProfitSgd } from "@/lib/fx/convert";
+import { sessionGameLabel } from "@/lib/poker/types";
 import type { PokerSession } from "@/lib/poker/types";
 
 export function pokerLedgerNote(session: PokerSession): string {
@@ -30,7 +31,7 @@ export async function createPokerLedger(
     return null;
   }
 
-  const profit = pokerProfit(session);
+  const profit = pokerProfitSgd(session);
   if (profit === 0) {
     console.info("[poker-ledger] skip — zero profit", { sessionId: session.id });
     return null;

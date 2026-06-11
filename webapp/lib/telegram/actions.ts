@@ -3,7 +3,7 @@ import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
 import { isExpenseBudgetType, mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api";
 import { insertPokerSession, type PokerSessionBody } from "@/lib/poker/save-session";
-import { pokerProfit } from "@/lib/poker/types";
+import { pokerProfitSgd } from "@/lib/fx/convert";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
 import { parseTravelSpentAtInput } from "@/lib/travel/expense-input";
@@ -195,5 +195,5 @@ export async function createPokerSessionFromBot(
   if ("error" in result) {
     return { ok: false, error: result.error };
   }
-  return { ok: true, profit: pokerProfit(result.session) };
+  return { ok: true, profit: pokerProfitSgd(result.session) };
 }

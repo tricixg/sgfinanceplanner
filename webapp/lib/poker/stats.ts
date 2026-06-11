@@ -1,6 +1,11 @@
+import {
+  pokerBuyInSgd,
+  pokerCashOutDisplaySgd,
+  pokerProfitSgd,
+} from "@/lib/fx/convert";
 import { ymFromPokerPlayedAt } from "@/lib/poker/played-at";
 import type { PokerSession, PokerSessionType } from "@/lib/poker/types";
-import { formatGameStakes, pokerProfit, sessionGameLabel } from "@/lib/poker/types";
+import { formatGameStakes, sessionGameLabel } from "@/lib/poker/types";
 
 export type StatsSlice = PokerSessionType | "all";
 
@@ -93,21 +98,16 @@ function sliceSessions(sessions: PokerSession[], slice: StatsSlice): PokerSessio
 }
 
 function sumBuyIn(sessions: PokerSession[]): number {
-  return sessions.reduce((s, x) => s + x.buyIn, 0);
+  return sessions.reduce((s, x) => s + pokerBuyInSgd(x), 0);
 }
 
 function sumCashOutDisplay(sessions: PokerSession[]): number {
-  return sessions.reduce((s, x) => {
-    if (x.sessionType === "tournament") {
-      return s + (x.amountWon ?? 0);
-    }
-    return s + x.cashOut;
-  }, 0);
+  return sessions.reduce((s, x) => s + pokerCashOutDisplaySgd(x), 0);
 }
 
 export function financialTotals(sessions: PokerSession[]): FinancialTotals {
   const buyIn = sumBuyIn(sessions);
-  const netProfit = sessions.reduce((s, x) => s + pokerProfit(x), 0);
+  const netProfit = sessions.reduce((s, x) => s + pokerProfitSgd(x), 0);
   return {
     buyIn,
     cashOut: sumCashOutDisplay(sessions),
@@ -118,9 +118,9 @@ export function financialTotals(sessions: PokerSession[]): FinancialTotals {
 export function sessionMetrics(sessions: PokerSession[]): SessionMetrics {
   const count = sessions.length;
   const hours = sessions.reduce((s, x) => s + (x.hours ?? 0), 0);
-  const netProfit = sessions.reduce((s, x) => s + pokerProfit(x), 0);
+  const netProfit = sessions.reduce((s, x) => s + pokerProfitSgd(x), 0);
   const buyIn = sumBuyIn(sessions);
-  const wins = sessions.filter((x) => pokerProfit(x) > 0).length;
+  const wins = sessions.filter((x) => pokerProfitSgd(x) > 0).length;
 
   return {
     sessions: count,
@@ -157,7 +157,7 @@ export function gameBreakdown(sessions: PokerSession[]): GameBreakdownRow[] {
       sessions: 0,
     };
     row.hours += s.hours ?? 0;
-    row.netProfit += pokerProfit(s);
+    row.netProfit += pokerProfitSgd(s);
     row.sessions += 1;
     map.set(key, row);
   }
@@ -187,7 +187,7 @@ export function locationBreakdown(sessions: PokerSession[]): LocationBreakdownRo
     };
     row.sessions += 1;
     row.hours += s.hours ?? 0;
-    row.netProfit += pokerProfit(s);
+    row.netProfit += pokerProfitSgd(s);
     if (s.sessionType === "cash_game") row.cashSessions += 1;
     else row.tournamentSessions += 1;
     map.set(loc, row);
@@ -198,7 +198,7 @@ export function locationBreakdown(sessions: PokerSession[]): LocationBreakdownRo
       const locSessions = sessions.filter(
         (s) => (s.location.trim() || "Unknown") === r.location
       );
-      const wins = locSessions.filter((x) => pokerProfit(x) > 0).length;
+      const wins = locSessions.filter((x) => pokerProfitSgd(x) > 0).length;
       return {
         ...r,
         hourly: r.hours > 0 ? r.netProfit / r.hours : null,
@@ -245,7 +245,7 @@ function chartBuckets(
       hourly: null,
       sessions: 0,
     };
-    row.netProfit += pokerProfit(s);
+    row.netProfit += pokerProfitSgd(s);
     row.hours += s.hours ?? 0;
     row.sessions += 1;
     map.set(label, row);
@@ -338,7 +338,7 @@ export function locationDetailStats(
   const sorted = [...subset].sort((a, b) => a.playedAt.localeCompare(b.playedAt));
   let running = 0;
   const cumulativeProfit = sorted.map((s) => {
-    running += pokerProfit(s);
+    running += pokerProfitSgd(s);
     return { date: s.playedAt, profit: running };
   });
 

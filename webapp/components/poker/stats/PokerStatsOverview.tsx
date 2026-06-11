@@ -27,7 +27,7 @@ function MetricTable({
 }) {
   const cols: StatsSlice[] = ["cash_game", "tournament", "all"];
   return (
-    <div className="card table-scroll" style={{ marginBottom: 16 }}>
+    <div className="card table-scroll poker-stats-table-scroll" style={{ marginBottom: 16 }}>
       <h3 style={{ marginTop: 0 }}>{title}</h3>
       <table>
         <thead>
@@ -174,11 +174,16 @@ export function PokerStatsOverview({ stats }: Props) {
         </div>
       </div>
 
+      <p className="note" style={{ marginBottom: 16 }}>
+        Totals in SGD. Foreign sessions are converted using each session&apos;s stored exchange
+        rate (session date, or manual override).
+      </p>
+
       <MetricTable title="Summary" rows={financialRows} />
       <MetricTable title="Sessions" rows={sessionRows} />
 
       {overview.games.length > 0 ? (
-        <div className="card table-scroll" style={{ marginBottom: 16 }}>
+        <div className="card table-scroll poker-stats-table-scroll" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>Cash games by stakes</h3>
           <table>
             <thead>
@@ -205,7 +210,7 @@ export function PokerStatsOverview({ stats }: Props) {
         </div>
       ) : null}
 
-      <div className="card">
+      <div className="card table-scroll poker-stats-table-scroll">
         <h3 style={{ marginTop: 0 }}>Current month / last month</h3>
         <table>
           <thead>

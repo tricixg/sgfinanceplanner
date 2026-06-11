@@ -2,8 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { currentYm } from "@/lib/finance/helpers";
 import { mapPokerSession } from "@/lib/poker/db-mappers";
 import { formatPokerPlayedAtDisplay } from "@/lib/poker/played-at";
+import { pokerProfitSgd } from "@/lib/fx/convert";
 import type { PokerSession } from "@/lib/poker/types";
-import { pokerProfit, sessionGameLabel } from "@/lib/poker/types";
+import { sessionGameLabel } from "@/lib/poker/types";
 import { fmtMoney, truncateLabel } from "@/lib/telegram/format";
 
 function sgtMonthBounds(ym: string): { from: string; to: string } {
@@ -75,7 +76,7 @@ async function loadRecentPokerSessions(
 function sessionSummaryLine(session: PokerSession): string {
   const when = formatPokerPlayedAtDisplay(session.playedAt);
   const label = sessionGameLabel(session);
-  const pl = formatPokerPl(pokerProfit(session));
+  const pl = formatPokerPl(pokerProfitSgd(session));
   const type = session.sessionType === "tournament" ? "MTT" : "Cash";
   return truncateLabel(`${when} · ${type} · ${label} — ${pl}`, 120);
 }
@@ -91,7 +92,7 @@ export async function buildPokerStatsMessage(
     loadRecentPokerSessions(supabase, userId, 3),
   ]);
 
-  const monthPl = monthSessions.reduce((s, x) => s + pokerProfit(x), 0);
+  const monthPl = monthSessions.reduce((s, x) => s + pokerProfitSgd(x), 0);
   const monthLabel = formatYmLabel(ym);
 
   console.info("[telegram] poker stats built", {

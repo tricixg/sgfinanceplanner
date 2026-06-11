@@ -1,3 +1,4 @@
+import { normalizeCurrencyCode, isSupportedCurrency } from "@/lib/fx/currencies";
 import { parsePokerPlayedAtInput } from "@/lib/poker/played-at";
 import type { PokerSessionType, TournamentResult } from "@/lib/poker/types";
 
@@ -17,6 +18,9 @@ export type PokerSessionBody = {
   amountWon?: number | null;
   hours?: number | null;
   note?: string;
+  currency?: string;
+  fxRateToSgd?: number;
+  fxRateManual?: boolean;
   financialAccountId?: string;
 };
 
@@ -36,6 +40,9 @@ export type ParsedPokerSession = {
   tournamentPlace: number | null;
   tournamentEntries: number | null;
   amountWon: number | null;
+  currency: string;
+  fxRateToSgd: number;
+  fxRateManual: boolean;
 };
 
 export function parsePokerSessionBody(
@@ -119,6 +126,23 @@ export function parsePokerSessionBody(
       ? body.financialAccountId.trim()
       : null;
 
+  const currency = normalizeCurrencyCode(body.currency);
+  if (!isSupportedCurrency(currency)) {
+    return { ok: false, error: `Unsupported currency: ${currency}` };
+  }
+
+  let fxRateToSgd = 1;
+  let fxRateManual = body.fxRateManual === true;
+  if (body.fxRateManual === true) {
+    const rate = typeof body.fxRateToSgd === "number" ? body.fxRateToSgd : NaN;
+    if (!Number.isFinite(rate) || rate <= 0) {
+      return { ok: false, error: "Valid FX rate required when using manual override" };
+    }
+    fxRateToSgd = rate;
+  } else if (typeof body.fxRateToSgd === "number" && body.fxRateToSgd > 0) {
+    fxRateToSgd = body.fxRateToSgd;
+  }
+
   return {
     ok: true,
     data: {
@@ -137,6 +161,9 @@ export function parsePokerSessionBody(
       tournamentPlace,
       tournamentEntries,
       amountWon,
+      currency,
+      fxRateToSgd,
+      fxRateManual,
     },
   };
 }
@@ -159,6 +186,9 @@ export function pokerSessionRowFromParsed(parsed: ParsedPokerSession) {
     amount_won: isTournament ? parsed.amountWon : null,
     hours: parsed.hours,
     note: parsed.note,
+    currency: parsed.currency,
+    fx_rate_to_sgd: parsed.fxRateToSgd,
+    fx_rate_manual: parsed.fxRateManual,
     financial_account_id: parsed.financialAccountId ?? null,
     updated_at: new Date().toISOString(),
   };

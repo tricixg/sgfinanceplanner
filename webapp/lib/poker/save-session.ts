@@ -8,10 +8,12 @@ import {
   pokerSessionRowFromParsed,
   type PokerSessionBody,
 } from "@/lib/poker/session-input";
+import { resolveSessionFx } from "@/lib/poker/resolve-fx";
 
 export type { PokerSessionBody } from "@/lib/poker/session-input";
 import type { PokerSession } from "@/lib/poker/types";
 import { pokerProfit } from "@/lib/poker/types";
+import { pokerProfitSgd } from "@/lib/fx/convert";
 
 export async function insertPokerSession(
   supabase: SupabaseClient,
@@ -21,7 +23,10 @@ export async function insertPokerSession(
   const parsed = parsePokerSessionBody(body);
   if (!parsed.ok) return { error: parsed.error };
 
-  const data = parsed.data;
+  const fxResolved = await resolveSessionFx(body, parsed.data.playedAt);
+  if (!fxResolved.ok) return { error: fxResolved.error };
+
+  const data = { ...parsed.data, ...fxResolved.fx };
   if (data.sessionType === "cash_game") {
     const ok = await verifyPokerGame(supabase, userId, data.gameId!);
     if (!ok) return { error: "Invalid game" };
@@ -46,7 +51,7 @@ export async function insertPokerSession(
   }
 
   let session = mapPokerSession(row);
-  const profit = pokerProfit(session);
+  const profit = pokerProfitSgd(session);
 
   if (profit !== 0) {
     try {
@@ -85,7 +90,10 @@ export async function updatePokerSession(
   const parsed = parsePokerSessionBody(body);
   if (!parsed.ok) return { error: parsed.error };
 
-  const data = parsed.data;
+  const fxResolved = await resolveSessionFx(body, parsed.data.playedAt);
+  if (!fxResolved.ok) return { error: fxResolved.error };
+
+  const data = { ...parsed.data, ...fxResolved.fx };
   if (data.sessionType === "cash_game") {
     const ok = await verifyPokerGame(supabase, userId, data.gameId!);
     if (!ok) return { error: "Invalid game" };
@@ -145,7 +153,8 @@ export async function updatePokerSession(
   console.info("[poker] session updated", {
     userId,
     sessionId,
-    profit: pokerProfit(session),
+    profit: pokerProfitSgd(session),
+    currency: session.currency,
   });
   return { session };
 }

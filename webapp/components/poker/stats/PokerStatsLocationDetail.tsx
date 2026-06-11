@@ -5,8 +5,11 @@ import { Chart } from "react-chartjs-2";
 import type { ChartOptions } from "chart.js";
 import { ensureChartsRegistered } from "@/components/chart-setup";
 import type { LocationDetailStats } from "@/lib/poker/stats";
-import { pokerProfit } from "@/lib/poker/types";
-import { fmt2 } from "@/lib/finance/helpers";
+import { pokerProfitSgd } from "@/lib/fx/convert";
+import {
+  formatSessionAmountWithSgd,
+  formatSessionPlCell,
+} from "@/lib/poker/format-session-amount";
 import {
   formatHourly,
   formatPct,
@@ -121,7 +124,7 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
       </div>
 
       {detail.byGame.length > 0 ? (
-        <div className="card table-scroll" style={{ marginBottom: 16 }}>
+        <div className="card table-scroll poker-stats-table-scroll" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0 }}>By game (cash)</h3>
           <table>
             <thead>
@@ -146,7 +149,7 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
         </div>
       ) : null}
 
-      <div className="card table-scroll">
+      <div className="card table-scroll poker-stats-table-scroll">
         <h3 style={{ marginTop: 0 }}>Sessions at this location</h3>
         <table>
           <thead>
@@ -159,13 +162,13 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
           </thead>
           <tbody>
             {detail.sessions.map((s) => {
-              const pl = pokerProfit(s);
+              const pl = pokerProfitSgd(s);
               return (
                 <tr key={s.id}>
                   <td>{formatSessionDate(s.playedAt)}</td>
                   <td>{s.sessionType === "tournament" ? "MTT" : "Cash"}</td>
-                  <td className="num">{fmt2(s.buyIn)}</td>
-                  <td className={`num ${plClass(pl)}`}>{formatPl(pl)}</td>
+                  <td className="num">{formatSessionAmountWithSgd(s.buyIn, s)}</td>
+                  <td className={`num ${plClass(pl)}`}>{formatSessionPlCell(s)}</td>
                 </tr>
               );
             })}

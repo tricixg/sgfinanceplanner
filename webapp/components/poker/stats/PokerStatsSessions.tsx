@@ -1,10 +1,13 @@
 "use client";
 
 import type { PokerSession } from "@/lib/poker/types";
-import { pokerProfit, sessionGameLabel } from "@/lib/poker/types";
-import { fmt2 } from "@/lib/finance/helpers";
+import { sessionGameLabel } from "@/lib/poker/types";
+import { pokerProfitSgd } from "@/lib/fx/convert";
 import {
-  formatPl,
+  formatSessionAmountWithSgd,
+  formatSessionPlCell,
+} from "@/lib/poker/format-session-amount";
+import {
   formatSessionDate,
   plClass,
 } from "@/components/poker/stats/format";
@@ -34,7 +37,7 @@ export function PokerStatsSessions({ sessions }: Props) {
             {year}
           </div>
           {byYear.get(year)!.map((s) => {
-            const pl = pokerProfit(s);
+            const pl = pokerProfitSgd(s);
             const gameLabel =
               s.sessionType === "tournament"
                 ? s.tournamentName
@@ -50,10 +53,12 @@ export function PokerStatsSessions({ sessions }: Props) {
                     </div>
                     <div className="note">{s.location || "—"}</div>
                   </div>
-                  <div className={`poker-session-pl ${plClass(pl)}`}>{formatPl(pl)}</div>
+                  <div className={`poker-session-pl ${plClass(pl)}`}>
+                    {formatSessionPlCell(s)}
+                  </div>
                 </div>
                 <div className="poker-session-card-bottom note">
-                  <span>Buy-in {fmt2(s.buyIn)}</span>
+                  <span>Buy-in {formatSessionAmountWithSgd(s.buyIn, s)}</span>
                   <span>{formatSessionDate(s.playedAt)}</span>
                 </div>
               </div>

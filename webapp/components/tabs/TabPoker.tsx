@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
+import { BASE_REPORTING_CURRENCY, POKER_CURRENCIES } from "@/lib/fx/currencies";
+import { pokerProfitSgd } from "@/lib/fx/convert";
+import {
+  formatNativeMoney,
+  formatSessionAmountWithSgd,
+  formatSessionPlCell,
+} from "@/lib/poker/format-session-amount";
 import type { PokerGame, PokerSession, PokerSessionType, TournamentResult } from "@/lib/poker/types";
-import { formatGameStakes, pokerProfit, sessionGameLabel } from "@/lib/poker/types";
+import { formatGameStakes, sessionGameLabel } from "@/lib/poker/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import {
@@ -13,6 +20,7 @@ import {
   pokerPlayedAtToInput,
 } from "@/lib/poker/played-at";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
+import { PokerSessionMobileCard } from "@/components/poker/PokerSessionMobileCard";
 
 function monthBounds(): { from: string; to: string } {
   const d = new Date();
@@ -78,6 +86,15 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [creatingGame, setCreatingGame] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [currency, setCurrency] = useState(BASE_REPORTING_CURRENCY);
+  const [fxRateToSgd, setFxRateToSgd] = useState(1);
+  const [fxRateManual, setFxRateManual] = useState(false);
+  const [fxRateDate, setFxRateDate] = useState("");
+  const [fxSource, setFxSource] = useState("");
+  const [fxLoading, setFxLoading] = useState(false);
+  const [fxError, setFxError] = useState("");
+  const [fxDraft, setFxDraft] = useState("1");
+  const skipFxFetch = useRef(false);
 
   const { accounts: financialAccounts } = useFinancialAccounts();
   const cashAccounts = financialAccounts.filter((a) => a.savingsAccountId);
@@ -129,6 +146,59 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     void load(false);
   }, [enabled]);
 
+  const loadFxRate = useCallback(async () => {
+    if (!enabled || fxRateManual) return;
+    if (currency === BASE_REPORTING_CURRENCY) {
+      setFxRateToSgd(1);
+      setFxDraft("1");
+      setFxRateDate("");
+      setFxSource("identity");
+      setFxError("");
+      return;
+    }
+    const date = playedAt.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    setFxLoading(true);
+    setFxError("");
+    try {
+      const qs = new URLSearchParams({ from: currency, date });
+      const { res, data } = await fetchJson<{
+        rate?: number;
+        rateDate?: string;
+        source?: string;
+        error?: string;
+      }>(`/api/fx?${qs}`, { credentials: "include" });
+      if (!res.ok || data.rate == null) {
+        const msg = data.error ?? "Failed to load FX rate";
+        console.warn("[TabPoker] fx load failed", { currency, date, msg });
+        setFxError(`${msg}. Check "Manual rate" and enter 1 ${currency} = X SGD.`);
+        setFxRateManual(true);
+        return;
+      }
+      setFxRateToSgd(data.rate);
+      setFxDraft(String(data.rate));
+      setFxRateDate(data.rateDate ?? date);
+      setFxSource(data.source ?? "");
+      setFxError("");
+      console.info("[TabPoker] fx loaded", { currency, rate: data.rate, date: data.rateDate });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to load FX rate";
+      console.warn("[TabPoker] fx load failed", { currency, date, msg });
+      setFxError(`${msg}. Check "Manual rate" and enter 1 ${currency} = X SGD.`);
+      setFxRateManual(true);
+    } finally {
+      setFxLoading(false);
+    }
+  }, [enabled, currency, playedAt, fxRateManual]);
+
+  useEffect(() => {
+    if (skipFxFetch.current) {
+      skipFxFetch.current = false;
+      return;
+    }
+    void loadFxRate();
+  }, [loadFxRate]);
+
   const resetForm = () => {
     setEditingId(null);
     setFormError("");
@@ -150,6 +220,12 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     setShowNewLocation(false);
     setNewLocationName("");
     setShowNewGame(false);
+    setCurrency(BASE_REPORTING_CURRENCY);
+    setFxRateToSgd(1);
+    setFxRateManual(false);
+    setFxRateDate("");
+    setFxSource("");
+    setFxDraft("1");
   };
 
   const ensureLocationOption = (name: string) => {
@@ -217,6 +293,13 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
         ? String(session.amountWon)
         : ""
     );
+    skipFxFetch.current = true;
+    setCurrency(session.currency);
+    setFxRateToSgd(session.fxRateToSgd);
+    setFxRateManual(session.fxRateManual);
+    setFxDraft(String(session.fxRateToSgd));
+    setFxRateDate("");
+    setFxSource(session.fxRateManual ? "manual" : "");
     window.scrollTo({ top: 0, behavior: "smooth" });
     console.info("[TabPoker] editing session", { id: session.id });
   };
@@ -274,7 +357,16 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       location: location.trim(),
       hours: hours === "" ? null : parseFloat(hours),
       note,
+      currency,
+      fxRateManual,
     };
+    if (fxRateManual) {
+      const rate = parseFloat(fxDraft);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        return { error: "Enter a valid FX rate (SGD per 1 unit of currency)." };
+      }
+      body.fxRateToSgd = rate;
+    }
     if (financialAccountId) {
       body.financialAccountId = financialAccountId;
     }
@@ -386,7 +478,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     }
   };
 
-  const monthProfit = items.reduce((s, x) => s + pokerProfit(x), 0);
+  const monthProfit = items.reduce((s, x) => s + pokerProfitSgd(x), 0);
   const monthHours = items.reduce((s, x) => s + (x.hours ?? 0), 0);
   const hourly = monthHours > 0 ? monthProfit / monthHours : null;
 
@@ -410,7 +502,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       </div>
       <div className="grid g3">
         <div className="stat accent">
-          <div className="lbl">P/L this month (loaded)</div>
+          <div className="lbl">P/L this month (SGD, loaded)</div>
           <div className="val">{formatPl(monthProfit)}</div>
         </div>
         <div className="stat">
@@ -431,7 +523,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
           Updating session — changes will resync the linked cash account entry when P/L changes and an account is selected.
         </p>
       ) : null}
-      <form className="card" onSubmit={saveSession}>
+      <form className="card poker-session-form" onSubmit={saveSession}>
         <div className="toolbar" style={{ marginBottom: 12 }}>
           <label>
             Type
@@ -452,6 +544,92 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             />
           </label>
         </div>
+
+        <div className="toolbar" style={{ marginBottom: currency === BASE_REPORTING_CURRENCY ? 12 : 8 }}>
+          <label>
+            Currency
+            <select
+              value={currency}
+              onChange={(e) => {
+                setCurrency(e.target.value);
+                setFxRateManual(false);
+              }}
+            >
+              {POKER_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} — {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {currency !== BASE_REPORTING_CURRENCY ? (
+          <div className="poker-fx-panel">
+            <div className="poker-fx-field poker-fx-rate-field">
+              <span className="poker-fx-field-label">1 {currency} → SGD</span>
+              <div className="poker-fx-rate-input">
+                <DecimalTextInput
+                  value={fxDraft}
+                  onChange={(v) => {
+                    setFxDraft(v);
+                    setFxRateManual(true);
+                  }}
+                  disabled={!fxRateManual && fxLoading}
+                />
+              </div>
+            </div>
+            <div className="poker-fx-field">
+              <span className="poker-fx-field-label">Source</span>
+              <div className="poker-fx-segment" role="group" aria-label="FX rate source">
+                <button
+                  type="button"
+                  className={!fxRateManual ? "active" : undefined}
+                  disabled={fxLoading}
+                  onClick={() => {
+                    if (!fxRateManual) return;
+                    setFxRateManual(false);
+                    void loadFxRate();
+                  }}
+                >
+                  Auto
+                </button>
+                <button
+                  type="button"
+                  className={fxRateManual ? "active" : undefined}
+                  onClick={() => setFxRateManual(true)}
+                >
+                  Manual
+                </button>
+              </div>
+            </div>
+            <p className={`poker-fx-meta${fxError ? " is-error" : ""}`}>
+              {fxLoading ? (
+                "Loading rate for session date…"
+              ) : fxError ? (
+                fxError
+              ) : fxRateManual ? (
+                "Manual rate · totals and ledger use SGD"
+              ) : fxRateDate ? (
+                <>
+                  {fxDraft} SGD · {fxRateDate}
+                  {fxSource ? ` · ${fxSource}` : ""}
+                  {" · "}
+                  <button
+                    type="button"
+                    className="poker-fx-refresh"
+                    disabled={fxLoading}
+                    onClick={() => void loadFxRate()}
+                  >
+                    Refresh
+                  </button>
+                  {" · weekends/holidays may use prior business day"}
+                </>
+              ) : (
+                "Rate loads from the session date."
+              )}
+            </p>
+          </div>
+        ) : null}
 
         <div
           className="toolbar"
@@ -614,7 +792,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                   />
                 </label>
                 <label>
-                  Amount won
+                  Amount won ({currency})
                   <DecimalTextInput value={amountWon} onChange={setAmountWon} required />
                 </label>
               </>
@@ -634,12 +812,12 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
 
         <div className="toolbar">
           <label>
-            Buy-in
+            Buy-in ({currency})
             <DecimalTextInput value={buyIn} onChange={setBuyIn} required />
           </label>
           {sessionType === "cash_game" ? (
             <label>
-              Cash-out
+              Cash-out ({currency})
               <DecimalTextInput
                 value={cashOut}
                 onChange={setCashOut}
@@ -675,7 +853,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             {formError}
           </p>
         ) : null}
-        <div className="toolbar" style={{ marginTop: 12 }}>
+        <div className="toolbar poker-form-actions" style={{ marginTop: 12 }}>
           <button type="submit" className="btn" disabled={submitting}>
             {submitting ? "Saving…" : editingId ? "Save changes" : "Add session"}
           </button>
@@ -688,13 +866,40 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       </form>
 
       <h2>Recent sessions</h2>
-      <div className="card table-scroll">
-        {loading && items.length === 0 ? (
+      {loading && items.length === 0 ? (
+        <div className="card">
           <p className="loading">Loading…</p>
-        ) : items.length === 0 ? (
+        </div>
+      ) : items.length === 0 ? (
+        <div className="card">
           <p className="note">No poker sessions this month yet.</p>
-        ) : (
-          <table>
+        </div>
+      ) : (
+        <>
+          <div className="poker-recent-cards poker-only-mobile">
+            {items.map((x) => {
+              const outAmount =
+                x.sessionType === "tournament"
+                  ? x.tournamentResult === "busted"
+                    ? null
+                    : (x.amountWon ?? 0)
+                  : x.cashOut;
+              const outLabel =
+                outAmount == null ? "—" : formatSessionAmountWithSgd(outAmount, x);
+              return (
+                <PokerSessionMobileCard
+                  key={x.id}
+                  session={x}
+                  outLabel={outLabel}
+                  resultLabel={tournamentResultLabel(x)}
+                  onEdit={() => startEdit(x)}
+                  onDelete={() => void removeSession(x.id)}
+                />
+              );
+            })}
+          </div>
+          <div className="card table-scroll poker-recent-table poker-only-desktop">
+            <table>
             <thead>
               <tr>
                 <th>When</th>
@@ -712,13 +917,16 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             </thead>
             <tbody>
               {items.map((x) => {
-                const pl = pokerProfit(x);
-                const outLabel =
+                const outAmount =
                   x.sessionType === "tournament"
                     ? x.tournamentResult === "busted"
-                      ? "—"
-                      : fmt2(x.amountWon ?? 0)
-                    : fmt2(x.cashOut);
+                      ? null
+                      : (x.amountWon ?? 0)
+                    : x.cashOut;
+                const outLabel =
+                  outAmount == null
+                    ? "—"
+                    : formatSessionAmountWithSgd(outAmount, x);
                 return (
                   <tr key={x.id}>
                     <td>{formatPokerPlayedAtDisplay(x.playedAt)}</td>
@@ -734,9 +942,9 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                         sessionGameLabel(x)
                       )}
                     </td>
-                    <td className="num">{fmt2(x.buyIn)}</td>
+                    <td className="num">{formatSessionAmountWithSgd(x.buyIn, x)}</td>
                     <td className="num">{outLabel}</td>
-                    <td className="num">{formatPl(pl)}</td>
+                    <td className="num">{formatSessionPlCell(x)}</td>
                     <td>{tournamentResultLabel(x)}</td>
                     <td className="num">{x.hours != null ? x.hours : "—"}</td>
                     <td>{x.note || "—"}</td>
@@ -760,20 +968,21 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                 );
               })}
             </tbody>
-          </table>
-        )}
-        {items.length < total ? (
-          <button
-            type="button"
-            className="btn ghost sm"
-            style={{ marginTop: 12 }}
-            disabled={loading}
-            onClick={() => void load(true)}
-          >
-            {loading ? "Loading…" : "Load more"}
-          </button>
-        ) : null}
-      </div>
+            </table>
+          </div>
+          {items.length < total ? (
+            <button
+              type="button"
+              className="btn ghost sm"
+              style={{ marginTop: 12 }}
+              disabled={loading}
+              onClick={() => void load(true)}
+            >
+              {loading ? "Loading…" : "Load more"}
+            </button>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }
