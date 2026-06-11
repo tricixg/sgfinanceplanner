@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PokerSessionDetailModal } from "@/components/poker/PokerSessionDetailModal";
 import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal";
 import { PokerImportMenu } from "@/components/poker/PokerImportMenu";
 import { PokerManageCatalogModal } from "@/components/poker/PokerManageCatalogModal";
@@ -35,6 +36,7 @@ export function PokerStatsSessions({
   onImported,
   onCatalogChanged,
 }: Props) {
+  const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
   const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
 
@@ -82,8 +84,8 @@ export function PokerStatsSessions({
                     key={s.id}
                     type="button"
                     className="card poker-session-card poker-session-card--clickable"
-                    aria-label={`Edit ${s.sessionType === "tournament" ? "tournament" : "cash"} session`}
-                    onClick={() => setEditingSession(s)}
+                    aria-label={`View ${s.sessionType === "tournament" ? "tournament" : "cash"} session`}
+                    onClick={() => setViewingSession(s)}
                   >
                     <div className="poker-session-card-top">
                       <div>
@@ -114,6 +116,18 @@ export function PokerStatsSessions({
           onChanged={() => {
             onCatalogChanged();
             console.info("[PokerStatsSessions] catalog changed");
+          }}
+        />
+      ) : null}
+
+      {viewingSession && !editingSession ? (
+        <PokerSessionDetailModal
+          session={viewingSession}
+          onClose={() => setViewingSession(null)}
+          onEdit={() => {
+            setEditingSession(viewingSession);
+            setViewingSession(null);
+            console.info("[PokerStatsSessions] edit from detail", { id: viewingSession.id });
           }}
         />
       ) : null}
