@@ -441,6 +441,7 @@ export function TabBudgetSavings({
 
       {S.budget.length === 0 && !editingAllocation ? (
         <div className="card">
+          <div className="table-scroll category-budget-table-scroll">
           <table>
             <thead>
               <tr>
@@ -480,6 +481,7 @@ export function TabBudgetSavings({
               </tr>
             </tbody>
           </table>
+          </div>
           <p style={{ color: "var(--muted)", fontStyle: "italic", margin: "12px 0" }}>
             No editable categories yet.
           </p>
@@ -491,7 +493,7 @@ export function TabBudgetSavings({
         <div className="budget-stack">
           <div className="card">
             {allocationChart}
-            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
+            <div className="subtext" style={{ marginTop: 12 }}>{verdict}</div>
           </div>
           <div className="card">
             <div className="section-head" style={{ marginBottom: 12 }}>
@@ -559,7 +561,7 @@ export function TabBudgetSavings({
         <div className="budget-stack">
           <div className="card">
             {allocationChart}
-            <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>{verdict}</div>
+            <div className="subtext" style={{ marginTop: 12 }}>{verdict}</div>
           </div>
           <div className="card">
             <div className="section-head" style={{ marginBottom: 12 }}>
@@ -572,6 +574,7 @@ export function TabBudgetSavings({
                 Edit
               </button>
             </div>
+            <div className="table-scroll category-budget-table-scroll">
             <table>
               <thead>
                 <tr>
@@ -631,6 +634,7 @@ export function TabBudgetSavings({
                 </tr>
               </tfoot>
             </table>
+            </div>
           </div>
         </div>
       )}

@@ -410,31 +410,33 @@ export function TabBTO({ state: S, setState }: Props) {
       </div>
 
       <h2>Payment timeline</h2>
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Stage</th>
-              <th>When</th>
-              <th>What&apos;s due</th>
-              <th>Amount</th>
-              <th>Paid from</th>
-            </tr>
-          </thead>
-          <tbody>
-            {timeline.map((rw, i) => (
-              <tr key={i}>
-                <td>
-                  <b>{rw[0]}</b>
-                </td>
-                <td>{rw[1]}</td>
-                <td style={{ textAlign: "left", fontSize: 12.5 }}>{rw[2]}</td>
-                <td className="num">{rw[3]}</td>
-                <td>{rw[4]}</td>
+      <div className="card bto-timeline-card">
+        <div className="table-scroll bto-timeline-table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>When</th>
+                <th>What&apos;s due</th>
+                <th>Amount</th>
+                <th>Paid from</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {timeline.map((rw, i) => (
+                <tr key={i}>
+                  <td>
+                    <b>{rw[0]}</b>
+                  </td>
+                  <td>{rw[1]}</td>
+                  <td style={{ textAlign: "left", fontSize: 12.5 }}>{rw[2]}</td>
+                  <td className="num">{rw[3]}</td>
+                  <td>{rw[4]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="card">
