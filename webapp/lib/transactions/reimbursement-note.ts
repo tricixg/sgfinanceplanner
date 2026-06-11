@@ -29,5 +29,5 @@ export function formatReimbursementNote(source: ReimbursementSourceMeta): string
   const amount = fmt2(Math.abs(source.amount));
   const note = clipNote(source.note);
   const when = formatTransactionWhen(source.whenIso);
-  return `Reimb · ${tail} · $${amount} · ${note} · ${when}`;
+  return `Reimb · ${tail} · ${amount} · ${note} · ${when}`;
 }

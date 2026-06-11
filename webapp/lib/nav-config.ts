@@ -5,6 +5,7 @@ export type AppRouteId =
   | "budget"
   | "savings"
   | "expenses"
+  | "pastSpendings"
   | "recurring"
   | "transactions"
   | "travel"
@@ -91,6 +92,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "Expenses",
         href: "/expenses",
         summary: "Private expense log — loaded separately, not with the main dashboard.",
+      },
+      {
+        id: "pastSpendings",
+        label: "Past Spendings",
+        href: "/past-spendings",
+        summary:
+          "Five-month spending trends by category and card to spot overspend and cut costs.",
       },
       {
         id: "recurring",

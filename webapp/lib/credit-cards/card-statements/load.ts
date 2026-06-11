@@ -178,11 +178,6 @@ export function findClosedStatementAtOffset(
   if (offset < 0) return undefined;
   const closed = closedStatementsNewestFirst(rows, today);
   if (offset < closed.length) return closed[offset];
-  if (offset === 0 && closed.length === 0 && rows.length > 0) {
-    return [...rows].sort((a, b) =>
-      b.statementCloseDate.localeCompare(a.statementCloseDate)
-    )[0];
-  }
   return undefined;
 }
 
