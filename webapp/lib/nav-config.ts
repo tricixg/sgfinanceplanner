@@ -55,6 +55,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
           "Take-home pay vs budget categories; loans and insurance auto-linked from other tabs.",
       },
       {
+        id: "pastSpendings",
+        label: "Past Spendings",
+        href: "/past-spendings",
+        summary:
+          "Five-month spending trends by category and card to spot overspend and cut costs.",
+      },
+      {
         id: "savings",
         label: "Savings & Goals",
         href: "/savings",
@@ -92,13 +99,6 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "Expenses",
         href: "/expenses",
         summary: "Private expense log — loaded separately, not with the main dashboard.",
-      },
-      {
-        id: "pastSpendings",
-        label: "Past Spendings",
-        href: "/past-spendings",
-        summary:
-          "Five-month spending trends by category and card to spot overspend and cut costs.",
       },
       {
         id: "recurring",
