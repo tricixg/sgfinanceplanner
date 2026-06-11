@@ -174,7 +174,7 @@ export function PokerStatsOverview({ stats }: Props) {
         </div>
       </div>
 
-      <p className="note" style={{ marginBottom: 16 }}>
+      <p className="poker-stats-fx-note">
         Totals in SGD. Foreign sessions are converted using each session&apos;s stored exchange
         rate (session date, or manual override).
       </p>
