@@ -49,6 +49,8 @@ export async function recordOtherLoanPayment(
     kind: "withdrawal",
     occurredAt: new Date().toISOString(),
     note: otherLoanPaymentNote({ name: String(row.name) }),
+    sourceRecordType: "other_loan",
+    sourceRecordId: loanId,
   });
 
   const newPaid = roundMoney(Number(row.amount_paid ?? 0) + amount);

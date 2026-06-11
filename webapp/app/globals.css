@@ -595,10 +595,13 @@ tfoot td {
 .editrow.loans {
   grid-template-columns: 1.2fr 0.85fr 0.75fr 0.75fr 0.9fr 0.55fr 0.85fr auto;
 }
-.editrow.other-loans {
+.editrow.other-loans-bt,
+.editrow.other-loans-personal {
+  gap: 10px;
+}
+.editrow.other-loans-bt {
   grid-template-columns:
     minmax(140px, 1.35fr)
-    minmax(92px, 0.85fr)
     minmax(140px, 1.05fr)
     minmax(112px, 0.82fr)
     minmax(112px, 0.82fr)
@@ -607,29 +610,69 @@ tfoot td {
     minmax(92px, 0.66fr)
     minmax(88px, 0.62fr)
     minmax(110px, 0.82fr)
-    minmax(100px, 0.74fr)
-    minmax(86px, 0.62fr)
     minmax(94px, 0.68fr)
     auto;
-  gap: 10px;
+  min-width: 1180px;
 }
-.editrow.other-loans input,
-.editrow.other-loans select {
+.editrow.other-loans-personal {
+  grid-template-columns:
+    minmax(140px, 1.35fr)
+    minmax(112px, 0.82fr)
+    minmax(112px, 0.82fr)
+    minmax(96px, 0.72fr)
+    minmax(88px, 0.62fr)
+    minmax(110px, 0.82fr)
+    minmax(100px, 0.74fr)
+    minmax(94px, 0.68fr)
+    minmax(86px, 0.62fr)
+    auto;
+  min-width: 1040px;
+}
+.editrow.other-loans-bt input,
+.editrow.other-loans-bt select,
+.editrow.other-loans-personal input,
+.editrow.other-loans-personal select {
   min-width: 0;
 }
-.editrow.other-loans > span {
+.editrow.other-loans-bt > span,
+.editrow.other-loans-personal > span {
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.editrow.other-loans select {
+.editrow.other-loans-bt select,
+.editrow.other-loans-personal select {
   white-space: normal;
   line-height: 1.25;
   height: auto;
   min-height: 34px;
 }
-.editrow.other-loans {
-  min-width: 1520px;
+.other-loans-section + .other-loans-section {
+  margin-top: 16px;
+}
+.other-loans-section-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+.other-loans-section.card {
+  padding-top: 12px;
+}
+.other-loan-pay-history-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.other-loan-pay-history-table {
+  width: 100%;
+  font-size: 13px;
+}
+.other-loan-pay-history-table th,
+.other-loan-pay-history-table td {
+  padding: 6px 8px;
+  text-align: left;
+}
+.other-loan-pay-history-table th:last-child,
+.other-loan-pay-history-table td:last-child {
+  white-space: normal;
 }
 .other-loans-table {
   table-layout: fixed;
@@ -642,8 +685,8 @@ tfoot td {
 .other-loans-table td:first-child {
   white-space: normal;
 }
-.other-loans-table th:nth-child(3),
-.other-loans-table td:nth-child(3) {
+.other-loans-table-bt th:nth-child(2),
+.other-loans-table-bt td:nth-child(2) {
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -662,22 +705,8 @@ tfoot td {
   .holdings-charts {
     grid-template-columns: 1fr;
   }
-  .editrow.other-loans {
-    grid-template-columns:
-      minmax(130px, 1.3fr)
-      minmax(90px, 0.9fr)
-      minmax(130px, 1fr)
-      minmax(108px, 0.82fr)
-      minmax(108px, 0.82fr)
-      minmax(92px, 0.72fr)
-      minmax(86px, 0.64fr)
-      minmax(90px, 0.68fr)
-      minmax(86px, 0.64fr)
-      minmax(108px, 0.82fr)
-      minmax(96px, 0.72fr)
-      minmax(84px, 0.62fr)
-      minmax(90px, 0.66fr)
-      auto;
+  .editrow.other-loans-bt,
+  .editrow.other-loans-personal {
     gap: 8px;
   }
 }

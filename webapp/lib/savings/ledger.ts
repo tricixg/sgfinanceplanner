@@ -19,7 +19,7 @@ export type ApplyTransactionInput = {
   expenseId?: string | null;
   incomeCategoryId?: string | null;
   excludeFromBudget?: boolean;
-  sourceRecordType?: "expense" | "savings" | "budget" | null;
+  sourceRecordType?: "expense" | "savings" | "budget" | "other_loan" | null;
   sourceRecordId?: string | null;
 };
 
