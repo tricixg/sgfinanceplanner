@@ -10,6 +10,35 @@ import type { PokerSession } from "@/lib/poker/types";
 
 export type ImportWarning = { row: number; message: string };
 
+export type PokerImportProgress = {
+  current: number;
+  total: number;
+  phase: "resolving" | "importing";
+};
+
+export type PokerImportStreamEvent =
+  | ({ type: "progress" } & PokerImportProgress)
+  | {
+      type: "complete";
+      imported: number;
+      warnings: ImportWarning[];
+      sessions: PokerSession[];
+      ledgerSynced: boolean;
+    }
+  | {
+      type: "error";
+      error?: string;
+      errors: ImportWarning[];
+      rolledBack?: boolean;
+      partialCount?: number;
+    };
+
+export function pokerImportProgressPercent(progress: PokerImportProgress): number {
+  if (progress.total <= 0) return 0;
+  const half = (progress.current / progress.total) * 50;
+  return progress.phase === "resolving" ? half : 50 + half;
+}
+
 export type ResolvePokerImportResult =
   | {
       ok: true;
@@ -98,7 +127,8 @@ function csvRowToBodyBase(row: ParsedPokerCsvRow): PokerSessionBody {
 export async function resolvePokerImportRows(
   supabase: SupabaseClient,
   userId: string,
-  csvText: string
+  csvText: string,
+  onProgress?: (progress: PokerImportProgress) => void
 ): Promise<ResolvePokerImportResult> {
   const parsed = parsePokerCsv(csvText);
   if (parsed.errors.length > 0) {
@@ -110,6 +140,8 @@ export async function resolvePokerImportRows(
 
   const bodies: { rowNumber: number; body: PokerSessionBody; warnings: ImportWarning[] }[] = [];
   const errors: ImportWarning[] = [];
+  const total = parsed.rows.length;
+  let resolved = 0;
 
   for (const row of parsed.rows) {
     const rowWarnings: ImportWarning[] = [];
@@ -151,6 +183,8 @@ export async function resolvePokerImportRows(
     const body = base;
 
     bodies.push({ rowNumber: row.rowNumber, body, warnings: rowWarnings });
+    resolved += 1;
+    onProgress?.({ current: resolved, total, phase: "resolving" });
   }
 
   if (errors.length > 0) {
@@ -191,9 +225,10 @@ async function rollbackImportedSessions(
 export async function importPokerSessionsFromCsv(
   supabase: SupabaseClient,
   userId: string,
-  csvText: string
+  csvText: string,
+  onProgress?: (progress: PokerImportProgress) => void
 ): Promise<ImportPokerSessionsResult> {
-  const resolved = await resolvePokerImportRows(supabase, userId, csvText);
+  const resolved = await resolvePokerImportRows(supabase, userId, csvText, onProgress);
   if (!resolved.ok) {
     return { ok: false, errors: resolved.errors };
   }
@@ -202,6 +237,8 @@ export async function importPokerSessionsFromCsv(
   const createdIds: string[] = [];
   const sessions: PokerSession[] = [];
   let ledgerSynced = false;
+  const total = resolved.bodies.length;
+  let imported = 0;
 
   try {
     for (const { body, warnings } of resolved.bodies) {
@@ -215,6 +252,8 @@ export async function importPokerSessionsFromCsv(
       if (result.session.financialAccountId && result.session.savingsTransactionId) {
         ledgerSynced = true;
       }
+      imported += 1;
+      onProgress?.({ current: imported, total, phase: "importing" });
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Import failed";

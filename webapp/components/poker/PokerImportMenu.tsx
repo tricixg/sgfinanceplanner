@@ -6,6 +6,11 @@ import {
   POKER_IMPORT_TEMPLATE_CSV,
   POKER_IMPORT_TEMPLATE_FILENAME,
 } from "@/lib/poker/import-template";
+import {
+  pokerImportProgressPercent,
+  type PokerImportProgress,
+  type PokerImportStreamEvent,
+} from "@/lib/poker/import-sessions";
 import { parsePokerCsv } from "@/lib/poker/parse-csv";
 import type { PokerSession } from "@/lib/poker/types";
 
@@ -16,26 +21,83 @@ type ImportResult = {
   sessions?: PokerSession[];
 };
 
-type ImportError = {
-  error?: string;
-  errors?: { row: number; message: string }[];
-  rolledBack?: boolean;
-};
-
 type Props = {
   onImported: (result: ImportResult) => void;
 };
+
+function progressLabel(progress: PokerImportProgress): string {
+  const noun = progress.phase === "resolving" ? "Preparing row" : "Importing session";
+  return `${noun} ${progress.current} of ${progress.total}…`;
+}
+
+async function readImportStream(
+  res: Response,
+  onProgress: (progress: PokerImportProgress) => void
+): Promise<PokerImportStreamEvent> {
+  const reader = res.body?.getReader();
+  if (!reader) {
+    throw new Error("No response body");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let lastEvent: PokerImportStreamEvent | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const event = JSON.parse(trimmed) as PokerImportStreamEvent;
+      lastEvent = event;
+      if (event.type === "progress") {
+        onProgress({
+          current: event.current,
+          total: event.total,
+          phase: event.phase,
+        });
+      }
+    }
+  }
+
+  const tail = buffer.trim();
+  if (tail) {
+    const event = JSON.parse(tail) as PokerImportStreamEvent;
+    lastEvent = event;
+    if (event.type === "progress") {
+      onProgress({
+        current: event.current,
+        total: event.total,
+        phase: event.phase,
+      });
+    }
+  }
+
+  if (!lastEvent || lastEvent.type === "progress") {
+    throw new Error("Import ended without a result");
+  }
+
+  return lastEvent;
+}
 
 export function PokerImportMenu({ onImported }: Props) {
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<PokerImportProgress | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const close = () => {
     setOpen(false);
     setError(null);
     setUploading(false);
+    setProgress(null);
   };
 
   useEffect(() => {
@@ -86,6 +148,7 @@ export function PokerImportMenu({ onImported }: Props) {
 
     setUploading(true);
     setError(null);
+    setProgress({ current: 0, total: rowCount, phase: "resolving" });
     try {
       const form = new FormData();
       form.append("file", file);
@@ -96,40 +159,56 @@ export function PokerImportMenu({ onImported }: Props) {
         body: form,
       });
 
-      const data = (await res.json()) as ImportResult & ImportError;
+      if (!res.ok && res.headers.get("Content-Type")?.includes("application/json")) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error ?? "Import failed");
+      }
 
       if (!res.ok) {
+        throw new Error("Import failed");
+      }
+
+      const event = await readImportStream(res, (p) => {
+        setProgress(p);
+        console.info("[PokerImportMenu] import progress", p);
+      });
+
+      if (event.type === "error") {
         const detail =
-          data.errors?.map((e) => `Row ${e.row}: ${e.message}`).join("\n") ??
-          data.error ??
+          event.errors?.map((e) => `Row ${e.row}: ${e.message}`).join("\n") ??
+          event.error ??
           "Import failed";
         const rollback =
-          data.rolledBack ? "\n\nNo sessions were saved (import rolled back)." : "";
+          event.rolledBack ? "\n\nNo sessions were saved (import rolled back)." : "";
         setError(detail + rollback);
-        console.error("[PokerImportMenu] import failed", data);
+        console.error("[PokerImportMenu] import failed", event);
         return;
       }
 
-      if ((data.warnings?.length ?? 0) > 0) {
-        console.info("[PokerImportMenu] import warnings", data.warnings);
+      if ((event.warnings?.length ?? 0) > 0) {
+        console.info("[PokerImportMenu] import warnings", event.warnings);
       }
 
+      setProgress({ current: rowCount, total: rowCount, phase: "importing" });
       close();
       onImported({
-        imported: data.imported,
-        warnings: data.warnings ?? [],
-        ledgerSynced: data.ledgerSynced,
-        sessions: data.sessions,
+        imported: event.imported,
+        warnings: event.warnings ?? [],
+        ledgerSynced: event.ledgerSynced,
+        sessions: event.sessions,
       });
-      console.info("[PokerImportMenu] import success", { imported: data.imported });
+      console.info("[PokerImportMenu] import success", { imported: event.imported });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Upload failed";
       setError(msg);
       console.error("[PokerImportMenu] upload error", e);
     } finally {
       setUploading(false);
+      setProgress(null);
     }
   };
+
+  const percent = progress ? pokerImportProgressPercent(progress) : 0;
 
   return (
     <>
@@ -179,8 +258,30 @@ export function PokerImportMenu({ onImported }: Props) {
               rebuys.
             </p>
 
+            {uploading && progress ? (
+              <div className="poker-import-progress" style={{ marginBottom: 14 }}>
+                <div className="poker-import-progress-label">
+                  <span>{progressLabel(progress)}</span>
+                  <span>{Math.round(percent)}%</span>
+                </div>
+                <div
+                  className="poker-import-progress-track"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(percent)}
+                  aria-label="Import progress"
+                >
+                  <div
+                    className="poker-import-progress-fill"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
             <div className="toolbar" style={{ flexWrap: "wrap" }}>
-              <button type="button" className="btn ghost" onClick={downloadTemplate}>
+              <button type="button" className="btn ghost" onClick={downloadTemplate} disabled={uploading}>
                 Download template
               </button>
               <button
@@ -189,7 +290,7 @@ export function PokerImportMenu({ onImported }: Props) {
                 disabled={uploading}
                 onClick={() => fileRef.current?.click()}
               >
-                {uploading ? "Uploading…" : "Upload CSV"}
+                {uploading ? "Importing…" : "Upload CSV"}
               </button>
               <input
                 ref={fileRef}

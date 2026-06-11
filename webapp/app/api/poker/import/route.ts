@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { POKER_IMPORT_MAX_FILE_BYTES } from "@/lib/poker/import-template";
-import { importPokerSessionsFromCsv } from "@/lib/poker/import-sessions";
+import {
+  importPokerSessionsFromCsv,
+  type PokerImportStreamEvent,
+} from "@/lib/poker/import-sessions";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -24,6 +27,10 @@ function isValidUtf8(buffer: ArrayBuffer): boolean {
   } catch {
     return false;
   }
+}
+
+function ndjsonLine(event: PokerImportStreamEvent): Uint8Array {
+  return new TextEncoder().encode(`${JSON.stringify(event)}\n`);
 }
 
 export async function POST(req: NextRequest) {
@@ -89,37 +96,65 @@ export async function POST(req: NextRequest) {
     bytes: file.size,
   });
 
-  const result = await importPokerSessionsFromCsv(supabase, user.id, csvText);
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: PokerImportStreamEvent) => {
+        controller.enqueue(ndjsonLine(event));
+      };
 
-  if (!result.ok) {
-    console.info("[api/poker/import] failed", {
-      userId: user.id,
-      errors: result.errors.length,
-      rolledBack: result.rolledBack ?? false,
-    });
-    const status = result.rolledBack ? 500 : 400;
-    return NextResponse.json(
-      {
-        error: result.errors[0]?.message ?? "Import failed",
-        errors: result.errors,
-        rolledBack: result.rolledBack ?? false,
-        partialCount: result.partialCount,
-      },
-      { status }
-    );
-  }
+      try {
+        const result = await importPokerSessionsFromCsv(supabase, user.id, csvText, (progress) => {
+          send({ type: "progress", ...progress });
+        });
 
-  console.info("[api/poker/import] success", {
-    userId: user.id,
-    imported: result.imported,
-    warnings: result.warnings.length,
-    ledgerSynced: result.ledgerSynced,
+        if (!result.ok) {
+          console.info("[api/poker/import] failed", {
+            userId: user.id,
+            errors: result.errors.length,
+            rolledBack: result.rolledBack ?? false,
+          });
+          send({
+            type: "error",
+            error: result.errors[0]?.message ?? "Import failed",
+            errors: result.errors,
+            rolledBack: result.rolledBack ?? false,
+            partialCount: result.partialCount,
+          });
+          return;
+        }
+
+        console.info("[api/poker/import] success", {
+          userId: user.id,
+          imported: result.imported,
+          warnings: result.warnings.length,
+          ledgerSynced: result.ledgerSynced,
+        });
+
+        send({
+          type: "complete",
+          imported: result.imported,
+          warnings: result.warnings,
+          sessions: result.sessions,
+          ledgerSynced: result.ledgerSynced,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Import failed";
+        console.error("[api/poker/import] stream error", { userId: user.id, msg });
+        send({
+          type: "error",
+          error: msg,
+          errors: [{ row: 0, message: msg }],
+        });
+      } finally {
+        controller.close();
+      }
+    },
   });
 
-  return NextResponse.json({
-    imported: result.imported,
-    warnings: result.warnings,
-    ledgerSynced: result.ledgerSynced,
-    sessions: result.sessions,
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
   });
 }
