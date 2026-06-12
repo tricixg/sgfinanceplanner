@@ -10,7 +10,7 @@ import type { PokerSessionType, TournamentResult } from "@/lib/poker/types";
 
 export const POKER_IMPORT_MAX_FIELD_LEN = 500;
 export const POKER_IMPORT_MAX_NOTE_LEN = 2000;
-export const POKER_IMPORT_MAX_AMOUNT = 10_000_000;
+export const POKER_IMPORT_MAX_AMOUNT = 999_999_999_999;
 
 const HEADER_ALIASES: Record<string, PokerImportHeader> = Object.fromEntries(
   POKER_IMPORT_HEADERS.map((h) => [h.toLowerCase().replace(/\s+/g, ""), h])
@@ -80,6 +80,17 @@ function parseAmount(raw: string): number | null {
   if (!Number.isFinite(n) || n < 0) return null;
   if (n > POKER_IMPORT_MAX_AMOUNT) return null;
   return n;
+}
+
+function amountFieldError(raw: string, field: string, requiredMessage?: string): string {
+  const s = sanitizeCsvCell(raw).replace(/,/g, "");
+  if (!s) return requiredMessage ?? `Valid ${field} is required`;
+  const n = parseFloat(s);
+  if (!Number.isFinite(n) || n < 0) return `Invalid ${field}`;
+  if (n > POKER_IMPORT_MAX_AMOUNT) {
+    return `${field} exceeds maximum (${POKER_IMPORT_MAX_AMOUNT.toLocaleString("en-US")})`;
+  }
+  return requiredMessage ?? `Valid ${field} is required`;
 }
 
 function parseOptionalInt(raw: string): number | null {
@@ -188,7 +199,10 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
 
     const buyIn = parseAmount(get(cells, "BuyIn"));
     if (buyIn == null) {
-      errors.push({ row: rowNumber, message: "Valid BuyIn is required" });
+      errors.push({
+        row: rowNumber,
+        message: amountFieldError(get(cells, "BuyIn"), "BuyIn"),
+      });
       continue;
     }
 
@@ -249,7 +263,14 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
     if (sessionType === "cash_game") {
       const out = parseAmount(get(cells, "CashOut"));
       if (out == null) {
-        errors.push({ row: rowNumber, message: "Valid CashOut is required for cash games" });
+        errors.push({
+          row: rowNumber,
+          message: amountFieldError(
+            get(cells, "CashOut"),
+            "CashOut",
+            "Valid CashOut is required for cash games"
+          ),
+        });
         continue;
       }
       cashOut = out;
@@ -258,9 +279,17 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       const sb = parseAmount(get(cells, "SmallBlind"));
       const bb = parseAmount(get(cells, "BigBlind"));
       if (!gameName || sb == null || bb == null) {
+        const stakeMsg =
+          sb == null
+            ? amountFieldError(get(cells, "SmallBlind"), "SmallBlind")
+            : bb == null
+              ? amountFieldError(get(cells, "BigBlind"), "BigBlind")
+              : null;
         errors.push({
           row: rowNumber,
-          message: "Cash games require GameName, SmallBlind, and BigBlind",
+          message:
+            stakeMsg ??
+            "Cash games require GameName, SmallBlind, and BigBlind",
         });
         continue;
       }
@@ -270,7 +299,10 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       if (anteRaw) {
         const a = parseAmount(anteRaw);
         if (a == null) {
-          errors.push({ row: rowNumber, message: "Invalid Ante" });
+          errors.push({
+            row: rowNumber,
+            message: amountFieldError(anteRaw, "Ante", "Invalid Ante"),
+          });
           continue;
         }
         ante = a;
@@ -310,7 +342,10 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       if (rebuyRaw) {
         const rebuy = parseAmount(rebuyRaw);
         if (rebuy == null) {
-          errors.push({ row: rowNumber, message: "Invalid RebuyAmount" });
+          errors.push({
+            row: rowNumber,
+            message: amountFieldError(rebuyRaw, "RebuyAmount", "Invalid RebuyAmount"),
+          });
           continue;
         }
         rebuyAmount = rebuy;
@@ -319,7 +354,10 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
       if (bountyRaw) {
         const bounty = parseAmount(bountyRaw);
         if (bounty == null) {
-          errors.push({ row: rowNumber, message: "Invalid BountyAmount" });
+          errors.push({
+            row: rowNumber,
+            message: amountFieldError(bountyRaw, "BountyAmount", "Invalid BountyAmount"),
+          });
           continue;
         }
         bountyAmount = bounty;
@@ -330,7 +368,11 @@ export function parsePokerCsv(text: string): ParsePokerCsvResult {
         if (won == null) {
           errors.push({
             row: rowNumber,
-            message: "AmountWon is required when TournamentResult is placed",
+            message: amountFieldError(
+              get(cells, "AmountWon"),
+              "AmountWon",
+              "AmountWon is required when TournamentResult is placed"
+            ),
           });
           continue;
         }
