@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import { PokerSessionDetailModal } from "@/components/poker/PokerSessionDetailModal";
 import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal";
 import { PokerImportMenu } from "@/components/poker/PokerImportMenu";
+import { PokerSessionFilters } from "@/components/poker/PokerSessionFilters";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import {
+  derivePokerFilterCatalog,
+  EMPTY_POKER_SESSION_FILTERS,
+  filterPokerSessions,
+  type PokerSessionListFilters,
+} from "@/lib/poker/filter-sessions";
 import type { PokerSession } from "@/lib/poker/types";
 import { sessionGameLabel } from "@/lib/poker/types";
 import { pokerProfitSgd } from "@/lib/fx/convert";
@@ -39,6 +46,14 @@ export function PokerStatsSessions({
 }: Props) {
   const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
   const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
+  const [filters, setFilters] = useState<PokerSessionListFilters>(EMPTY_POKER_SESSION_FILTERS);
+
+  const { locations, games } = useMemo(() => derivePokerFilterCatalog(sessions), [sessions]);
+  const filteredSessions = useMemo(
+    () => filterPokerSessions(sessions, filters),
+    [sessions, filters]
+  );
+
   const removeSession = async (session: PokerSession) => {
     if (!confirm("Delete this poker session?")) return;
     try {
@@ -59,7 +74,7 @@ export function PokerStatsSessions({
   };
 
   const byYear = new Map<string, PokerSession[]>();
-  for (const s of sessions) {
+  for (const s of filteredSessions) {
     const y = s.playedAt.slice(0, 4);
     const list = byYear.get(y) ?? [];
     list.push(s);
@@ -77,8 +92,21 @@ export function PokerStatsSessions({
         <PokerImportMenu onImported={onImported} />
       </div>
 
+      {sessions.length > 0 ? (
+        <PokerSessionFilters
+          filters={filters}
+          locations={locations}
+          games={games}
+          matchedCount={filteredSessions.length}
+          totalCount={sessions.length}
+          onChange={setFilters}
+        />
+      ) : null}
+
       {sessions.length === 0 ? (
         <p className="note">No sessions logged yet.</p>
+      ) : filteredSessions.length === 0 ? (
+        <p className="note">No sessions match these filters.</p>
       ) : (
         <div className="poker-session-list">
           {years.map((year) => (
