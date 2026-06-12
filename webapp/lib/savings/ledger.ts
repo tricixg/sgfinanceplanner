@@ -2,6 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SavingsTransaction, SavingsTransactionKind } from "@/lib/savings/types";
 import { mapTransaction } from "@/lib/savings/db-mappers";
 import {
+  accountIdInSavingsScope,
+  loadSavingsVisibilityScope,
+  poolIdInSavingsScope,
+  savingsScopeOrFilter,
+  type SavingsVisibilityScope,
+} from "@/lib/savings/visibility-scope";
+import {
   savingsOccurredAtLowerBound,
   savingsOccurredAtUpperBoundExclusive,
 } from "@/lib/transactions/date-range";
@@ -326,12 +333,69 @@ async function enrichTransactionsWithSourceNames(
 export type ListTransactionsOpts = {
   limit?: number;
   offset?: number;
+  userId?: string;
   accountId?: string;
   poolId?: string;
   kind?: SavingsTransactionKind;
   dateFrom?: string;
   dateTo?: string;
 };
+
+type SavingsListFilterResult =
+  | { ok: true; scope?: SavingsVisibilityScope }
+  | { ok: false };
+
+async function resolveSavingsListFilters(
+  supabase: SupabaseClient,
+  opts: Pick<ListTransactionsOpts, "userId" | "accountId" | "poolId">
+): Promise<SavingsListFilterResult> {
+  if (!opts.userId) return { ok: true };
+
+  const scope = await loadSavingsVisibilityScope(supabase, opts.userId);
+
+  if (opts.accountId && !accountIdInSavingsScope(scope, opts.accountId)) {
+    console.warn("[ledger] account not in user savings scope", {
+      userId: opts.userId,
+      accountId: opts.accountId,
+    });
+    return { ok: false };
+  }
+  if (opts.poolId && !poolIdInSavingsScope(scope, opts.poolId)) {
+    console.warn("[ledger] pool not in user savings scope", {
+      userId: opts.userId,
+      poolId: opts.poolId,
+    });
+    return { ok: false };
+  }
+  if (!opts.accountId && !opts.poolId && !savingsScopeOrFilter(scope)) {
+    return { ok: false };
+  }
+
+  return { ok: true, scope };
+}
+
+function applySavingsVisibilityFilters(
+  query: {
+    eq: (column: string, value: string) => unknown;
+    or: (filters: string) => unknown;
+  },
+  opts: Pick<ListTransactionsOpts, "accountId" | "poolId">,
+  scope?: SavingsVisibilityScope
+) {
+  if (opts.accountId) {
+    return query.eq("account_id", opts.accountId);
+  }
+  if (opts.poolId) {
+    return query.eq("pool_id", opts.poolId);
+  }
+  if (scope) {
+    const orFilter = savingsScopeOrFilter(scope);
+    if (orFilter) {
+      return query.or(orFilter);
+    }
+  }
+  return query;
+}
 
 export async function listAllTransactions(
   supabase: SupabaseClient,
@@ -340,13 +404,18 @@ export async function listAllTransactions(
   const limit = opts.limit ?? 20;
   const offset = opts.offset ?? 0;
 
+  const filters = await resolveSavingsListFilters(supabase, opts);
+  if (!filters.ok) {
+    return { items: [], total: 0, nextOffset: null };
+  }
+
   let query = supabase
     .from("savings_transactions")
     .select("*", { count: "exact" })
     .is("expense_id", null);
 
-  if (opts.accountId) query = query.eq("account_id", opts.accountId);
-  if (opts.poolId) query = query.eq("pool_id", opts.poolId);
+  query = applySavingsVisibilityFilters(query, opts, filters.scope);
+
   if (opts.kind) query = query.eq("kind", opts.kind);
   if (opts.dateFrom) {
     query = query.gte("occurred_at", savingsOccurredAtLowerBound(opts.dateFrom));
@@ -378,13 +447,16 @@ export async function sumSavingsTransactionAmounts(
   supabase: SupabaseClient,
   opts: Omit<ListTransactionsOpts, "limit" | "offset"> = {}
 ): Promise<number> {
+  const filters = await resolveSavingsListFilters(supabase, opts);
+  if (!filters.ok) return 0;
+
   let query = supabase
     .from("savings_transactions")
     .select("amount")
     .is("expense_id", null);
 
-  if (opts.accountId) query = query.eq("account_id", opts.accountId);
-  if (opts.poolId) query = query.eq("pool_id", opts.poolId);
+  query = applySavingsVisibilityFilters(query, opts, filters.scope);
+
   if (opts.kind) query = query.eq("kind", opts.kind);
   if (opts.dateFrom) {
     query = query.gte("occurred_at", savingsOccurredAtLowerBound(opts.dateFrom));

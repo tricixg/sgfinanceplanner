@@ -4,8 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * User-scoped Supabase client. In dev bypass mode uses service role (with DEV_USER_ID
- * filtering in routes) because there is no magic-link session cookie.
+ * User-scoped Supabase client. In dev bypass mode uses service role; routes must
+ * pass userId into savings ledger list queries (see savings/visibility-scope.ts).
  */
 export async function createAuthedSupabaseClient(): Promise<SupabaseClient> {
   if (

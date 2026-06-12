@@ -205,6 +205,7 @@ export async function listUnifiedTransactions(
   const [savingsPage, budgetPage, expensePage] = await Promise.all([
     fetchSavings
       ? listAllTransactions(supabase, {
+          userId,
           limit: window,
           offset: 0,
           accountId: accountFilters.accountId,
@@ -255,6 +256,7 @@ export async function listUnifiedTransactions(
     const [savingsSum, budgetSum, expenseSum] = await Promise.all([
       fetchSavings
         ? sumSavingsTransactionAmounts(supabase, {
+            userId,
             accountId: accountFilters.accountId,
             poolId: accountFilters.poolId,
             kind: opts.kind,
