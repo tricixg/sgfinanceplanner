@@ -374,24 +374,25 @@ async function resolveSavingsListFilters(
   return { ok: true, scope };
 }
 
-function applySavingsVisibilityFilters(
-  query: {
-    eq: (column: string, value: string) => unknown;
-    or: (filters: string) => unknown;
-  },
+function applySavingsVisibilityFilters<T>(
+  query: T,
   opts: Pick<ListTransactionsOpts, "accountId" | "poolId">,
   scope?: SavingsVisibilityScope
-) {
+): T {
+  const q = query as {
+    eq: (column: string, value: string) => T;
+    or: (filters: string) => T;
+  };
   if (opts.accountId) {
-    return query.eq("account_id", opts.accountId);
+    return q.eq("account_id", opts.accountId);
   }
   if (opts.poolId) {
-    return query.eq("pool_id", opts.poolId);
+    return q.eq("pool_id", opts.poolId);
   }
   if (scope) {
     const orFilter = savingsScopeOrFilter(scope);
     if (orFilter) {
-      return query.or(orFilter);
+      return q.or(orFilter);
     }
   }
   return query;
