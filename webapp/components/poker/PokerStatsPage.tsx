@@ -10,15 +10,23 @@ import { PokerStatsOverview } from "@/components/poker/stats/PokerStatsOverview"
 import { PokerStatsSessions } from "@/components/poker/stats/PokerStatsSessions";
 import { PokerStatsLocations } from "@/components/poker/stats/PokerStatsLocations";
 import { PokerStatsLocationDetail } from "@/components/poker/stats/PokerStatsLocationDetail";
+import { PokerStatsTournaments } from "@/components/poker/stats/PokerStatsTournaments";
 import { PokerStatsCharts } from "@/components/poker/stats/PokerStatsCharts";
 import { PokerStatsTrends } from "@/components/poker/stats/PokerStatsTrends";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
-export type PokerStatsTab = "overview" | "sessions" | "locations" | "charts" | "trends";
+export type PokerStatsTab =
+  | "overview"
+  | "sessions"
+  | "tournaments"
+  | "locations"
+  | "charts"
+  | "trends";
 
 const TABS: { id: PokerStatsTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "sessions", label: "Sessions" },
+  { id: "tournaments", label: "Tournaments" },
   { id: "locations", label: "Locations" },
   { id: "charts", label: "Charts" },
   { id: "trends", label: "Trends" },
@@ -151,6 +159,8 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
             console.info("[PokerStatsPage] import applied", { imported, ledgerSynced });
           }}
         />
+      ) : activeTab === "tournaments" ? (
+        <PokerStatsTournaments stats={stats} />
       ) : activeTab === "locations" ? (
         locationDetail ? (
           <PokerStatsLocationDetail

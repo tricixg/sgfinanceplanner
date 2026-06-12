@@ -2959,6 +2959,9 @@ footer {
   gap: var(--kpi-gap);
   margin-bottom: 12px;
 }
+.poker-stats-summary--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .poker-stats-summary-stat {
   min-width: 0;
   padding: var(--kpi-stat-padding);
@@ -3083,6 +3086,13 @@ footer {
 
   .poker-stats-summary {
     gap: var(--kpi-gap-mobile);
+  }
+  .poker-stats-summary--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .poker-stats-summary--4 .poker-stats-summary-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .poker-stats-summary-stat {
     padding: var(--kpi-stat-padding-mobile);
