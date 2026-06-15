@@ -16,11 +16,15 @@ function CashAccountsContent({
   const user = useAppSession();
   const { savingsTotals, savingsApi, accountsApi } = usePageSavings(user?.id, state);
 
+  // Depend on the *stable* members (reload is a useCallback, configured is a
+  // boolean) — not the whole accountsApi object, which is a fresh identity every
+  // render and would make this effect re-run → reload → re-render → loop.
+  const { reload: reloadAccounts, configured: accountsConfigured } = accountsApi;
   useEffect(() => {
-    if (!user?.id || !accountsApi.configured) return;
+    if (!user?.id || !accountsConfigured) return;
     console.info("[CashAccountsRoute] refresh accounts on tab enter");
-    void accountsApi.reload();
-  }, [user?.id, accountsApi]);
+    void reloadAccounts();
+  }, [user?.id, accountsConfigured, reloadAccounts]);
 
   return (
     <TabCashAccounts

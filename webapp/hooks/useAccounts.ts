@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import {
   ACCOUNTS_CHANGED_EVENT,
@@ -124,15 +124,20 @@ export function useAccountsProvider(enabled: boolean) {
     [load]
   );
 
-  return {
-    accounts,
-    totals,
-    loading,
-    configured,
-    reload: load,
-    saveAccounts,
-    recordAccountTransaction,
-  };
+  // Memoize so consumers reading this via context get a stable object identity
+  // and only re-render when the underlying data/callbacks actually change.
+  return useMemo(
+    () => ({
+      accounts,
+      totals,
+      loading,
+      configured,
+      reload: load,
+      saveAccounts,
+      recordAccountTransaction,
+    }),
+    [accounts, totals, loading, configured, load, saveAccounts, recordAccountTransaction]
+  );
 }
 
 export function useAccounts() {

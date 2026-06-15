@@ -84,6 +84,13 @@ export function SavingsLedgerModal({
   const { categories: incomeCategories, configured: incomeConfigured } =
     useIncomeCategories(target.variant === "account");
 
+  // Stable identity for the target so the reset effect below only fires when the
+  // user actually switches account/pool — not on every parent re-render, which
+  // recreates the inline `target` object literal and would otherwise wipe the
+  // in-progress selection (e.g. the income category dropdown).
+  const targetKey =
+    target.variant === "account" ? target.account.id : target.pool.id;
+
   useEffect(() => {
     setHistoryKey(txRefresh);
   }, [txRefresh]);
@@ -93,7 +100,7 @@ export function SavingsLedgerModal({
     setAmount("");
     setIncomeCategoryId("");
     setError("");
-  }, [target, kind]);
+  }, [targetKey, kind]);
 
   useEffect(() => {
     if (
