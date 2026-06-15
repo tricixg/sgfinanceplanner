@@ -14,6 +14,7 @@ import { TelegramLinkCard } from "@/components/integrations/TelegramLinkCard";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import type { useHousehold } from "@/hooks/useHousehold";
 import { DecimalInput } from "@/components/DecimalInput";
+import { IncomeSourcesCard } from "@/components/income/IncomeSourcesCard";
 
 type Props = {
   state: DashboardState;
@@ -26,6 +27,8 @@ type Props = {
   household?: ReturnType<typeof useHousehold>;
   onPartnerUnlinked?: () => void | Promise<void>;
   onSaveError?: (message: string) => void;
+  /** Whether the signed-in income-category API is available (cloud mode). */
+  authEnabled?: boolean;
 };
 
 export function TabMe({
@@ -39,6 +42,7 @@ export function TabMe({
   household,
   onPartnerUnlinked,
   onSaveError,
+  authEnabled = false,
 }: Props) {
   const appData = useContext(AppDataContext);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -318,6 +322,8 @@ export function TabMe({
           </>
         )}
       </div>
+
+      <IncomeSourcesCard authEnabled={authEnabled} />
 
       <div className="section-head">
         <h2>Insurance (non-ILP)</h2>

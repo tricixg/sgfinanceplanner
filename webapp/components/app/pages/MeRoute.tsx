@@ -53,6 +53,7 @@ function MeContent({
       userEmail={user?.email ?? undefined}
       household={household}
       onPartnerUnlinked={onPartnerUnlinked}
+      authEnabled={Boolean(user)}
     />
   );
 }
