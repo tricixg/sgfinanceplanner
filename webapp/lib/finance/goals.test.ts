@@ -14,6 +14,7 @@ const goal = (partial: Partial<SavingsGoal>): SavingsGoal => ({
   name: "Trip",
   targetAmount: 12000,
   savedAmount: 0,
+  startDate: null,
   targetDate: "2027-01-01",
   monthlyContribution: 0,
   whereLabel: "",
@@ -51,6 +52,24 @@ describe("computedSavingsMonthly", () => {
     expect(
       computedSavingsMonthly([goal({ targetDate: null })], "2026-05")
     ).toBe(0);
+  });
+
+  it("excludes goals whose startDate is in the future", () => {
+    const futureStart = goal({
+      targetAmount: 12000,
+      targetDate: "2028-01-01",
+      startDate: "2027-01-01",
+    });
+    expect(computedSavingsMonthly([futureStart], "2026-05")).toBe(0);
+  });
+
+  it("includes goals whose startDate is in the past", () => {
+    const pastStart = goal({
+      targetAmount: 12000,
+      targetDate: "2027-06-01",
+      startDate: "2025-01-01",
+    });
+    expect(computedSavingsMonthly([pastStart], "2026-05")).toBeGreaterThan(0);
   });
 });
 

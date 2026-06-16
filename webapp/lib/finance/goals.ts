@@ -17,15 +17,18 @@ export function monthsUntil(ym: string, nowYm?: string): number {
   return Math.max(1, monIdx(ym) - now);
 }
 
-/** Monthly amount needed to reach target by date; null when no target date. */
+/** Monthly amount needed to reach target by date; null when no target date.
+ *  When startDate is set, the period startDate→targetDate defines the monthly plan
+ *  (useful for pre-planning a future saving window). */
 export function monthlySavingNeeded(
-  goal: Pick<SavingsGoal, "targetAmount" | "savedAmount" | "targetDate">,
+  goal: Pick<SavingsGoal, "targetAmount" | "savedAmount" | "startDate" | "targetDate">,
   nowYm?: string
 ): number | null {
   if (!goal.targetDate) return null;
   const gap = Math.max(0, goal.targetAmount - goal.savedAmount);
   if (gap <= 0) return 0;
-  const mths = monthsUntil(goal.targetDate.slice(0, 7), nowYm);
+  const fromYm = goal.startDate?.slice(0, 7) ?? (nowYm ?? currentYm());
+  const mths = Math.max(1, monIdx(goal.targetDate.slice(0, 7)) - monIdx(fromYm));
   return gap / mths;
 }
 

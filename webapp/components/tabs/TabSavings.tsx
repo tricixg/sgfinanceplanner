@@ -404,7 +404,7 @@ function GoalsSection({
   personalAccounts: UserSavingsAccount[];
   pools: SavingsPool[];
 }) {
-  const { rows, totT, totMonthly } = summary;
+  const { totT } = summary;
 
   const update = (i: number, patch: Partial<SavingsGoal>) => {
     const scoped = goals[i];
@@ -415,21 +415,21 @@ function GoalsSection({
     setGoals(next);
   };
 
-  const updateTargetDateAndPlan = (i: number, targetDate: string | null) => {
+  const recalcPlan = (i: number, patch: Partial<SavingsGoal>) => {
     const scoped = goals[i];
     if (!scoped) return;
+    const merged = { ...scoped, ...patch };
     const needed = monthlySavingNeeded({
-      targetAmount: scoped.targetAmount,
-      savedAmount: scoped.savedAmount,
-      targetDate,
+      targetAmount: merged.targetAmount,
+      savedAmount: merged.savedAmount,
+      startDate: merged.startDate,
+      targetDate: merged.targetDate,
     });
-    update(i, {
-      targetDate,
-      monthlyContribution: needed != null ? needed : 0,
-    });
-    console.info("[TabSavings] goal target date updated", {
+    update(i, { ...patch, monthlyContribution: needed != null ? needed : 0 });
+    console.info("[TabSavings] goal dates updated", {
       goalId: scoped.id,
-      targetDate,
+      startDate: merged.startDate,
+      targetDate: merged.targetDate,
       monthlyContribution: needed != null ? needed : 0,
     });
   };
@@ -445,6 +445,7 @@ function GoalsSection({
         name: scope === "shared" ? "New shared goal" : "New goal",
         targetAmount: 5000,
         savedAmount: 0,
+        startDate: null,
         targetDate: null,
         monthlyContribution: 0,
         whereLabel: "",
@@ -474,6 +475,7 @@ function GoalsSection({
                 <tr>
                   <th>Goal</th>
                   <th className="num">Target</th>
+                  <th>From</th>
                   <th>By</th>
                   <th className="num">Plan/mo</th>
                   <th>{scope === "shared" ? "Pool" : "Account"}</th>
@@ -500,12 +502,32 @@ function GoalsSection({
                     <td>
                       <input
                         type="month"
+                        value={g.startDate?.slice(0, 7) ?? ""}
+                        onChange={(e) =>
+                          recalcPlan(i, {
+                            startDate: e.target.value ? `${e.target.value}-01` : null,
+                          })
+                        }
+                      />
+                      {g.startDate ? (
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          style={{ marginLeft: 4 }}
+                          onClick={() => recalcPlan(i, { startDate: null })}
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </td>
+                    <td>
+                      <input
+                        type="month"
                         value={g.targetDate?.slice(0, 7) ?? ""}
                         onChange={(e) =>
-                          updateTargetDateAndPlan(
-                            i,
-                            e.target.value ? `${e.target.value}-01` : null
-                          )
+                          recalcPlan(i, {
+                            targetDate: e.target.value ? `${e.target.value}-01` : null,
+                          })
                         }
                       />
                       {g.targetDate ? (
@@ -513,7 +535,7 @@ function GoalsSection({
                           type="button"
                           className="btn ghost sm"
                           style={{ marginLeft: 4 }}
-                          onClick={() => updateTargetDateAndPlan(i, null)}
+                          onClick={() => recalcPlan(i, { targetDate: null })}
                         >
                           Clear
                         </button>
@@ -583,14 +605,14 @@ function GoalsSection({
                 <th>Goal</th>
                 <th className="num">Saved</th>
                 <th className="num">Target</th>
-                <th className="num">Need/mo</th>
+                <th className="num">Plan/mo</th>
+                <th>From</th>
                 <th>By</th>
                 <th>{scope === "shared" ? "Pool" : "Account"}</th>
               </tr>
             </thead>
             <tbody>
               {goals.map((g) => {
-                const row = rows.find((r) => r.name === g.name);
                 const linked = goalLinkedLabel(g, personalAccounts, pools);
                 const jarHint =
                   scope === "shared" ? "Use pool above" : "Use ME account";
@@ -602,8 +624,9 @@ function GoalsSection({
                     <td className="num">{fmt2(g.savedAmount)}</td>
                     <td className="num">{fmt(g.targetAmount)}</td>
                     <td className="num">
-                      {g.targetDate && row ? fmt(row.need) : "—"}
+                      {g.targetDate ? fmt(g.monthlyContribution) : "—"}
                     </td>
+                    <td>{g.startDate ? g.startDate.slice(0, 7) : "—"}</td>
                     <td>{g.targetDate ? g.targetDate.slice(0, 7) : "—"}</td>
                     <td className="note" style={{ fontSize: 12 }}>
                       {linked ?? jarHint}
@@ -617,10 +640,10 @@ function GoalsSection({
                 <td>
                   <strong>Total</strong>
                 </td>
-                <td className="num">{fmt2(rows.reduce((s, r) => s + r.saved, 0))}</td>
+                <td className="num">{fmt2(goals.reduce((s, g) => s + g.savedAmount, 0))}</td>
                 <td className="num">{fmt(totT)}</td>
-                <td className="num">{fmt(totMonthly)}/mo</td>
-                <td colSpan={2} />
+                <td className="num">{fmt(goals.reduce((s, g) => s + g.monthlyContribution, 0))}/mo</td>
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>

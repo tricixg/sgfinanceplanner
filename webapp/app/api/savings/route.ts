@@ -108,6 +108,7 @@ export async function PUT(req: NextRequest) {
           name: g.name ?? "",
           target_amount: g.targetAmount ?? 0,
           saved_amount: g.savedAmount ?? 0,
+          start_date: g.startDate ?? null,
           target_date: g.targetDate ?? null,
           monthly_contribution: g.monthlyContribution ?? 0,
           where_label: g.whereLabel ?? "",

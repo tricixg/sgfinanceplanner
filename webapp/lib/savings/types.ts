@@ -63,6 +63,7 @@ export type SavingsGoal = {
   name: string;
   targetAmount: number;
   savedAmount: number;
+  startDate: string | null;
   targetDate: string | null;
   monthlyContribution: number;
   whereLabel: string;

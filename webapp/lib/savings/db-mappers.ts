@@ -67,6 +67,7 @@ export function mapGoal(row: Record<string, unknown>): SavingsGoal {
     name: String(row.name ?? ""),
     targetAmount: Number(row.target_amount ?? 0),
     savedAmount: Number(row.saved_amount ?? 0),
+    startDate: row.start_date ? String(row.start_date) : null,
     targetDate: row.target_date ? String(row.target_date) : null,
     monthlyContribution: Number(row.monthly_contribution ?? 0),
     whereLabel: String(row.where_label ?? ""),

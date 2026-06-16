@@ -7,7 +7,7 @@ import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
 import { stableTakeHome } from "./income";
 import { loanLoadForMonth } from "./loanLoad";
-import { budgetYm } from "./helpers";
+import { budgetYm, currentYm, monIdx } from "./helpers";
 import { computedInsuranceMonthly } from "./insurance";
 import { computedIlpMonthly, ilpTotalValue } from "./ilp";
 import { portfolioInvestmentValue } from "./wealth";
@@ -79,13 +79,20 @@ export function computedDebtMonthly(S: DashboardState, ym?: string): number {
   return loanLoadForMonth(S.loans, budgetYm(ym));
 }
 
-/** Sum of monthly saving needed for goals with a target date. */
+/** Sum of monthly saving needed for goals that are currently active.
+ *  Goals with a future startDate are excluded until the saving window opens.
+ *  For active goals, need is computed from now → targetDate so the budget
+ *  reflects what must be set aside this month, not the original plan rate. */
 export function computedSavingsMonthly(
   goals: SavingsGoal[],
   nowYm?: string
 ): number {
+  const now = nowYm ?? currentYm();
   return goals.reduce((sum, g) => {
-    const need = monthlySavingNeeded(g, nowYm);
+    if (g.startDate && monIdx(g.startDate.slice(0, 7)) > monIdx(now)) {
+      return sum;
+    }
+    const need = monthlySavingNeeded({ ...g, startDate: null }, nowYm);
     return sum + (need ?? 0);
   }, 0);
 }
