@@ -17,6 +17,7 @@ const goal = (partial: Partial<SavingsGoal>): SavingsGoal => ({
   startDate: null,
   targetDate: "2027-01-01",
   monthlyContribution: 0,
+  splits: null,
   whereLabel: "",
   linkedAccountId: null,
   linkedPoolId: null,
@@ -46,11 +47,12 @@ describe("computedSavingsMonthly", () => {
         goal({ targetAmount: 6000, targetDate: "2027-01-01" }),
         goal({ id: "g2", name: "Open", targetDate: null }),
       ],
+      undefined,
       "2026-05"
     );
     expect(total).toBeGreaterThan(0);
     expect(
-      computedSavingsMonthly([goal({ targetDate: null })], "2026-05")
+      computedSavingsMonthly([goal({ targetDate: null })], undefined, "2026-05")
     ).toBe(0);
   });
 
@@ -60,7 +62,7 @@ describe("computedSavingsMonthly", () => {
       targetDate: "2028-01-01",
       startDate: "2027-01-01",
     });
-    expect(computedSavingsMonthly([futureStart], "2026-05")).toBe(0);
+    expect(computedSavingsMonthly([futureStart], undefined, "2026-05")).toBe(0);
   });
 
   it("includes goals whose startDate is in the past", () => {
@@ -69,7 +71,43 @@ describe("computedSavingsMonthly", () => {
       targetDate: "2027-06-01",
       startDate: "2025-01-01",
     });
-    expect(computedSavingsMonthly([pastStart], "2026-05")).toBeGreaterThan(0);
+    expect(computedSavingsMonthly([pastStart], undefined, "2026-05")).toBeGreaterThan(0);
+  });
+
+  it("uses split amount for shared goals when myUserId matches", () => {
+    const sharedGoal = goal({
+      scope: "shared",
+      ownerUserId: null,
+      householdId: "hh1",
+      targetAmount: 12000,
+      targetDate: "2027-01-01",
+      monthlyContribution: 1000,
+      splits: { "user-me": 400, "user-partner": 600 },
+    });
+    const myShare = computedSavingsMonthly([sharedGoal], "user-me", "2026-05");
+    expect(myShare).toBe(400);
+    const partnerShare = computedSavingsMonthly([sharedGoal], "user-partner", "2026-05");
+    expect(partnerShare).toBe(600);
+  });
+
+  it("falls back to 50% for shared goals with no splits", () => {
+    const sharedGoal = goal({
+      scope: "shared",
+      ownerUserId: null,
+      householdId: "hh1",
+      targetAmount: 12000,
+      targetDate: "2027-01-01",
+      splits: null,
+    });
+    const myShare = computedSavingsMonthly([sharedGoal], "user-me", "2026-05");
+    // Live calc from now → target, halved
+    expect(myShare).toBeGreaterThan(0);
+    const fullNeed = computedSavingsMonthly(
+      [{ ...sharedGoal, scope: "individual", ownerUserId: "user-me", householdId: null }],
+      "user-me",
+      "2026-05"
+    );
+    expect(myShare).toBeCloseTo(fullNeed / 2, 5);
   });
 });
 

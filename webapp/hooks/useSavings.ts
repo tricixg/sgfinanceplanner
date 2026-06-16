@@ -24,6 +24,8 @@ const emptyBundle: SavingsBundle = {
   totals: emptyTotals,
   householdId: null,
   paired: false,
+  myUserId: "",
+  members: [],
 };
 
 function bundleFromResponse(
@@ -35,6 +37,8 @@ function bundleFromResponse(
     totals: data.totals ?? emptyTotals,
     householdId: data.householdId ?? null,
     paired: Boolean(data.paired),
+    myUserId: data.myUserId ?? "",
+    members: data.members ?? [],
   };
 }
 

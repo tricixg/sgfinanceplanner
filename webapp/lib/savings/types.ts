@@ -66,6 +66,8 @@ export type SavingsGoal = {
   startDate: string | null;
   targetDate: string | null;
   monthlyContribution: number;
+  /** Per-user monthly amounts for shared goals: { userId: amount }. Both members stored. */
+  splits: Record<string, number> | null;
   whereLabel: string;
   linkedAccountId: string | null;
   linkedPoolId: string | null;
@@ -92,6 +94,10 @@ export type SavingsBundle = {
   totals: SavingsSnapshot;
   householdId: string | null;
   paired: boolean;
+  /** The current user's ID — used to resolve their split on shared goals. */
+  myUserId: string;
+  /** All household members, so split columns can label You vs Partner. */
+  members: { userId: string }[];
 };
 
 export type HouseholdMember = {

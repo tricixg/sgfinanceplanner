@@ -13,6 +13,7 @@ import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
 import { SavingsLedgerModal } from "@/components/savings/SavingsLedgerModal";
 import { GoalsProgressBar } from "@/components/savings/GoalsProgressBar";
+import { SharedContributionsLedger } from "@/components/savings/SharedContributionsLedger";
 import { Snackbar } from "@/components/Snackbar";
 import { useSnackbar } from "@/hooks/useSnackbar";
 
@@ -300,6 +301,8 @@ export function TabSavings({
         summary={personalSummary}
         personalAccounts={personalAccounts}
         pools={savings.pools}
+        myUserId={savings.myUserId}
+        members={savings.members}
       />
 
       {savings.paired ? (
@@ -337,7 +340,15 @@ export function TabSavings({
             summary={sharedSummary}
             personalAccounts={personalAccounts}
             pools={savings.pools}
+            myUserId={savings.myUserId}
+            members={savings.members}
           />
+          {!editingSharedGoals && sharedGoals.length > 0 ? (
+            <SharedContributionsLedger
+              sharedGoals={sharedGoals}
+              myUserId={savings.myUserId}
+            />
+          ) : null}
         </>
       ) : null}
 
@@ -394,6 +405,8 @@ function GoalsSection({
   summary,
   personalAccounts,
   pools,
+  myUserId,
+  members,
 }: {
   editing: boolean;
   goals: SavingsGoal[];
@@ -403,7 +416,10 @@ function GoalsSection({
   summary: ReturnType<typeof goalsSummary>;
   personalAccounts: UserSavingsAccount[];
   pools: SavingsPool[];
+  myUserId: string;
+  members: { userId: string }[];
 }) {
+  const partnerUserId = members.find((m) => m.userId !== myUserId)?.userId ?? null;
   const { totT } = summary;
 
   const update = (i: number, patch: Partial<SavingsGoal>) => {
@@ -425,13 +441,22 @@ function GoalsSection({
       startDate: merged.startDate,
       targetDate: merged.targetDate,
     });
-    update(i, { ...patch, monthlyContribution: needed != null ? needed : 0 });
-    console.info("[TabSavings] goal dates updated", {
-      goalId: scoped.id,
-      startDate: merged.startDate,
-      targetDate: merged.targetDate,
-      monthlyContribution: needed != null ? needed : 0,
-    });
+    const newMonthly = needed != null ? needed : 0;
+    // Reset splits to 50/50 when plan changes (only for shared goals with a partner)
+    const newSplits =
+      scope === "shared" && myUserId && partnerUserId
+        ? { [myUserId]: newMonthly / 2, [partnerUserId]: newMonthly / 2 }
+        : merged.splits;
+    update(i, { ...patch, monthlyContribution: newMonthly, splits: newSplits ?? null });
+  };
+
+  const updateSplit = (i: number, myAmount: number) => {
+    const scoped = goals[i];
+    if (!scoped || !myUserId) return;
+    const partnerAmount = Math.max(0, scoped.monthlyContribution - myAmount);
+    const newSplits: Record<string, number> = { [myUserId]: myAmount };
+    if (partnerUserId) newSplits[partnerUserId] = partnerAmount;
+    update(i, { splits: newSplits });
   };
 
   const add = () => {
@@ -448,6 +473,7 @@ function GoalsSection({
         startDate: null,
         targetDate: null,
         monthlyContribution: 0,
+        splits: null,
         whereLabel: "",
         linkedAccountId: null,
         linkedPoolId: null,
@@ -478,6 +504,12 @@ function GoalsSection({
                   <th>From</th>
                   <th>By</th>
                   <th className="num">Plan/mo</th>
+                  {scope === "shared" ? (
+                    <>
+                      <th className="num">You</th>
+                      <th className="num">Partner</th>
+                    </>
+                  ) : null}
                   <th>{scope === "shared" ? "Pool" : "Account"}</th>
                   <th aria-label="Actions" />
                 </tr>
@@ -547,6 +579,25 @@ function GoalsSection({
                         onChange={(n) => update(i, { monthlyContribution: n })}
                       />
                     </td>
+                    {scope === "shared" ? (() => {
+                      const myAmt = myUserId
+                        ? (g.splits?.[myUserId] ?? g.monthlyContribution / 2)
+                        : g.monthlyContribution / 2;
+                      const partnerAmt = Math.max(0, g.monthlyContribution - myAmt);
+                      return (
+                        <>
+                          <td className="num">
+                            <DecimalInput
+                              value={myAmt}
+                              onChange={(n) => updateSplit(i, n)}
+                            />
+                          </td>
+                          <td className="num" style={{ color: "var(--text-muted, #888)", paddingTop: 6 }}>
+                            {fmt2(partnerAmt)}
+                          </td>
+                        </>
+                      );
+                    })() : null}
                     <td>
                       <select
                         value={
@@ -606,6 +657,12 @@ function GoalsSection({
                 <th className="num">Saved</th>
                 <th className="num">Target</th>
                 <th className="num">Plan/mo</th>
+                {scope === "shared" ? (
+                  <>
+                    <th className="num">You</th>
+                    <th className="num">Partner</th>
+                  </>
+                ) : null}
                 <th>From</th>
                 <th>By</th>
                 <th>{scope === "shared" ? "Pool" : "Account"}</th>
@@ -616,6 +673,12 @@ function GoalsSection({
                 const linked = goalLinkedLabel(g, personalAccounts, pools);
                 const jarHint =
                   scope === "shared" ? "Use pool above" : "Use ME account";
+                const myAmt = scope === "shared" && myUserId
+                  ? (g.splits?.[myUserId] ?? g.monthlyContribution / 2)
+                  : null;
+                const partnerAmt = myAmt != null
+                  ? Math.max(0, g.monthlyContribution - myAmt)
+                  : null;
                 return (
                   <tr key={g.id}>
                     <td>
@@ -626,6 +689,12 @@ function GoalsSection({
                     <td className="num">
                       {g.targetDate ? fmt(g.monthlyContribution) : "—"}
                     </td>
+                    {scope === "shared" ? (
+                      <>
+                        <td className="num">{myAmt != null && g.targetDate ? fmt(myAmt) : "—"}</td>
+                        <td className="num">{partnerAmt != null && g.targetDate ? fmt(partnerAmt) : "—"}</td>
+                      </>
+                    ) : null}
                     <td>{g.startDate ? g.startDate.slice(0, 7) : "—"}</td>
                     <td>{g.targetDate ? g.targetDate.slice(0, 7) : "—"}</td>
                     <td className="note" style={{ fontSize: 12 }}>
@@ -643,7 +712,23 @@ function GoalsSection({
                 <td className="num">{fmt2(goals.reduce((s, g) => s + g.savedAmount, 0))}</td>
                 <td className="num">{fmt(totT)}</td>
                 <td className="num">{fmt(goals.reduce((s, g) => s + g.monthlyContribution, 0))}/mo</td>
-                <td colSpan={3} />
+                {scope === "shared" ? (
+                  <>
+                    <td className="num">
+                      {fmt(goals.reduce((s, g) => {
+                        const a = myUserId ? (g.splits?.[myUserId] ?? g.monthlyContribution / 2) : g.monthlyContribution / 2;
+                        return s + (g.targetDate ? a : 0);
+                      }, 0))}/mo
+                    </td>
+                    <td className="num">
+                      {fmt(goals.reduce((s, g) => {
+                        const a = myUserId ? (g.splits?.[myUserId] ?? g.monthlyContribution / 2) : g.monthlyContribution / 2;
+                        return s + (g.targetDate ? Math.max(0, g.monthlyContribution - a) : 0);
+                      }, 0))}/mo
+                    </td>
+                  </>
+                ) : null}
+                <td colSpan={scope === "shared" ? 3 : 3} />
               </tr>
             </tfoot>
           </table>

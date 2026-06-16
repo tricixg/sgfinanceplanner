@@ -70,6 +70,9 @@ export function mapGoal(row: Record<string, unknown>): SavingsGoal {
     startDate: row.start_date ? String(row.start_date) : null,
     targetDate: row.target_date ? String(row.target_date) : null,
     monthlyContribution: Number(row.monthly_contribution ?? 0),
+    splits: row.splits && typeof row.splits === "object" && !Array.isArray(row.splits)
+      ? (row.splits as Record<string, number>)
+      : null,
     whereLabel: String(row.where_label ?? ""),
     linkedAccountId: row.linked_account_id ? String(row.linked_account_id) : null,
     linkedPoolId: row.linked_pool_id ? String(row.linked_pool_id) : null,

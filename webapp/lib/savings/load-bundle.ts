@@ -22,6 +22,7 @@ export async function loadSavingsBundle(
     .eq("household_id", householdId);
 
   const paired = (members?.length ?? 0) > 1;
+  const memberList = (members ?? []).map((m) => ({ userId: String(m.user_id) }));
 
   const { data: poolRows, error: poolErr } = await supabase
     .from("savings_pools")
@@ -78,6 +79,8 @@ export async function loadSavingsBundle(
     totals,
     householdId,
     paired,
+    myUserId: userId,
+    members: memberList,
   };
 }
 

@@ -111,6 +111,7 @@ export async function PUT(req: NextRequest) {
           start_date: g.startDate ?? null,
           target_date: g.targetDate ?? null,
           monthly_contribution: g.monthlyContribution ?? 0,
+          splits: g.splits ?? null,
           where_label: g.whereLabel ?? "",
           linked_account_id: g.linkedAccountId ?? null,
           linked_pool_id: g.linkedPoolId ?? null,

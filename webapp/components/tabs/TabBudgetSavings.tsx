@@ -149,7 +149,7 @@ export function TabBudgetSavings({
   const ilpPrem = computedIlpMonthly(S);
   const subPrem =
     lookupComputedSpend(expenseSummary, "subscription")?.allocated ?? 0;
-  const savingsPrem = computedSavingsMonthly(savingsGoals);
+  const savingsPrem = computedSavingsMonthly(savingsGoals, savingsBundle.myUserId);
   const { alloc, left, invPct } = budgetVerdict(budgetState, ym, savingsPrem);
   const monthlyInv = monthlyInvestContribution(budgetState);
   const proj = budgetProjection(

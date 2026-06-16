@@ -81,16 +81,25 @@ export function computedDebtMonthly(S: DashboardState, ym?: string): number {
 
 /** Sum of monthly saving needed for goals that are currently active.
  *  Goals with a future startDate are excluded until the saving window opens.
- *  For active goals, need is computed from now → targetDate so the budget
- *  reflects what must be set aside this month, not the original plan rate. */
+ *  For shared goals, only the current user's split is counted (default 50% if no split set).
+ *  For individual goals, need is computed from now → targetDate. */
 export function computedSavingsMonthly(
   goals: SavingsGoal[],
+  myUserId?: string,
   nowYm?: string
 ): number {
   const now = nowYm ?? currentYm();
   return goals.reduce((sum, g) => {
     if (g.startDate && monIdx(g.startDate.slice(0, 7)) > monIdx(now)) {
       return sum;
+    }
+    if (g.scope === "shared") {
+      if (myUserId && g.splits?.[myUserId] != null) {
+        return sum + g.splits[myUserId];
+      }
+      // No split set yet — fall back to 50% of live monthly need
+      const need = monthlySavingNeeded({ ...g, startDate: null }, nowYm);
+      return sum + (need ?? 0) / 2;
     }
     const need = monthlySavingNeeded({ ...g, startDate: null }, nowYm);
     return sum + (need ?? 0);
