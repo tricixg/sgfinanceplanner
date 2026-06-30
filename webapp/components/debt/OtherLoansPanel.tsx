@@ -532,6 +532,11 @@ export function OtherLoansPanel({
   };
 
   const activeBalanceTransfers = balanceTransfers.filter(({ loan }) => !loan.paidAt);
+  const archivedBalanceTransfers = balanceTransfers.filter(({ loan }) => loan.paidAt);
+  const archivedPersonalLoans = personalLoans.filter(({ loan }) => loan.paidAt);
+
+  const hasAnyActive = activeBalanceTransfers.length > 0 || activePersonalLoans.length > 0;
+  const hasAnyArchived = archivedBalanceTransfers.length > 0 || archivedPersonalLoans.length > 0;
 
   return (
     <>
@@ -600,7 +605,7 @@ export function OtherLoansPanel({
             </div>
           </section>
         </div>
-      ) : activeBalanceTransfers.length === 0 && activePersonalLoans.length === 0 ? (
+      ) : !hasAnyActive && !hasAnyArchived ? (
         <p className="note" style={{ fontStyle: "italic" }}>
           No other loans. Click Edit to add balance transfers or personal loans.
         </p>
@@ -685,6 +690,80 @@ export function OtherLoansPanel({
               </table>
             </section>
           ) : null}
+
+          {archivedBalanceTransfers.length > 0 && (
+            <details className="debt-archive">
+              <summary>
+                Archive — {archivedBalanceTransfers.length} paid balance transfer{archivedBalanceTransfers.length === 1 ? "" : "s"}
+              </summary>
+              <div className="card table-scroll" style={{ marginTop: 0, borderTop: "none" }}>
+                <table className="other-loans-table other-loans-table-bt">
+                  <thead>
+                    <tr>
+                      <th>Loan</th>
+                      <th>Source card</th>
+                      <th>Principal</th>
+                      <th>Amount paid</th>
+                      <th>BT charge</th>
+                      <th>Tenure</th>
+                      <th>Interest %</th>
+                      <th>Paid on</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archivedBalanceTransfers.map(({ loan: l }) => (
+                      <tr key={l.id ?? l.name}>
+                        <td>{l.name}</td>
+                        <td>{creditCardLabel(cardsWithIds, l.sourceCreditCardId)}</td>
+                        <td className="num">{fmt2(l.principal)}</td>
+                        <td className="num">{fmt2(l.amountPaid)}</td>
+                        <td className="num">{fmt2(l.financeCharge ?? 0)}</td>
+                        <td className="num">{l.tenureMonths ? `${l.tenureMonths} mo` : "—"}</td>
+                        <td className="num">{l.interestRateApr.toFixed(2)}</td>
+                        <td>{l.paidAt ? fmtDate(l.paidAt.slice(0, 10)) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+
+          {archivedPersonalLoans.length > 0 && (
+            <details className="debt-archive">
+              <summary>
+                Archive — {archivedPersonalLoans.length} paid personal loan{archivedPersonalLoans.length === 1 ? "" : "s"}
+              </summary>
+              <div className="card table-scroll" style={{ marginTop: 0, borderTop: "none" }}>
+                <table className="other-loans-table other-loans-table-personal">
+                  <thead>
+                    <tr>
+                      <th>Loan</th>
+                      <th>Tenure</th>
+                      <th>Principal</th>
+                      <th>Amount paid</th>
+                      <th>Interest %</th>
+                      <th>Fees paid</th>
+                      <th>Paid on</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archivedPersonalLoans.map(({ loan: l }) => (
+                      <tr key={l.id ?? l.name}>
+                        <td>{l.name}</td>
+                        <td className="num">{l.tenureMonths ? `${l.tenureMonths} mo` : "—"}</td>
+                        <td className="num">{fmt2(l.principal)}</td>
+                        <td className="num">{fmt2(l.amountPaid)}</td>
+                        <td className="num">{l.interestRateApr.toFixed(2)}</td>
+                        <td className="num">{fmt2(l.feesPaid)}</td>
+                        <td>{l.paidAt ? fmtDate(l.paidAt.slice(0, 10)) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
         </>
       )}
 
