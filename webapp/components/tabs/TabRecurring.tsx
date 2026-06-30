@@ -165,15 +165,15 @@ export function TabRecurring({ enabled, onReload }: Props) {
   const subPaidCount = subscriptionPaymentRows.filter((r) => r.paid).length;
 
   const activeSubscriptions = subscriptions.filter(
-    (s) => !s.endMonth || s.endMonth >= todayYm
+    (s) => !s.endMonth || s.endMonth >= viewYm
   );
   const archivedSubscriptions = subscriptions.filter(
-    (s) => s.endMonth && s.endMonth < todayYm
+    (s) => s.endMonth && s.endMonth < viewYm
   );
 
   const indexedDraft = subDraft.map((s, idx) => ({ sub: s, idx }));
-  const activeDraft = indexedDraft.filter(({ sub }) => !sub.endMonth || sub.endMonth >= todayYm);
-  const archivedDraft = indexedDraft.filter(({ sub }) => sub.endMonth && sub.endMonth < todayYm);
+  const activeDraft = indexedDraft.filter(({ sub }) => !sub.endMonth || sub.endMonth >= viewYm);
+  const archivedDraft = indexedDraft.filter(({ sub }) => sub.endMonth && sub.endMonth < viewYm);
 
   const renderRecurringRows = (
     list: RecurringRow[],
