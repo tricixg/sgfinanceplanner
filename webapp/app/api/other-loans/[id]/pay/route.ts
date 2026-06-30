@@ -16,24 +16,16 @@ export async function POST(req: NextRequest, { params }: Params) {
   if ("response" in auth) return auth.response;
   const { id } = await params;
 
-  let body: { amount?: number; financialAccountId?: string };
+  let body: { amount?: number; financialAccountId?: string; note?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { amount, financialAccountId } = body;
-  if (
-    amount == null ||
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
-    !financialAccountId
-  ) {
-    return NextResponse.json(
-      { error: "amount and financialAccountId required" },
-      { status: 400 }
-    );
+  const { amount, financialAccountId, note } = body;
+  if (amount == null || !Number.isFinite(amount) || amount <= 0) {
+    return NextResponse.json({ error: "amount required" }, { status: 400 });
   }
 
   try {
@@ -59,7 +51,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       auth.user.id,
       id,
       amount,
-      financialAccountId
+      financialAccountId,
+      note
     );
   const otherLoans = await loadOtherLoans(supabase, auth.user.id);
     console.info("[api/other-loans] POST pay", { id, amount });

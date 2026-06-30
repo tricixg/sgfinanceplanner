@@ -80,6 +80,7 @@ function OtherLoanPayModal({
   const [financialAccountId, setFinancialAccountId] = useState(
     loan.defaultFinancialAccountId ?? cashAccounts[0]?.id ?? ""
   );
+  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [payments, setPayments] = useState<OtherLoanPaymentRow[]>([]);
@@ -133,10 +134,6 @@ function OtherLoanPayModal({
       setMsg("Enter a valid amount");
       return;
     }
-    if (!financialAccountId) {
-      setMsg("Select a cash account");
-      return;
-    }
     setSaving(true);
     setMsg("");
     try {
@@ -146,7 +143,11 @@ function OtherLoanPayModal({
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: amt, financialAccountId }),
+          body: JSON.stringify({
+            amount: amt,
+            ...(financialAccountId ? { financialAccountId } : {}),
+            ...(note.trim() ? { note: note.trim() } : {}),
+          }),
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Payment failed");
@@ -188,6 +189,7 @@ function OtherLoanPayModal({
                     <th>Date</th>
                     <th>Amount</th>
                     <th>Account</th>
+                    <th>Notes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -196,6 +198,7 @@ function OtherLoanPayModal({
                       <td>{fmtPaymentWhen(p.occurredAt)}</td>
                       <td className="num">{fmt2(p.amount)}</td>
                       <td>{p.accountName}</td>
+                      <td>{p.note || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -217,15 +220,23 @@ function OtherLoanPayModal({
               <select
                 value={financialAccountId}
                 onChange={(e) => setFinancialAccountId(e.target.value)}
-                required
               >
-                <option value="">— Select —</option>
+                <option value="">— No account (record only) —</option>
                 {cashAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
               </select>
+            </label>
+            <label>
+              Notes (optional)
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. partial repayment"
+              />
             </label>
           </fieldset>
           {msg && <p className="note" style={{ color: "var(--rust)" }}>{msg}</p>}

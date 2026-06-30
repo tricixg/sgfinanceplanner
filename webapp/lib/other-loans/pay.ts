@@ -13,7 +13,8 @@ export async function recordOtherLoanPayment(
   userId: string,
   loanId: string,
   amount: number,
-  financialAccountId: string
+  financialAccountId?: string,
+  note?: string
 ): Promise<OtherLoan> {
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Payment amount must be positive");
@@ -37,21 +38,47 @@ export async function recordOtherLoanPayment(
     throw new Error(`Payment exceeds outstanding (${outstanding})`);
   }
 
-  const account = await loadFinancialAccount(supabase, userId, financialAccountId);
-  if (!account?.savingsAccountId || account.accountType !== "cash") {
-    throw new Error("Payment must come from a cash account");
-  }
+  const occurredAt = new Date().toISOString();
 
-  await applyTransaction(supabase, {
-    userId,
-    accountId: account.savingsAccountId,
-    amount: -amount,
-    kind: "withdrawal",
-    occurredAt: new Date().toISOString(),
-    note: otherLoanPaymentNote({ name: String(row.name) }),
-    sourceRecordType: "other_loan",
-    sourceRecordId: loanId,
-  });
+  const txNote = note?.trim()
+    ? `${otherLoanPaymentNote({ name: String(row.name) })} — ${note.trim()}`
+    : otherLoanPaymentNote({ name: String(row.name) });
+
+  if (financialAccountId) {
+    const account = await loadFinancialAccount(supabase, userId, financialAccountId);
+    if (!account?.savingsAccountId || account.accountType !== "cash") {
+      throw new Error("Payment must come from a cash account");
+    }
+
+    await applyTransaction(supabase, {
+      userId,
+      accountId: account.savingsAccountId,
+      amount: -amount,
+      kind: "withdrawal",
+      occurredAt,
+      note: txNote,
+      sourceRecordType: "other_loan",
+      sourceRecordId: loanId,
+    });
+  } else {
+    // No account selected — record in payment history without touching any balance.
+    // Requires migration 037 (savings_transactions_one_target constraint relaxed).
+    const { error: insErr } = await supabase
+      .from("savings_transactions")
+      .insert({
+        user_id: userId,
+        account_id: null,
+        pool_id: null,
+        kind: "withdrawal",
+        amount: -amount,
+        balance_after: 0,
+        note: txNote,
+        occurred_at: occurredAt,
+        source_record_type: "other_loan",
+        source_record_id: loanId,
+      });
+    if (insErr) throw new Error(insErr.message);
+  }
 
   const newPaid = roundMoney(Number(row.amount_paid ?? 0) + amount);
   const newOutstanding = roundMoney(outstanding - amount);
