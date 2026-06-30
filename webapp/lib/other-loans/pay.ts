@@ -8,6 +8,10 @@ export function otherLoanPaymentNote(loan: Pick<OtherLoan, "name">): string {
   return `Loan payment: ${loan.name}`;
 }
 
+export function otherLoanDrawDownNote(loan: Pick<OtherLoan, "name">): string {
+  return `Loan draw-down: ${loan.name}`;
+}
+
 export async function recordOtherLoanPayment(
   supabase: SupabaseClient,
   userId: string,
@@ -103,6 +107,95 @@ export async function recordOtherLoanPayment(
     amount,
     newOutstanding,
     fullyPaid,
+  });
+
+  const { loadOtherLoans } = await import("./load");
+  return (await loadOtherLoans(supabase, userId)).find((l) => l.id === loanId)!;
+}
+
+export async function addToOtherLoan(
+  supabase: SupabaseClient,
+  userId: string,
+  loanId: string,
+  amount: number,
+  financialAccountId?: string,
+  note?: string
+): Promise<OtherLoan> {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Amount must be positive");
+  }
+
+  const { data: row, error } = await supabase
+    .from("other_loans")
+    .select("*")
+    .eq("id", loanId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!row) throw new Error("Loan not found");
+  if (String(row.loan_type) === "balance_transfer") {
+    throw new Error("Balance transfers cannot be topped up this way");
+  }
+
+  const occurredAt = new Date().toISOString();
+  const txNote = note?.trim()
+    ? `${otherLoanDrawDownNote({ name: String(row.name) })} — ${note.trim()}`
+    : otherLoanDrawDownNote({ name: String(row.name) });
+
+  if (financialAccountId) {
+    const account = await loadFinancialAccount(supabase, userId, financialAccountId);
+    if (!account?.savingsAccountId || account.accountType !== "cash") {
+      throw new Error("Account must be a cash account");
+    }
+
+    await applyTransaction(supabase, {
+      userId,
+      accountId: account.savingsAccountId,
+      amount: +amount,
+      kind: "deposit",
+      occurredAt,
+      note: txNote,
+      sourceRecordType: "other_loan",
+      sourceRecordId: loanId,
+    });
+  } else {
+    const { error: insErr } = await supabase
+      .from("savings_transactions")
+      .insert({
+        user_id: userId,
+        account_id: null,
+        pool_id: null,
+        kind: "deposit",
+        amount: +amount,
+        balance_after: 0,
+        note: txNote,
+        occurred_at: occurredAt,
+        source_record_type: "other_loan",
+        source_record_id: loanId,
+      });
+    if (insErr) throw new Error(insErr.message);
+  }
+
+  const newOutstanding = roundMoney(Number(row.outstanding ?? 0) + amount);
+  const newPrincipal = roundMoney(Number(row.principal ?? 0) + amount);
+
+  const { error: updErr } = await supabase
+    .from("other_loans")
+    .update({
+      outstanding: newOutstanding,
+      principal: newPrincipal,
+      paid_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", loanId);
+
+  if (updErr) throw new Error(updErr.message);
+
+  console.info("[other-loans] draw-down recorded", {
+    loanId,
+    amount,
+    newOutstanding,
   });
 
   const { loadOtherLoans } = await import("./load");

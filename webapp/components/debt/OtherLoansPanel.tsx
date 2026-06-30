@@ -170,16 +170,16 @@ function OtherLoanPayModal({
         </p>
 
         <div className="other-loan-pay-history">
-          <h4 className="other-loan-pay-history-title">Payment history</h4>
+          <h4 className="other-loan-pay-history-title">Transaction history</h4>
           {paymentsLoading ? (
-            <p className="note">Loading payments…</p>
+            <p className="note">Loading…</p>
           ) : paymentsError ? (
             <p className="note" style={{ color: "var(--rust)" }}>
               {paymentsError}
             </p>
           ) : payments.length === 0 ? (
             <p className="note" style={{ fontStyle: "italic" }}>
-              No payments recorded yet.
+              No transactions recorded yet.
             </p>
           ) : (
             <div className="table-scroll">
@@ -187,6 +187,7 @@ function OtherLoanPayModal({
                 <thead>
                   <tr>
                     <th>Date</th>
+                    <th>Type</th>
                     <th>Amount</th>
                     <th>Account</th>
                     <th>Notes</th>
@@ -196,6 +197,7 @@ function OtherLoanPayModal({
                   {payments.map((p) => (
                     <tr key={p.id}>
                       <td>{fmtPaymentWhen(p.occurredAt)}</td>
+                      <td>{p.kind === "deposit" ? "Draw-down" : "Payment"}</td>
                       <td className="num">{fmt2(p.amount)}</td>
                       <td>{p.accountName}</td>
                       <td>{p.note || "—"}</td>
@@ -254,6 +256,183 @@ function OtherLoanPayModal({
   );
 }
 
+function OtherLoanAddModal({
+  loan,
+  onClose,
+  onAdded,
+}: {
+  loan: OtherLoan;
+  onClose: () => void;
+  onAdded: () => Promise<void>;
+}) {
+  const { accounts } = useFinancialAccounts();
+  const cashAccounts = accounts.filter((a) => a.accountType === "cash");
+  const [amount, setAmount] = useState("");
+  const [financialAccountId, setFinancialAccountId] = useState(
+    loan.defaultFinancialAccountId ?? ""
+  );
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [payments, setPayments] = useState<OtherLoanPaymentRow[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
+  const [paymentsError, setPaymentsError] = useState("");
+
+  useEffect(() => {
+    if (!loan.id) {
+      setPayments([]);
+      setPaymentsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPaymentsLoading(true);
+    setPaymentsError("");
+
+    void (async () => {
+      try {
+        const { res, data } = await fetchJson<{
+          payments?: OtherLoanPaymentRow[];
+          error?: string;
+        }>(`/api/other-loans/${loan.id}/payments`, { credentials: "include" });
+
+        if (!res.ok) throw new Error(data.error ?? "Failed to load history");
+        if (!cancelled) setPayments(data.payments ?? []);
+      } catch (e) {
+        if (!cancelled)
+          setPaymentsError(e instanceof Error ? e.message : "Failed to load history");
+      } finally {
+        if (!cancelled) setPaymentsLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [loan.id]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) {
+      setMsg("Enter a valid amount");
+      return;
+    }
+    setSaving(true);
+    setMsg("");
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/other-loans/${loan.id}/add`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: amt,
+            ...(financialAccountId ? { financialAccountId } : {}),
+            ...(note.trim() ? { note: note.trim() } : {}),
+          }),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to record draw-down");
+      await onAdded();
+      onClose();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Failed to record draw-down");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="card modal-panel" style={{ maxWidth: 520 }}>
+        <h3>Add to loan</h3>
+        <p className="note">
+          {loan.name} · outstanding {fmt2(loan.outstanding)}
+        </p>
+
+        <div className="other-loan-pay-history">
+          <h4 className="other-loan-pay-history-title">Transaction history</h4>
+          {paymentsLoading ? (
+            <p className="note">Loading…</p>
+          ) : paymentsError ? (
+            <p className="note" style={{ color: "var(--rust)" }}>{paymentsError}</p>
+          ) : payments.length === 0 ? (
+            <p className="note" style={{ fontStyle: "italic" }}>No transactions recorded yet.</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="other-loan-pay-history-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Account</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p) => (
+                    <tr key={p.id}>
+                      <td>{fmtPaymentWhen(p.occurredAt)}</td>
+                      <td>{p.kind === "deposit" ? "Draw-down" : "Payment"}</td>
+                      <td className="num">{fmt2(p.amount)}</td>
+                      <td>{p.accountName}</td>
+                      <td>{p.note || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <hr style={{ margin: "16px 0" }} />
+
+        <form onSubmit={(e) => void submit(e)}>
+          <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
+            <label>
+              Amount (SGD)
+              <DecimalTextInput value={amount} onChange={setAmount} required />
+            </label>
+            <label>
+              Deposit into (cash account, optional)
+              <select
+                value={financialAccountId}
+                onChange={(e) => setFinancialAccountId(e.target.value)}
+              >
+                <option value="">— No account (record only) —</option>
+                {cashAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Notes (optional)
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. top-up from bank"
+              />
+            </label>
+          </fieldset>
+          {msg && <p className="note" style={{ color: "var(--rust)" }}>{msg}</p>}
+          <div className="toolbar">
+            <button type="button" className="btn ghost sm" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" className="btn sm" disabled={saving}>
+              {saving ? "Saving…" : "Record draw-down"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function PayFromSelect({
   value,
   accounts,
@@ -294,6 +473,7 @@ export function OtherLoansPanel({
   const { accounts } = useFinancialAccounts();
   const loans = useMemo(() => state.otherLoans ?? [], [state.otherLoans]);
   const [payLoan, setPayLoan] = useState<OtherLoan | null>(null);
+  const [addLoanModal, setAddLoanModal] = useState<OtherLoan | null>(null);
   const [saving, setSaving] = useState(false);
 
   const indexedLoans = useMemo(
@@ -372,6 +552,18 @@ export function OtherLoansPanel({
       dispatchDomainEvent(["otherLoans:changed", "expense:changed", "cards:changed"]);
     }
     onSaved("Payment recorded");
+  };
+
+  const reloadAfterAdd = async () => {
+    const { res, data } = await fetchJson<{ otherLoans?: OtherLoan[] }>(
+      "/api/other-loans",
+      { credentials: "include" }
+    );
+    if (res.ok) {
+      setState((prev) => ({ ...prev, otherLoans: data.otherLoans ?? [] }));
+      dispatchDomainEvent(["otherLoans:changed", "cards:changed"]);
+    }
+    onSaved("Draw-down recorded");
   };
 
   const renderBalanceTransferEditRows = () => {
@@ -688,10 +880,15 @@ export function OtherLoansPanel({
                       <td>
                         {l.excludeFromNetWorth ? "Excluded" : "Included"}
                       </td>
-                      <td>
+                      <td style={{ display: "flex", gap: 6 }}>
                         {l.outstanding > 0 && l.id ? (
                           <button type="button" className="btn sm" onClick={() => setPayLoan(l)}>
                             Pay
+                          </button>
+                        ) : null}
+                        {l.id ? (
+                          <button type="button" className="btn ghost sm" onClick={() => setAddLoanModal(l)}>
+                            Add
                           </button>
                         ) : null}
                       </td>
@@ -783,6 +980,14 @@ export function OtherLoansPanel({
           loan={payLoan}
           onClose={() => setPayLoan(null)}
           onPaid={reloadAfterPay}
+        />
+      ) : null}
+
+      {addLoanModal ? (
+        <OtherLoanAddModal
+          loan={addLoanModal}
+          onClose={() => setAddLoanModal(null)}
+          onAdded={reloadAfterAdd}
         />
       ) : null}
     </>
