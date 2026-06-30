@@ -112,6 +112,7 @@ export type RecurringSubscription = {
   notes: string;
   deductionDay?: number;
   defaultFinancialAccountId?: string;
+  endMonth?: string;
 };
 
 export type BudgetItem = {

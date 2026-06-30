@@ -64,7 +64,7 @@ describe("expenseToUnified", () => {
     const row = expenseToUnified(
       sampleExpense({
         autoCategory: "subscription",
-        category: "Subscriptions",
+        category: "Other Recurring",
       })
     );
     expect(row.typeLabel).toBe("subscription");

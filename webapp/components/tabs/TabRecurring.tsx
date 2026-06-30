@@ -21,7 +21,7 @@ const KIND_LABEL: Record<RecurringRow["kind"], string> = {
   debt: "Debt",
   insurance: "Insurance",
   ilp: "ILP",
-  subscription: "Subscription",
+  subscription: "Other Recurring",
 };
 
 type Props = {
@@ -164,6 +164,17 @@ export function TabRecurring({ enabled, onReload }: Props) {
   const paidCount = recurringPaymentRows.filter((r) => r.paid).length;
   const subPaidCount = subscriptionPaymentRows.filter((r) => r.paid).length;
 
+  const activeSubscriptions = subscriptions.filter(
+    (s) => !s.endMonth || s.endMonth >= todayYm
+  );
+  const archivedSubscriptions = subscriptions.filter(
+    (s) => s.endMonth && s.endMonth < todayYm
+  );
+
+  const indexedDraft = subDraft.map((s, idx) => ({ sub: s, idx }));
+  const activeDraft = indexedDraft.filter(({ sub }) => !sub.endMonth || sub.endMonth >= todayYm);
+  const archivedDraft = indexedDraft.filter(({ sub }) => sub.endMonth && sub.endMonth < todayYm);
+
   const renderRecurringRows = (
     list: RecurringRow[],
     emptyMessage: string,
@@ -262,7 +273,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
       <div className="callout tip">
         Set <b>Due day</b> and <b>Pay from</b> when editing loans (Debts &amp; Loans), insurance (ME),
-        or ILP (Investment). Add subscriptions in the table below and record those payments there.
+        or ILP (Investment). Add other recurring items in the table below and record those payments there.
       </div>
 
       <div className="toolbar" style={{ marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
@@ -301,8 +312,8 @@ export function TabRecurring({ enabled, onReload }: Props) {
           </div>
         </div>
         <div className="stat">
-          <div className="lbl">Subscriptions</div>
-          <div className="val">{subscriptions.length}</div>
+          <div className="lbl">Other Recurring</div>
+          <div className="val">{activeSubscriptions.length}</div>
         </div>
       </div>
 
@@ -335,7 +346,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
       )}
 
       <div className="section-head" style={{ marginTop: 24 }}>
-        <h2>Subscriptions</h2>
+        <h2>Other Recurring</h2>
         {editingSubs ? (
           <button type="button" className="btn sm" onClick={() => void saveSubs()} disabled={savingSubs}>
             {savingSubs ? "Saving…" : "Done"}
@@ -349,7 +360,15 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
       {editingSubs ? (
         <div className="card">
-          {subDraft.map((s, i) => (
+          <div className="editrow head recurring-sub">
+            <span>Name</span>
+            <span>Amount / mo</span>
+            <span>Ends</span>
+            <span>Due day</span>
+            <span>Pay from</span>
+            <span></span>
+          </div>
+          {activeDraft.map(({ sub: s, idx: i }) => (
             <div className="editrow recurring-sub" key={i}>
               <input
                 type="text"
@@ -367,6 +386,15 @@ export function TabRecurring({ enabled, onReload }: Props) {
                 onChange={(v) => {
                   const next = [...subDraft];
                   next[i] = { ...s, amount: v };
+                  setSubDraft(next);
+                }}
+              />
+              <input
+                type="month"
+                value={s.endMonth ?? ""}
+                onChange={(e) => {
+                  const next = [...subDraft];
+                  next[i] = { ...s, endMonth: e.target.value || undefined };
                   setSubDraft(next);
                 }}
               />
@@ -394,63 +422,161 @@ export function TabRecurring({ enabled, onReload }: Props) {
               </button>
             </div>
           ))}
+          {archivedDraft.length > 0 && (
+            <details className="debt-archive" style={{ marginTop: 12 }}>
+              <summary>Archive — {archivedDraft.length} ended</summary>
+              <div style={{ marginTop: 10 }}>
+                {archivedDraft.map(({ sub: s, idx: i }) => (
+                  <div className="editrow recurring-sub" key={i}>
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={s.name}
+                      onChange={(e) => {
+                        const next = [...subDraft];
+                        next[i] = { ...s, name: e.target.value };
+                        setSubDraft(next);
+                      }}
+                    />
+                    <DecimalInput
+                      placeholder="Amount"
+                      value={s.amount}
+                      onChange={(v) => {
+                        const next = [...subDraft];
+                        next[i] = { ...s, amount: v };
+                        setSubDraft(next);
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="YYYY-MM"
+                      value={s.endMonth ?? ""}
+                      onChange={(e) => {
+                        const next = [...subDraft];
+                        next[i] = { ...s, endMonth: e.target.value || undefined };
+                        setSubDraft(next);
+                      }}
+                    />
+                    <RecurringScheduleFields
+                      inline
+                      deductionDay={s.deductionDay}
+                      defaultFinancialAccountId={s.defaultFinancialAccountId}
+                      onDeductionDayChange={(day) => {
+                        const next = [...subDraft];
+                        next[i] = { ...s, deductionDay: day };
+                        setSubDraft(next);
+                      }}
+                      onAccountChange={(id) => {
+                        const next = [...subDraft];
+                        next[i] = { ...s, defaultFinancialAccountId: id };
+                        setSubDraft(next);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn del sm"
+                      onClick={() => setSubDraft(subDraft.filter((_, j) => j !== i))}
+                    >
+                      del
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
           <div className="toolbar">
             <button
               type="button"
               className="btn ghost sm"
               onClick={() => setSubDraft([...subDraft, defaultRecurringSubscription()])}
             >
-              + Add subscription
+              + Add other recurring
             </button>
           </div>
         </div>
-      ) : subscriptions.length === 0 ? (
-        <p className="note">No custom subscriptions yet. Click Edit to add Netflix, gym, etc.</p>
+      ) : activeSubscriptions.length === 0 && archivedSubscriptions.length === 0 ? (
+        <p className="note">No other recurring items yet. Click Edit to add Netflix, gym, etc.</p>
       ) : (
-        <div className="card table-scroll">
-          <table className="recurring-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Amount / mo</th>
-                <th>Due</th>
-                <th>Pay from</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {subscriptions.flatMap((sub) => {
-                const payRow = sub.id
-                  ? subscriptionPaymentRows.find((r) => r.sourceId === sub.id)
-                  : undefined;
-                if (payRow) {
-                  return renderRecurringRows([payRow], "", { showType: false });
-                }
-                const day =
-                  sub.deductionDay && sub.deductionDay >= 1 && sub.deductionDay <= 31
-                    ? sub.deductionDay
-                    : null;
-                return (
-                  <tr key={sub.id ?? sub.name}>
-                    <td>{sub.name || "—"}</td>
-                    <td className="num">{fmt2(sub.amount)}</td>
-                    <td>{formatDeductionDayLabel(day)}</td>
-                    <td>—</td>
-                    <td>
-                      {sub.amount > 0 ? (
-                        <span className="tag t-warn">Unpaid</span>
-                      ) : (
-                        <span className="note">Set amount in Edit</span>
-                      )}
-                    </td>
-                    <td />
+        <>
+          {activeSubscriptions.length > 0 ? (
+            <div className="card table-scroll">
+              <table className="recurring-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Amount / mo</th>
+                    <th>Due</th>
+                    <th>Pay from</th>
+                    <th>Status</th>
+                    <th></th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {activeSubscriptions.flatMap((sub) => {
+                    const payRow = sub.id
+                      ? subscriptionPaymentRows.find((r) => r.sourceId === sub.id)
+                      : undefined;
+                    if (payRow) {
+                      return renderRecurringRows([payRow], "", { showType: false });
+                    }
+                    const day =
+                      sub.deductionDay && sub.deductionDay >= 1 && sub.deductionDay <= 31
+                        ? sub.deductionDay
+                        : null;
+                    return (
+                      <tr key={sub.id ?? sub.name}>
+                        <td>{sub.name || "—"}</td>
+                        <td className="num">{fmt2(sub.amount)}</td>
+                        <td>{formatDeductionDayLabel(day)}</td>
+                        <td>—</td>
+                        <td>
+                          {sub.amount > 0 ? (
+                            <span className="tag t-warn">Unpaid</span>
+                          ) : (
+                            <span className="note">Set amount in Edit</span>
+                          )}
+                        </td>
+                        <td />
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="note" style={{ fontStyle: "italic" }}>
+              No active other recurring items. See archive below.
+            </p>
+          )}
+
+          {archivedSubscriptions.length > 0 && (
+            <details className="debt-archive">
+              <summary>
+                Archive — {archivedSubscriptions.length} ended item{archivedSubscriptions.length === 1 ? "" : "s"}
+              </summary>
+              <div className="card table-scroll" style={{ marginTop: 0, borderTop: "none" }}>
+                <table className="recurring-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Amount / mo</th>
+                      <th>Ended</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archivedSubscriptions.map((sub) => (
+                      <tr key={sub.id ?? sub.name}>
+                        <td>{sub.name || "—"}</td>
+                        <td className="num">{fmt2(sub.amount)}</td>
+                        <td>{sub.endMonth}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+        </>
       )}
     </section>
   );

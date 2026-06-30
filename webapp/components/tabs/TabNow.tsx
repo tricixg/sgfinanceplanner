@@ -187,7 +187,7 @@ export function TabNow({
           order: 2,
         },
         {
-          label: "Subscriptions",
+          label: "Other Recurring",
           data: rows.map((r) => -r.subscriptions),
           backgroundColor: "#5a4678",
           stack: "outflows",
@@ -317,7 +317,7 @@ export function TabNow({
           <span><i className="dot" style={{ background: "var(--gold)" }} />Loan instalments</span>
           <span><i className="dot" style={{ background: "#7a9eb5" }} />ILP premiums</span>
           <span><i className="dot" style={{ background: "#6b7d6a" }} />Insurance premiums</span>
-          <span><i className="dot" style={{ background: "#5a4678" }} />Subscriptions</span>
+          <span><i className="dot" style={{ background: "#5a4678" }} />Other Recurring</span>
           <span><i className="dot" style={{ background: "var(--rust)" }} />Net position</span>
         </div>
       </div>
