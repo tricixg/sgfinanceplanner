@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { loadAdditiveIncomeByYm } from "@/lib/income/deposits-by-month";
+import {
+  loadAdditiveIncomeByYm,
+  loadBaselineActualIncomeByYm,
+} from "@/lib/income/deposits-by-month";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -23,9 +26,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const supabase = await createAuthedSupabaseClient();
-    const byYm = await loadAdditiveIncomeByYm(supabase, user.id, startYm, count);
+    const [byYm, baselineByYm] = await Promise.all([
+      loadAdditiveIncomeByYm(supabase, user.id, startYm, count),
+      loadBaselineActualIncomeByYm(supabase, user.id, startYm, count),
+    ]);
     console.info("[api/cashflow/additive-income] GET", { userId: user.id, startYm, count });
-    return NextResponse.json({ configured: true, byYm });
+    return NextResponse.json({ configured: true, byYm, baselineByYm });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load additive income";
     console.error("[api/cashflow/additive-income] GET failed", msg);

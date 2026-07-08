@@ -23,11 +23,12 @@ export function addAdditiveRowsToMonths(
   return result;
 }
 
-export async function loadAdditiveIncomeByYm(
+async function loadIncomeByYmForFlag(
   supabase: SupabaseClient,
   userId: string,
   startYm: string,
-  count: number
+  count: number,
+  flagColumn: "counts_as_additive" | "counts_in_baseline"
 ): Promise<Record<string, number>> {
   const endYm = addMonthsYm(startYm, count - 1);
   const from = `${startYm}-01`;
@@ -39,19 +40,19 @@ export async function loadAdditiveIncomeByYm(
     .from("income_categories")
     .select("id")
     .eq("user_id", userId)
-    .eq("counts_as_additive", true);
+    .eq(flagColumn, true);
 
   if (catErr) throw new Error(catErr.message);
 
-  const additiveIds = (categories ?? []).map((c) => String(c.id));
+  const categoryIds = (categories ?? []).map((c) => String(c.id));
   const result: Record<string, number> = {};
 
   for (let i = 0; i < count; i++) {
     result[addMonthsYm(startYm, i)] = 0;
   }
 
-  if (!additiveIds.length) {
-    console.info("[income] no additive categories", { userId });
+  if (!categoryIds.length) {
+    console.info("[income] no categories for flag", { userId, flagColumn });
     return result;
   }
 
@@ -60,7 +61,7 @@ export async function loadAdditiveIncomeByYm(
     .select("amount, occurred_at, income_category_id")
     .eq("user_id", userId)
     .eq("kind", "deposit")
-    .in("income_category_id", additiveIds)
+    .in("income_category_id", categoryIds)
     .gte("occurred_at", `${from}T00:00:00`)
     .lte("occurred_at", `${to}T23:59:59`);
 
@@ -68,6 +69,25 @@ export async function loadAdditiveIncomeByYm(
 
   addAdditiveRowsToMonths(result, rows ?? []);
 
-  console.info("[income] additive deposits by month", { userId, startYm, count, result });
+  console.info("[income] deposits by month", { userId, startYm, count, flagColumn, result });
   return result;
+}
+
+export async function loadAdditiveIncomeByYm(
+  supabase: SupabaseClient,
+  userId: string,
+  startYm: string,
+  count: number
+): Promise<Record<string, number>> {
+  return loadIncomeByYmForFlag(supabase, userId, startYm, count, "counts_as_additive");
+}
+
+/** Actual salary/comms deposits by month — used to replace the projected baseline for past months. */
+export async function loadBaselineActualIncomeByYm(
+  supabase: SupabaseClient,
+  userId: string,
+  startYm: string,
+  count: number
+): Promise<Record<string, number>> {
+  return loadIncomeByYmForFlag(supabase, userId, startYm, count, "counts_in_baseline");
 }

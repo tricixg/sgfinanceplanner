@@ -16,6 +16,7 @@ export type MonthRow = {
   income: number;
   incomeBaseline: number;
   incomeAdditive: number;
+  incomeIsActual: boolean;
   note: string;
   fixed: number;
   spend: number;
@@ -47,7 +48,8 @@ export function buildMonths(
   count = 5,
   savings?: SavingsSnapshot | null,
   additiveIncomeByYm: Record<string, number> = {},
-  subscriptionsMonthly = 0
+  subscriptionsMonthly = 0,
+  actualBaselineByYm: Record<string, number> = {}
 ): MonthRow[] {
   const fixed = budgetFixedTotal(S);
   const spend = budgetSpendTotal(S);
@@ -55,14 +57,24 @@ export function buildMonths(
   const insurance = computedInsuranceMonthly(S);
   const months = Array.from({ length: count }, (_, i) => {
     const ym = addMonths(startYm, i);
-    const { baseline: b, additive, total } = monthCashIncome(S, ym, additiveIncomeByYm);
+    const { baseline: b, additive, total, baselineIsActual } = monthCashIncome(
+      S,
+      ym,
+      additiveIncomeByYm,
+      actualBaselineByYm
+    );
     return {
       m: formatMonthLabel(ym),
       ym,
       income: total,
       incomeBaseline: b,
       incomeAdditive: additive,
-      note: additive > 0 ? "Salary/comms + extra deposits" : "Stable income",
+      incomeIsActual: baselineIsActual,
+      note: baselineIsActual
+        ? "Actual salary/comms deposits"
+        : additive > 0
+          ? "Salary/comms + extra deposits"
+          : "Stable income",
       fixed,
       spend,
     };

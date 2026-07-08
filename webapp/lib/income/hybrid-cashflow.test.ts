@@ -11,6 +11,24 @@ describe("monthCashIncome", () => {
     expect(r.additive).toBe(200);
     expect(r.total).toBe(base + 200);
   });
+
+  it("uses actual salary/comms deposits as baseline for a past month", () => {
+    const r = monthCashIncome(DEFAULTS, "2020-01", {}, { "2020-01": 4000 });
+    expect(r.baseline).toBe(4000);
+    expect(r.baselineIsActual).toBe(true);
+  });
+
+  it("falls back to projection for a past month with no actual data recorded", () => {
+    const r = monthCashIncome(DEFAULTS, "2020-01", {}, {});
+    expect(r.baseline).toBe(stableTakeHome(DEFAULTS));
+    expect(r.baselineIsActual).toBe(false);
+  });
+
+  it("keeps projection for a future month even if an actual entry exists", () => {
+    const r = monthCashIncome(DEFAULTS, "2099-01", {}, { "2099-01": 4000 });
+    expect(r.baseline).toBe(stableTakeHome(DEFAULTS));
+    expect(r.baselineIsActual).toBe(false);
+  });
 });
 
 describe("buildMonths hybrid", () => {

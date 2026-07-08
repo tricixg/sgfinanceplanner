@@ -46,19 +46,24 @@ export function TabNow({
   const [savingStartYm, setSavingStartYm] = useState(false);
   const startYm = S.cashflowStartYm;
   const [additiveByYm, setAdditiveByYm] = useState<Record<string, number>>({});
+  const [actualBaselineByYm, setActualBaselineByYm] = useState<Record<string, number>>({});
   const [subscriptionsMonthly, setSubscriptionsMonthly] = useState(0);
   const prefetchAppliedForYm = useRef("");
 
   const loadAdditive = useCallback(async () => {
     if (!authEnabled || !startYm) return;
     const qs = new URLSearchParams({ startYm, count: "5" });
-    const { res, data } = await fetchJson<{ byYm?: Record<string, number> }>(
-      `/api/cashflow/additive-income?${qs}`,
-      { credentials: "include" }
-    );
+    const { res, data } = await fetchJson<{
+      byYm?: Record<string, number>;
+      baselineByYm?: Record<string, number>;
+    }>(`/api/cashflow/additive-income?${qs}`, { credentials: "include" });
     if (res.ok && data.byYm) {
       setAdditiveByYm(data.byYm);
       console.info("[TabNow] additive income loaded", data.byYm);
+    }
+    if (res.ok && data.baselineByYm) {
+      setActualBaselineByYm(data.baselineByYm);
+      console.info("[TabNow] actual baseline income loaded", data.baselineByYm);
     }
   }, [authEnabled, startYm]);
 
@@ -133,7 +138,15 @@ export function TabNow({
     void loadSubscriptions();
   }, [loadSubscriptions]);
 
-  const rows = buildMonths(S, startYm, 5, savings, additiveByYm, subscriptionsMonthly);
+  const rows = buildMonths(
+    S,
+    startYm,
+    5,
+    savings,
+    additiveByYm,
+    subscriptionsMonthly,
+    actualBaselineByYm
+  );
   const newCash = stableTakeHome(S);
   const firstYm = rows[0]?.ym ?? startYm;
   const lastYm = rows[rows.length - 1]?.ym ?? startYm;
@@ -341,7 +354,14 @@ export function TabNow({
             {rows.map((r) => (
               <tr key={r.ym}>
                 <td>{r.m}</td>
-                <td className="num">{fmt(r.incomeBaseline)}</td>
+                <td className="num">
+                  {fmt(r.incomeBaseline)}
+                  {r.incomeIsActual ? (
+                    <span className="note" style={{ marginLeft: 4 }}>
+                      actual
+                    </span>
+                  ) : null}
+                </td>
                 <td className="num cashflow-sep-inout">{fmt(r.fixed)}</td>
                 <td className="num">{fmt(r.loans)}</td>
                 <td className="num">{fmt(r.spend)}</td>
