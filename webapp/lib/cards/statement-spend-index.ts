@@ -85,11 +85,10 @@ export async function buildCardSpendIndexMap(
 
   const { data: budgetRows, error: budErr } = await supabase
     .from("budget_transactions")
-    .select("amount, spent_at, created_at, financial_account_id")
+    .select("amount, spent_at, created_at, financial_account_id, transaction_type")
     .eq("user_id", userId)
     .in("financial_account_id", financialAccountIds)
     .is("expense_id", null)
-    .neq("transaction_type", "income")
     .gte("spent_at", from)
     .lte("spent_at", to);
 
@@ -106,7 +105,11 @@ export async function buildCardSpendIndexMap(
     }
     const bucket = byAccountDay.get(accountId);
     if (!bucket) continue;
-    bucket[day] = (bucket[day] ?? 0) + Number(row.amount ?? 0);
+    const signed =
+      row.transaction_type === "income"
+        ? -Number(row.amount ?? 0)
+        : Number(row.amount ?? 0);
+    bucket[day] = (bucket[day] ?? 0) + signed;
   }
 
   for (const [accountId, byDay] of byAccountDay) {

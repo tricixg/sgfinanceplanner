@@ -53,11 +53,10 @@ export async function sumCardSpendByDay(
 
   const { data: budgetRows, error: budErr } = await supabase
     .from("budget_transactions")
-    .select("amount, spent_at")
+    .select("amount, spent_at, transaction_type")
     .eq("user_id", userId)
     .eq("financial_account_id", financialAccountId)
     .is("expense_id", null)
-    .neq("transaction_type", "income")
     .gte("spent_at", from)
     .lte("spent_at", to);
 
@@ -65,7 +64,11 @@ export async function sumCardSpendByDay(
 
   for (const row of budgetRows ?? []) {
     const day = String(row.spent_at).slice(0, 10);
-    map[day] = (map[day] ?? 0) + Number(row.amount ?? 0);
+    const signed =
+      row.transaction_type === "income"
+        ? -Number(row.amount ?? 0)
+        : Number(row.amount ?? 0);
+    map[day] = (map[day] ?? 0) + signed;
   }
 
   console.info("[statement-spend] summed by day", {
