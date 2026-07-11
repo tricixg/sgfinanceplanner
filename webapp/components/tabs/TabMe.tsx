@@ -24,6 +24,7 @@ type Props = {
   onReset: () => void;
   saveMsg: string;
   userEmail?: string;
+  hasPassword?: boolean;
   household?: ReturnType<typeof useHousehold>;
   onPartnerUnlinked?: () => void | Promise<void>;
   onSaveError?: (message: string) => void;
@@ -39,6 +40,7 @@ export function TabMe({
   onReset,
   saveMsg,
   userEmail,
+  hasPassword,
   household,
   onPartnerUnlinked,
   onSaveError,
@@ -47,6 +49,11 @@ export function TabMe({
   const appData = useContext(AppDataContext);
   const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const [savingInsurance, setSavingInsurance] = useState(false);
   const [insuranceDraft, setInsuranceDraft] = useState(S.insurancePolicies);
   const [signingOut, setSigningOut] = useState(false);
@@ -177,6 +184,42 @@ export function TabMe({
   const removePolicy = (i: number) => {
     setInsuranceDraft((prev) => prev.filter((_, j) => j !== i));
     console.info("[TabMe] removed insurance policy from draft", i);
+  };
+
+  const savePassword = async () => {
+    if (newPassword.length < 8) {
+      setPasswordMsg("Password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg("Passwords do not match.");
+      return;
+    }
+    setSavingPassword(true);
+    setPasswordMsg("");
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setPasswordMsg(json.error ?? "Failed to set password.");
+        return;
+      }
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPasswordForm(false);
+      setPasswordMsg(hasPassword ? "Password changed." : "Password created — you can now sign in with it.");
+      console.info("[TabMe] password saved");
+    } catch (e) {
+      setPasswordMsg("Something went wrong.");
+      console.error("[TabMe] password save failed", e);
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const exportJSON = () => {
@@ -462,6 +505,84 @@ export function TabMe({
             Signed in as <strong>{userEmail}</strong>. Your dashboard syncs to the cloud
             while you are signed in.
           </p>
+
+          <div style={{ marginBottom: 16 }}>
+            <div className="section-head" style={{ marginBottom: 8 }}>
+              <h4 style={{ margin: 0, fontSize: "0.9rem" }}>
+                {hasPassword ? "Change password" : "Create password"}
+              </h4>
+              {!showPasswordForm ? (
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => {
+                    setShowPasswordForm(true);
+                    setPasswordMsg("");
+                  }}
+                >
+                  {hasPassword ? "Change" : "Set up"}
+                </button>
+              ) : null}
+            </div>
+            {!showPasswordForm ? (
+              <p className="note" style={{ marginTop: 0 }}>
+                {hasPassword
+                  ? "You can sign in with your password on the login page."
+                  : "Set a password to sign in without a magic link."}
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
+                <input
+                  type="password"
+                  placeholder="New password (min 8 chars)"
+                  value={newPassword}
+                  autoComplete="new-password"
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  autoComplete="new-password"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                {passwordMsg ? (
+                  <p className="note" style={{ color: passwordMsg.includes("created") || passwordMsg.includes("changed") ? "var(--ok)" : "var(--danger)", margin: 0 }}>
+                    {passwordMsg}
+                  </p>
+                ) : null}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    disabled={savingPassword}
+                    onClick={() => void savePassword()}
+                  >
+                    {savingPassword ? "Saving…" : hasPassword ? "Change password" : "Create password"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    disabled={savingPassword}
+                    onClick={() => {
+                      setShowPasswordForm(false);
+                      setNewPassword("");
+                      setConfirmPassword("");
+                      setPasswordMsg("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            {!showPasswordForm && passwordMsg ? (
+              <p className="note" style={{ marginTop: 4, color: "var(--ok)" }}>
+                {passwordMsg}
+              </p>
+            ) : null}
+          </div>
+
           <button
             type="button"
             className="btn ghost"

@@ -51,6 +51,7 @@ function MeContent({
       onReset={handleReset}
       saveMsg={saveMsg}
       userEmail={user?.email ?? undefined}
+      hasPassword={user?.hasPassword}
       household={household}
       onPartnerUnlinked={onPartnerUnlinked}
       authEnabled={Boolean(user)}

@@ -1,0 +1,17 @@
+
+-- Password authentication is handled natively by Supabase Auth.
+-- No schema changes are required to enable password sign-in.
+--
+-- When a user sets a password via the Me tab, the app calls
+-- supabase.auth.updateUser({ password, data: { has_password: true } })
+-- which stores the password hash in auth.users and sets
+-- raw_user_meta_data->>'has_password' = 'true'.
+--
+-- The login page reads this flag via /api/auth/check-email to decide
+-- whether to show the password form or send a magic link automatically.
+--
+-- If you want to allow password sign-in for existing users who were
+-- created via magic link, they simply need to set a password once
+-- through Me → Account → Set up password.
+--
+-- No SQL to run — this file is for documentation only.

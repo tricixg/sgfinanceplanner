@@ -36,7 +36,11 @@ export async function GET() {
   return NextResponse.json({
     configured: true,
     user: user
-      ? { id: user.id, email: user.email ?? null }
+      ? {
+          id: user.id,
+          email: user.email ?? null,
+          hasPassword: Boolean(user.user_metadata?.has_password),
+        }
       : null,
   });
 }

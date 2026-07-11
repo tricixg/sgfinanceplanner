@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MagicLinkAuth } from "@/components/MagicLinkAuth";
+import { PasswordAuth } from "@/components/PasswordAuth";
 import { fetchJson } from "@/lib/fetch-json";
 import { appConfig } from "@/lib/config";
 
@@ -25,6 +26,11 @@ function authErrorMessage(code: string | null): string {
   }
 }
 
+type Step =
+  | { type: "email" }
+  | { type: "magic-link"; email: string }
+  | { type: "password"; email: string };
+
 export function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,6 +43,10 @@ export function LoginClient() {
 
   const [checking, setChecking] = useState(true);
   const [configured, setConfigured] = useState(false);
+  const [step, setStep] = useState<Step>({ type: "email" });
+  const [email, setEmail] = useState("");
+  const [checking2, setChecking2] = useState(false);
+  const [formError, setFormError] = useState(initialError);
 
   const checkSession = useCallback(async () => {
     setChecking(true);
@@ -77,6 +87,36 @@ export function LoginClient() {
     window.history.replaceState({}, "", `/login${suffix}`);
   }, [authCode, next]);
 
+  const handleEmailContinue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setFormError("");
+    setChecking2(true);
+    try {
+      const { res, data } = await fetchJson<{
+        isKnownUser?: boolean;
+        hasPassword?: boolean;
+      }>("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: trimmed }),
+      });
+      if (!res.ok) throw new Error("Check failed");
+      if (data.hasPassword) {
+        setStep({ type: "password", email: trimmed });
+      } else {
+        setStep({ type: "magic-link", email: trimmed });
+      }
+    } catch (e) {
+      console.error("[login] check-email failed", e);
+      setStep({ type: "magic-link", email: trimmed });
+    } finally {
+      setChecking2(false);
+    }
+  };
+
   if (checking) {
     return (
       <div className="wrap pin-screen">
@@ -103,7 +143,66 @@ export function LoginClient() {
     );
   }
 
+  if (step.type === "password") {
+    return (
+      <PasswordAuth
+        email={step.email}
+        redirectNext={next}
+        onBack={() => setStep({ type: "email" })}
+        onSwitchToMagicLink={() =>
+          setStep({ type: "magic-link", email: step.email })
+        }
+      />
+    );
+  }
+
+  if (step.type === "magic-link") {
+    return (
+      <MagicLinkAuth
+        redirectNext={next}
+        initialEmail={step.email}
+        onBack={() => setStep({ type: "email" })}
+      />
+    );
+  }
+
   return (
-    <MagicLinkAuth redirectNext={next} initialError={initialError} />
+    <div className="wrap pin-screen">
+      <div className="pin-card card auth-card">
+        <div className="kicker">{appConfig.kicker}</div>
+        <h1 className="pin-title">Continue with email</h1>
+        <p className="sub" style={{ marginBottom: 20 }}>
+          Enter your email to sign in. If you have set up a password, you can use it
+          directly. Otherwise a magic link will be sent.
+        </p>
+        <form onSubmit={handleEmailContinue}>
+          <label className="pin-label auth-label">
+            Email
+            <input
+              type="email"
+              name="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoFocus
+              required
+            />
+          </label>
+          {formError ? (
+            <p className="pin-error" role="alert">
+              {formError}
+            </p>
+          ) : null}
+          <button
+            type="submit"
+            className="btn"
+            disabled={checking2 || !email.trim()}
+          >
+            {checking2 ? "Checking…" : "Continue"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

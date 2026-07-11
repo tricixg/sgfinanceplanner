@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchJson } from "@/lib/fetch-json";
 
-export type SessionUser = { id: string; email: string | null };
+export type SessionUser = { id: string; email: string | null; hasPassword?: boolean };
 
 const devBypass = process.env.NEXT_PUBLIC_AUTH_BYPASS_DEV === "true";
 
