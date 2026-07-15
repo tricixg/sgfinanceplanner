@@ -1,4 +1,5 @@
 import type { BTOSchemeSelection } from "./finance/bto-schemes";
+import type { MilesPlannerPrefs } from "./miles/types";
 
 export type Loan = {
   id?: string;
@@ -180,4 +181,5 @@ export type DashboardState = {
   otherLoans: import("./other-loans/types").OtherLoan[];
   creditCards: CreditCard[];
   btoPlanner?: BtoPlannerPrefs;
+  milesPlanner?: MilesPlannerPrefs;
 };

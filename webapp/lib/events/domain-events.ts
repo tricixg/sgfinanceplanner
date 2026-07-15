@@ -6,6 +6,7 @@ export type DomainEventName =
   | "savings:changed"
   | "accounts:changed"
   | "funds:changed"
+  | "miles:changed"
   | "loans:changed"
   | "otherLoans:changed"
   | "budget:changed"

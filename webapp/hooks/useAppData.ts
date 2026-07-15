@@ -24,6 +24,7 @@ export const PROFILE_STATE_KEYS: (keyof FinanceProfile)[] = [
   "ccDebt",
   "cashflowStartYm",
   "btoPlanner",
+  "milesPlanner",
 ];
 
 type ProfileBundle = {

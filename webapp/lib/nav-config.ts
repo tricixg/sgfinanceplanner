@@ -17,6 +17,7 @@ export type AppRouteId =
   | "now"
   | "year"
   | "bto"
+  | "miles"
   | "me";
 
 export type NavTab = {
@@ -88,6 +89,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         href: "/bto",
         summary:
           "Purchase price, grants, loan, downpayment, and cash needed for your flat.",
+      },
+      {
+        id: "miles",
+        label: "Miles Tracker",
+        href: "/miles",
+        summary:
+          "Bank points converted to airline miles, expiry tracking, and a redemption estimator.",
       },
     ],
   },

@@ -5,6 +5,7 @@ import { TabCards } from "@/components/tabs/TabCards";
 import { TabDebt } from "@/components/tabs/TabDebt";
 import { TabCPF } from "@/components/tabs/TabCPF";
 import { TabBTO } from "@/components/tabs/TabBTO";
+import { TabMiles } from "@/components/tabs/TabMiles";
 
 export function CardsRoute() {
   return (
@@ -36,6 +37,14 @@ export function BtoRoute() {
   return (
     <DomainPage>
       {({ state, setState }) => <TabBTO state={state} setState={setState} />}
+    </DomainPage>
+  );
+}
+
+export function MilesRoute() {
+  return (
+    <DomainPage>
+      {({ state, setState }) => <TabMiles state={state} setState={setState} />}
     </DomainPage>
   );
 }

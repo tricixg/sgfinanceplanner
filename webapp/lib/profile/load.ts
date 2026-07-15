@@ -5,6 +5,7 @@ import type {
   InsurancePolicy,
   IlpPolicy,
 } from "@/lib/types";
+import type { MilesPlannerPrefs } from "@/lib/miles/types";
 import { createEmptyState } from "@/lib/finance/defaults";
 import { normalizeBtoPlannerPrefs } from "@/lib/finance/bto";
 
@@ -23,6 +24,7 @@ export type FinanceProfile = Pick<
   | "cashflowStartYm"
 > & {
   btoPlanner?: BtoPlannerPrefs;
+  milesPlanner?: MilesPlannerPrefs;
 };
 
 export async function loadFinanceProfile(
@@ -56,6 +58,22 @@ export async function loadFinanceProfile(
           oa: Number(data.oa ?? 0),
         })
       : undefined,
+    milesPlanner: normalizeMilesPlannerPrefs(data.miles_planner as Partial<MilesPlannerPrefs>),
+  };
+}
+
+const MILE_PROGRAM_KEYS = ["krisflyer", "asiaMiles", "avios", "enrich"];
+
+function normalizeMilesPlannerPrefs(
+  raw: Partial<MilesPlannerPrefs> | null | undefined
+): MilesPlannerPrefs | undefined {
+  if (!raw || typeof raw !== "object" || Object.keys(raw).length === 0) return undefined;
+  const displayProgram = MILE_PROGRAM_KEYS.includes(raw.displayProgram ?? "")
+    ? (raw.displayProgram as MilesPlannerPrefs["displayProgram"])
+    : "krisflyer";
+  return {
+    goalMiles: Number(raw.goalMiles ?? 0),
+    displayProgram,
   };
 }
 
@@ -73,6 +91,7 @@ export function profileFromState(state: DashboardState): FinanceProfile {
     ccDebt: state.ccDebt,
     cashflowStartYm: state.cashflowStartYm,
     btoPlanner: state.btoPlanner,
+    milesPlanner: state.milesPlanner,
   };
 }
 
@@ -90,6 +109,7 @@ export function mergeFinanceProfile(
       patch.btoPlanner !== undefined
         ? normalizeBtoPlannerPrefs(patch.btoPlanner, { monthlySal, oa })
         : current.btoPlanner,
+    milesPlanner: patch.milesPlanner !== undefined ? patch.milesPlanner : current.milesPlanner,
   };
 }
 
@@ -115,6 +135,7 @@ export async function saveFinanceProfile(
     cc_debt: merged.ccDebt,
     cashflow_start_ym: merged.cashflowStartYm,
     bto_planner: merged.btoPlanner ?? {},
+    miles_planner: merged.milesPlanner ?? {},
     updated_at: new Date().toISOString(),
   };
 

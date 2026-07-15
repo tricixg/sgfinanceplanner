@@ -14,6 +14,7 @@ import type {
 } from "@/lib/savings/types";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import type { Fund, FundsTotals } from "@/lib/funds/types";
+import type { MilesBalance, MilesTotals } from "@/lib/miles/types";
 
 export type AppDataContextValue = {
   state: DashboardState;
@@ -113,6 +114,15 @@ export type FundsContextValue = {
   ) => Promise<void>;
 };
 
+export type MilesContextValue = {
+  balances: MilesBalance[];
+  totals: MilesTotals | null;
+  loading: boolean;
+  configured: boolean;
+  reload: () => Promise<void>;
+  saveBalances: (next: MilesBalance[]) => Promise<void>;
+};
+
 export type HouseholdContextValue = {
   householdId: string | null;
   paired: boolean;
@@ -138,6 +148,7 @@ export const AppDataContext = createContext<AppDataContextValue | null>(null);
 export const SavingsContext = createContext<SavingsContextValue | null>(null);
 export const AccountsContext = createContext<AccountsContextValue | null>(null);
 export const FundsContext = createContext<FundsContextValue | null>(null);
+export const MilesContext = createContext<MilesContextValue | null>(null);
 export const HouseholdContext = createContext<HouseholdContextValue | null>(null);
 export const FinancialAccountsContext = createContext<FinancialAccountsContextValue | null>(
   null
