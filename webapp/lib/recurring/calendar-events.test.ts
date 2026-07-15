@@ -17,7 +17,7 @@ describe("getRecurringCalendarEvents", () => {
       {
         day: 15,
         type: "recurring",
-        label: "Netflix — subscription",
+        label: "Netflix — recurring",
         amount: 19.9,
       },
     ]);

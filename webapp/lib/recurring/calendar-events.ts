@@ -45,7 +45,7 @@ export function getRecurringCalendarEvents(
 
   for (const s of subscriptions) {
     if (s.amount <= 0) continue;
-    push(s.deductionDay, `${s.name || "Subscription"} — subscription`, s.amount);
+    push(s.deductionDay, `${s.name || "Recurring"} — recurring`, s.amount);
   }
 
   console.log("[getRecurringCalendarEvents]", viewYm, events.length);
