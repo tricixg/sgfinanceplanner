@@ -3,11 +3,9 @@ import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
-import { computedSubscriptionMonthly } from "@/lib/finance/budget";
 import { loanLoadForMonth } from "@/lib/finance/loanLoad";
 import { loadLoans } from "@/lib/loans/load";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
-import { loadRecurringSubscriptions } from "@/lib/recurring/load";
 import { mapExpense } from "@/lib/savings/db-mappers";
 
 export type MonthBudgetSummary = ReturnType<typeof buildBudgetExpenseSummary>;
@@ -29,7 +27,6 @@ export async function loadMonthBudgetSummary(
     loans,
     insurancePolicies,
     ilpPolicies,
-    subscriptions,
   ] = await Promise.all([
     supabase
       .from("budget_lines")
@@ -53,7 +50,6 @@ export async function loadMonthBudgetSummary(
     loadLoans(supabase, userId),
     loadInsurancePolicies(supabase, userId),
     loadIlpPolicies(supabase, userId),
-    loadRecurringSubscriptions(supabase, userId),
   ]);
 
   if (budgetRes.error) throw new Error(budgetRes.error.message);
@@ -75,7 +71,6 @@ export async function loadMonthBudgetSummary(
     debt: loanLoadForMonth(loans, ym),
     insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
     ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
-    subscription: computedSubscriptionMonthly(subscriptions),
   };
 
   const reimbursements = await loadReimbursementTotals(supabase, userId);

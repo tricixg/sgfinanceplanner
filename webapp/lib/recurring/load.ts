@@ -14,6 +14,7 @@ function mapSubscription(row: Record<string, unknown>): RecurringSubscription {
       ? String(row.default_financial_account_id)
       : undefined,
     endMonth: row.end_month ? String(row.end_month) : undefined,
+    budgetLineId: row.budget_line_id ? String(row.budget_line_id) : undefined,
   };
 }
 
@@ -57,6 +58,7 @@ export async function saveRecurringSubscriptions(
       deduction_day: s.deductionDay ?? null,
       default_financial_account_id: s.defaultFinancialAccountId ?? null,
       end_month: s.endMonth ?? null,
+      budget_line_id: s.budgetLineId ?? null,
       sort_order: i,
       updated_at: new Date().toISOString(),
     };

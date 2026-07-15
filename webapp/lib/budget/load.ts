@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BudgetItem } from "@/lib/types";
-import { stripSaveBudgetLines } from "@/lib/finance/budget";
+import { recurringFloorsByBudgetLine, stripSaveBudgetLines } from "@/lib/finance/budget";
+import { currentYm } from "@/lib/finance/helpers";
+import { loadRecurringSubscriptions } from "@/lib/recurring/load";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
@@ -33,18 +35,13 @@ export async function saveBudgetLines(
     .select("id, category, line_type")
     .eq("user_id", userId);
 
+  const subscriptions = await loadRecurringSubscriptions(supabase, userId);
+  const floors = recurringFloorsByBudgetLine(subscriptions, currentYm());
+
   const keepIds = new Set<string>();
 
   for (let i = 0; i < lines.length; i++) {
     const b = lines[i];
-    const payload = {
-      user_id: userId,
-      category: b.cat ?? "",
-      amount: b.amt ?? 0,
-      line_type: b.type ?? "fixed",
-      sort_order: i,
-      updated_at: new Date().toISOString(),
-    };
 
     const matchById =
       b.id && UUID_RE.test(b.id)
@@ -58,6 +55,16 @@ export async function saveBudgetLines(
           e.line_type === b.type &&
           !keepIds.has(String(e.id))
       );
+
+    const floor = match?.id ? floors.get(String(match.id)) ?? 0 : 0;
+    const payload = {
+      user_id: userId,
+      category: b.cat ?? "",
+      amount: Math.max(b.amt ?? 0, floor),
+      line_type: b.type ?? "fixed",
+      sort_order: i,
+      updated_at: new Date().toISOString(),
+    };
     if (match?.id && UUID_RE.test(String(match.id))) {
       keepIds.add(String(match.id));
       await supabase.from("budget_lines").update(payload).eq("id", match.id);

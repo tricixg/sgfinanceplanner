@@ -193,9 +193,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let linkedCategory: { budgetLineId: string; category: string } | null = null;
+    if (validated.autoCategory === "subscription") {
+      const { data: sub } = await supabase
+        .from("recurring_subscriptions")
+        .select("budget_line_id")
+        .eq("id", sourceId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const budgetLineId = sub?.budget_line_id ? String(sub.budget_line_id) : null;
+      if (budgetLineId) {
+        const { data: line } = await supabase
+          .from("budget_lines")
+          .select("category")
+          .eq("id", budgetLineId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (line) {
+          linkedCategory = { budgetLineId, category: String(line.category ?? "") };
+        }
+      }
+    }
+
     const { data: row, error } = await supabase
       .from("expenses")
-      .insert(autoPaymentInsertRow(user.id, payload))
+      .insert(autoPaymentInsertRow(user.id, payload, linkedCategory))
       .select("*")
       .single();
 

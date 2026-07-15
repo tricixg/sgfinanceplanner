@@ -183,19 +183,24 @@ export async function verifyAutoPaymentSource(
   return Boolean(data);
 }
 
+export type LinkedCategory = { budgetLineId: string; category: string };
+
 export function autoPaymentInsertRow(
   userId: string,
-  payload: AutoPaymentPayload
+  payload: AutoPaymentPayload,
+  linkedCategory?: LinkedCategory | null
 ): Record<string, unknown> {
+  const subscriptionLink =
+    payload.autoCategory === "subscription" ? linkedCategory ?? null : null;
   const row: Record<string, unknown> = {
     user_id: userId,
     amount: payload.amount,
-    category: autoPaymentCategoryLabel(payload.autoCategory),
+    category: subscriptionLink?.category ?? autoPaymentCategoryLabel(payload.autoCategory),
     auto_category: payload.autoCategory,
     spent_at: payload.spentAt,
     spent_time: payload.spentTime ?? null,
     note: payload.note ?? "",
-    budget_line_id: null,
+    budget_line_id: subscriptionLink?.budgetLineId ?? null,
     loan_id: null,
     insurance_policy_id: null,
     ilp_policy_id: null,

@@ -54,6 +54,34 @@ describe("autoPaymentInsertRow", () => {
     expect(row.entry_source).toBe("recurring");
     expect(row.category).toContain("Loans");
   });
+
+  it("falls back to the Other Recurring label when a subscription has no linked category", () => {
+    const row = autoPaymentInsertRow("user-1", {
+      autoCategory: "subscription",
+      subscriptionId: "sub-1",
+      amount: 15,
+      spentAt: "2025-05-15",
+    });
+    expect(row.budget_line_id).toBeNull();
+    expect(row.category).toBe("Other Recurring");
+    expect(row.subscription_id).toBe("sub-1");
+  });
+
+  it("tags a linked subscription payment with its real category", () => {
+    const row = autoPaymentInsertRow(
+      "user-1",
+      {
+        autoCategory: "subscription",
+        subscriptionId: "sub-1",
+        amount: 15,
+        spentAt: "2025-05-15",
+      },
+      { budgetLineId: "cat-1", category: "Household" }
+    );
+    expect(row.budget_line_id).toBe("cat-1");
+    expect(row.category).toBe("Household");
+    expect(row.subscription_id).toBe("sub-1");
+  });
 });
 
 describe("debt outstanding adjust (math)", () => {

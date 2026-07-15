@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useState } from "react";
-import type { BudgetItem, DashboardState } from "@/lib/types";
+import type { BudgetItem, DashboardState, RecurringSubscription } from "@/lib/types";
 import {
   budgetProjection,
   budgetVerdict,
@@ -28,9 +28,9 @@ import {
   COMPUTED_ILP_LABEL,
   computedIlpMonthly,
   COMPUTED_SAVINGS_LABEL,
-  COMPUTED_SUBSCRIPTION_LABEL,
   computedSavingsMonthly,
   defaultBudgetTemplate,
+  recurringFloorsByBudgetLine,
 } from "@/lib/finance/budget";
 
 type Props = {
@@ -51,7 +51,6 @@ const AUTO_CHART_COLORS: Record<string, string> = {
   debt: "#b5482e",
   insurance: "#3d6b8e",
   ilp: "#7a9eb5",
-  subscription: "#8a7be2",
   savings: "#4a8055",
 };
 
@@ -109,8 +108,10 @@ export function TabBudgetSavings({
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState<BudgetItem[]>(S.budget);
   const [expenseSummary, setExpenseSummary] = useState<BudgetExpenseSummary | null>(null);
+  const [subscriptions, setSubscriptions] = useState<RecurringSubscription[]>([]);
   const activeBudget = editingAllocation ? budgetDraft : S.budget;
   const budgetState = editingAllocation ? { ...S, budget: budgetDraft } : S;
+  const floors = recurringFloorsByBudgetLine(subscriptions, currentYm());
 
   const loadExpenseSummary = useCallback(async () => {
     if (editingAllocation) return;
@@ -129,14 +130,34 @@ export function TabBudgetSavings({
     }
   }, [editingAllocation]);
 
+  const loadSubscriptions = useCallback(async () => {
+    try {
+      const { res, data } = await fetchJson<{ items?: RecurringSubscription[] }>(
+        "/api/recurring-subscriptions",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setSubscriptions(data.items ?? []);
+        console.info("[TabBudgetSavings] subscriptions loaded", { count: data.items?.length ?? 0 });
+      }
+    } catch (e) {
+      console.warn("[TabBudgetSavings] subscriptions load failed", e);
+    }
+  }, []);
+
   useEffect(() => {
     void loadExpenseSummary();
   }, [loadExpenseSummary, S.budget]);
+
+  useEffect(() => {
+    void loadSubscriptions();
+  }, [loadSubscriptions]);
 
   useDomainEvent(
     ["expense:changed", "budget:changed", "loans:changed", "recurring:changed"],
     () => {
       void loadExpenseSummary();
+      void loadSubscriptions();
     }
   );
 
@@ -147,8 +168,6 @@ export function TabBudgetSavings({
     computedDebtMonthly(S, ym);
   const insurancePrem = computedInsuranceMonthly(S);
   const ilpPrem = computedIlpMonthly(S);
-  const subPrem =
-    lookupComputedSpend(expenseSummary, "subscription")?.allocated ?? 0;
   const savingsPrem = computedSavingsMonthly(savingsGoals, savingsBundle.myUserId);
   const { alloc, left, invPct } = budgetVerdict(budgetState, ym, savingsPrem);
   const monthlyInv = monthlyInvestContribution(budgetState);
@@ -170,51 +189,62 @@ export function TabBudgetSavings({
     : [];
   const balanceLbl = budgetBalanceLabel(left);
 
-  const renderBudgetEditItem = ({ b, i }: BudgetRow) => (
-    <div className="budget-item" key={b.id ?? `budget-line-${i}`} style={{ marginBottom: 14 }}>
-      <div className="editrow budget-line">
+  const renderBudgetEditItem = ({ b, i }: BudgetRow) => {
+    const floor = b.id ? floors.get(b.id) ?? 0 : 0;
+    const linkedCount = b.id
+      ? subscriptions.filter((s) => s.budgetLineId === b.id).length
+      : 0;
+    return (
+      <div className="budget-item" key={b.id ?? `budget-line-${i}`} style={{ marginBottom: 14 }}>
+        <div className="editrow budget-line">
+          <input
+            type="text"
+            value={b.cat ?? ""}
+            placeholder="Category name"
+            onChange={(ev) => updateBudget(i, { cat: ev.target.value })}
+          />
+          <select
+            value={b.type}
+            onChange={(ev) =>
+              updateBudget(i, { type: ev.target.value as BudgetItem["type"] })
+            }
+          >
+            {BUDGET_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <DecimalInput
+            value={b.amt}
+            step={1}
+            min={Math.max(0, floor)}
+            max={Math.round(income) || 1}
+            onChange={(v) => updateBudget(i, { amt: v })}
+            aria-label={`Budget amount for ${b.cat || "category"}`}
+            style={{ width: 110 }}
+          />
+          <button type="button" className="btn del sm" onClick={() => removeBudgetLine(i)}>
+            del
+          </button>
+        </div>
         <input
-          type="text"
-          value={b.cat ?? ""}
-          placeholder="Category name"
-          onChange={(ev) => updateBudget(i, { cat: ev.target.value })}
-        />
-        <select
-          value={b.type}
-          onChange={(ev) =>
-            updateBudget(i, { type: ev.target.value as BudgetItem["type"] })
-          }
-        >
-          {BUDGET_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <DecimalInput
-          value={b.amt}
-          step={1}
-          min={0}
+          type="range"
+          className="budget-slider"
+          min={Math.max(0, floor)}
           max={Math.round(income) || 1}
-          onChange={(v) => updateBudget(i, { amt: v })}
-          aria-label={`Budget amount for ${b.cat || "category"}`}
-          style={{ width: 110 }}
+          step={1}
+          value={b.amt}
+          onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
         />
-        <button type="button" className="btn del sm" onClick={() => removeBudgetLine(i)}>
-          del
-        </button>
+        {floor > 0 ? (
+          <span className="note">
+            Min {fmt2(floor)} — covers {linkedCount} linked recurring item{linkedCount === 1 ? "" : "s"}
+          </span>
+        ) : null}
       </div>
-      <input
-        type="range"
-        className="budget-slider"
-        min={0}
-        max={Math.round(income) || 1}
-        step={1}
-        value={b.amt}
-        onChange={(ev) => updateBudget(i, { amt: +ev.target.value })}
-      />
-    </div>
-  );
+    );
+  };
 
   const renderComputedAllocationRow = (
     key: string,
@@ -255,13 +285,22 @@ export function TabBudgetSavings({
 
   const renderBudgetViewRow = ({ b, i }: BudgetRow) => {
     const spend = lookupCategorySpend(expenseSummary, b);
+    const floor = b.id ? floors.get(b.id) ?? 0 : 0;
+    const underFloor = b.amt < floor;
     return (
       <tr key={i}>
         <td>{b.cat?.trim() || "Unnamed"}</td>
         <td>
           <span className={`tag ${TYPE_TAG[b.type]}`}>{b.type}</span>
         </td>
-        <td className="num">{fmt2(b.amt)}</td>
+        <td className="num">
+          {fmt2(b.amt)}
+          {underFloor ? (
+            <span className="tag t-end" style={{ marginLeft: 6 }}>
+              below recurring floor
+            </span>
+          ) : null}
+        </td>
         {spend ? (
           <>
             <td className="num">{fmt2(spend.spent)}</td>
@@ -280,20 +319,24 @@ export function TabBudgetSavings({
   const computedUsedTotal =
     (lookupComputedSpend(expenseSummary, "debt")?.spent ?? 0) +
     (lookupComputedSpend(expenseSummary, "insurance")?.spent ?? 0) +
-    (lookupComputedSpend(expenseSummary, "ilp")?.spent ?? 0) +
-    (lookupComputedSpend(expenseSummary, "subscription")?.spent ?? 0);
+    (lookupComputedSpend(expenseSummary, "ilp")?.spent ?? 0);
 
   const categoryUsedTotal = allocatedRows.reduce((sum, row) => {
     const spend = lookupCategorySpend(expenseSummary, row.b);
     return sum + (spend?.spent ?? 0);
   }, 0);
 
-  const tableAmountTotal = debt + insurancePrem + ilpPrem + subPrem + savingsPrem + alloc;
+  const tableAmountTotal = debt + insurancePrem + ilpPrem + savingsPrem + alloc;
   const tableUsedTotal = computedUsedTotal + categoryUsedTotal;
   const tableRemainingTotal = tableAmountTotal - tableUsedTotal;
 
   const startBudgetEdit = () => {
-    setBudgetDraft(structuredClone(S.budget));
+    setBudgetDraft(
+      structuredClone(S.budget).map((b: BudgetItem) => {
+        const floor = b.id ? floors.get(b.id) ?? 0 : 0;
+        return floor > b.amt ? { ...b, amt: floor } : b;
+      })
+    );
     setEditingAllocation(true);
     console.info("[TabBudgetSavings] allocation edit on");
   };
@@ -368,7 +411,6 @@ export function TabBudgetSavings({
     { label: COMPUTED_DEBT_LABEL, amount: debt, color: AUTO_CHART_COLORS.debt },
     { label: COMPUTED_INSURANCE_LABEL, amount: insurancePrem, color: AUTO_CHART_COLORS.insurance },
     { label: COMPUTED_ILP_LABEL, amount: ilpPrem, color: AUTO_CHART_COLORS.ilp },
-    { label: COMPUTED_SUBSCRIPTION_LABEL, amount: subPrem, color: AUTO_CHART_COLORS.subscription },
     { label: COMPUTED_SAVINGS_LABEL, amount: savingsPrem, color: AUTO_CHART_COLORS.savings },
     ...budgetLines.map((b) => ({
       label: b.cat?.trim() || "Unnamed",
@@ -589,7 +631,6 @@ export function TabBudgetSavings({
                 {renderComputedViewRow("debt", COMPUTED_DEBT_LABEL, debt)}
                 {renderComputedViewRow("insurance", COMPUTED_INSURANCE_LABEL, insurancePrem)}
                 {renderComputedViewRow("ilp", COMPUTED_ILP_LABEL, ilpPrem)}
-                {renderComputedViewRow("subscription", COMPUTED_SUBSCRIPTION_LABEL, subPrem)}
                 {renderComputedAllocationRow(
                   "computed-savings",
                   COMPUTED_SAVINGS_LABEL,

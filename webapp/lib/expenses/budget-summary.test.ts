@@ -149,10 +149,10 @@ describe("buildBudgetExpenseSummary", () => {
         expense({ id: "p1", amount: 120, autoCategory: "ilp", ilpPolicyId: "ilp1" }),
       ],
       [],
-      { debt: 500, insurance: 100, ilp: 150, subscription: 0 }
+      { debt: 500, insurance: 100, ilp: 150 }
     );
 
-    expect(summary.computedCategories).toHaveLength(4);
+    expect(summary.computedCategories).toHaveLength(3);
     const debt = summary.computedCategories.find((c) => c.autoCategory === "debt")!;
     expect(debt.spent).toBe(300);
     expect(debt.remaining).toBe(200);
@@ -167,17 +167,44 @@ describe("buildBudgetExpenseSummary", () => {
     expect(ilp.remaining).toBe(30);
   });
 
-  it("builds subscription computed bucket", () => {
+  it("routes a linked subscription expense into its real category, not a computed bucket", () => {
     const summary = buildBudgetExpenseSummary(
       "2025-05",
       lines,
-      [expense({ id: "s1", amount: 15, autoCategory: "subscription", subscriptionId: "sub1" })],
+      [
+        expense({
+          id: "s1",
+          amount: 15,
+          autoCategory: "subscription",
+          subscriptionId: "sub1",
+          budgetLineId: "a1",
+          category: "Household",
+        }),
+      ],
       [],
-      { debt: 0, insurance: 0, ilp: 0, subscription: 50 }
+      { debt: 0, insurance: 0, ilp: 0 }
     );
-    const sub = summary.computedCategories.find((c) => c.autoCategory === "subscription")!;
-    expect(sub.spent).toBe(15);
-    expect(sub.remaining).toBe(35);
+    expect(summary.computedCategories.find((c) => c.autoCategory === "subscription")).toBeUndefined();
+    expect(summary.categories.find((c) => c.budgetLineId === "a1")?.spent).toBe(15);
+  });
+
+  it("routes an unlinked subscription expense into uncategorized", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [
+        expense({
+          id: "s2",
+          amount: 20,
+          autoCategory: "subscription",
+          subscriptionId: "sub2",
+          category: "Other Recurring",
+        }),
+      ],
+      [],
+      { debt: 0, insurance: 0, ilp: 0 }
+    );
+    expect(summary.uncategorized.spent).toBe(20);
   });
 });
 

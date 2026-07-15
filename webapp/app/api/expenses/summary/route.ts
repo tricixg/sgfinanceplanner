@@ -4,8 +4,6 @@ import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { loadLoans } from "@/lib/loans/load";
-import { loadRecurringSubscriptions } from "@/lib/recurring/load";
-import { computedSubscriptionMonthly } from "@/lib/finance/budget";
 import { loanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
@@ -42,7 +40,6 @@ export async function GET(req: NextRequest) {
     loans,
     insurancePolicies,
     ilpPolicies,
-    subscriptions,
     reimbursements,
   ] = await Promise.all([
     supabase
@@ -70,7 +67,6 @@ export async function GET(req: NextRequest) {
     loadLoans(supabase, user.id),
     loadInsurancePolicies(supabase, user.id),
     loadIlpPolicies(supabase, user.id),
-    loadRecurringSubscriptions(supabase, user.id),
     loadReimbursementTotals(supabase, user.id),
   ]);
 
@@ -102,7 +98,6 @@ export async function GET(req: NextRequest) {
     debt: loanLoadForMonth(loans, ym),
     insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
     ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
-    subscription: computedSubscriptionMonthly(subscriptions),
   };
 
   const summary = buildBudgetExpenseSummary(

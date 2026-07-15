@@ -23,7 +23,6 @@ export type MonthRow = {
   loans: number;
   ilp: number;
   insurance: number;
-  subscriptions: number;
   net: number;
   running: number;
 };
@@ -48,7 +47,6 @@ export function buildMonths(
   count = 5,
   savings?: SavingsSnapshot | null,
   additiveIncomeByYm: Record<string, number> = {},
-  subscriptionsMonthly = 0,
   actualBaselineByYm: Record<string, number> = {}
 ): MonthRow[] {
   const fixed = budgetFixedTotal(S);
@@ -83,15 +81,13 @@ export function buildMonths(
   let running = resolveDashboardCash(S, savings).cash;
   return months.map((o) => {
     const loans = loanLoadForMonth(S.loans, o.ym);
-    const net =
-      o.income - o.fixed - o.spend - loans - ilpPrem - insurance - subscriptionsMonthly;
+    const net = o.income - o.fixed - o.spend - loans - ilpPrem - insurance;
     running += net;
     return {
       ...o,
       loans,
       ilp: ilpPrem,
       insurance,
-      subscriptions: subscriptionsMonthly,
       net,
       running,
     };

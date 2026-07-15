@@ -114,6 +114,8 @@ export type RecurringSubscription = {
   deductionDay?: number;
   defaultFinancialAccountId?: string;
   endMonth?: string;
+  /** Optional link to an existing budget category (BudgetItem.id). */
+  budgetLineId?: string;
 };
 
 export type BudgetItem = {

@@ -47,7 +47,6 @@ export function TabNow({
   const startYm = S.cashflowStartYm;
   const [additiveByYm, setAdditiveByYm] = useState<Record<string, number>>({});
   const [actualBaselineByYm, setActualBaselineByYm] = useState<Record<string, number>>({});
-  const [subscriptionsMonthly, setSubscriptionsMonthly] = useState(0);
   const prefetchAppliedForYm = useRef("");
 
   const loadAdditive = useCallback(async () => {
@@ -117,36 +116,7 @@ export function TabNow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadSubscriptions = useCallback(async () => {
-    if (!authEnabled) return;
-    const { res, data } = await fetchJson<{
-      items?: Array<{ amount?: number }>;
-      subscriptions?: Array<{ amount?: number }>;
-    }>("/api/recurring-subscriptions", { credentials: "include" });
-    if (res.ok) {
-      const list = data.items ?? data.subscriptions ?? [];
-      const total = list.reduce((s, x) => s + Math.max(0, Number(x.amount ?? 0)), 0);
-      setSubscriptionsMonthly(total);
-      console.info("[TabNow] subscriptions monthly loaded", {
-        total,
-        count: list.length,
-      });
-    }
-  }, [authEnabled]);
-
-  useEffect(() => {
-    void loadSubscriptions();
-  }, [loadSubscriptions]);
-
-  const rows = buildMonths(
-    S,
-    startYm,
-    5,
-    savings,
-    additiveByYm,
-    subscriptionsMonthly,
-    actualBaselineByYm
-  );
+  const rows = buildMonths(S, startYm, 5, savings, additiveByYm, actualBaselineByYm);
   const newCash = stableTakeHome(S);
   const firstYm = rows[0]?.ym ?? startYm;
   const lastYm = rows[rows.length - 1]?.ym ?? startYm;
@@ -196,13 +166,6 @@ export function TabNow({
           label: "Insurance premiums",
           data: rows.map((r) => -r.insurance),
           backgroundColor: "#6b7d6a",
-          stack: "outflows",
-          order: 2,
-        },
-        {
-          label: "Other Recurring",
-          data: rows.map((r) => -r.subscriptions),
-          backgroundColor: "#5a4678",
           stack: "outflows",
           order: 2,
         },
@@ -330,7 +293,6 @@ export function TabNow({
           <span><i className="dot" style={{ background: "var(--gold)" }} />Loan instalments</span>
           <span><i className="dot" style={{ background: "#7a9eb5" }} />ILP premiums</span>
           <span><i className="dot" style={{ background: "#6b7d6a" }} />Insurance premiums</span>
-          <span><i className="dot" style={{ background: "#5a4678" }} />Other Recurring</span>
           <span><i className="dot" style={{ background: "var(--rust)" }} />Net position</span>
         </div>
       </div>
@@ -346,7 +308,6 @@ export function TabNow({
               <th>Spend</th>
               <th>Insurance</th>
               <th>ILP</th>
-              <th>Subs</th>
               <th className="cashflow-sep-outnet">Net</th>
             </tr>
           </thead>
@@ -367,7 +328,6 @@ export function TabNow({
                 <td className="num">{fmt(r.spend)}</td>
                 <td className="num">{fmt(r.insurance)}</td>
                 <td className="num">{fmt(r.ilp)}</td>
-                <td className="num">{fmt(r.subscriptions)}</td>
                 <td className={`num cashflow-sep-outnet ${r.net >= 0 ? "pos" : "neg"}`}>
                   {r.net >= 0 ? "+" : ""}
                   {fmt(r.net)}

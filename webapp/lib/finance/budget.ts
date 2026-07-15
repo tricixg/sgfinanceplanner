@@ -20,6 +20,7 @@ export {
   COMPUTED_SUBSCRIPTION_LABEL,
   computedSubscriptionMonthly,
   defaultRecurringSubscription,
+  recurringFloorsByBudgetLine,
 } from "./subscriptions";
 
 /** Budget lines that duplicate Debts & Loans instalments — excluded from fixed totals. */

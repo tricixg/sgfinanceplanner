@@ -9,7 +9,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { formatDeductionDayLabel } from "@/lib/recurring/prefill";
-import type { RecurringSubscription } from "@/lib/types";
+import type { BudgetItem, RecurringSubscription } from "@/lib/types";
 import { defaultRecurringSubscription } from "@/lib/finance/budget";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
@@ -40,6 +40,28 @@ export function TabRecurring({ enabled, onReload }: Props) {
   const [editingSubs, setEditingSubs] = useState(false);
   const [subDraft, setSubDraft] = useState<RecurringSubscription[]>([]);
   const [savingSubs, setSavingSubs] = useState(false);
+  const [budgetLines, setBudgetLines] = useState<BudgetItem[]>([]);
+
+  const loadBudgetLines = useCallback(async () => {
+    if (!enabled) return;
+    const { res, data } = await fetchJson<{ budget?: BudgetItem[] }>("/api/budget-lines", {
+      credentials: "include",
+    });
+    if (res.ok) setBudgetLines(data.budget ?? []);
+  }, [enabled]);
+
+  useEffect(() => {
+    void loadBudgetLines();
+  }, [loadBudgetLines]);
+
+  useDomainEvent(["budget:changed"], () => {
+    void loadBudgetLines();
+  });
+
+  const categoryOptions = budgetLines.filter((b) => b.type === "fixed" || b.type === "spend");
+  const categoryName = (id?: string) =>
+    id ? categoryOptions.find((c) => c.id === id)?.cat || null : null;
+
   const load = useCallback(async () => {
     if (!enabled) return;
     setLoading(true);
@@ -175,13 +197,20 @@ export function TabRecurring({ enabled, onReload }: Props) {
   const activeDraft = indexedDraft.filter(({ sub }) => !sub.endMonth || sub.endMonth >= viewYm);
   const archivedDraft = indexedDraft.filter(({ sub }) => sub.endMonth && sub.endMonth < viewYm);
 
+  const activeTotal = activeSubscriptions.reduce((s, x) => s + x.amount, 0);
+  const unassignedActive = activeSubscriptions.filter((s) => !s.budgetLineId);
+  const unassignedTotal = unassignedActive.reduce((s, x) => s + x.amount, 0);
+
+  const activeDraftTotal = activeDraft.reduce((s, { sub }) => s + sub.amount, 0);
+
   const renderRecurringRows = (
     list: RecurringRow[],
     emptyMessage: string,
-    opts: { showType?: boolean; colSpan?: number } = {}
+    opts: { showType?: boolean; showCategory?: boolean; colSpan?: number } = {}
   ) => {
     const showType = opts.showType !== false;
-    const colSpan = opts.colSpan ?? (showType ? 7 : 6);
+    const showCategory = opts.showCategory === true;
+    const colSpan = opts.colSpan ?? 6 + (showType ? 1 : 0) + (showCategory ? 1 : 0);
     if (list.length === 0) {
       return (
         <tr>
@@ -206,6 +235,12 @@ export function TabRecurring({ enabled, onReload }: Props) {
             ) : null}
             <td>{row.name}</td>
             <td className="num">{fmt2(row.amount)}</td>
+            {showCategory ? (
+              <td>
+                {categoryName(subscriptions.find((s) => s.id === row.sourceId)?.budgetLineId) ??
+                  "—"}
+              </td>
+            ) : null}
             <td>{formatDeductionDayLabel(row.deductionDay)}</td>
             <td>{row.defaultAccountName ?? "—"}</td>
             <td>
@@ -363,6 +398,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
           <div className="editrow head recurring-sub">
             <span>Name</span>
             <span>Amount / mo</span>
+            <span>Category</span>
             <span>Ends</span>
             <span>Due day</span>
             <span>Pay from</span>
@@ -389,6 +425,22 @@ export function TabRecurring({ enabled, onReload }: Props) {
                   setSubDraft(next);
                 }}
               />
+              <select
+                value={s.budgetLineId ?? ""}
+                aria-label="Budget category"
+                onChange={(e) => {
+                  const next = [...subDraft];
+                  next[i] = { ...s, budgetLineId: e.target.value || undefined };
+                  setSubDraft(next);
+                }}
+              >
+                <option value="">No category</option>
+                {categoryOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.cat}
+                  </option>
+                ))}
+              </select>
               <input
                 type="month"
                 value={s.endMonth ?? ""}
@@ -447,6 +499,22 @@ export function TabRecurring({ enabled, onReload }: Props) {
                         setSubDraft(next);
                       }}
                     />
+                    <select
+                      value={s.budgetLineId ?? ""}
+                      aria-label="Budget category"
+                      onChange={(e) => {
+                        const next = [...subDraft];
+                        next[i] = { ...s, budgetLineId: e.target.value || undefined };
+                        setSubDraft(next);
+                      }}
+                    >
+                      <option value="">No category</option>
+                      {categoryOptions.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.cat}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       type="text"
                       placeholder="YYYY-MM"
@@ -492,6 +560,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
             >
               + Add other recurring
             </button>
+            <span className="note">Total / mo: {fmt2(activeDraftTotal)}</span>
           </div>
         </div>
       ) : activeSubscriptions.length === 0 && archivedSubscriptions.length === 0 ? (
@@ -505,6 +574,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                   <tr>
                     <th>Name</th>
                     <th>Amount / mo</th>
+                    <th>Category</th>
                     <th>Due</th>
                     <th>Pay from</th>
                     <th>Status</th>
@@ -517,7 +587,10 @@ export function TabRecurring({ enabled, onReload }: Props) {
                       ? subscriptionPaymentRows.find((r) => r.sourceId === sub.id)
                       : undefined;
                     if (payRow) {
-                      return renderRecurringRows([payRow], "", { showType: false });
+                      return renderRecurringRows([payRow], "", {
+                        showType: false,
+                        showCategory: true,
+                      });
                     }
                     const day =
                       sub.deductionDay && sub.deductionDay >= 1 && sub.deductionDay <= 31
@@ -527,6 +600,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                       <tr key={sub.id ?? sub.name}>
                         <td>{sub.name || "—"}</td>
                         <td className="num">{fmt2(sub.amount)}</td>
+                        <td>{categoryName(sub.budgetLineId) ?? "—"}</td>
                         <td>{formatDeductionDayLabel(day)}</td>
                         <td>—</td>
                         <td>
@@ -541,6 +615,17 @@ export function TabRecurring({ enabled, onReload }: Props) {
                     );
                   })}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total / mo</td>
+                    <td className="num">{fmt2(activeTotal)}</td>
+                    <td colSpan={5}>
+                      {unassignedTotal > 0
+                        ? `${fmt2(unassignedTotal)} across ${unassignedActive.length} unassigned item${unassignedActive.length === 1 ? "" : "s"} — not counted toward any budget category`
+                        : ""}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           ) : (
