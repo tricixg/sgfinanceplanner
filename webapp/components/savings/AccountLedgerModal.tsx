@@ -14,7 +14,7 @@ type Props = {
   onRecord: (payload: {
     amount: number;
     occurredAt?: string;
-    kind: LedgerKind;
+    kind: Exclude<LedgerKind, "payout">;
     note?: string;
     goalId?: string;
     incomeCategoryId?: string;
@@ -34,7 +34,11 @@ export function AccountLedgerModal({
     <SavingsLedgerModal
       target={{ variant: "account", account }}
       onClose={onClose}
-      onRecord={onRecord}
+      onRecord={(payload) => {
+        // Account variant never offers "payout" in its Type select — narrow for callers.
+        if (payload.kind === "payout") return Promise.resolve();
+        return onRecord({ ...payload, kind: payload.kind });
+      }}
       txRefresh={txRefresh}
       goalOptions={goalOptions}
     />

@@ -86,12 +86,14 @@ export async function loadSavingsBundle(
 
 export function mergeSavingsSnapshots(
   accountTotals: Pick<SavingsSnapshot, "personalSavingsCash" | "personalNetWorthCash">,
-  savingsBundle: SavingsBundle
+  savingsBundle: SavingsBundle,
+  fundsValue = 0
 ): SavingsSnapshot {
   return {
     ...savingsBundle.totals,
     personalSavingsCash: accountTotals.personalSavingsCash,
     personalNetWorthCash: accountTotals.personalNetWorthCash,
     personalCash: accountTotals.personalSavingsCash,
+    personalFundsValue: fundsValue,
   };
 }

@@ -91,7 +91,8 @@ export function wealthSummary(
   const port = portfolioInvestmentValue(S);
   const { total: ilpVal, spendable: ilpSpendable, locked: ilpLocked } =
     ilpValueByLock(S);
-  const invTotal = port + ilpVal;
+  const fundsVal = savings?.personalFundsValue ?? 0;
+  const invTotal = port + ilpVal + fundsVal;
   const otherDebt = activeOtherLoansOutstanding(S);
   const liab = S.margin + otherDebt + (otherDebt > 0 ? 0 : S.ccDebt);
   const { cash, personal, joint } = resolveDashboardCash(S, savings);
@@ -103,6 +104,7 @@ export function wealthSummary(
     ilpVal,
     ilpSpendable,
     ilpLocked,
+    fundsVal,
     liab,
     lnw,
     cpf,
@@ -126,10 +128,11 @@ export function netWorthSlices(
   includeCpf: boolean,
   savings?: SavingsSnapshot | null
 ): NetWorthSlice[] {
-  const { port, ilpVal, personalCash, cpf } = wealthSummary(S, savings);
+  const { port, ilpVal, fundsVal, personalCash, cpf } = wealthSummary(S, savings);
   const slices: NetWorthSlice[] = [
     { label: "Stock holdings", value: port, color: "#3d6b8e" },
     { label: "ILP", value: ilpVal, color: "#6b5a8e" },
+    { label: "Funds", value: fundsVal, color: "#2e8f7a" },
     { label: "Cash accounts", value: personalCash, color: "#c08a2e" },
   ];
   if (includeCpf && cpf > 0) {

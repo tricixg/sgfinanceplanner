@@ -16,6 +16,7 @@ const emptyTotals: SavingsBundle["totals"] = {
   jointNetWorthCash: 0,
   personalMonthlySave: 0,
   jointMonthlySave: 0,
+  personalFundsValue: 0,
 };
 
 const emptyBundle: SavingsBundle = {

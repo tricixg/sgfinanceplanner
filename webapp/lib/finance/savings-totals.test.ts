@@ -67,6 +67,7 @@ describe("savings-totals", () => {
           whereLabel: "",
           linkedAccountId: null,
           linkedPoolId: null,
+          linkedFundId: null,
           sortOrder: 0,
         },
         {
@@ -84,6 +85,7 @@ describe("savings-totals", () => {
           whereLabel: "",
           linkedAccountId: null,
           linkedPoolId: null,
+          linkedFundId: null,
           sortOrder: 1,
         },
       ]

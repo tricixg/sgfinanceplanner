@@ -21,6 +21,7 @@ const goal = (partial: Partial<SavingsGoal>): SavingsGoal => ({
   whereLabel: "",
   linkedAccountId: null,
   linkedPoolId: null,
+  linkedFundId: null,
   sortOrder: 0,
   ...partial,
 });

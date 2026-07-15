@@ -71,6 +71,7 @@ export type SavingsGoal = {
   whereLabel: string;
   linkedAccountId: string | null;
   linkedPoolId: string | null;
+  linkedFundId: string | null;
   sortOrder: number;
 };
 
@@ -86,6 +87,8 @@ export type SavingsSnapshot = {
   jointNetWorthCash: number;
   personalMonthlySave: number;
   jointMonthlySave: number;
+  /** Sum of investment fund balances — counts toward net worth alongside cash. */
+  personalFundsValue: number;
 };
 
 export type SavingsBundle = {

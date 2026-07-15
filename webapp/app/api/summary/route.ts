@@ -7,6 +7,7 @@ import { loadFinanceProfile } from "@/lib/profile/load";
 import { loadHoldings } from "@/lib/holdings/load";
 import { loadSavingsBundle, mergeSavingsSnapshots } from "@/lib/savings/load-bundle";
 import { loadAccountsBundle } from "@/lib/savings/load-accounts";
+import { loadFundsBundle } from "@/lib/funds/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { mergeWithDefaults, createEmptyState } from "@/lib/finance/defaults";
@@ -28,17 +29,19 @@ export async function GET() {
     const userId = auth.user.id;
 
     const started = Date.now();
-    const [profile, cards, holdings, accountsBundle, savingsBundle] =
+    const [profile, cards, holdings, accountsBundle, savingsBundle, fundsBundle] =
       await Promise.all([
         loadFinanceProfile(supabase, userId),
         loadCreditCards(supabase, userId),
         loadHoldings(supabase, userId),
         loadAccountsBundle(supabase, userId),
         loadSavingsBundle(supabase, userId, []),
+        loadFundsBundle(supabase, userId),
       ]);
     const savingsTotals = mergeSavingsSnapshots(
       accountsBundle.totals,
-      savingsBundle
+      savingsBundle,
+      fundsBundle.totals.fundsBalanceTotal
     );
 
     const state = mergeWithDefaults({

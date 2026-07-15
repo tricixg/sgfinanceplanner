@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { SavingsPool, UserSavingsAccount } from "@/lib/savings/types";
+import type { Fund } from "@/lib/funds/types";
 import { TransactionList } from "@/components/savings/TransactionList";
 import { fmt2 } from "@/lib/finance/helpers";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
@@ -9,13 +10,14 @@ import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
-export type LedgerKind = "deposit" | "withdrawal" | "adjustment";
+export type LedgerKind = "deposit" | "withdrawal" | "adjustment" | "payout";
 
 type AdjustmentMode = "set_balance" | "delta";
 
 export type SavingsLedgerTarget =
   | { variant: "account"; account: UserSavingsAccount }
-  | { variant: "pool"; pool: SavingsPool };
+  | { variant: "pool"; pool: SavingsPool }
+  | { variant: "fund"; fund: Fund };
 
 export type GoalOption = { id: string; name: string };
 
@@ -25,6 +27,10 @@ type Props = {
   txRefresh: number;
   /** Personal or shared goals available when recording (optional attribution). */
   goalOptions?: GoalOption[];
+  /** Lifetime payout total for a fund target — shown as P&L in the header. */
+  fundPnl?: number;
+  /** Cash accounts offered as a funding source when depositing into a fund. */
+  fromAccountOptions?: GoalOption[];
   onRecord: (payload: {
     amount: number;
     occurredAt?: string;
@@ -32,6 +38,7 @@ type Props = {
     note?: string;
     goalId?: string;
     incomeCategoryId?: string;
+    fromAccountId?: string;
   }) => Promise<void>;
 };
 
@@ -47,6 +54,16 @@ function useLedgerMeta(target: SavingsLedgerTarget) {
           ? null
           : "Excluded from savings totals",
         notes: target.account.notes,
+      };
+    }
+    if (target.variant === "fund") {
+      return {
+        title: target.fund.name || "Fund",
+        current: target.fund.balance,
+        historyUrl: `/api/funds/${target.fund.id}/transactions?limit=3`,
+        viewMoreHref: undefined,
+        subtitle: null,
+        notes: target.fund.notes,
       };
     }
     return {
@@ -67,12 +84,15 @@ export function SavingsLedgerModal({
   onClose,
   txRefresh,
   goalOptions = [],
+  fundPnl,
+  fromAccountOptions = [],
   onRecord,
 }: Props) {
   const meta = useLedgerMeta(target);
   const [kind, setKind] = useState<LedgerKind>("deposit");
   const [adjustmentMode, setAdjustmentMode] = useState<AdjustmentMode>("set_balance");
   const [goalId, setGoalId] = useState("");
+  const [fromAccountId, setFromAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
@@ -89,7 +109,11 @@ export function SavingsLedgerModal({
   // recreates the inline `target` object literal and would otherwise wipe the
   // in-progress selection (e.g. the income category dropdown).
   const targetKey =
-    target.variant === "account" ? target.account.id : target.pool.id;
+    target.variant === "account"
+      ? target.account.id
+      : target.variant === "fund"
+        ? target.fund.id
+        : target.pool.id;
 
   useEffect(() => {
     setHistoryKey(txRefresh);
@@ -99,6 +123,7 @@ export function SavingsLedgerModal({
     setGoalId("");
     setAmount("");
     setIncomeCategoryId("");
+    setFromAccountId("");
     setError("");
   }, [targetKey, kind]);
 
@@ -118,6 +143,9 @@ export function SavingsLedgerModal({
     target.variant === "account" && kind === "deposit" && incomeConfigured;
 
   const showGoalPicker = goalOptions.length > 0 && kind !== "adjustment";
+
+  const showFromAccount =
+    target.variant === "fund" && kind === "deposit" && fromAccountOptions.length > 0;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -173,11 +201,13 @@ export function SavingsLedgerModal({
         note: note.trim() || undefined,
         goalId: showGoalPicker && goalId ? goalId : undefined,
         incomeCategoryId: showIncomeCategory ? incomeCategoryId : undefined,
+        fromAccountId: showFromAccount && fromAccountId ? fromAccountId : undefined,
       });
       setAmount("");
       setNote("");
       setGoalId("");
       setIncomeCategoryId("");
+      setFromAccountId("");
       setHistoryKey((k) => k + 1);
       dispatchDomainEvent(["savings:changed", "accounts:changed"]);
       console.info("[SavingsLedgerModal] recorded", {
@@ -185,6 +215,7 @@ export function SavingsLedgerModal({
         kind,
         amount: resolved,
         goalId: goalId || null,
+        fromAccountId: fromAccountId || null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to record");
@@ -222,6 +253,9 @@ export function SavingsLedgerModal({
             <p className="note" style={{ margin: "4px 0 0" }}>
               Balance: <strong>{fmt2(meta.current)}</strong>
               {meta.subtitle ? ` · ${meta.subtitle}` : ""}
+              {target.variant === "fund" && fundPnl != null
+                ? ` · Lifetime payouts (P&L): ${fmt2(fundPnl)}`
+                : ""}
             </p>
             {meta.notes ? (
               <p className="note" style={{ margin: "4px 0 0" }}>
@@ -247,9 +281,32 @@ export function SavingsLedgerModal({
               >
                 <option value="deposit">Deposit</option>
                 <option value="withdrawal">Withdrawal</option>
-                <option value="adjustment">Adjustment</option>
+                {target.variant === "fund" ? (
+                  <option value="payout">Payout</option>
+                ) : (
+                  <option value="adjustment">Adjustment</option>
+                )}
               </select>
             </label>
+            {showFromAccount ? (
+              <label className="ctrl" style={{ fontSize: 13, flex: "2 1 200px" }}>
+                <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
+                  From account (optional)
+                </span>
+                <select
+                  value={fromAccountId}
+                  onChange={(e) => setFromAccountId(e.target.value)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">None — balance only</option>
+                  {fromAccountOptions.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name || "Account"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             {showGoalPicker ? (
               <label className="ctrl" style={{ fontSize: 13, flex: "2 1 200px" }}>
                 <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>

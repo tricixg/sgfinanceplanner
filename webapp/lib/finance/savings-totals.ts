@@ -58,6 +58,7 @@ export function buildSavingsSnapshot(
     jointNetWorthCash,
     personalMonthlySave: sumGoalMonthlyContributions(goals, "individual"),
     jointMonthlySave: sumGoalMonthlyContributions(goals, "shared"),
+    personalFundsValue: 0,
   };
 }
 

@@ -4,12 +4,14 @@ import { useEffect } from "react";
 import { useAppDataProvider } from "@/hooks/useAppData";
 import { useSavingsProvider } from "@/hooks/useSavings";
 import { useAccountsProvider } from "@/hooks/useAccounts";
+import { useFundsProvider } from "@/hooks/useFunds";
 import { useHouseholdProvider } from "@/hooks/useHousehold";
 import { useFinancialAccountsProvider } from "@/hooks/useFinancialAccounts";
 import {
   AccountsContext,
   AppDataContext,
   FinancialAccountsContext,
+  FundsContext,
   HouseholdContext,
   SavingsContext,
 } from "@/contexts/app-data-contexts";
@@ -25,6 +27,7 @@ export function AppDataProvider({ userId, children }: Props) {
   const appData = useAppDataProvider(enabled);
   const savings = useSavingsProvider(enabled);
   const accounts = useAccountsProvider(enabled);
+  const funds = useFundsProvider(enabled);
   const household = useHouseholdProvider(enabled);
   const financialAccounts = useFinancialAccountsProvider(enabled);
 
@@ -36,11 +39,13 @@ export function AppDataProvider({ userId, children }: Props) {
     <AppDataContext.Provider value={appData}>
       <SavingsContext.Provider value={savings}>
         <AccountsContext.Provider value={accounts}>
-          <HouseholdContext.Provider value={household}>
-            <FinancialAccountsContext.Provider value={financialAccounts}>
-              {children}
-            </FinancialAccountsContext.Provider>
-          </HouseholdContext.Provider>
+          <FundsContext.Provider value={funds}>
+            <HouseholdContext.Provider value={household}>
+              <FinancialAccountsContext.Provider value={financialAccounts}>
+                {children}
+              </FinancialAccountsContext.Provider>
+            </HouseholdContext.Provider>
+          </FundsContext.Provider>
         </AccountsContext.Provider>
       </SavingsContext.Provider>
     </AppDataContext.Provider>

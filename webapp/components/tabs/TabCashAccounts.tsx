@@ -61,6 +61,7 @@ export function TabCashAccounts({
   const [transferAmount, setTransferAmount] = useState("");
   const [transferDate, setTransferDate] = useState(() => sgtNowInputDateTime());
   const [transferNote, setTransferNote] = useState("");
+  const [transferGoalId, setTransferGoalId] = useState("");
   const [transferring, setTransferring] = useState(false);
   const [txRefresh, setTxRefresh] = useState(0);
   const [ledgerAccountId, setLedgerAccountId] = useState<string | null>(null);
@@ -92,6 +93,9 @@ export function TabCashAccounts({
       : null;
 
   const transferAccounts = useCloudAccounts ? accountsApi?.accounts ?? [] : [];
+  const transferGoalOptions = savingsGoals
+    .filter((g) => g.scope === "individual")
+    .map((g) => ({ id: g.id, name: g.name }));
 
   const accountsBalanceKey = useMemo(
     () =>
@@ -168,15 +172,18 @@ export function TabCashAccounts({
         note: noteSuffix
           ? `Transfer from ${fromName} · ${noteSuffix}`
           : `Transfer from ${fromName}`,
+        goalId: transferGoalId || undefined,
       });
       setTxRefresh((k) => k + 1);
       setTransferAmount("");
       setTransferNote("");
+      setTransferGoalId("");
       setShowTransfer(false);
       console.info("[TabCashAccounts] transfer recorded", {
         from: transferFromId,
         to: transferToId,
         amount: amt,
+        goalId: transferGoalId || undefined,
       });
     } catch (e) {
       setAccountsMsg(e instanceof Error ? e.message : "Transfer failed");
@@ -314,7 +321,8 @@ export function TabCashAccounts({
           <div className="section-head" style={{ marginBottom: 8 }}>
             <h3 style={{ marginTop: 0, marginBottom: 0 }}>Transfer between cash accounts</h3>
             <span className="note" style={{ fontSize: 11 }}>
-              Records two adjustments (out/in), not cashflow.
+              Records two adjustments (out/in), not cashflow. A chosen goal counts the
+              incoming (To) side as a contribution.
             </span>
           </div>
           <div className="toolbar" style={{ flexWrap: "wrap", alignItems: "end" }}>
@@ -376,6 +384,23 @@ export function TabCashAccounts({
                 disabled={transferring}
               />
             </label>
+            {transferGoalOptions.length > 0 ? (
+              <label className="ctrl">
+                <span className="note">Savings goal (optional)</span>
+                <select
+                  value={transferGoalId}
+                  onChange={(e) => setTransferGoalId(e.target.value)}
+                  disabled={transferring}
+                >
+                  <option value="">None — balance only</option>
+                  {transferGoalOptions.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name || "Goal"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <button
               type="button"
               className="btn sm"

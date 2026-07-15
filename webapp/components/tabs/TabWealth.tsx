@@ -28,13 +28,47 @@ import { AppDataContext } from "@/contexts/app-data-contexts";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import type { ChartOptions } from "chart.js";
-import type { SavingsSnapshot } from "@/lib/savings/types";
+import type { SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
+import type { Fund, FundsTotals } from "@/lib/funds/types";
+import { SavingsLedgerModal } from "@/components/savings/SavingsLedgerModal";
+
+type FundsApi = {
+  funds: Fund[];
+  totals: FundsTotals | null;
+  saveFunds: (next: Fund[]) => Promise<void>;
+  recordFundTransaction: (
+    fundId: string,
+    payload: {
+      amount: number;
+      occurredAt?: string;
+      kind?: "deposit" | "withdrawal" | "payout";
+      note?: string;
+      goalId?: string | null;
+    }
+  ) => Promise<void>;
+};
+
+type AccountsApi = {
+  accounts: UserSavingsAccount[];
+  recordAccountTransaction: (
+    accountId: string,
+    payload: {
+      amount: number;
+      occurredAt?: string;
+      kind?: "deposit" | "withdrawal" | "adjustment";
+      note?: string;
+    }
+  ) => Promise<void>;
+};
 
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
   snapshotsLoading?: boolean;
+  fundsApi?: FundsApi;
+  accountsApi?: AccountsApi;
+  savingsGoals?: SavingsGoal[];
 };
 
 function priceStale(lastPriceAt?: string): boolean {
@@ -43,7 +77,15 @@ function priceStale(lastPriceAt?: string): boolean {
   return age > 24 * 60 * 60 * 1000;
 }
 
-export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Props) {
+export function TabWealth({
+  state: S,
+  setState,
+  savings,
+  snapshotsLoading,
+  fundsApi,
+  accountsApi,
+  savingsGoals = [],
+}: Props) {
   const appData = useContext(AppDataContext);
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
@@ -52,6 +94,12 @@ export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Pro
   const [ilpDraft, setIlpDraft] = useState(S.ilpPolicies);
   const [holdingsDraft, setHoldingsDraft] = useState(S.holdings);
   const [marginDraft, setMarginDraft] = useState(S.margin);
+  const [editingFunds, setEditingFunds] = useState(false);
+  const [fundsDraft, setFundsDraft] = useState<Fund[]>([]);
+  const [savingFunds, setSavingFunds] = useState(false);
+  const [fundsMsg, setFundsMsg] = useState("");
+  const [fundsTxRefresh, setFundsTxRefresh] = useState(0);
+  const [ledgerFundId, setLedgerFundId] = useState<string | null>(null);
 
   const ilpPolicies = editingIlp ? ilpDraft : S.ilpPolicies;
   const displayHoldings = editingHoldings ? holdingsDraft : S.holdings;
@@ -62,10 +110,59 @@ export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Pro
     margin: editingHoldings ? marginDraft : S.margin,
   };
 
-  const { port, invTotal, ilpVal, ilpLocked, personalCash } = wealthSummary(
+  const { port, invTotal, ilpVal, ilpLocked, fundsVal, personalCash } = wealthSummary(
     wealthState,
     savings
   );
+
+  const ledgerFund =
+    ledgerFundId && fundsApi
+      ? fundsApi.funds.find((f) => f.id === ledgerFundId) ?? null
+      : null;
+
+  const startFundsEdit = () => {
+    setFundsDraft(fundsApi?.funds ?? []);
+    setEditingFunds(true);
+    console.info("[TabWealth] funds edit on");
+  };
+
+  const saveFundsEdit = async () => {
+    if (!fundsApi) return;
+    setSavingFunds(true);
+    setFundsMsg("");
+    try {
+      await fundsApi.saveFunds(fundsDraft);
+      setEditingFunds(false);
+      console.info("[TabWealth] funds saved");
+    } catch (e) {
+      setFundsMsg(e instanceof Error ? e.message : "Failed to save funds");
+    } finally {
+      setSavingFunds(false);
+    }
+  };
+
+  const updateFund = (i: number, patch: Partial<Fund>) => {
+    setFundsDraft((prev) => prev.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+  };
+
+  const addFundRow = () => {
+    setFundsDraft((prev) => [
+      ...prev,
+      {
+        id: `new-${prev.length}`,
+        userId: "",
+        name: "",
+        balance: 0,
+        notes: "",
+        sortOrder: prev.length,
+        lifetimePayouts: 0,
+      },
+    ]);
+  };
+
+  const removeFundRow = (i: number) => {
+    setFundsDraft((prev) => prev.filter((_, j) => j !== i));
+  };
   const ilpPrem = computedIlpMonthly(wealthState);
   const totals = portfolioTotals(displayHoldings);
 
@@ -303,11 +400,11 @@ export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Pro
         current value vs premiums paid. Net worth is on <b>This Month</b>.
       </div>
 
-      <div className="grid g3">
+      <div className="grid g4">
         <div className="stat accent">
           <div className="lbl">Total investment assets</div>
           <div className="val">{fmt(invTotal)}</div>
-          <div className="note">Holdings + ILP account value</div>
+          <div className="note">Holdings + ILP + Funds</div>
         </div>
         <div className="stat">
           <div className="lbl">ILP account value</div>
@@ -316,12 +413,177 @@ export function TabWealth({ state: S, setState, savings, snapshotsLoading }: Pro
             <div className="note">{fmt(ilpLocked)} in lock-in (still in total)</div>
           )}
         </div>
+        <div className="stat">
+          <div className="lbl">Funds</div>
+          <div className="val">{fmt(fundsVal)}</div>
+          <div className="note">
+            Lifetime payouts: {fmt(fundsApi?.totals?.fundsPnlTotal ?? 0)}
+          </div>
+        </div>
         <div className="stat warn">
           <div className="lbl">ILP premiums / mo</div>
           <div className="val">{fmt(ilpPrem)}</div>
           <div className="note">Shown on Budget tab (auto)</div>
         </div>
       </div>
+
+      <div className="section-head">
+        <h2>Funds</h2>
+        {editingFunds ? (
+          <button
+            type="button"
+            className="btn sm"
+            disabled={savingFunds}
+            onClick={() => void saveFundsEdit()}
+          >
+            {savingFunds ? "Saving…" : "Save"}
+          </button>
+        ) : (
+          <button type="button" className="btn ghost sm" onClick={startFundsEdit}>
+            Edit
+          </button>
+        )}
+      </div>
+      <div className="callout tip" style={{ marginBottom: 12 }}>
+        Money-market / cash-management funds — deposit and withdraw like an account, and log{" "}
+        <b>payouts</b> (interest/dividends) as they land to track lifetime P&amp;L.
+      </div>
+      {fundsMsg ? <p className="pin-error">{fundsMsg}</p> : null}
+
+      <div className="card">
+        {!fundsApi ? (
+          <p className="note">Sign in to add funds.</p>
+        ) : editingFunds ? (
+          <>
+            {fundsDraft.length === 0 ? (
+              <p className="note">Add money-market or cash-management funds.</p>
+            ) : (
+              fundsDraft.map((f, i) => (
+                <div className="editrow accounts" key={f.id || i} style={{ marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    value={f.name}
+                    placeholder="e.g. Endowus Cash Smart"
+                    onChange={(e) => updateFund(i, { name: e.target.value })}
+                  />
+                  {/^[0-9a-f-]{36}$/i.test(f.id) ? (
+                    <span className="note" title="Use deposits below to change balance">
+                      {fmt2(f.balance)}
+                    </span>
+                  ) : (
+                    <DecimalInput
+                      value={f.balance}
+                      step={0.01}
+                      onChange={(v) => updateFund(i, { balance: v })}
+                    />
+                  )}
+                  <input
+                    type="text"
+                    value={f.notes}
+                    placeholder="Notes"
+                    onChange={(e) => updateFund(i, { notes: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="btn del sm"
+                    onClick={() => removeFundRow(i)}
+                  >
+                    del
+                  </button>
+                </div>
+              ))
+            )}
+            <button type="button" className="btn ghost sm" onClick={addFundRow}>
+              + Add fund
+            </button>
+          </>
+        ) : fundsApi.funds.length === 0 ? (
+          <p className="note">No funds yet. Click Edit to add one.</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="ledger-table">
+              <thead>
+                <tr>
+                  <th>Fund</th>
+                  <th className="num">Balance</th>
+                  <th className="num">P&amp;L (payouts)</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fundsApi.funds.map((f) => (
+                  <tr
+                    key={f.id}
+                    className="ledger-row"
+                    tabIndex={0}
+                    role="button"
+                    onClick={() => setLedgerFundId(f.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setLedgerFundId(f.id);
+                      }
+                    }}
+                  >
+                    <td>
+                      <strong>{f.name || "—"}</strong>
+                    </td>
+                    <td className="num">{fmt2(f.balance)}</td>
+                    <td className={`num ${f.lifetimePayouts >= 0 ? "gain-pos" : "gain-neg"}`}>
+                      {f.lifetimePayouts >= 0 ? "+" : ""}
+                      {fmt2(f.lifetimePayouts)}
+                    </td>
+                    <td className="note" style={{ fontSize: 12 }}>
+                      {f.notes || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {ledgerFund ? (
+        <SavingsLedgerModal
+          target={{ variant: "fund", fund: ledgerFund }}
+          txRefresh={fundsTxRefresh}
+          fundPnl={fundsApi?.totals?.fundsPnlTotal}
+          goalOptions={savingsGoals
+            .filter((g) => g.scope === "individual")
+            .map((g) => ({ id: g.id, name: g.name }))}
+          fromAccountOptions={(accountsApi?.accounts ?? []).map((a) => ({
+            id: a.id,
+            name: a.name,
+          }))}
+          onClose={() => setLedgerFundId(null)}
+          onRecord={async (payload) => {
+            if (!fundsApi || payload.kind === "adjustment") return;
+            if (payload.fromAccountId && accountsApi) {
+              const fromName =
+                accountsApi.accounts.find((a) => a.id === payload.fromAccountId)?.name ??
+                "Account";
+              await accountsApi.recordAccountTransaction(payload.fromAccountId, {
+                amount: -payload.amount,
+                kind: "adjustment",
+                occurredAt: payload.occurredAt,
+                note: `Transfer to ${ledgerFund.name || "Fund"}`,
+              });
+              await fundsApi.recordFundTransaction(ledgerFund.id, {
+                ...payload,
+                kind: payload.kind,
+                note: payload.note || `Transfer from ${fromName}`,
+              });
+            } else {
+              await fundsApi.recordFundTransaction(ledgerFund.id, {
+                ...payload,
+                kind: payload.kind,
+              });
+            }
+            setFundsTxRefresh((k) => k + 1);
+          }}
+        />
+      ) : null}
 
       <div className="section-head">
         <h2>Investment-linked policies (ILP)</h2>

@@ -3,6 +3,7 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { loadAccountsBundle } from "@/lib/savings/load-accounts";
 import { loadSavingsBundle, mergeSavingsSnapshots } from "@/lib/savings/load-bundle";
+import { loadFundsBundle } from "@/lib/funds/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import type { SavingsGoal, SavingsPool } from "@/lib/savings/types";
@@ -19,9 +20,10 @@ export async function GET() {
   try {
     const supabase = await createAuthedSupabaseClient();
     const started = Date.now();
-    const [accountsBundle, savingsBundle] = await Promise.all([
+    const [accountsBundle, savingsBundle, fundsBundle] = await Promise.all([
       loadAccountsBundle(supabase, user.id),
       loadSavingsBundle(supabase, user.id, []),
+      loadFundsBundle(supabase, user.id),
     ]);
     console.info("[api/savings] GET loaded", {
       userId: user.id,
@@ -30,7 +32,11 @@ export async function GET() {
     return NextResponse.json({
       configured: true,
       ...savingsBundle,
-      totals: mergeSavingsSnapshots(accountsBundle.totals, savingsBundle),
+      totals: mergeSavingsSnapshots(
+        accountsBundle.totals,
+        savingsBundle,
+        fundsBundle.totals.fundsBalanceTotal
+      ),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load savings";
@@ -115,6 +121,7 @@ export async function PUT(req: NextRequest) {
           where_label: g.whereLabel ?? "",
           linked_account_id: g.linkedAccountId ?? null,
           linked_pool_id: g.linkedPoolId ?? null,
+          linked_fund_id: g.linkedFundId ?? null,
           sort_order: g.sortOrder ?? i,
           updated_at: new Date().toISOString(),
         };
@@ -134,9 +141,10 @@ export async function PUT(req: NextRequest) {
   });
 
   const reloadStarted = Date.now();
-  const [accountsBundle, savingsBundle] = await Promise.all([
+  const [accountsBundle, savingsBundle, fundsBundle] = await Promise.all([
     loadAccountsBundle(supabase, user.id),
     loadSavingsBundle(supabase, user.id, []),
+    loadFundsBundle(supabase, user.id),
   ]);
   console.info("[api/savings] PUT reloaded", {
     userId: user.id,
@@ -144,6 +152,10 @@ export async function PUT(req: NextRequest) {
   });
   return NextResponse.json({
     ...savingsBundle,
-    totals: mergeSavingsSnapshots(accountsBundle.totals, savingsBundle),
+    totals: mergeSavingsSnapshots(
+      accountsBundle.totals,
+      savingsBundle,
+      fundsBundle.totals.fundsBalanceTotal
+    ),
   });
 }

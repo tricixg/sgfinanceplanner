@@ -76,6 +76,7 @@ export function mapGoal(row: Record<string, unknown>): SavingsGoal {
     whereLabel: String(row.where_label ?? ""),
     linkedAccountId: row.linked_account_id ? String(row.linked_account_id) : null,
     linkedPoolId: row.linked_pool_id ? String(row.linked_pool_id) : null,
+    linkedFundId: row.linked_fund_id ? String(row.linked_fund_id) : null,
     sortOrder: Number(row.sort_order ?? 0),
   };
 }

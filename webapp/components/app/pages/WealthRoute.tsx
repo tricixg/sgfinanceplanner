@@ -15,13 +15,35 @@ function WealthContent({
   snapshotsLoading: boolean;
 }) {
   const user = useAppSession();
-  const { savingsTotals } = usePageSavings(user?.id, state);
+  const { savingsTotals, savingsApi, accountsApi, fundsApi } = usePageSavings(
+    user?.id,
+    state
+  );
   return (
     <TabWealth
       state={state}
       setState={setState}
       savings={savingsTotals}
       snapshotsLoading={snapshotsLoading}
+      fundsApi={
+        fundsApi.configured
+          ? {
+              funds: fundsApi.funds,
+              totals: fundsApi.totals,
+              saveFunds: fundsApi.saveFunds,
+              recordFundTransaction: fundsApi.recordFundTransaction,
+            }
+          : undefined
+      }
+      accountsApi={
+        accountsApi.configured
+          ? {
+              accounts: accountsApi.accounts,
+              recordAccountTransaction: accountsApi.recordAccountTransaction,
+            }
+          : undefined
+      }
+      savingsGoals={savingsApi.configured ? savingsApi.bundle.goals : undefined}
     />
   );
 }

@@ -2,10 +2,20 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { SavingsTransaction } from "@/lib/savings/types";
 import { formatTransactionWhen } from "@/lib/savings/format-transaction-when";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
+
+/** Structural shape shared by SavingsTransaction and FundTransaction — this list only reads these fields. */
+type LedgerHistoryItem = {
+  id: string;
+  kind: string;
+  amount: number;
+  occurredAt: string;
+  note: string;
+  goalName: string | null;
+  balanceAfter: number | null;
+};
 
 type Props = {
   fetchUrl: string;
@@ -14,7 +24,7 @@ type Props = {
 };
 
 export function TransactionList({ fetchUrl, refreshKey = 0, viewMoreHref }: Props) {
-  const [items, setItems] = useState<SavingsTransaction[]>([]);
+  const [items, setItems] = useState<LedgerHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +32,7 @@ export function TransactionList({ fetchUrl, refreshKey = 0, viewMoreHref }: Prop
     setLoading(true);
     try {
       const { res, data } = await fetchJson<{
-        items?: SavingsTransaction[];
+        items?: LedgerHistoryItem[];
         total?: number;
         error?: string;
       }>(fetchUrl, { credentials: "include" });

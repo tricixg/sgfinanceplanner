@@ -7,7 +7,7 @@ import { createEmptyState } from "@/lib/finance/defaults";
 
 export function SavingsRoute() {
   const user = useAppSession();
-  const { savingsApi, accountsApi } = usePageSavings(user?.id, createEmptyState());
+  const { savingsApi, accountsApi, fundsApi } = usePageSavings(user?.id, createEmptyState());
 
   if (!user?.id || (savingsApi.loading && !savingsApi.hasLoaded)) {
     return <p className="loading">Loading your financial data…</p>;
@@ -19,6 +19,7 @@ export function SavingsRoute() {
       configured={savingsApi.configured}
       loading={savingsApi.loading}
       personalAccounts={accountsApi.configured ? accountsApi.accounts : []}
+      funds={fundsApi.configured ? fundsApi.funds : []}
       savePools={savingsApi.savePools}
       saveGoals={savingsApi.saveGoals}
       recordPoolTransaction={savingsApi.recordPoolTransaction}

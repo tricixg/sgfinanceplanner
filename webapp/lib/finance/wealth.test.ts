@@ -78,6 +78,7 @@ describe("portfolioInvestmentValue", () => {
       jointNetWorthCash: 0,
       personalMonthlySave: 0,
       jointMonthlySave: 0,
+      personalFundsValue: 0,
     };
     const { cash, personalCash } = wealthSummary(DEFAULTS, savings);
     expect(cash).toBe(800);
@@ -86,5 +87,28 @@ describe("portfolioInvestmentValue", () => {
       (s) => s.label === "Cash accounts"
     );
     expect(slice?.value).toBe(800);
+  });
+
+  it("fund balances count toward invTotal, lnw, and the Funds slice", () => {
+    const savings = {
+      personalSavingsCash: 0,
+      personalNetWorthCash: 0,
+      personalCash: 0,
+      jointCash: 0,
+      jointSavingsCash: 0,
+      jointNetWorthCash: 0,
+      personalMonthlySave: 0,
+      jointMonthlySave: 0,
+      personalFundsValue: 1500,
+    };
+    const { fundsVal, invTotal, lnw } = wealthSummary(DEFAULTS, savings);
+    const baseline = wealthSummary(DEFAULTS);
+    expect(fundsVal).toBe(1500);
+    expect(invTotal).toBeCloseTo(baseline.invTotal + 1500, 2);
+    expect(lnw).toBeCloseTo(baseline.lnw + 1500, 2);
+    const slice = netWorthSlices(DEFAULTS, false, savings).find(
+      (s) => s.label === "Funds"
+    );
+    expect(slice?.value).toBe(1500);
   });
 });

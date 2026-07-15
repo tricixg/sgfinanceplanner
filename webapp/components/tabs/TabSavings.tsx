@@ -8,6 +8,7 @@ import type {
   SavingsPool,
   UserSavingsAccount,
 } from "@/lib/savings/types";
+import type { Fund } from "@/lib/funds/types";
 import { goalsFromSavingsGoals, goalsSummary, monthlySavingNeeded } from "@/lib/finance/goals";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
@@ -22,6 +23,7 @@ type Props = {
   configured: boolean;
   loading?: boolean;
   personalAccounts: UserSavingsAccount[];
+  funds?: Fund[];
   savePools: (pools: SavingsPool[]) => Promise<void>;
   saveGoals: (goals: SavingsGoal[]) => Promise<void>;
   recordPoolTransaction: (
@@ -41,6 +43,7 @@ export function TabSavings({
   configured,
   loading = false,
   personalAccounts,
+  funds = [],
   savePools,
   saveGoals,
   recordPoolTransaction,
@@ -300,6 +303,7 @@ export function TabSavings({
         scope="individual"
         summary={personalSummary}
         personalAccounts={personalAccounts}
+        funds={funds}
         pools={savings.pools}
         myUserId={savings.myUserId}
         members={savings.members}
@@ -365,7 +369,9 @@ export function TabSavings({
             goalOptions={sharedGoals.map((g) => ({ id: g.id, name: g.name }))}
             onClose={() => setLedgerPoolId(null)}
             onRecord={async (payload) => {
-              await recordPoolTransaction(pool.id, payload);
+              // Pool variant never offers "payout" in its Type select.
+              if (payload.kind === "payout") return;
+              await recordPoolTransaction(pool.id, { ...payload, kind: payload.kind });
               setTxRefresh((k) => k + 1);
             }}
           />
@@ -385,13 +391,17 @@ export function TabSavings({
 function goalLinkedLabel(
   g: SavingsGoal,
   personalAccounts: UserSavingsAccount[],
-  pools: SavingsPool[]
+  pools: SavingsPool[],
+  funds: Fund[]
 ): string | null {
   if (g.linkedAccountId) {
     return personalAccounts.find((a) => a.id === g.linkedAccountId)?.name ?? null;
   }
   if (g.linkedPoolId) {
     return pools.find((p) => p.id === g.linkedPoolId)?.name ?? null;
+  }
+  if (g.linkedFundId) {
+    return funds.find((f) => f.id === g.linkedFundId)?.name ?? null;
   }
   return null;
 }
@@ -404,6 +414,7 @@ function GoalsSection({
   scope,
   summary,
   personalAccounts,
+  funds = [],
   pools,
   myUserId,
   members,
@@ -415,6 +426,7 @@ function GoalsSection({
   scope: "individual" | "shared";
   summary: ReturnType<typeof goalsSummary>;
   personalAccounts: UserSavingsAccount[];
+  funds?: Fund[];
   pools: SavingsPool[];
   myUserId: string;
   members: { userId: string }[];
@@ -477,6 +489,7 @@ function GoalsSection({
         whereLabel: "",
         linkedAccountId: null,
         linkedPoolId: null,
+        linkedFundId: null,
         sortOrder: allGoals.length,
       },
     ]);
@@ -485,11 +498,18 @@ function GoalsSection({
   const linkOptions =
     scope === "shared"
       ? pools.map((p) => ({ id: p.id, label: p.name, type: "pool" as const }))
-      : personalAccounts.map((a) => ({
-          id: a.id,
-          label: a.name,
-          type: "account" as const,
-        }));
+      : [
+          ...personalAccounts.map((a) => ({
+            id: a.id,
+            label: a.name,
+            type: "account" as const,
+          })),
+          ...funds.map((f) => ({
+            id: f.id,
+            label: f.name,
+            type: "fund" as const,
+          })),
+        ];
 
   return (
     <div className="card">
@@ -603,14 +623,19 @@ function GoalsSection({
                         value={
                           scope === "shared"
                             ? (g.linkedPoolId ?? "")
-                            : (g.linkedAccountId ?? "")
+                            : (g.linkedAccountId ?? g.linkedFundId ?? "")
                         }
                         onChange={(e) => {
                           const v = e.target.value || null;
                           if (scope === "shared") {
                             update(i, { linkedPoolId: v, linkedAccountId: null });
                           } else {
-                            update(i, { linkedAccountId: v, linkedPoolId: null });
+                            const chosen = linkOptions.find((o) => o.id === v);
+                            if (chosen?.type === "fund") {
+                              update(i, { linkedFundId: v, linkedAccountId: null });
+                            } else {
+                              update(i, { linkedAccountId: v, linkedFundId: null });
+                            }
                           }
                         }}
                         style={{ width: "100%", minWidth: 100 }}
@@ -670,7 +695,7 @@ function GoalsSection({
             </thead>
             <tbody>
               {goals.map((g) => {
-                const linked = goalLinkedLabel(g, personalAccounts, pools);
+                const linked = goalLinkedLabel(g, personalAccounts, pools, funds);
                 const jarHint =
                   scope === "shared" ? "Use pool above" : "Use ME account";
                 const myAmt = scope === "shared" && myUserId
