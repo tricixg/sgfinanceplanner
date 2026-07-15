@@ -90,13 +90,6 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         summary:
           "Purchase price, grants, loan, downpayment, and cash needed for your flat.",
       },
-      {
-        id: "miles",
-        label: "Miles Tracker",
-        href: "/miles",
-        summary:
-          "Bank points converted to airline miles, expiry tracking, and a redemption estimator.",
-      },
     ],
   },
   {
@@ -126,6 +119,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "Travel",
         href: "/travel",
         summary: "Trip budgets and actual travel spending by category.",
+      },
+      {
+        id: "miles",
+        label: "Miles Tracker",
+        href: "/miles",
+        summary:
+          "Bank points converted to airline miles, expiry tracking, and a redemption estimator.",
       },
       {
         id: "poker",
