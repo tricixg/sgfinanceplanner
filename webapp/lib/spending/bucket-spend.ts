@@ -1,5 +1,6 @@
 import {
   expenseBudgetLines,
+  normalizeCategoryKey,
   resolveBudgetLineId,
   type BudgetLineRow,
 } from "@/lib/expenses/budget-match";
@@ -76,8 +77,14 @@ function categoryMeta(
     const label = categoryText.trim() || "Uncategorized";
     return { id: lineId, label };
   }
-  const label = categoryText.trim() || "Uncategorized";
-  return { id: UNCATEGORIZED_ID, label };
+  const trimmed = categoryText.trim();
+  if (!trimmed) {
+    return { id: UNCATEGORIZED_ID, label: "Uncategorized" };
+  }
+  // Distinct unmatched category names must get distinct buckets — otherwise
+  // rows from different categories collapse into one total and whichever
+  // row is processed first "wins" the label for the whole combined amount.
+  return { id: `${UNCATEGORIZED_ID}:${normalizeCategoryKey(trimmed)}`, label: trimmed };
 }
 
 function shouldIncludeRow(

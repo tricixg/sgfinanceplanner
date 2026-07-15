@@ -121,6 +121,50 @@ describe("bucketSpendRows", () => {
     expect(byYmCategory.get("2026-03")?.get("line-rent")).toBeUndefined();
     expect(byYmCategory.get("2026-03")?.size).toBe(1);
   });
+
+  it("keeps unmatched categories separate instead of merging into one label", () => {
+    // Neither "Household" nor "Balance transfer finance charge" matches a
+    // budget line here, e.g. because the budget line was renamed/removed
+    // (Household) or is never linked to one by design (BT finance charge).
+    const expenses: LeanExpenseRow[] = [
+      {
+        id: "e1",
+        amount: 600,
+        spentAt: "2026-05-05",
+        category: "Household",
+        budgetLineId: null,
+        financialAccountId: null,
+      },
+      {
+        id: "e2",
+        amount: 250,
+        spentAt: "2026-05-10",
+        category: "Balance transfer finance charge",
+        budgetLineId: null,
+        financialAccountId: null,
+      },
+    ];
+    const { byYmCategory } = bucketSpendRows({
+      scope: "all",
+      budgetLines,
+      expenses,
+      imports: [],
+      reimbursements: { expense: new Map(), budget: new Map() },
+      cardLabels: new Map(),
+    });
+
+    const monthCats = byYmCategory.get("2026-05");
+    const labels = [...(monthCats?.values() ?? [])].map((v) => v.label).sort();
+    expect(labels).toEqual(["Balance transfer finance charge", "Household"]);
+    expect(
+      [...(monthCats?.values() ?? [])].find((v) => v.label === "Household")?.amount
+    ).toBe(600);
+    expect(
+      [...(monthCats?.values() ?? [])].find(
+        (v) => v.label === "Balance transfer finance charge"
+      )?.amount
+    ).toBe(250);
+  });
 });
 
 describe("buildSpendingAnalytics", () => {
