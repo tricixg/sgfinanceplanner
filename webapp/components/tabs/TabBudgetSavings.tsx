@@ -41,11 +41,17 @@ type Props = {
 
 const BUDGET_TYPES: BudgetItem["type"][] = ["fixed", "spend", "invest"];
 
-const palette: Record<string, string> = {
-  fixed: "#a89a76",
-  spend: "#c08a2e",
-  invest: "#2f5d3a",
-};
+/** One distinct color per category, cycled by position — not by type, so two
+ *  "fixed" (or two "spend") categories never render as the same doughnut slice. */
+const CATEGORY_CHART_COLORS = [
+  "#1f6aa8", // blue
+  "#0d9483", // teal
+  "#c8901f", // gold
+  "#0d6b3f", // forest
+  "#7a3f8a", // violet
+  "#c1502e", // terracotta
+  "#b23f6b", // rose
+];
 
 const AUTO_CHART_COLORS: Record<string, string> = {
   debt: "#b5482e",
@@ -412,10 +418,10 @@ export function TabBudgetSavings({
     { label: COMPUTED_INSURANCE_LABEL, amount: insurancePrem, color: AUTO_CHART_COLORS.insurance },
     { label: COMPUTED_ILP_LABEL, amount: ilpPrem, color: AUTO_CHART_COLORS.ilp },
     { label: COMPUTED_SAVINGS_LABEL, amount: savingsPrem, color: AUTO_CHART_COLORS.savings },
-    ...budgetLines.map((b) => ({
+    ...budgetLines.map((b, i) => ({
       label: b.cat?.trim() || "Unnamed",
       amount: Number(b.amt ?? 0),
-      color: palette[b.type] ?? "#999",
+      color: CATEGORY_CHART_COLORS[i % CATEGORY_CHART_COLORS.length],
     })),
   ].filter((row) => row.amount > 0);
 
