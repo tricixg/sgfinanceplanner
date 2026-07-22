@@ -53,6 +53,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
       if (row.kind === "insurance") body.insurancePolicyId = row.sourceId;
       if (row.kind === "ilp") body.ilpPolicyId = row.sourceId;
       if (row.kind === "subscription") body.subscriptionId = row.sourceId;
+      if (row.kind === "invest") body.investmentId = row.sourceId;
       if (financialAccountId) body.financialAccountId = financialAccountId;
 
       const { res, data } = await fetchJson<{ error?: string; item?: { id?: string } }>(
@@ -85,6 +86,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         "recurring:changed",
         "loans:changed",
         ...(financialAccountId ? (["accounts:changed"] as const) : []),
+        ...(row.kind === "invest" ? (["funds:changed"] as const) : []),
       ]);
       await onSuccess({
         expenseId,

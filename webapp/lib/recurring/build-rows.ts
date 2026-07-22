@@ -6,7 +6,13 @@ import {
   isLoanActiveInMonth,
   type RecurringPaymentInfo,
 } from "@/lib/recurring/status";
-import type { IlpPolicy, InsurancePolicy, Loan, RecurringSubscription } from "@/lib/types";
+import type {
+  IlpPolicy,
+  InsurancePolicy,
+  Loan,
+  RecurringInvestment,
+  RecurringSubscription,
+} from "@/lib/types";
 
 export type RecurringRow = {
   kind: AutoCategory;
@@ -17,6 +23,8 @@ export type RecurringRow = {
   suggestedSpentAt: string;
   defaultFinancialAccountId: string | null;
   defaultAccountName: string | null;
+  fundId: string | null;
+  fundName: string | null;
   paid: boolean;
   payment: RecurringPaymentInfo | null;
 };
@@ -30,7 +38,9 @@ function rowFromSource(
   defaultFinancialAccountId: string | null | undefined,
   ym: string,
   expenses: Expense[],
-  accountNames: Map<string, string>
+  accountNames: Map<string, string>,
+  fundId: string | null = null,
+  fundNames: Map<string, string> = new Map()
 ): RecurringRow {
   const day = deductionDay && deductionDay >= 1 && deductionDay <= 31 ? deductionDay : null;
   const payment = findPaymentForSource(expenses, kind, sourceId, accountNames);
@@ -44,6 +54,8 @@ function rowFromSource(
     suggestedSpentAt: prefillSpentAt(ym, day),
     defaultFinancialAccountId: accountId,
     defaultAccountName: accountId ? accountNames.get(accountId) ?? null : null,
+    fundId,
+    fundName: fundId ? fundNames.get(fundId) ?? null : null,
     paid: Boolean(payment),
     payment,
   };
@@ -55,8 +67,10 @@ export function buildRecurringRows(
   insurance: InsurancePolicy[],
   ilp: IlpPolicy[],
   subscriptions: RecurringSubscription[],
+  investments: RecurringInvestment[],
   expenses: Expense[],
-  accountNames: Map<string, string>
+  accountNames: Map<string, string>,
+  fundNames: Map<string, string> = new Map()
 ): RecurringRow[] {
   const rows: RecurringRow[] = [];
 
@@ -125,6 +139,25 @@ export function buildRecurringRows(
         ym,
         expenses,
         accountNames
+      )
+    );
+  }
+
+  for (const inv of investments) {
+    if (!inv.id || inv.amount <= 0) continue;
+    rows.push(
+      rowFromSource(
+        "invest",
+        inv.id,
+        inv.name || "Recurring invest",
+        inv.amount,
+        inv.deductionDay,
+        inv.defaultFinancialAccountId,
+        ym,
+        expenses,
+        accountNames,
+        inv.fundId,
+        fundNames
       )
     );
   }

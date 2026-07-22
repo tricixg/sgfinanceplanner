@@ -13,6 +13,7 @@ export type AutoPaymentPayload = {
   insurancePolicyId?: string;
   ilpPolicyId?: string;
   subscriptionId?: string;
+  investmentId?: string;
   amount: number;
   spentAt: string;
   spentTime?: string;
@@ -24,6 +25,7 @@ export function autoPaymentCategoryLabel(autoCategory: AutoCategory): string {
   if (autoCategory === "debt") return COMPUTED_DEBT_LABEL;
   if (autoCategory === "insurance") return COMPUTED_INSURANCE_LABEL;
   if (autoCategory === "ilp") return COMPUTED_ILP_LABEL;
+  if (autoCategory === "invest") return "Invest";
   return COMPUTED_SUBSCRIPTION_LABEL;
 }
 
@@ -33,15 +35,20 @@ export function validateAutoPaymentPayload(body: {
   insurancePolicyId?: string;
   ilpPolicyId?: string;
   subscriptionId?: string;
+  investmentId?: string;
 }): { ok: true; autoCategory: AutoCategory } | { ok: false; error: string } {
   const autoCategory = body.autoCategory;
   if (
     autoCategory !== "debt" &&
     autoCategory !== "insurance" &&
     autoCategory !== "ilp" &&
-    autoCategory !== "subscription"
+    autoCategory !== "subscription" &&
+    autoCategory !== "invest"
   ) {
-    return { ok: false, error: "autoCategory must be debt, insurance, ilp, or subscription" };
+    return {
+      ok: false,
+      error: "autoCategory must be debt, insurance, ilp, subscription, or invest",
+    };
   }
   if (autoCategory === "debt" && !body.loanId) {
     return { ok: false, error: "loanId required for debt payments" };
@@ -54,6 +61,9 @@ export function validateAutoPaymentPayload(body: {
   }
   if (autoCategory === "subscription" && !body.subscriptionId) {
     return { ok: false, error: "subscriptionId required for subscription payments" };
+  }
+  if (autoCategory === "invest" && !body.investmentId) {
+    return { ok: false, error: "investmentId required for invest payments" };
   }
   return { ok: true, autoCategory };
 }
@@ -174,6 +184,15 @@ export async function verifyAutoPaymentSource(
       .maybeSingle();
     return Boolean(data);
   }
+  if (autoCategory === "invest") {
+    const { data } = await supabase
+      .from("recurring_investments")
+      .select("id")
+      .eq("id", sourceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return Boolean(data);
+  }
   const { data } = await supabase
     .from("recurring_subscriptions")
     .select("id")
@@ -185,26 +204,30 @@ export async function verifyAutoPaymentSource(
 
 export type LinkedCategory = { budgetLineId: string; category: string };
 
+const LINKABLE_KINDS: AutoCategory[] = ["subscription", "invest"];
+
 export function autoPaymentInsertRow(
   userId: string,
   payload: AutoPaymentPayload,
-  linkedCategory?: LinkedCategory | null
+  linkedCategory?: LinkedCategory | null,
+  fundId?: string | null
 ): Record<string, unknown> {
-  const subscriptionLink =
-    payload.autoCategory === "subscription" ? linkedCategory ?? null : null;
+  const link = LINKABLE_KINDS.includes(payload.autoCategory) ? linkedCategory ?? null : null;
   const row: Record<string, unknown> = {
     user_id: userId,
     amount: payload.amount,
-    category: subscriptionLink?.category ?? autoPaymentCategoryLabel(payload.autoCategory),
+    category: link?.category ?? autoPaymentCategoryLabel(payload.autoCategory),
     auto_category: payload.autoCategory,
     spent_at: payload.spentAt,
     spent_time: payload.spentTime ?? null,
     note: payload.note ?? "",
-    budget_line_id: subscriptionLink?.budgetLineId ?? null,
+    budget_line_id: link?.budgetLineId ?? null,
     loan_id: null,
     insurance_policy_id: null,
     ilp_policy_id: null,
     subscription_id: null,
+    investment_id: null,
+    fund_id: null,
     financial_account_id: payload.financialAccountId ?? null,
     entry_source: "recurring",
   };
@@ -212,6 +235,10 @@ export function autoPaymentInsertRow(
   if (payload.autoCategory === "insurance") row.insurance_policy_id = payload.insurancePolicyId;
   if (payload.autoCategory === "ilp") row.ilp_policy_id = payload.ilpPolicyId;
   if (payload.autoCategory === "subscription") row.subscription_id = payload.subscriptionId;
+  if (payload.autoCategory === "invest") {
+    row.investment_id = payload.investmentId;
+    row.fund_id = fundId ?? null;
+  }
   return row;
 }
 
@@ -219,5 +246,6 @@ export function sourceIdFromPayload(payload: AutoPaymentPayload): string {
   if (payload.autoCategory === "debt") return payload.loanId!;
   if (payload.autoCategory === "insurance") return payload.insurancePolicyId!;
   if (payload.autoCategory === "ilp") return payload.ilpPolicyId!;
+  if (payload.autoCategory === "invest") return payload.investmentId!;
   return payload.subscriptionId!;
 }

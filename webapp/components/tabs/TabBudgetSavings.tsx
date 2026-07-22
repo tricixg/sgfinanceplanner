@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useState } from "react";
-import type { BudgetItem, DashboardState, RecurringSubscription } from "@/lib/types";
+import type {
+  BudgetItem,
+  DashboardState,
+  RecurringInvestment,
+  RecurringSubscription,
+} from "@/lib/types";
 import {
   budgetProjection,
   budgetVerdict,
@@ -115,9 +120,13 @@ export function TabBudgetSavings({
   const [budgetDraft, setBudgetDraft] = useState<BudgetItem[]>(S.budget);
   const [expenseSummary, setExpenseSummary] = useState<BudgetExpenseSummary | null>(null);
   const [subscriptions, setSubscriptions] = useState<RecurringSubscription[]>([]);
+  const [investments, setInvestments] = useState<RecurringInvestment[]>([]);
   const activeBudget = editingAllocation ? budgetDraft : S.budget;
   const budgetState = editingAllocation ? { ...S, budget: budgetDraft } : S;
-  const floors = recurringFloorsByBudgetLine(subscriptions, currentYm());
+  const floors = recurringFloorsByBudgetLine(
+    [...subscriptions, ...investments],
+    currentYm()
+  );
 
   const loadExpenseSummary = useCallback(async () => {
     if (editingAllocation) return;
@@ -151,19 +160,36 @@ export function TabBudgetSavings({
     }
   }, []);
 
+  const loadInvestments = useCallback(async () => {
+    try {
+      const { res, data } = await fetchJson<{ items?: RecurringInvestment[] }>(
+        "/api/recurring-investments",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setInvestments(data.items ?? []);
+        console.info("[TabBudgetSavings] investments loaded", { count: data.items?.length ?? 0 });
+      }
+    } catch (e) {
+      console.warn("[TabBudgetSavings] investments load failed", e);
+    }
+  }, []);
+
   useEffect(() => {
     void loadExpenseSummary();
   }, [loadExpenseSummary, S.budget]);
 
   useEffect(() => {
     void loadSubscriptions();
-  }, [loadSubscriptions]);
+    void loadInvestments();
+  }, [loadSubscriptions, loadInvestments]);
 
   useDomainEvent(
     ["expense:changed", "budget:changed", "loans:changed", "recurring:changed"],
     () => {
       void loadExpenseSummary();
       void loadSubscriptions();
+      void loadInvestments();
     }
   );
 
@@ -198,7 +224,8 @@ export function TabBudgetSavings({
   const renderBudgetEditItem = ({ b, i }: BudgetRow) => {
     const floor = b.id ? floors.get(b.id) ?? 0 : 0;
     const linkedCount = b.id
-      ? subscriptions.filter((s) => s.budgetLineId === b.id).length
+      ? subscriptions.filter((s) => s.budgetLineId === b.id).length +
+        investments.filter((inv) => inv.budgetLineId === b.id).length
       : 0;
     return (
       <div className="budget-item" key={b.id ?? `budget-line-${i}`} style={{ marginBottom: 14 }}>

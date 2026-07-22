@@ -26,6 +26,8 @@ function expense(partial: Partial<Expense> & Pick<Expense, "id" | "amount">): Ex
     insurancePolicyId: partial.insurancePolicyId ?? null,
     ilpPolicyId: partial.ilpPolicyId ?? null,
     subscriptionId: partial.subscriptionId ?? null,
+    investmentId: partial.investmentId ?? null,
+    fundId: partial.fundId ?? null,
     financialAccountId: partial.financialAccountId ?? null,
     spentAt: partial.spentAt ?? "2025-05-10",
     note: partial.note ?? "",
@@ -205,6 +207,48 @@ describe("buildBudgetExpenseSummary", () => {
       { debt: 0, insurance: 0, ilp: 0 }
     );
     expect(summary.uncategorized.spent).toBe(20);
+  });
+
+  it("routes a linked invest expense into its real category, not a computed bucket", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [
+        expense({
+          id: "v1",
+          amount: 200,
+          autoCategory: "invest",
+          investmentId: "inv1",
+          fundId: "fund1",
+          budgetLineId: "a2",
+          category: "Living & variable spend",
+        }),
+      ],
+      [],
+      { debt: 0, insurance: 0, ilp: 0 }
+    );
+    expect(summary.computedCategories.find((c) => c.autoCategory === "invest")).toBeUndefined();
+    expect(summary.categories.find((c) => c.budgetLineId === "a2")?.spent).toBe(200);
+  });
+
+  it("routes an unlinked invest expense into uncategorized", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [
+        expense({
+          id: "v2",
+          amount: 50,
+          autoCategory: "invest",
+          investmentId: "inv2",
+          fundId: "fund2",
+          category: "Invest",
+        }),
+      ],
+      [],
+      { debt: 0, insurance: 0, ilp: 0 }
+    );
+    expect(summary.uncategorized.spent).toBe(50);
   });
 });
 

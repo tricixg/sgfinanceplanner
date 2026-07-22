@@ -19,6 +19,7 @@ import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api";
 import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
+import { applyFundTransaction } from "@/lib/funds/ledger";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
     insurancePolicyId?: string;
     ilpPolicyId?: string;
     subscriptionId?: string;
+    investmentId?: string;
     financialAccountId?: string;
     spentAt?: string;
     spentTime?: string;
@@ -164,6 +166,7 @@ export async function POST(req: NextRequest) {
       insurancePolicyId: body.insurancePolicyId,
       ilpPolicyId: body.ilpPolicyId,
       subscriptionId: body.subscriptionId,
+      investmentId: body.investmentId,
       amount,
       spentAt,
       spentTime,
@@ -194,14 +197,29 @@ export async function POST(req: NextRequest) {
     }
 
     let linkedCategory: { budgetLineId: string; category: string } | null = null;
-    if (validated.autoCategory === "subscription") {
-      const { data: sub } = await supabase
-        .from("recurring_subscriptions")
-        .select("budget_line_id")
-        .eq("id", sourceId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const budgetLineId = sub?.budget_line_id ? String(sub.budget_line_id) : null;
+    let fundId: string | null = null;
+    let investmentName: string | null = null;
+    if (validated.autoCategory === "subscription" || validated.autoCategory === "invest") {
+      let budgetLineId: string | null = null;
+      if (validated.autoCategory === "invest") {
+        const { data: source } = await supabase
+          .from("recurring_investments")
+          .select("name, budget_line_id, fund_id")
+          .eq("id", sourceId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        fundId = source?.fund_id ? String(source.fund_id) : null;
+        budgetLineId = source?.budget_line_id ? String(source.budget_line_id) : null;
+        investmentName = source?.name ? String(source.name) : null;
+      } else {
+        const { data: source } = await supabase
+          .from("recurring_subscriptions")
+          .select("budget_line_id")
+          .eq("id", sourceId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        budgetLineId = source?.budget_line_id ? String(source.budget_line_id) : null;
+      }
       if (budgetLineId) {
         const { data: line } = await supabase
           .from("budget_lines")
@@ -217,7 +235,7 @@ export async function POST(req: NextRequest) {
 
     const { data: row, error } = await supabase
       .from("expenses")
-      .insert(autoPaymentInsertRow(user.id, payload, linkedCategory))
+      .insert(autoPaymentInsertRow(user.id, payload, linkedCategory, fundId))
       .select("*")
       .single();
 
@@ -231,6 +249,27 @@ export async function POST(req: NextRequest) {
       if (!adj.ok) {
         await supabase.from("expenses").delete().eq("id", row.id);
         return NextResponse.json({ error: adj.error }, { status: 500 });
+      }
+    }
+
+    if (validated.autoCategory === "invest") {
+      if (!fundId) {
+        await supabase.from("expenses").delete().eq("id", row.id);
+        return NextResponse.json({ error: "Recurring invest item has no fund" }, { status: 400 });
+      }
+      try {
+        await applyFundTransaction(supabase, {
+          userId: user.id,
+          fundId,
+          amount,
+          kind: "deposit",
+          note: body.note || `Recurring invest: ${investmentName ?? sourceId}`,
+        });
+      } catch (e) {
+        await supabase.from("expenses").delete().eq("id", row.id);
+        const msg = e instanceof Error ? e.message : "Fund deposit failed";
+        console.error("[api/expenses] auto payment fund deposit failed", msg);
+        return NextResponse.json({ error: msg }, { status: 500 });
       }
     }
 

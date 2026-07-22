@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { buildRecurringRows } from "@/lib/recurring/build-rows";
-import { loadRecurringSubscriptions } from "@/lib/recurring/load";
+import { loadRecurringInvestments, loadRecurringSubscriptions } from "@/lib/recurring/load";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { loadLoans } from "@/lib/loans/load";
 import { mapExpense } from "@/lib/savings/db-mappers";
@@ -31,24 +31,30 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createAuthedSupabaseClient();
 
-  const [loans, insurance, ilp, subscriptions, expensesRes, accountsRes] = await Promise.all([
-    loadLoans(supabase, user.id),
-    loadInsurancePolicies(supabase, user.id),
-    loadIlpPolicies(supabase, user.id),
-    loadRecurringSubscriptions(supabase, user.id),
-    supabase
-      .from("expenses")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("spent_at", from)
-      .lte("spent_at", to)
-      .not("auto_category", "is", null),
-    supabase
-      .from("financial_accounts")
-      .select("id, name")
-      .eq("user_id", user.id)
-      .order("sort_order", { ascending: true }),
-  ]);
+  const [loans, insurance, ilp, subscriptions, investments, expensesRes, accountsRes, fundsRes] =
+    await Promise.all([
+      loadLoans(supabase, user.id),
+      loadInsurancePolicies(supabase, user.id),
+      loadIlpPolicies(supabase, user.id),
+      loadRecurringSubscriptions(supabase, user.id),
+      loadRecurringInvestments(supabase, user.id),
+      supabase
+        .from("expenses")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("spent_at", from)
+        .lte("spent_at", to)
+        .not("auto_category", "is", null),
+      supabase
+        .from("financial_accounts")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("investment_funds")
+        .select("id, name")
+        .eq("user_id", user.id),
+    ]);
 
   if (expensesRes.error) {
     console.error("[api/recurring] expenses load failed", expensesRes.error.message);
@@ -58,11 +64,19 @@ export async function GET(req: NextRequest) {
     console.error("[api/recurring] accounts load failed", accountsRes.error.message);
     return NextResponse.json({ error: accountsRes.error.message }, { status: 500 });
   }
+  if (fundsRes.error) {
+    console.error("[api/recurring] funds load failed", fundsRes.error.message);
+    return NextResponse.json({ error: fundsRes.error.message }, { status: 500 });
+  }
 
   const expenses = (expensesRes.data ?? []).map((r) => mapExpense(r));
   const accountNames = new Map<string, string>();
   for (const a of accountsRes.data ?? []) {
     accountNames.set(String(a.id), String(a.name ?? ""));
+  }
+  const fundNames = new Map<string, string>();
+  for (const f of fundsRes.data ?? []) {
+    fundNames.set(String(f.id), String(f.name ?? ""));
   }
 
   const rows = buildRecurringRows(
@@ -71,8 +85,10 @@ export async function GET(req: NextRequest) {
     insurance,
     ilp,
     subscriptions,
+    investments,
     expenses,
-    accountNames
+    accountNames,
+    fundNames
   );
 
   console.info("[api/recurring] GET", {
@@ -82,5 +98,5 @@ export async function GET(req: NextRequest) {
     paid: rows.filter((r) => r.paid).length,
   });
 
-  return NextResponse.json({ configured: true, ym, rows, subscriptions });
+  return NextResponse.json({ configured: true, ym, rows, subscriptions, investments });
 }

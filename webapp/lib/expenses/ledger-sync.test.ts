@@ -18,6 +18,8 @@ function sampleExpense(overrides: Partial<Expense> = {}): Expense {
     insurancePolicyId: "pol-1",
     ilpPolicyId: null,
     subscriptionId: null,
+    investmentId: null,
+    fundId: null,
     financialAccountId: "fa-1",
     spentAt: "2025-05-01",
     note: "",

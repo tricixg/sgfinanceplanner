@@ -20,6 +20,7 @@ export {
   COMPUTED_SUBSCRIPTION_LABEL,
   computedSubscriptionMonthly,
   defaultRecurringSubscription,
+  defaultRecurringInvestment,
   recurringFloorsByBudgetLine,
 } from "./subscriptions";
 

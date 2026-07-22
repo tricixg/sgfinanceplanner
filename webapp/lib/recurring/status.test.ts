@@ -15,6 +15,8 @@ function expense(partial: Partial<Expense> & Pick<Expense, "id">): Expense {
     insurancePolicyId: partial.insurancePolicyId ?? null,
     ilpPolicyId: partial.ilpPolicyId ?? null,
     subscriptionId: partial.subscriptionId ?? null,
+    investmentId: partial.investmentId ?? null,
+    fundId: partial.fundId ?? null,
     financialAccountId: partial.financialAccountId ?? null,
     spentAt: partial.spentAt ?? "2025-05-10",
     note: "",
@@ -28,6 +30,13 @@ describe("expenseSourceKey", () => {
       expense({ id: "e1", autoCategory: "subscription", subscriptionId: "sub-1" })
     );
     expect(key).toBe("subscription:sub-1");
+  });
+
+  it("keys invest expenses", () => {
+    const key = expenseSourceKey(
+      expense({ id: "e2", autoCategory: "invest", investmentId: "inv-1" })
+    );
+    expect(key).toBe("invest:inv-1");
   });
 });
 

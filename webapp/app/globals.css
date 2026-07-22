@@ -1495,6 +1495,9 @@ input.decimal-input::-webkit-inner-spin-button {
 .editrow.recurring-sub {
   grid-template-columns: 1.3fr 0.7fr 1.1fr 0.6fr 0.6fr 1.1fr auto;
 }
+.editrow.recurring-invest {
+  grid-template-columns: 1.1fr 0.6fr 1fr 1fr 0.55fr 0.55fr 1fr auto;
+}
 @media (max-width: 760px) {
   .split {
     grid-template-columns: 1fr;

@@ -118,6 +118,22 @@ export type RecurringSubscription = {
   budgetLineId?: string;
 };
 
+/** Recurring contribution into an investment fund — like RecurringSubscription,
+ *  but always routes into a specific fund on payment. */
+export type RecurringInvestment = {
+  id?: string;
+  name: string;
+  amount: number;
+  notes: string;
+  deductionDay?: number;
+  defaultFinancialAccountId?: string;
+  endMonth?: string;
+  /** Optional link to an existing budget category (BudgetItem.id), usually type "invest". */
+  budgetLineId?: string;
+  /** Required — which investment_funds row this grows on payment. */
+  fundId: string;
+};
+
 export type BudgetItem = {
   id?: string;
   cat: string;

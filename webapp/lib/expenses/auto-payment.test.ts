@@ -37,6 +37,21 @@ describe("validateAutoPaymentPayload", () => {
     });
     expect(r.ok).toBe(true);
   });
+
+  it("requires investmentId for invest", () => {
+    const r = validateAutoPaymentPayload({ autoCategory: "invest" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/investmentId/);
+  });
+
+  it("accepts invest payload", () => {
+    const r = validateAutoPaymentPayload({
+      autoCategory: "invest",
+      investmentId: "inv-1",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.autoCategory).toBe("invest");
+  });
 });
 
 describe("autoPaymentInsertRow", () => {
@@ -81,6 +96,37 @@ describe("autoPaymentInsertRow", () => {
     expect(row.budget_line_id).toBe("cat-1");
     expect(row.category).toBe("Household");
     expect(row.subscription_id).toBe("sub-1");
+  });
+
+  it("falls back to the Invest label when an invest item has no linked category", () => {
+    const row = autoPaymentInsertRow("user-1", {
+      autoCategory: "invest",
+      investmentId: "inv-1",
+      amount: 200,
+      spentAt: "2025-05-15",
+    });
+    expect(row.budget_line_id).toBeNull();
+    expect(row.category).toBe("Invest");
+    expect(row.investment_id).toBe("inv-1");
+    expect(row.fund_id).toBeNull();
+  });
+
+  it("tags a linked invest payment with its real category and fund", () => {
+    const row = autoPaymentInsertRow(
+      "user-1",
+      {
+        autoCategory: "invest",
+        investmentId: "inv-1",
+        amount: 200,
+        spentAt: "2025-05-15",
+      },
+      { budgetLineId: "cat-2", category: "Investing" },
+      "fund-1"
+    );
+    expect(row.budget_line_id).toBe("cat-2");
+    expect(row.category).toBe("Investing");
+    expect(row.investment_id).toBe("inv-1");
+    expect(row.fund_id).toBe("fund-1");
   });
 });
 

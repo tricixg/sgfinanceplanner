@@ -20,6 +20,8 @@ function sampleExpense(
     insurancePolicyId: null,
     ilpPolicyId: null,
     subscriptionId: null,
+    investmentId: null,
+    fundId: null,
     financialAccountId: "fa-1",
     spentAt: "2025-05-15",
     spentTime: "14:30:00",

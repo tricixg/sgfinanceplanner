@@ -109,7 +109,12 @@ export function buildBudgetExpenseSummary(
   };
 
   for (const exp of expenses) {
-    if (exp.autoCategory && exp.autoCategory !== "subscription") continue;
+    if (
+      exp.autoCategory &&
+      exp.autoCategory !== "subscription" &&
+      exp.autoCategory !== "invest"
+    )
+      continue;
     const lineId = resolveBudgetLineId(buckets, exp.category, exp.budgetLineId);
     if (lineId && categoryMap.has(lineId)) {
       const cat = categoryMap.get(lineId)!;

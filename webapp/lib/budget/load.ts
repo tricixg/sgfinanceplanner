@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BudgetItem } from "@/lib/types";
 import { recurringFloorsByBudgetLine, stripSaveBudgetLines } from "@/lib/finance/budget";
 import { currentYm } from "@/lib/finance/helpers";
-import { loadRecurringSubscriptions } from "@/lib/recurring/load";
+import { loadRecurringInvestments, loadRecurringSubscriptions } from "@/lib/recurring/load";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
@@ -35,8 +35,11 @@ export async function saveBudgetLines(
     .select("id, category, line_type")
     .eq("user_id", userId);
 
-  const subscriptions = await loadRecurringSubscriptions(supabase, userId);
-  const floors = recurringFloorsByBudgetLine(subscriptions, currentYm());
+  const [subscriptions, investments] = await Promise.all([
+    loadRecurringSubscriptions(supabase, userId),
+    loadRecurringInvestments(supabase, userId),
+  ]);
+  const floors = recurringFloorsByBudgetLine([...subscriptions, ...investments], currentYm());
 
   const keepIds = new Set<string>();
 

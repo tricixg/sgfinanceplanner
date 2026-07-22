@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
 import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
+import { applyFundTransaction } from "@/lib/funds/ledger";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -108,6 +109,22 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     );
     if (!adj.ok) {
       console.error("[api/expenses] DELETE loan restore failed", adj.error);
+    }
+  }
+
+  if (existing.auto_category === "invest" && existing.fund_id) {
+    const amount = Number(existing.amount ?? 0);
+    try {
+      await applyFundTransaction(supabase, {
+        userId: user.id,
+        fundId: String(existing.fund_id),
+        amount: -amount,
+        kind: "withdrawal",
+        note: "Reversed recurring invest payment",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Fund reversal failed";
+      console.error("[api/expenses] DELETE fund reversal failed", msg);
     }
   }
 
