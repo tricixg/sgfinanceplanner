@@ -1,4 +1,6 @@
 import type { Context } from "grammy";
+import { BASE_REPORTING_CURRENCY, normalizeCurrencyCode } from "@/lib/fx/currencies";
+import { fetchFxRateToSgd } from "@/lib/fx/frankfurter";
 import { createPokerGame, listPokerGames } from "@/lib/poker/games";
 import { listPokerLocations, upsertPokerLocation } from "@/lib/poker/locations";
 import type { ConversationState } from "@/lib/telegram/conversations";
@@ -6,6 +8,7 @@ import { getConversation, setConversation } from "@/lib/telegram/conversations";
 import { parsePokerPlayedAtTelegram } from "@/lib/poker/played-at";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import {
+  pokerCurrencyKeyboard,
   pokerGamesKeyboard,
   pokerLocationsKeyboard,
   pokerPlayedAtKeyboard,
@@ -113,7 +116,8 @@ export async function tryApplyPokerPlayedAtFromText(
 export async function promptPokerLocationStep(
   ctx: Context,
   userId: string,
-  nextKind: "cash" | "tournament"
+  nextKind: "cash" | "tournament",
+  page = 0
 ): Promise<void> {
   const supabase = getTelegramSupabase();
   const cid = chatId(ctx);
@@ -132,7 +136,7 @@ export async function promptPokerLocationStep(
 
   console.log("[telegram] poker location step", { userId, count: locations.length, nextKind });
   await ctx.reply(POKER_PROMPTS.locationPick, {
-    reply_markup: pokerLocationsKeyboard(locations),
+    reply_markup: pokerLocationsKeyboard(locations, page),
   });
 }
 
@@ -162,7 +166,83 @@ export async function applyPokerLocation(
     return;
   }
 
-  await setConversation(supabase, cid, { ...updated, step: "tname" });
+  await promptPokerCurrencyStep(ctx, userId, updated);
+}
+
+export async function promptPokerCurrencyStep(
+  ctx: Context,
+  userId: string,
+  conv: ConversationState,
+  page = 0
+): Promise<void> {
+  const supabase = getTelegramSupabase();
+  const cid = chatId(ctx);
+  await setConversation(supabase, cid, { ...conv, step: "currency" });
+  console.log("[telegram] poker currency step", { userId });
+  await ctx.reply(POKER_PROMPTS.currencyPick, {
+    reply_markup: pokerCurrencyKeyboard(page),
+  });
+}
+
+export async function applyPokerCurrency(
+  ctx: Context,
+  userId: string,
+  conv: ConversationState,
+  currencyCode: string
+): Promise<void> {
+  const supabase = getTelegramSupabase();
+  const cid = chatId(ctx);
+  const currency = normalizeCurrencyCode(currencyCode);
+
+  if (currency === BASE_REPORTING_CURRENCY) {
+    await setConversation(supabase, cid, {
+      ...conv,
+      step: "tname",
+      payload: { ...conv.payload, currency, fxRateToSgd: 1, fxRateManual: false },
+    });
+    await ctx.reply(POKER_PROMPTS.tournamentName);
+    return;
+  }
+
+  const date = String(conv.payload.playedAt ?? "").slice(0, 10);
+  const fx = /^\d{4}-\d{2}-\d{2}$/.test(date) ? await fetchFxRateToSgd(currency, date) : null;
+
+  if (fx) {
+    console.log("[telegram] poker currency fx resolved", { userId, currency, rate: fx.rate });
+    await setConversation(supabase, cid, {
+      ...conv,
+      step: "tname",
+      payload: { ...conv.payload, currency, fxRateToSgd: fx.rate, fxRateManual: false },
+    });
+    await ctx.reply(
+      `Using 1 ${currency} = ${fx.rate} SGD (rate for ${fx.rateDate}).\n\n${POKER_PROMPTS.tournamentName}`
+    );
+    return;
+  }
+
+  console.warn("[telegram] poker currency fx lookup failed", { userId, currency, date });
+  await setConversation(supabase, cid, {
+    ...conv,
+    step: "fxrate",
+    payload: { ...conv.payload, currency },
+  });
+  await ctx.reply(
+    `Couldn't fetch a live rate for ${currency}. Enter the rate as SGD per 1 ${currency} (e.g. 0.75).`
+  );
+}
+
+export async function applyPokerFxRate(
+  ctx: Context,
+  conv: ConversationState,
+  rate: number
+): Promise<void> {
+  const supabase = getTelegramSupabase();
+  const cid = chatId(ctx);
+  await setConversation(supabase, cid, {
+    ...conv,
+    step: "tname",
+    payload: { ...conv.payload, fxRateToSgd: rate, fxRateManual: true },
+  });
   await ctx.reply(POKER_PROMPTS.tournamentName);
 }
 

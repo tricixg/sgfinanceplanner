@@ -1,5 +1,6 @@
 import { InlineKeyboard } from "grammy";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
+import { POKER_CURRENCIES } from "@/lib/fx/currencies";
 import type { PokerGame } from "@/lib/poker/types";
 import type { AccountPickerOption } from "@/lib/telegram/accounts";
 import type { TravelTripSummary } from "@/lib/travel/types";
@@ -92,14 +93,45 @@ export function pokerTypeKeyboard(): InlineKeyboard {
     .text("Back", "menu:main");
 }
 
-export function pokerLocationsKeyboard(locations: string[]): InlineKeyboard {
+export function pokerLocationsKeyboard(locations: string[], page = 0): InlineKeyboard {
   const kb = new InlineKeyboard();
-  for (const loc of locations.slice(0, 10)) {
+  const start = page * PAGE_SIZE;
+  const slice = locations.slice(start, start + PAGE_SIZE);
+
+  for (const loc of slice) {
     const encoded = encodeURIComponent(loc);
     kb.text(truncateLabel(loc, 36), `poker:loc:${encoded}`).row();
   }
+
+  const totalPages = Math.max(1, Math.ceil(locations.length / PAGE_SIZE));
+  if (totalPages > 1) {
+    if (page > 0) kb.text("◀ Prev", `poker:loc:page:${page - 1}`);
+    if (page < totalPages - 1) kb.text("Next ▶", `poker:loc:page:${page + 1}`);
+    kb.row();
+  }
+
   kb.text("Skip location", "poker:loc:skip").row();
   kb.text("＋ New location", "poker:loc:new").row();
+  kb.text("Cancel", "menu:main");
+  return kb;
+}
+
+export function pokerCurrencyKeyboard(page = 0): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  const start = page * PAGE_SIZE;
+  const slice = POKER_CURRENCIES.slice(start, start + PAGE_SIZE);
+
+  for (const c of slice) {
+    kb.text(truncateLabel(`${c.code} — ${c.label}`, 36), `poker:cur:${c.code}`).row();
+  }
+
+  const totalPages = Math.max(1, Math.ceil(POKER_CURRENCIES.length / PAGE_SIZE));
+  if (totalPages > 1) {
+    if (page > 0) kb.text("◀ Prev", `poker:cur:page:${page - 1}`);
+    if (page < totalPages - 1) kb.text("Next ▶", `poker:cur:page:${page + 1}`);
+    kb.row();
+  }
+
   kb.text("Cancel", "menu:main");
   return kb;
 }

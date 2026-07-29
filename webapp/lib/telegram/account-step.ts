@@ -167,7 +167,31 @@ function applyOptionalPokerFields(
   }
 }
 
-/** Telegram poker sessions are always logged in SGD (no currency prompt in bot). */
+const sgdDefaults = {
+  currency: BASE_REPORTING_CURRENCY,
+  fxRateToSgd: 1,
+  fxRateManual: false,
+} as const;
+
+/** Tournaments may use a currency picked in the bot's currency step; falls back to SGD if unset. */
+function tournamentCurrencyFields(
+  payload: Record<string, unknown>
+): { currency: string; fxRateToSgd: number; fxRateManual: boolean } {
+  const currency =
+    typeof payload.currency === "string" && payload.currency.trim()
+      ? payload.currency.trim().toUpperCase()
+      : BASE_REPORTING_CURRENCY;
+  if (currency === BASE_REPORTING_CURRENCY) return sgdDefaults;
+
+  const rate = Number(payload.fxRateToSgd);
+  return {
+    currency,
+    fxRateToSgd: Number.isFinite(rate) && rate > 0 ? rate : 1,
+    fxRateManual: payload.fxRateManual === true,
+  };
+}
+
+/** Cash-game sessions via the bot are always logged in SGD (no currency prompt in that flow). */
 export function buildPokerBodyFromPayload(
   payload: Record<string, unknown>
 ): PokerSessionBody | null {
@@ -176,12 +200,6 @@ export function buildPokerBodyFromPayload(
 
   const location =
     typeof payload.location === "string" ? payload.location.trim() : "";
-
-  const sgdDefaults = {
-    currency: BASE_REPORTING_CURRENCY,
-    fxRateToSgd: 1,
-    fxRateManual: false,
-  } as const;
 
   if (sessionType === "cash_game") {
     const body: PokerSessionBody = {
@@ -208,7 +226,7 @@ export function buildPokerBodyFromPayload(
       amountWon: tournamentResult === "placed" ? Number(payload.amountWon) : 0,
       playedAt: String(payload.playedAt ?? sgtNowInputDateTime()),
       location,
-      ...sgdDefaults,
+      ...tournamentCurrencyFields(payload),
     };
     if (hours != null) body.hours = hours;
     applyOptionalPokerFields(body, payload);

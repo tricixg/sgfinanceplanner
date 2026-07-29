@@ -20,6 +20,8 @@ import {
 import {
   backToMenuKeyboard,
   expenseCategoryKeyboard,
+  pokerCurrencyKeyboard,
+  pokerLocationsKeyboard,
   pokerResultKeyboard,
   pokerTypeKeyboard,
   skipNoteKeyboard,
@@ -27,8 +29,11 @@ import {
   travelTripsKeyboard,
   travelYearKeyboard,
 } from "@/lib/telegram/keyboards";
+import { listPokerLocations } from "@/lib/poker/locations";
 import { buildPokerStatsMessage } from "@/lib/telegram/poker-stats-message";
 import {
+  applyPokerCurrency,
+  applyPokerFxRate,
   applyPokerGameSelection,
   applyPokerLocation,
   applyPokerPlayedNow,
@@ -567,6 +572,23 @@ function registerHandlers(bot: Bot): void {
       return;
     }
 
+    if (data.startsWith("poker:loc:page:")) {
+      const conv = await getConversation(supabase, cid);
+      if (
+        !conv ||
+        (conv.flow !== "poker_cash" && conv.flow !== "poker_tour") ||
+        conv.step !== "location"
+      ) {
+        return;
+      }
+      const page = Number(data.slice("poker:loc:page:".length)) || 0;
+      const locations = await listPokerLocations(supabase, userId);
+      await ctx.editMessageText(POKER_PROMPTS.locationPick, {
+        reply_markup: pokerLocationsKeyboard(locations, page),
+      });
+      return;
+    }
+
     if (data.startsWith("poker:loc:")) {
       const conv = await getConversation(supabase, cid);
       if (
@@ -579,6 +601,28 @@ function registerHandlers(bot: Bot): void {
       const encoded = data.slice("poker:loc:".length);
       const location = decodeURIComponent(encoded);
       await applyPokerLocation(ctx, userId, conv, location);
+      return;
+    }
+
+    if (data.startsWith("poker:cur:page:")) {
+      const conv = await getConversation(supabase, cid);
+      if (!conv || conv.flow !== "poker_tour" || conv.step !== "currency") {
+        return;
+      }
+      const page = Number(data.slice("poker:cur:page:".length)) || 0;
+      await ctx.editMessageText(POKER_PROMPTS.currencyPick, {
+        reply_markup: pokerCurrencyKeyboard(page),
+      });
+      return;
+    }
+
+    if (data.startsWith("poker:cur:")) {
+      const conv = await getConversation(supabase, cid);
+      if (!conv || conv.flow !== "poker_tour" || conv.step !== "currency") {
+        return;
+      }
+      const code = data.slice("poker:cur:".length);
+      await applyPokerCurrency(ctx, userId, conv, code);
       return;
     }
 
@@ -843,6 +887,17 @@ function registerHandlers(bot: Bot): void {
     }
 
     if (conv.flow === "poker_tour") {
+      if (conv.step === "fxrate") {
+        const rate = parsePositiveAmount(text);
+        if (rate == null) {
+          await ctx.reply(
+            `Enter a valid rate as SGD per 1 ${conv.payload.currency} (e.g. 0.75).`
+          );
+          return;
+        }
+        await applyPokerFxRate(ctx, conv, rate);
+        return;
+      }
       if (conv.step === "tname") {
         const tournamentName = text.trim();
         if (!tournamentName) {

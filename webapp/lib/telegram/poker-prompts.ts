@@ -14,6 +14,8 @@ export const POKER_PROMPTS = {
   gameBigBlind: "Big blind (e.g. 2)",
   gameAnte: "Ante (optional — per hand, or tap Skip ante /send /skip)",
 
+  currencyPick: "Currency for this tournament? Buy-in, prize, and bounties will be entered in this currency.",
+
   tournamentName: "Tournament name (e.g. APT Taipei)",
   tournamentEvent: "Event name (e.g. Main Event Day 1)",
   tournamentResult: "Result — Placed (in the money) or Busted?",
