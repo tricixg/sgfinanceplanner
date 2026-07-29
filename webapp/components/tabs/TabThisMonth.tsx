@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
-import type { DashboardState, RecurringSubscription } from "@/lib/types";
+import type {
+  DashboardState,
+  RecurringInvestment,
+  RecurringSubscription,
+} from "@/lib/types";
 import {
   normalizeCardStatementAmountEntries,
   type CardStatementAmountEntry,
@@ -37,6 +41,7 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export function TabThisMonth({ state: S }: Props) {
   const [viewYm, setViewYm] = useState(currentYm);
   const [subscriptions, setSubscriptions] = useState<RecurringSubscription[]>([]);
+  const [investments, setInvestments] = useState<RecurringInvestment[]>([]);
   const [statementEntries, setStatementEntries] = useState<
     CardStatementAmountEntry[] | null
   >(null);
@@ -71,12 +76,16 @@ export function TabThisMonth({ state: S }: Props) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [subsRes, calendarRes] = await Promise.all([
+      const [subsRes, investRes, calendarRes] = await Promise.all([
         fetchJson<{
           items?: RecurringSubscription[];
           subscriptions?: RecurringSubscription[];
           error?: string;
         }>("/api/recurring-subscriptions", { credentials: "include" }),
+        fetchJson<{
+          items?: RecurringInvestment[];
+          error?: string;
+        }>("/api/recurring-investments", { credentials: "include" }),
         fetchJson<{
           configured?: boolean;
           entries?: CardStatementAmountEntry[];
@@ -94,6 +103,16 @@ export function TabThisMonth({ state: S }: Props) {
       } else {
         console.warn("[TabThisMonth] subscriptions load failed", subsData.error);
         setSubscriptions([]);
+      }
+
+      const investData = investRes.data;
+      const investList = investData.items ?? [];
+      if (investRes.res.ok) {
+        setInvestments(investList);
+        console.info("[TabThisMonth] recurring investments loaded", investList.length);
+      } else {
+        console.warn("[TabThisMonth] recurring investments load failed", investData.error);
+        setInvestments([]);
       }
 
       const calData = calendarRes.data;
@@ -148,9 +167,10 @@ export function TabThisMonth({ state: S }: Props) {
         subscriptions,
         cardCycles,
         statementEntries ?? [],
-        calendarCards
+        calendarCards,
+        investments
       ),
-    [S, viewYm, subscriptions, cardCycles, statementEntries, calendarCards]
+    [S, viewYm, subscriptions, cardCycles, statementEntries, calendarCards, investments]
   );
   const grid = useMemo(
     () => attachEventsToGrid(buildMonthGrid(viewYm), events),

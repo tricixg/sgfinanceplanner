@@ -1,5 +1,9 @@
 import type { CardStatementAmountEntry } from "@/lib/credit-cards/card-statements/calendar-amounts";
-import type { DashboardState, RecurringSubscription } from "@/lib/types";
+import type {
+  DashboardState,
+  RecurringInvestment,
+  RecurringSubscription,
+} from "@/lib/types";
 import {
   getCardCalendarEvents,
   type CardCalendarCycle,
@@ -40,7 +44,8 @@ export function getCalendarEvents(
   subscriptions: RecurringSubscription[] = [],
   cardCycles: CardCalendarCycle[] | null = null,
   statementEntries: CardStatementAmountEntry[] = [],
-  calendarCards: CalendarCardRef[] = []
+  calendarCards: CalendarCardRef[] = [],
+  investments: RecurringInvestment[] = []
 ): CalendarEvent[] {
   const { year, month } = parseYm(viewYm);
   const events: CalendarEvent[] = [];
@@ -88,7 +93,7 @@ export function getCalendarEvents(
     }
   }
 
-  events.push(...getRecurringCalendarEvents(S, viewYm, subscriptions));
+  events.push(...getRecurringCalendarEvents(S, viewYm, subscriptions, investments));
 
   events.sort((a, b) => a.day - b.day);
   console.log("[getCalendarEvents]", viewYm, events.length);

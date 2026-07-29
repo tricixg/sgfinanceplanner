@@ -30,4 +30,26 @@ describe("getRecurringCalendarEvents", () => {
     ]);
     expect(events).toHaveLength(0);
   });
+
+  it("includes recurring investments with a deduction day", () => {
+    const events = getRecurringCalendarEvents(emptyState, "2025-05", [], [
+      { id: "i1", name: "S&P 500", amount: 500, notes: "", deductionDay: 10, fundId: "f1" },
+    ]);
+    expect(events).toEqual([
+      {
+        day: 10,
+        type: "recurring",
+        label: "S&P 500 — invest",
+        amount: 500,
+      },
+    ]);
+  });
+
+  it("skips recurring investments without amount or due day", () => {
+    const events = getRecurringCalendarEvents(emptyState, "2025-05", [], [
+      { name: "No day", amount: 500, notes: "", fundId: "f1" },
+      { name: "Zero", amount: 0, notes: "", deductionDay: 5, fundId: "f1" },
+    ]);
+    expect(events).toHaveLength(0);
+  });
 });

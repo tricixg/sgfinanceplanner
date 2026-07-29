@@ -1,12 +1,17 @@
 import type { CalendarEvent } from "@/lib/finance/calendar";
 import { clampDay } from "@/lib/finance/helpers";
 import { isLoanActiveInMonth } from "@/lib/recurring/status";
-import type { DashboardState, RecurringSubscription } from "@/lib/types";
+import type {
+  DashboardState,
+  RecurringInvestment,
+  RecurringSubscription,
+} from "@/lib/types";
 
 export function getRecurringCalendarEvents(
   S: DashboardState,
   viewYm: string,
-  subscriptions: RecurringSubscription[] = []
+  subscriptions: RecurringSubscription[] = [],
+  investments: RecurringInvestment[] = []
 ): CalendarEvent[] {
   const [y, m] = viewYm.split("-").map(Number);
   const month = m - 1;
@@ -46,6 +51,11 @@ export function getRecurringCalendarEvents(
   for (const s of subscriptions) {
     if (s.amount <= 0) continue;
     push(s.deductionDay, `${s.name || "Recurring"} — recurring`, s.amount);
+  }
+
+  for (const inv of investments) {
+    if (inv.amount <= 0) continue;
+    push(inv.deductionDay, `${inv.name || "Recurring invest"} — invest`, inv.amount);
   }
 
   console.log("[getRecurringCalendarEvents]", viewYm, events.length);
