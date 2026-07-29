@@ -5,7 +5,7 @@ export type AppRouteId =
   | "budget"
   | "savings"
   | "expenses"
-  | "pastSpendings"
+  | "pastCashflow"
   | "recurring"
   | "transactions"
   | "travel"
@@ -56,11 +56,11 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
           "Take-home pay vs budget categories; loans and insurance auto-linked from other tabs.",
       },
       {
-        id: "pastSpendings",
-        label: "Past Spendings",
-        href: "/past-spendings",
+        id: "pastCashflow",
+        label: "Past Cashflow",
+        href: "/past-cashflow",
         summary:
-          "Five-month spending trends by category and card to spot overspend and cut costs.",
+          "Five-month spending and income trends by category, card, and account.",
       },
       {
         id: "savings",
