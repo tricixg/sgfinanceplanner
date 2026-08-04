@@ -28,7 +28,7 @@ const TABS: { id: PokerStatsTab; label: string }[] = [
   { id: "sessions", label: "Sessions" },
   { id: "tournaments", label: "Tournaments" },
   { id: "locations", label: "Locations" },
-  { id: "charts", label: "Charts" },
+  { id: "charts", label: "Cash charts" },
   { id: "trends", label: "Trends" },
 ];
 
