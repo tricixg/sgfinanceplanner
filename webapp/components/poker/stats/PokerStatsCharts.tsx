@@ -12,7 +12,7 @@ type ChartMetric = "hourly" | "netProfit";
 const ALL_YEARS = "all";
 
 export function PokerStatsCharts({ stats }: Props) {
-  const [metric, setMetric] = useState<ChartMetric>("hourly");
+  const [metric, setMetric] = useState<ChartMetric>("netProfit");
   const [monthYear, setMonthYear] = useState<string>(ALL_YEARS);
 
   const years = useMemo(() => pokerChartYears(stats.sessions), [stats.sessions]);
