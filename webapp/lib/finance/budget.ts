@@ -1,7 +1,6 @@
 import type { BudgetItem, DashboardState } from "@/lib/types";
 import type { SavingsGoal, SavingsSnapshot } from "@/lib/savings/types";
 import { effectiveMonthlySave } from "./savings-totals";
-import { monthlySavingNeeded } from "./goals";
 import { resolveDashboardCash } from "./wealth";
 import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
@@ -81,10 +80,9 @@ export function computedDebtMonthly(S: DashboardState, ym?: string): number {
   return loanLoadForMonth(S.loans, budgetYm(ym));
 }
 
-/** Sum of monthly saving needed for goals that are currently active.
+/** Sum of each active goal's monthlyContribution, as set on the Savings & Goals tab.
  *  Goals with a future startDate are excluded until the saving window opens.
- *  For shared goals, only the current user's split is counted (default 50% if no split set).
- *  For individual goals, need is computed from now → targetDate. */
+ *  For shared goals, only the current user's split is counted (default 50% if no split set). */
 export function computedSavingsMonthly(
   goals: SavingsGoal[],
   myUserId?: string,
@@ -95,16 +93,15 @@ export function computedSavingsMonthly(
     if (g.startDate && monIdx(g.startDate.slice(0, 7)) > monIdx(now)) {
       return sum;
     }
+    const monthly = g.monthlyContribution > 0 ? g.monthlyContribution : 0;
     if (g.scope === "shared") {
       if (myUserId && g.splits?.[myUserId] != null) {
         return sum + g.splits[myUserId];
       }
-      // No split set yet — fall back to 50% of live monthly need
-      const need = monthlySavingNeeded({ ...g, startDate: null }, nowYm);
-      return sum + (need ?? 0) / 2;
+      // No split set yet — fall back to 50% of the goal's monthly contribution
+      return sum + monthly / 2;
     }
-    const need = monthlySavingNeeded({ ...g, startDate: null }, nowYm);
-    return sum + (need ?? 0);
+    return sum + monthly;
   }, 0);
 }
 

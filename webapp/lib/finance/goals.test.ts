@@ -42,25 +42,32 @@ describe("monthlySavingNeeded", () => {
 });
 
 describe("computedSavingsMonthly", () => {
-  it("sums only goals with a target date", () => {
+  it("sums each goal's monthlyContribution", () => {
     const total = computedSavingsMonthly(
       [
-        goal({ targetAmount: 6000, targetDate: "2027-01-01" }),
-        goal({ id: "g2", name: "Open", targetDate: null }),
+        goal({ monthlyContribution: 500 }),
+        goal({ id: "g2", name: "Open", monthlyContribution: 300 }),
       ],
       undefined,
       "2026-05"
     );
-    expect(total).toBeGreaterThan(0);
+    expect(total).toBe(800);
     expect(
-      computedSavingsMonthly([goal({ targetDate: null })], undefined, "2026-05")
+      computedSavingsMonthly([goal({ monthlyContribution: 0 })], undefined, "2026-05")
     ).toBe(0);
+  });
+
+  it("reflects a manually edited monthlyContribution, not a recomputed need", () => {
+    // Same target/dates, only monthlyContribution differs — total must track the field.
+    const g1 = goal({ targetAmount: 12000, targetDate: "2027-01-01", monthlyContribution: 200 });
+    const g2 = { ...g1, monthlyContribution: 900 };
+    expect(computedSavingsMonthly([g1], undefined, "2026-05")).toBe(200);
+    expect(computedSavingsMonthly([g2], undefined, "2026-05")).toBe(900);
   });
 
   it("excludes goals whose startDate is in the future", () => {
     const futureStart = goal({
-      targetAmount: 12000,
-      targetDate: "2028-01-01",
+      monthlyContribution: 400,
       startDate: "2027-01-01",
     });
     expect(computedSavingsMonthly([futureStart], undefined, "2026-05")).toBe(0);
@@ -68,11 +75,10 @@ describe("computedSavingsMonthly", () => {
 
   it("includes goals whose startDate is in the past", () => {
     const pastStart = goal({
-      targetAmount: 12000,
-      targetDate: "2027-06-01",
+      monthlyContribution: 400,
       startDate: "2025-01-01",
     });
-    expect(computedSavingsMonthly([pastStart], undefined, "2026-05")).toBeGreaterThan(0);
+    expect(computedSavingsMonthly([pastStart], undefined, "2026-05")).toBe(400);
   });
 
   it("uses split amount for shared goals when myUserId matches", () => {
@@ -91,24 +97,16 @@ describe("computedSavingsMonthly", () => {
     expect(partnerShare).toBe(600);
   });
 
-  it("falls back to 50% for shared goals with no splits", () => {
+  it("falls back to 50% of monthlyContribution for shared goals with no splits", () => {
     const sharedGoal = goal({
       scope: "shared",
       ownerUserId: null,
       householdId: "hh1",
-      targetAmount: 12000,
-      targetDate: "2027-01-01",
+      monthlyContribution: 1000,
       splits: null,
     });
     const myShare = computedSavingsMonthly([sharedGoal], "user-me", "2026-05");
-    // Live calc from now → target, halved
-    expect(myShare).toBeGreaterThan(0);
-    const fullNeed = computedSavingsMonthly(
-      [{ ...sharedGoal, scope: "individual", ownerUserId: "user-me", householdId: null }],
-      "user-me",
-      "2026-05"
-    );
-    expect(myShare).toBeCloseTo(fullNeed / 2, 5);
+    expect(myShare).toBe(500);
   });
 });
 
