@@ -17,7 +17,7 @@ describe("ilp premiums and profit", () => {
       policyStartYm: "2026-01",
       monthlyPremium: 300,
     };
-    expect(estimatedPremiumsPaid(p, "2026-06")).toBe(300 * 6);
+    expect(estimatedPremiumsPaid(p, "2026-06")).toBe(300 * 5);
   });
 
   it("ilpProfit is value minus net premiums", () => {
@@ -27,7 +27,7 @@ describe("ilp premiums and profit", () => {
       monthlyPremium: 300,
       accountValue: 5000,
     };
-    expect(ilpProfit(p, "2026-06")).toBe(5000 - 1800);
+    expect(ilpProfit(p, "2026-06")).toBe(5000 - 1500);
   });
 
   it("initialBonus reduces net premiums for profit", () => {
@@ -38,8 +38,8 @@ describe("ilp premiums and profit", () => {
       initialBonus: 500,
       accountValue: 5000,
     };
-    expect(estimatedNetPremiumsPaid(p, "2026-06")).toBe(1300);
-    expect(ilpProfit(p, "2026-06")).toBe(3700);
+    expect(estimatedNetPremiumsPaid(p, "2026-06")).toBe(1000);
+    expect(ilpProfit(p, "2026-06")).toBe(4000);
   });
 });
 

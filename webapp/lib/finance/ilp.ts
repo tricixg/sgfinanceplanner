@@ -32,7 +32,7 @@ export function estimatedPremiumsPaid(
   if (!policy.policyStartYm || policy.monthlyPremium <= 0) return 0;
   const endIdx = asOfYm ? monIdx(asOfYm) : monIdx(todayDateStr().slice(0, 7));
   const startIdx = monIdx(policy.policyStartYm);
-  const months = Math.max(0, endIdx - startIdx + 1);
+  const months = Math.max(0, endIdx - startIdx);
   return months * policy.monthlyPremium;
 }
 
