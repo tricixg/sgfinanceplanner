@@ -290,6 +290,10 @@ function periodComparison(
 }
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
 function chartBuckets(
   sessions: PokerSession[],
@@ -324,6 +328,32 @@ function chartBuckets(
   return rows;
 }
 
+export function pokerMonthBuckets(sessions: PokerSession[], year?: string): ChartBucket[] {
+  const cash = sessions.filter((s) => s.sessionType === "cash_game");
+  const filtered = year
+    ? cash.filter((s) => ymFromPokerPlayedAt(s.playedAt).slice(0, 4) === year)
+    : cash;
+  return chartBuckets(
+    filtered,
+    (s) => {
+      const ym = ymFromPokerPlayedAt(s.playedAt);
+      const m = parseInt(ym.slice(5, 7), 10);
+      return MONTH_NAMES[m - 1] ?? ym.slice(5, 7);
+    },
+    (a, b) => MONTH_NAMES.indexOf(a) - MONTH_NAMES.indexOf(b)
+  );
+}
+
+/** Years with at least one cash-game session, most recent first. */
+export function pokerChartYears(sessions: PokerSession[]): string[] {
+  const years = new Set<string>();
+  for (const s of sessions) {
+    if (s.sessionType !== "cash_game") continue;
+    years.add(ymFromPokerPlayedAt(s.playedAt).slice(0, 4));
+  }
+  return [...years].sort((a, b) => b.localeCompare(a));
+}
+
 export function buildPokerStats(sessions: PokerSession[]): PokerStatsBundle {
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -340,10 +370,7 @@ export function buildPokerStats(sessions: PokerSession[]): PokerStatsBundle {
     metrics[slice] = sessionMetrics(subset);
   }
 
-  const monthNames = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
+  const cashSessions = sessions.filter((s) => s.sessionType === "cash_game");
 
   return {
     sessions: [...sessions].sort((a, b) => b.playedAt.localeCompare(a.playedAt)),
@@ -360,7 +387,7 @@ export function buildPokerStats(sessions: PokerSession[]): PokerStatsBundle {
     locations: locationBreakdown(sessions),
     charts: {
       weekday: chartBuckets(
-        sessions,
+        cashSessions,
         (s) => {
           const d = new Date(s.playedAt);
           const day = new Intl.DateTimeFormat("en-US", {
@@ -371,17 +398,9 @@ export function buildPokerStats(sessions: PokerSession[]): PokerStatsBundle {
         },
         (a, b) => WEEKDAY_LABELS.indexOf(a) - WEEKDAY_LABELS.indexOf(b)
       ),
-      month: chartBuckets(
-        sessions,
-        (s) => {
-          const ym = ymFromPokerPlayedAt(s.playedAt);
-          const m = parseInt(ym.slice(5, 7), 10);
-          return monthNames[m - 1] ?? ym.slice(5, 7);
-        },
-        (a, b) => monthNames.indexOf(a) - monthNames.indexOf(b)
-      ),
+      month: pokerMonthBuckets(sessions),
       year: chartBuckets(
-        sessions,
+        cashSessions,
         (s) => ymFromPokerPlayedAt(s.playedAt).slice(0, 4),
         (a, b) => a.localeCompare(b)
       ),
