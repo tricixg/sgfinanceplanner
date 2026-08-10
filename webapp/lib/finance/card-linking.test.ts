@@ -45,6 +45,7 @@ describe("card-linking", () => {
           end: "2027-12",
         },
       ],
+      otherLoans: [],
     });
 
     const [breakdown] = getAllCardStatementBreakdowns(state);
@@ -74,6 +75,7 @@ describe("card-linking", () => {
           outstanding: 622.58,
           interestRateApr: 0,
           feesPaid: 0,
+          monthly: 0,
           amountPaid: 0,
           dueDate: "2027-12-31",
           sourceCreditCardId: "ww",

@@ -51,6 +51,7 @@ function defaultOtherLoan(loanType: OtherLoanType): OtherLoan {
       outstanding: 0,
       interestRateApr: 0,
       feesPaid: 0,
+      monthly: 0,
       amountPaid: 0,
     };
   }
@@ -61,6 +62,7 @@ function defaultOtherLoan(loanType: OtherLoanType): OtherLoan {
     outstanding: 0,
     interestRateApr: 0,
     feesPaid: 0,
+    monthly: 0,
     amountPaid: 0,
   };
 }
@@ -704,6 +706,12 @@ export function OtherLoansPanel({
           disabled={saving}
           onChange={(v) => patchLoan(i, { feesPaid: v })}
         />
+        <DecimalInput
+          value={l.monthly}
+          step={0.01}
+          disabled={saving}
+          onChange={(v) => patchLoan(i, { monthly: v })}
+        />
         <PayFromSelect
           value={l.defaultFinancialAccountId ?? ""}
           accounts={accounts}
@@ -789,6 +797,7 @@ export function OtherLoansPanel({
                   <span>Due date</span>
                   <span>Tenure (mo)</span>
                   <span>Fees paid</span>
+                  <span>Monthly</span>
                   <span>Pay from</span>
                   <span>Net worth</span>
                   <span></span>
@@ -863,6 +872,7 @@ export function OtherLoansPanel({
                     <th>Outstanding</th>
                     <th>Interest %</th>
                     <th>Fees paid</th>
+                    <th>Monthly</th>
                     <th>Net worth</th>
                     <th></th>
                   </tr>
@@ -877,6 +887,7 @@ export function OtherLoansPanel({
                       <td className="num">{fmt2(l.outstanding)}</td>
                       <td className="num">{l.interestRateApr.toFixed(2)}</td>
                       <td className="num">{fmt2(l.feesPaid)}</td>
+                      <td className="num">{l.monthly > 0 ? fmt2(l.monthly) : "—"}</td>
                       <td>
                         {l.excludeFromNetWorth ? "Excluded" : "Included"}
                       </td>
@@ -952,6 +963,7 @@ export function OtherLoansPanel({
                       <th>Amount paid</th>
                       <th>Interest %</th>
                       <th>Fees paid</th>
+                      <th>Monthly</th>
                       <th>Paid on</th>
                     </tr>
                   </thead>
@@ -964,6 +976,7 @@ export function OtherLoansPanel({
                         <td className="num">{fmt2(l.amountPaid)}</td>
                         <td className="num">{l.interestRateApr.toFixed(2)}</td>
                         <td className="num">{fmt2(l.feesPaid)}</td>
+                        <td className="num">{l.monthly > 0 ? fmt2(l.monthly) : "—"}</td>
                         <td>{l.paidAt ? fmtDate(l.paidAt.slice(0, 10)) : "—"}</td>
                       </tr>
                     ))}

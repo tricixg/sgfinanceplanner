@@ -17,6 +17,7 @@ function sampleExpense(
     entrySource: "manual",
     autoCategory: null,
     loanId: null,
+    otherLoanId: null,
     insurancePolicyId: null,
     ilpPolicyId: null,
     subscriptionId: null,

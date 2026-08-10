@@ -12,6 +12,7 @@ describe("activeOtherLoansOutstanding", () => {
       outstanding: 3000,
       interestRateApr: 0,
       feesPaid: 0,
+      monthly: 0,
       amountPaid: 0,
       excludeFromNetWorth: true,
     };
@@ -22,6 +23,7 @@ describe("activeOtherLoansOutstanding", () => {
       outstanding: 2000,
       interestRateApr: 0,
       feesPaid: 0,
+      monthly: 0,
       amountPaid: 0,
     };
     const total = activeOtherLoansOutstanding({
@@ -39,6 +41,7 @@ describe("activeOtherLoansOutstanding", () => {
       outstanding: 1000,
       interestRateApr: 0,
       feesPaid: 0,
+      monthly: 0,
       amountPaid: 0,
     };
     const total = activeOtherLoansOutstanding({

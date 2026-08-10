@@ -101,6 +101,7 @@ export function mapExpense(row: Record<string, unknown>): Expense {
       parseExpenseEntrySource(row.entry_source) ?? DEFAULT_EXPENSE_ENTRY_SOURCE,
     autoCategory,
     loanId: row.loan_id ? String(row.loan_id) : null,
+    otherLoanId: row.other_loan_id ? String(row.other_loan_id) : null,
     insurancePolicyId: row.insurance_policy_id ? String(row.insurance_policy_id) : null,
     ilpPolicyId: row.ilp_policy_id ? String(row.ilp_policy_id) : null,
     subscriptionId: row.subscription_id ? String(row.subscription_id) : null,

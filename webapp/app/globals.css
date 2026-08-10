@@ -632,10 +632,11 @@ tfoot td {
     minmax(88px, 0.62fr)
     minmax(110px, 0.82fr)
     minmax(100px, 0.74fr)
+    minmax(96px, 0.7fr)
     minmax(94px, 0.68fr)
     minmax(86px, 0.62fr)
     auto;
-  min-width: 1040px;
+  min-width: 1140px;
 }
 .editrow.other-loans-bt input,
 .editrow.other-loans-bt select,
@@ -697,6 +698,9 @@ tfoot td {
 .other-loans-table {
   table-layout: fixed;
   min-width: 1300px;
+}
+.other-loans-table-personal {
+  min-width: 1420px;
 }
 .other-loans-table th,
 .other-loans-table td {

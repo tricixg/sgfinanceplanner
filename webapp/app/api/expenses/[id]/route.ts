@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
+import { restoreOtherLoanPayment } from "@/lib/other-loans/pay";
 import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { applyFundTransaction } from "@/lib/funds/ledger";
 import { mapExpense } from "@/lib/savings/db-mappers";
@@ -109,6 +110,19 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     );
     if (!adj.ok) {
       console.error("[api/expenses] DELETE loan restore failed", adj.error);
+    }
+  }
+
+  if (existing.auto_category === "debt" && existing.other_loan_id) {
+    const amount = Number(existing.amount ?? 0);
+    const adj = await restoreOtherLoanPayment(
+      supabase,
+      user.id,
+      String(existing.other_loan_id),
+      amount
+    );
+    if (!adj.ok) {
+      console.error("[api/expenses] DELETE other-loan restore failed", adj.error);
     }
   }
 

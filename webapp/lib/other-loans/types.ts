@@ -9,6 +9,8 @@ export type OtherLoan = {
   interestRateApr: number;
   tenureMonths?: number;
   feesPaid: number;
+  /** Monthly instalment (personal loans only) — folded into the Debts & Loans budget row. */
+  monthly: number;
   /** Promo / final due date (YYYY-MM-DD). BT: no card interest before this date. */
   dueDate?: string;
   /** BT start date (YYYY-MM-DD) used to post one-time finance charge to card spend. */

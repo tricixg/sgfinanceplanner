@@ -274,6 +274,7 @@ export function getDummyEnrichment(): Partial<DashboardState> {
         interestRateApr: 0,
         tenureMonths: 6,
         feesPaid: 0,
+        monthly: 0,
         amountPaid: 0,
         dueDate: "2026-07-07",
         sourceCreditCardId: "dbs-ww-mastercard",

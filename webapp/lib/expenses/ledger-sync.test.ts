@@ -15,6 +15,7 @@ function sampleExpense(overrides: Partial<Expense> = {}): Expense {
     entrySource: "manual",
     autoCategory: "insurance",
     loanId: null,
+    otherLoanId: null,
     insurancePolicyId: "pol-1",
     ilpPolicyId: null,
     subscriptionId: null,

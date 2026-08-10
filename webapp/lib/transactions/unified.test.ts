@@ -25,6 +25,9 @@ describe("unified transaction merge (unit sort)", () => {
       note: "",
       occurredAt: "2025-05-10T08:00:00Z",
       createdAt: "2025-05-10T08:00:00Z",
+      incomeCategoryId: null,
+      incomeCategoryName: null,
+      excludeFromBudget: false,
     };
 
     const budget: BudgetTransaction = {
@@ -53,8 +56,10 @@ describe("unified transaction merge (unit sort)", () => {
       amount: 30,
       category: "Debt",
       budgetLineId: null,
+      entrySource: "manual",
       autoCategory: "debt",
       loanId: "l1",
+      otherLoanId: null,
       insurancePolicyId: null,
       ilpPolicyId: null,
       subscriptionId: null,
@@ -85,8 +90,10 @@ describe("unified transaction merge (unit sort)", () => {
       amount: 10,
       category: "Test",
       budgetLineId: null,
+      entrySource: "manual",
       autoCategory: null,
       loanId: null,
+      otherLoanId: null,
       insurancePolicyId: null,
       ilpPolicyId: null,
       subscriptionId: null,

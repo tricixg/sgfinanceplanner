@@ -15,6 +15,7 @@ function mapRow(row: Record<string, unknown>, cardKey?: string): OtherLoan {
     tenureMonths:
       row.tenure_months == null ? undefined : Number(row.tenure_months),
     feesPaid: Number(row.fees_paid ?? 0),
+    monthly: Number(row.monthly ?? 0),
     dueDate: row.due_date ? String(row.due_date).slice(0, 10) : undefined,
     btStartDate: row.bt_start_date ? String(row.bt_start_date).slice(0, 10) : undefined,
     financeCharge: Number(row.finance_charge ?? 0),
@@ -321,6 +322,7 @@ export async function saveOtherLoans(
       interest_rate_apr: o.interestRateApr ?? 0,
       tenure_months: o.tenureMonths ?? null,
       fees_paid: o.loanType === "balance_transfer" ? 0 : o.feesPaid ?? 0,
+      monthly: o.loanType === "personal" ? o.monthly ?? 0 : 0,
       due_date: o.dueDate ?? null,
       bt_start_date: o.btStartDate ?? null,
       finance_charge: o.financeCharge ?? 0,

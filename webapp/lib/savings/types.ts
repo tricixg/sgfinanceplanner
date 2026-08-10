@@ -130,6 +130,7 @@ export type Expense = {
   entrySource: ExpenseEntrySource;
   autoCategory: "debt" | "insurance" | "ilp" | "subscription" | "invest" | null;
   loanId: string | null;
+  otherLoanId: string | null;
   insurancePolicyId: string | null;
   ilpPolicyId: string | null;
   subscriptionId: string | null;

@@ -4,7 +4,8 @@ import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { loadLoans } from "@/lib/loans/load";
-import { loanLoadForMonth } from "@/lib/finance/loanLoad";
+import { loadOtherLoans } from "@/lib/other-loans/load";
+import { loanLoadForMonth, otherLoanMonthlyLoad } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
     expensesRes,
     importsRes,
     loans,
+    otherLoans,
     insurancePolicies,
     ilpPolicies,
     reimbursements,
@@ -65,6 +67,7 @@ export async function GET(req: NextRequest) {
       .in("transaction_type", ["expense", "subscription", "income"])
       .order("spent_at", { ascending: false }),
     loadLoans(supabase, user.id),
+    loadOtherLoans(supabase, user.id),
     loadInsurancePolicies(supabase, user.id),
     loadIlpPolicies(supabase, user.id),
     loadReimbursementTotals(supabase, user.id),
@@ -95,7 +98,7 @@ export async function GET(req: NextRequest) {
   }));
 
   const computedAlloc = {
-    debt: loanLoadForMonth(loans, ym),
+    debt: loanLoadForMonth(loans, ym) + otherLoanMonthlyLoad(otherLoans),
     insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
     ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
   };

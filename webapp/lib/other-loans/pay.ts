@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { roundMoney } from "@/lib/cards/interest-accrual";
 import { applyTransaction } from "@/lib/savings/ledger";
+import { COMPUTED_DEBT_LABEL } from "@/lib/finance/budget";
+import { sgtNowTimeHms, sgtTodayYmd } from "@/lib/time/sgt";
 import type { OtherLoan } from "./types";
 
 export function otherLoanPaymentNote(loan: Pick<OtherLoan, "name">): string {
@@ -10,6 +12,48 @@ export function otherLoanPaymentNote(loan: Pick<OtherLoan, "name">): string {
 
 export function otherLoanDrawDownNote(loan: Pick<OtherLoan, "name">): string {
   return `Loan draw-down: ${loan.name}`;
+}
+
+/** Undo the outstanding/amount_paid bookkeeping from recordOtherLoanPayment — used when
+ *  the linked "debt" expense is deleted from the unified transactions list. */
+export async function restoreOtherLoanPayment(
+  supabase: SupabaseClient,
+  userId: string,
+  loanId: string,
+  amount: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: row, error } = await supabase
+    .from("other_loans")
+    .select("id, outstanding, amount_paid")
+    .eq("id", loanId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!row) return { ok: false, error: "Loan not found" };
+
+  const nextOutstanding = roundMoney(Number(row.outstanding ?? 0) + amount);
+  const nextPaid = roundMoney(Math.max(0, Number(row.amount_paid ?? 0) - amount));
+
+  const { error: updErr } = await supabase
+    .from("other_loans")
+    .update({
+      outstanding: nextOutstanding,
+      amount_paid: nextPaid,
+      paid_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", loanId)
+    .eq("user_id", userId);
+
+  if (updErr) return { ok: false, error: updErr.message };
+
+  console.info("[other-loans] payment restored (expense deleted)", {
+    loanId,
+    amount,
+    nextOutstanding,
+  });
+  return { ok: true };
 }
 
 export async function recordOtherLoanPayment(
@@ -42,46 +86,75 @@ export async function recordOtherLoanPayment(
     throw new Error(`Payment exceeds outstanding (${outstanding})`);
   }
 
-  const occurredAt = new Date().toISOString();
+  const now = new Date();
+  const occurredAt = now.toISOString();
 
   const txNote = note?.trim()
     ? `${otherLoanPaymentNote({ name: String(row.name) })} — ${note.trim()}`
     : otherLoanPaymentNote({ name: String(row.name) });
 
-  if (financialAccountId) {
-    const account = await loadFinancialAccount(supabase, userId, financialAccountId);
-    if (!account?.savingsAccountId || account.accountType !== "cash") {
-      throw new Error("Payment must come from a cash account");
-    }
-
-    await applyTransaction(supabase, {
-      userId,
-      accountId: account.savingsAccountId,
-      amount: -amount,
-      kind: "withdrawal",
-      occurredAt,
+  // Mirrors the instalment-loan auto-payment expense (auto_category: "debt")
+  // so personal loan payments count as spend under the Debts & Loans budget category.
+  const { data: expenseRow, error: expenseErr } = await supabase
+    .from("expenses")
+    .insert({
+      user_id: userId,
+      amount,
+      category: COMPUTED_DEBT_LABEL,
+      auto_category: "debt",
+      other_loan_id: loanId,
+      spent_at: sgtTodayYmd(now),
+      spent_time: sgtNowTimeHms(now),
       note: txNote,
-      sourceRecordType: "other_loan",
-      sourceRecordId: loanId,
-    });
-  } else {
-    // No account selected — record in payment history without touching any balance.
-    // Requires migration 037 (savings_transactions_one_target constraint relaxed).
-    const { error: insErr } = await supabase
-      .from("savings_transactions")
-      .insert({
-        user_id: userId,
-        account_id: null,
-        pool_id: null,
-        kind: "withdrawal",
+      financial_account_id: financialAccountId ?? null,
+      entry_source: "manual",
+    })
+    .select("id")
+    .single();
+  if (expenseErr) throw new Error(expenseErr.message);
+  const expenseId = String(expenseRow.id);
+
+  try {
+    if (financialAccountId) {
+      const account = await loadFinancialAccount(supabase, userId, financialAccountId);
+      if (!account?.savingsAccountId || account.accountType !== "cash") {
+        throw new Error("Payment must come from a cash account");
+      }
+
+      await applyTransaction(supabase, {
+        userId,
+        accountId: account.savingsAccountId,
         amount: -amount,
-        balance_after: 0,
+        kind: "withdrawal",
+        occurredAt,
         note: txNote,
-        occurred_at: occurredAt,
-        source_record_type: "other_loan",
-        source_record_id: loanId,
+        expenseId,
+        sourceRecordType: "other_loan",
+        sourceRecordId: loanId,
       });
-    if (insErr) throw new Error(insErr.message);
+    } else {
+      // No account selected — record in payment history without touching any balance.
+      // Requires migration 037 (savings_transactions_one_target constraint relaxed).
+      const { error: insErr } = await supabase
+        .from("savings_transactions")
+        .insert({
+          user_id: userId,
+          account_id: null,
+          pool_id: null,
+          kind: "withdrawal",
+          amount: -amount,
+          balance_after: 0,
+          note: txNote,
+          occurred_at: occurredAt,
+          expense_id: expenseId,
+          source_record_type: "other_loan",
+          source_record_id: loanId,
+        });
+      if (insErr) throw new Error(insErr.message);
+    }
+  } catch (err) {
+    await supabase.from("expenses").delete().eq("id", expenseId).eq("user_id", userId);
+    throw err;
   }
 
   const newPaid = roundMoney(Number(row.amount_paid ?? 0) + amount);
@@ -107,6 +180,7 @@ export async function recordOtherLoanPayment(
     amount,
     newOutstanding,
     fullyPaid,
+    expenseId,
   });
 
   const { loadOtherLoans } = await import("./load");

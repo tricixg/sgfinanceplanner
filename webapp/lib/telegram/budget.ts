@@ -3,8 +3,9 @@ import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
-import { loanLoadForMonth } from "@/lib/finance/loanLoad";
+import { loanLoadForMonth, otherLoanMonthlyLoad } from "@/lib/finance/loanLoad";
 import { loadLoans } from "@/lib/loans/load";
+import { loadOtherLoans } from "@/lib/other-loans/load";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { mapExpense } from "@/lib/savings/db-mappers";
 
@@ -25,6 +26,7 @@ export async function loadMonthBudgetSummary(
     expensesRes,
     importsRes,
     loans,
+    otherLoans,
     insurancePolicies,
     ilpPolicies,
   ] = await Promise.all([
@@ -48,6 +50,7 @@ export async function loadMonthBudgetSummary(
       .lte("spent_at", to)
       .in("transaction_type", ["expense", "subscription", "income"]),
     loadLoans(supabase, userId),
+    loadOtherLoans(supabase, userId),
     loadInsurancePolicies(supabase, userId),
     loadIlpPolicies(supabase, userId),
   ]);
@@ -68,7 +71,7 @@ export async function loadMonthBudgetSummary(
   }));
 
   const computedAlloc = {
-    debt: loanLoadForMonth(loans, ym),
+    debt: loanLoadForMonth(loans, ym) + otherLoanMonthlyLoad(otherLoans),
     insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
     ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
   };

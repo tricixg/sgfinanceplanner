@@ -57,6 +57,7 @@ describe("portfolioInvestmentValue", () => {
           outstanding: 5000,
           interestRateApr: 0,
           feesPaid: 0,
+          monthly: 0,
           amountPaid: 0,
           excludeFromNetWorth: true,
         },
