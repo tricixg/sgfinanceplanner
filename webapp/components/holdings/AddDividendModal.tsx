@@ -15,7 +15,7 @@ type Props = {
   txRefresh: number;
   onRecord: (
     holdingId: string,
-    payload: { perShare: number; occurredAt: string; note?: string }
+    payload: { perShare: number; qty: number; occurredAt: string; note?: string }
   ) => Promise<void>;
   onDelete: (holdingId: string, dividendId: string) => Promise<void>;
 };
@@ -31,17 +31,19 @@ export function AddDividendModal({
   const [holdingId, setHoldingId] = useState(
     () => initialHoldingId ?? holdings[0]?.id ?? ""
   );
+
+  const holding = useMemo(
+    () => holdings.find((h) => h.id === holdingId) ?? holdings[0] ?? null,
+    [holdings, holdingId]
+  );
+
+  const [units, setUnits] = useState(() => (holding ? String(holding.qty) : ""));
   const [perShare, setPerShare] = useState("");
   const [date, setDate] = useState(() => sgtTodayYmd());
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [historyKey, setHistoryKey] = useState(txRefresh);
-
-  const holding = useMemo(
-    () => holdings.find((h) => h.id === holdingId) ?? holdings[0] ?? null,
-    [holdings, holdingId]
-  );
 
   useEffect(() => {
     setHistoryKey(txRefresh);
@@ -58,8 +60,18 @@ export function AddDividendModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const selectHolding = (id: string) => {
+    setHoldingId(id);
+    const next = holdings.find((h) => h.id === id);
+    setUnits(next ? String(next.qty) : "");
+  };
+
   const perShareNum = parseFloat(perShare);
-  const total = holding && Number.isFinite(perShareNum) ? perShareNum * holding.qty : 0;
+  const unitsNum = parseFloat(units);
+  const total =
+    Number.isFinite(perShareNum) && Number.isFinite(unitsNum)
+      ? perShareNum * unitsNum
+      : 0;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,20 +83,27 @@ export function AddDividendModal({
       setError("Enter a positive dividend per share");
       return;
     }
+    if (!Number.isFinite(unitsNum) || unitsNum <= 0) {
+      setError("Enter a positive number of units");
+      return;
+    }
     setError("");
     setBusy(true);
     try {
       await onRecord(holding.id, {
         perShare: perShareNum,
+        qty: unitsNum,
         occurredAt: date,
         note: note.trim() || undefined,
       });
       setPerShare("");
+      setUnits(String(holding.qty));
       setNote("");
       setHistoryKey((k) => k + 1);
       console.info("[AddDividendModal] recorded", {
         holdingId: holding.id,
         perShare: perShareNum,
+        qty: unitsNum,
         total,
       });
     } catch (err) {
@@ -116,8 +135,8 @@ export function AddDividendModal({
               Add dividend
             </h3>
             <p className="note" style={{ margin: "4px 0 0" }}>
-              Qty held: <strong>{holding.qty.toLocaleString()}</strong> · Realized P&amp;L
-              (dividends): <strong>{fmt2(holding.lifetimeDividends ?? 0)}</strong>
+              Current qty held: <strong>{holding.qty.toLocaleString()}</strong> · Realized
+              P&amp;L (dividends): <strong>{fmt2(holding.lifetimeDividends ?? 0)}</strong>
             </p>
           </div>
           <button type="button" className="btn ghost sm" onClick={onClose} aria-label="Close">
@@ -132,7 +151,7 @@ export function AddDividendModal({
             </span>
             <select
               value={holdingId}
-              onChange={(e) => setHoldingId(e.target.value)}
+              onChange={(e) => selectHolding(e.target.value)}
               style={{ width: "100%" }}
             >
               {holdings.map((h) => (
@@ -151,6 +170,14 @@ export function AddDividendModal({
               onChange={setPerShare}
               autoFocus
             />
+            <label className="ctrl" style={{ fontSize: 13 }}>
+              <DecimalTextInput
+                placeholder="Units"
+                aria-label="Units held at the time"
+                value={units}
+                onChange={setUnits}
+              />
+            </label>
             <input
               type="date"
               value={date}
@@ -168,8 +195,12 @@ export function AddDividendModal({
             </button>
           </div>
           <p className="note" style={{ margin: "8px 0 0" }}>
-            Total: <strong>{fmt2(total)}</strong> ({holding.qty.toLocaleString()} ×{" "}
-            {Number.isFinite(perShareNum) ? perShareNum : 0})
+            Units defaults to your current holding qty — adjust it if you held fewer (or
+            more) units on this date.
+          </p>
+          <p className="note" style={{ margin: "4px 0 0" }}>
+            Total: <strong>{fmt2(total)}</strong> ({Number.isFinite(unitsNum) ? unitsNum : 0}{" "}
+            × {Number.isFinite(perShareNum) ? perShareNum : 0})
           </p>
           {error ? (
             <p className="pin-error" role="alert">

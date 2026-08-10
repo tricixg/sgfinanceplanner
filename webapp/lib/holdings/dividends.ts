@@ -19,6 +19,8 @@ export type AddHoldingDividendInput = {
   userId: string;
   holdingId: string;
   perShare: number;
+  /** Units held at the time of the dividend — defaults to the holding's current qty when omitted. */
+  qty?: number;
   occurredAt?: string;
   note?: string;
 };
@@ -30,6 +32,9 @@ export async function addHoldingDividend(
 ): Promise<HoldingDividend> {
   if (!Number.isFinite(input.perShare) || input.perShare <= 0) {
     throw new Error("Dividend per share must be a positive number");
+  }
+  if (input.qty !== undefined && (!Number.isFinite(input.qty) || input.qty <= 0)) {
+    throw new Error("Units must be a positive number");
   }
 
   const { data: holding, error: readErr } = await supabase
@@ -45,7 +50,7 @@ export async function addHoldingDividend(
     throw new Error("Forbidden");
   }
 
-  const qty = Number(holding.qty ?? 0);
+  const qty = input.qty ?? Number(holding.qty ?? 0);
   const amount = qty * input.perShare;
 
   const { data: row, error: insErr } = await supabase

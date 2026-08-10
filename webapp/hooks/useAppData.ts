@@ -287,7 +287,7 @@ export function useAppDataProvider(enabled: boolean) {
   const recordHoldingDividend = useCallback(
     async (
       holdingId: string,
-      payload: { perShare: number; occurredAt?: string; note?: string }
+      payload: { perShare: number; qty?: number; occurredAt?: string; note?: string }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(
         `/api/holdings/${holdingId}/dividends`,

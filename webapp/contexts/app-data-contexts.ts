@@ -44,7 +44,7 @@ export type AppDataContextValue = {
   saveHoldings: (next: DashboardState["holdings"]) => Promise<void>;
   recordHoldingDividend: (
     holdingId: string,
-    payload: { perShare: number; occurredAt?: string; note?: string }
+    payload: { perShare: number; qty?: number; occurredAt?: string; note?: string }
   ) => Promise<void>;
   deleteHoldingDividend: (holdingId: string, dividendId: string) => Promise<void>;
   cardsApi:

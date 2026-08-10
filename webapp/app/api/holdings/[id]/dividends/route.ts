@@ -41,8 +41,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       amount: item.amount,
       occurredAt: item.occurredAt,
       note: item.note
-        ? `${item.perShare}/share — ${item.note}`
-        : `${item.perShare}/share`,
+        ? `${item.perShare}/share × ${item.qty} units — ${item.note}`
+        : `${item.perShare}/share × ${item.qty} units`,
       goalName: null,
       balanceAfter: null,
     }));
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { user } = auth;
   const { id: holdingId } = await params;
 
-  let body: { perShare?: number; occurredAt?: string; note?: string };
+  let body: { perShare?: number; qty?: number; occurredAt?: string; note?: string };
   try {
     body = await req.json();
   } catch {
@@ -74,6 +74,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!Number.isFinite(perShare) || perShare <= 0) {
     return NextResponse.json(
       { error: "Valid dividend per share required" },
+      { status: 400 }
+    );
+  }
+
+  const qty = typeof body.qty === "number" ? body.qty : undefined;
+  if (qty !== undefined && (!Number.isFinite(qty) || qty <= 0)) {
+    return NextResponse.json(
+      { error: "Valid number of units required" },
       { status: 400 }
     );
   }
@@ -94,6 +102,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       userId: user.id,
       holdingId,
       perShare,
+      qty,
       occurredAt: body.occurredAt,
       note: body.note,
     });

@@ -214,7 +214,7 @@ export function TabWealth({
 
   const recordDividend = async (
     holdingId: string,
-    payload: { perShare: number; occurredAt: string; note?: string }
+    payload: { perShare: number; qty: number; occurredAt: string; note?: string }
   ) => {
     if (!appData?.configured) return;
     await appData.recordHoldingDividend(holdingId, payload);
