@@ -51,6 +51,7 @@ export function normalizeHolding(raw: LegacyHolding): Holding {
   const ticker = (raw.ticker ?? "").trim();
   const market = raw.market === "US" || raw.market === "SGX" ? raw.market : inferMarket(ticker);
   return {
+    id: raw.id,
     name: raw.name ?? "",
     ticker,
     market,
@@ -59,6 +60,7 @@ export function normalizeHolding(raw: LegacyHolding): Holding {
     lastPrice: legacyPrice,
     lastPriceAt: raw.lastPriceAt,
     sector: raw.sector ?? "",
+    lifetimeDividends: raw.lifetimeDividends,
   };
 }
 

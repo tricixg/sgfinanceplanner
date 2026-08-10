@@ -47,6 +47,8 @@ export type CreditCard = {
 export type HoldingMarket = "SGX" | "US";
 
 export type Holding = {
+  /** DB row id — absent until the holding is first saved. */
+  id?: string;
   name: string;
   ticker: string;
   market: HoldingMarket;
@@ -57,6 +59,8 @@ export type Holding = {
   lastPrice: number;
   lastPriceAt?: string;
   sector: string;
+  /** Lifetime sum of dividend payouts recorded for this holding — realized P&L. */
+  lifetimeDividends?: number;
 };
 
 export type PortfolioSnapshot = {

@@ -29,6 +29,7 @@ export type AppDataContextValue = {
   reload: () => Promise<void>;
   reloadLoans: () => Promise<void>;
   reloadOtherLoans: () => Promise<void>;
+  reloadHoldings: () => Promise<void>;
   reloadSnapshots: () => Promise<void>;
   saveProfile: (patch: Partial<FinanceProfile>) => Promise<void>;
   saveProfilePolicies: (patch: {
@@ -41,6 +42,10 @@ export type AppDataContextValue = {
   saveBudget: (next: DashboardState["budget"]) => Promise<void>;
   saveCards: (next: DashboardState["creditCards"]) => Promise<void>;
   saveHoldings: (next: DashboardState["holdings"]) => Promise<void>;
+  recordHoldingDividend: (
+    holdingId: string,
+    payload: { perShare: number; occurredAt?: string; note?: string }
+  ) => Promise<void>;
   cardsApi:
     | { cards: DashboardState["creditCards"]; saveCards: AppDataContextValue["saveCards"]; configured: true }
     | undefined;

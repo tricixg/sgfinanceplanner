@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Holding, PortfolioSnapshot } from "@/lib/types";
+import { loadHoldingDividendTotals } from "@/lib/holdings/dividends";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
@@ -13,7 +14,11 @@ export async function loadHoldings(
     .eq("user_id", userId)
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
+
+  const dividends = await loadHoldingDividendTotals(supabase, userId);
+
   return (data ?? []).map((row) => ({
+    id: String(row.id),
     name: String(row.name ?? ""),
     ticker: String(row.ticker ?? ""),
     market: row.market === "US" ? "US" : "SGX",
@@ -22,6 +27,7 @@ export async function loadHoldings(
     lastPrice: Number(row.last_price ?? 0),
     lastPriceAt: row.last_price_at ? String(row.last_price_at) : undefined,
     sector: String(row.sector ?? ""),
+    lifetimeDividends: dividends.byHolding[String(row.id)] ?? 0,
   }));
 }
 

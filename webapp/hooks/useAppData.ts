@@ -177,6 +177,19 @@ export function useAppDataProvider(enabled: boolean) {
     }
   }, []);
 
+  const reloadHoldings = useCallback(async () => {
+    const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
+      "/api/holdings",
+      { credentials: "include" }
+    );
+    if (res.ok) {
+      setHoldings(data.holdings ?? []);
+      console.info("[useAppData] reloadHoldings ok", {
+        count: data.holdings?.length ?? 0,
+      });
+    }
+  }, []);
+
   const reloadOtherLoans = useCallback(async () => {
     const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
       "/api/other-loans",
@@ -270,6 +283,28 @@ export function useAppDataProvider(enabled: boolean) {
     setHoldings(data.holdings ?? next);
     dispatchDomainEvent("holdings:changed");
   }, []);
+
+  const recordHoldingDividend = useCallback(
+    async (
+      holdingId: string,
+      payload: { perShare: number; occurredAt?: string; note?: string }
+    ) => {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/holdings/${holdingId}/dividends`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to record dividend");
+      console.info("[useAppData] dividend recorded", { holdingId, ...payload });
+      dispatchDomainEvent("holdings:changed");
+      await reloadHoldings();
+    },
+    [reloadHoldings]
+  );
 
   const appendSnapshot = useCallback(async (snap: PortfolioSnapshot) => {
     let shouldPost = true;
@@ -421,6 +456,7 @@ export function useAppDataProvider(enabled: boolean) {
     reload: load,
     reloadLoans,
     reloadOtherLoans,
+    reloadHoldings,
     reloadSnapshots: loadSnapshots,
     saveProfile,
     saveProfilePolicies,
@@ -428,6 +464,7 @@ export function useAppDataProvider(enabled: boolean) {
     saveBudget,
     saveCards,
     saveHoldings,
+    recordHoldingDividend,
     savePrefs,
     appendSnapshot,
     cardsApi: configured

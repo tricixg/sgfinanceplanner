@@ -31,6 +31,9 @@ import type { ChartOptions } from "chart.js";
 import type { SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
 import type { Fund, FundsTotals } from "@/lib/funds/types";
 import { SavingsLedgerModal } from "@/components/savings/SavingsLedgerModal";
+import { AddDividendModal } from "@/components/holdings/AddDividendModal";
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
 
 type FundsApi = {
   funds: Fund[];
@@ -100,6 +103,9 @@ export function TabWealth({
   const [fundsMsg, setFundsMsg] = useState("");
   const [fundsTxRefresh, setFundsTxRefresh] = useState(0);
   const [ledgerFundId, setLedgerFundId] = useState<string | null>(null);
+  const [dividendModalOpen, setDividendModalOpen] = useState(false);
+  const [dividendInitialId, setDividendInitialId] = useState<string | null>(null);
+  const [dividendsTxRefresh, setDividendsTxRefresh] = useState(0);
 
   const ilpPolicies = editingIlp ? ilpDraft : S.ilpPolicies;
   const displayHoldings = editingHoldings ? holdingsDraft : S.holdings;
@@ -194,6 +200,30 @@ export function TabWealth({
         (a, b) => holdingMarketValue(b) - holdingMarketValue(a)
       ),
     [displayHoldings]
+  );
+
+  const dividendEligibleHoldings = useMemo(
+    () => holdings.filter((h) => h.id && UUID_RE.test(h.id)),
+    [holdings]
+  );
+
+  const openDividendModal = (holdingId?: string | null) => {
+    setDividendInitialId(holdingId ?? null);
+    setDividendModalOpen(true);
+  };
+
+  const recordDividend = async (
+    holdingId: string,
+    payload: { perShare: number; occurredAt: string; note?: string }
+  ) => {
+    if (!appData?.configured) return;
+    await appData.recordHoldingDividend(holdingId, payload);
+    setDividendsTxRefresh((k) => k + 1);
+  };
+
+  const realizedPnlTotal = useMemo(
+    () => holdings.reduce((s, h) => s + (h.lifetimeDividends ?? 0), 0),
+    [holdings]
   );
 
   const startIlpEdit = () => {
@@ -860,6 +890,15 @@ export function TabWealth({
 
       <div className="section-head">
         <h2>Investment holdings</h2>
+        {!editingHoldings && dividendEligibleHoldings.length > 0 && (
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => openDividendModal(dividendEligibleHoldings[0].id)}
+          >
+            + Add dividend
+          </button>
+        )}
         {editingHoldings ? (
           <button
             type="button"
@@ -1032,6 +1071,7 @@ export function TabWealth({
                     <th>Gain</th>
                     <th>%</th>
                     <th>Wt</th>
+                    <th className="num">Realized P&amp;L</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1039,6 +1079,7 @@ export function TabWealth({
                     const g = holdingGain(h);
                     const w = port > 0 ? (g.marketValue / port) * 100 : 0;
                     const stale = priceStale(h.lastPriceAt);
+                    const dividends = h.lifetimeDividends ?? 0;
                     return (
                       <tr key={`${h.ticker}-${i}`}>
                         <td>{h.name}</td>
@@ -1066,6 +1107,10 @@ export function TabWealth({
                           {g.gainPct.toFixed(1)}%
                         </td>
                         <td className={`num ${w > 50 ? "neg" : ""}`}>{w.toFixed(1)}%</td>
+                        <td className={`num ${dividends >= 0 ? "gain-pos" : "gain-neg"}`}>
+                          {dividends >= 0 ? "+" : ""}
+                          {fmt2(dividends)}
+                        </td>
                       </tr>
                     );
                   })}
@@ -1115,7 +1160,7 @@ export function TabWealth({
           </>
         )}
 
-        <div className="grid g3 holdings-summary">
+        <div className="grid g4 holdings-summary">
           <div className="stat accent">
             <div className="lbl">Portfolio value</div>
             <div className="val">{fmt(totals.totalValue)}</div>
@@ -1131,6 +1176,14 @@ export function TabWealth({
               {totals.totalGainPct.toFixed(1)}% on {fmt(totals.totalCost)} cost
             </div>
           </div>
+          <div className="stat">
+            <div className="lbl">Realized P&amp;L (dividends)</div>
+            <div className={`val ${realizedPnlTotal >= 0 ? "gain-pos" : "gain-neg"}`}>
+              {realizedPnlTotal >= 0 ? "+" : ""}
+              {fmt(realizedPnlTotal)}
+            </div>
+            <div className="note">Lifetime dividend payouts</div>
+          </div>
           <div className="stat warn">
             <div className="lbl">Margin loan</div>
             <div className="val">{fmt(S.margin)}</div>
@@ -1139,6 +1192,16 @@ export function TabWealth({
             </div>
           </div>
         </div>
+
+        {dividendModalOpen && dividendEligibleHoldings.length > 0 ? (
+          <AddDividendModal
+            holdings={dividendEligibleHoldings}
+            initialHoldingId={dividendInitialId}
+            txRefresh={dividendsTxRefresh}
+            onClose={() => setDividendModalOpen(false)}
+            onRecord={recordDividend}
+          />
+        ) : null}
       </div>
     </section>
   );
