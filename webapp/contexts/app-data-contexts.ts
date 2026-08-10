@@ -46,6 +46,7 @@ export type AppDataContextValue = {
     holdingId: string,
     payload: { perShare: number; occurredAt?: string; note?: string }
   ) => Promise<void>;
+  deleteHoldingDividend: (holdingId: string, dividendId: string) => Promise<void>;
   cardsApi:
     | { cards: DashboardState["creditCards"]; saveCards: AppDataContextValue["saveCards"]; configured: true }
     | undefined;

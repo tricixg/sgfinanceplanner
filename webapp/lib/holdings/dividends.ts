@@ -77,6 +77,29 @@ export async function addHoldingDividend(
   return mapHoldingDividend(row);
 }
 
+export async function deleteHoldingDividend(
+  supabase: SupabaseClient,
+  input: { userId: string; holdingId: string; dividendId: string }
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("holding_dividends")
+    .delete()
+    .eq("id", input.dividendId)
+    .eq("holding_id", input.holdingId)
+    .eq("user_id", input.userId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Dividend not found");
+
+  console.info("[holdings/dividends] dividend deleted", {
+    userId: input.userId,
+    holdingId: input.holdingId,
+    dividendId: input.dividendId,
+  });
+}
+
 export async function listHoldingDividends(
   supabase: SupabaseClient,
   holdingId: string,

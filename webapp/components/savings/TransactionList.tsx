@@ -21,12 +21,20 @@ type Props = {
   fetchUrl: string;
   refreshKey?: number;
   viewMoreHref?: string;
+  /** When provided, shows a delete control per row and reloads the list on success. */
+  onDelete?: (id: string) => Promise<void>;
 };
 
-export function TransactionList({ fetchUrl, refreshKey = 0, viewMoreHref }: Props) {
+export function TransactionList({
+  fetchUrl,
+  refreshKey = 0,
+  viewMoreHref,
+  onDelete,
+}: Props) {
   const [items, setItems] = useState<LedgerHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +59,20 @@ export function TransactionList({ fetchUrl, refreshKey = 0, viewMoreHref }: Prop
     load();
   }, [load, refreshKey]);
 
+  const handleDelete = async (id: string) => {
+    if (!onDelete) return;
+    setDeletingId(id);
+    try {
+      await onDelete(id);
+      await load();
+      console.info("[TransactionList] deleted", { id });
+    } catch (e) {
+      console.warn("[TransactionList] delete failed", e);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   if (loading) {
     return <p className="note">Loading history…</p>;
   }
@@ -69,28 +91,45 @@ export function TransactionList({ fetchUrl, refreshKey = 0, viewMoreHref }: Prop
             style={{
               padding: "6px 0",
               borderBottom: "1px solid var(--line)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 8,
             }}
           >
-            <span style={{ textTransform: "capitalize", opacity: 0.85 }}>
-              {tx.kind}
+            <span>
+              <span style={{ textTransform: "capitalize", opacity: 0.85 }}>
+                {tx.kind}
+              </span>
+              {" · "}
+              <strong>
+                {tx.amount > 0 ? "+" : ""}
+                {fmt2(tx.amount)}
+              </strong>
+              {" · "}
+              {formatTransactionWhen(tx.occurredAt)}
+              {tx.note ? ` — ${tx.note}` : ""}
+              {tx.goalName ? (
+                <span style={{ display: "block", opacity: 0.85, marginTop: 2 }}>
+                  Goal: <strong>{tx.goalName}</strong>
+                </span>
+              ) : null}
+              {tx.balanceAfter != null ? (
+                <span style={{ display: "block", opacity: 0.8 }}>
+                  Balance after: {fmt2(tx.balanceAfter)}
+                </span>
+              ) : null}
             </span>
-            {" · "}
-            <strong>
-              {tx.amount > 0 ? "+" : ""}
-              {fmt2(tx.amount)}
-            </strong>
-            {" · "}
-            {formatTransactionWhen(tx.occurredAt)}
-            {tx.note ? ` — ${tx.note}` : ""}
-            {tx.goalName ? (
-              <span style={{ display: "block", opacity: 0.85, marginTop: 2 }}>
-                Goal: <strong>{tx.goalName}</strong>
-              </span>
-            ) : null}
-            {tx.balanceAfter != null ? (
-              <span style={{ display: "block", opacity: 0.8 }}>
-                Balance after: {fmt2(tx.balanceAfter)}
-              </span>
+            {onDelete ? (
+              <button
+                type="button"
+                className="btn ghost sm"
+                disabled={deletingId === tx.id}
+                onClick={() => void handleDelete(tx.id)}
+                aria-label="Delete entry"
+              >
+                {deletingId === tx.id ? "…" : "Delete"}
+              </button>
             ) : null}
           </li>
         ))}

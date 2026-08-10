@@ -306,6 +306,20 @@ export function useAppDataProvider(enabled: boolean) {
     [reloadHoldings]
   );
 
+  const deleteHoldingDividend = useCallback(
+    async (holdingId: string, dividendId: string) => {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/holdings/${holdingId}/dividends/${dividendId}`,
+        { method: "DELETE", credentials: "include" }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to delete dividend");
+      console.info("[useAppData] dividend deleted", { holdingId, dividendId });
+      dispatchDomainEvent("holdings:changed");
+      await reloadHoldings();
+    },
+    [reloadHoldings]
+  );
+
   const appendSnapshot = useCallback(async (snap: PortfolioSnapshot) => {
     let shouldPost = true;
     setPortfolioHistory((hist) => {
@@ -465,6 +479,7 @@ export function useAppDataProvider(enabled: boolean) {
     saveCards,
     saveHoldings,
     recordHoldingDividend,
+    deleteHoldingDividend,
     savePrefs,
     appendSnapshot,
     cardsApi: configured

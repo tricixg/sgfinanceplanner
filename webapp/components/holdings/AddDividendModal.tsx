@@ -17,6 +17,7 @@ type Props = {
     holdingId: string,
     payload: { perShare: number; occurredAt: string; note?: string }
   ) => Promise<void>;
+  onDelete: (holdingId: string, dividendId: string) => Promise<void>;
 };
 
 export function AddDividendModal({
@@ -25,6 +26,7 @@ export function AddDividendModal({
   onClose,
   txRefresh,
   onRecord,
+  onDelete,
 }: Props) {
   const [holdingId, setHoldingId] = useState(
     () => initialHoldingId ?? holdings[0]?.id ?? ""
@@ -181,6 +183,7 @@ export function AddDividendModal({
           <TransactionList
             fetchUrl={`/api/holdings/${holding.id}/dividends?limit=5`}
             refreshKey={historyKey}
+            onDelete={(dividendId) => onDelete(holding.id!, dividendId)}
           />
         </div>
       </div>

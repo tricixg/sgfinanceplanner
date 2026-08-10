@@ -221,6 +221,12 @@ export function TabWealth({
     setDividendsTxRefresh((k) => k + 1);
   };
 
+  const deleteDividend = async (holdingId: string, dividendId: string) => {
+    if (!appData?.configured) return;
+    await appData.deleteHoldingDividend(holdingId, dividendId);
+    setDividendsTxRefresh((k) => k + 1);
+  };
+
   const realizedPnlTotal = useMemo(
     () => holdings.reduce((s, h) => s + (h.lifetimeDividends ?? 0), 0),
     [holdings]
@@ -1200,6 +1206,7 @@ export function TabWealth({
             txRefresh={dividendsTxRefresh}
             onClose={() => setDividendModalOpen(false)}
             onRecord={recordDividend}
+            onDelete={deleteDividend}
           />
         ) : null}
       </div>
