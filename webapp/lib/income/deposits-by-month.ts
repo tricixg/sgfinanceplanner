@@ -82,7 +82,7 @@ export async function loadAdditiveIncomeByYm(
   return loadIncomeByYmForFlag(supabase, userId, startYm, count, "counts_as_additive");
 }
 
-/** Actual salary/comms deposits by month — used to replace the projected baseline for past months. */
+/** Actual salary/comms deposits by month — used to replace the projected baseline for past and current months. */
 export async function loadBaselineActualIncomeByYm(
   supabase: SupabaseClient,
   userId: string,
