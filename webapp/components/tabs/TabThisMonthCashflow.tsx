@@ -8,7 +8,6 @@ import {
   budgetSpendTotal,
   computedIlpMonthly,
   computedInsuranceMonthly,
-  isDebtBudgetCategory,
   stableTakeHome,
 } from "@/lib/finance";
 import { currentYm, fmt } from "@/lib/finance/helpers";
@@ -22,7 +21,6 @@ type Props = {
 type RowKey =
   | "baseline"
   | "additive"
-  | "fixed"
   | "loans"
   | "variableSpend"
   | "insurance"
@@ -33,7 +31,6 @@ type RowKey =
 const ALL_INCLUDED: Record<RowKey, boolean> = {
   baseline: true,
   additive: true,
-  fixed: true,
   loans: true,
   variableSpend: true,
   insurance: true,
@@ -83,11 +80,9 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   const [additiveIncome, setAdditiveIncome] = useState(0);
   const [recurringItems, setRecurringItems] = useState<RecurringSubscription[]>([]);
   const [variableSpend, setVariableSpend] = useState(budgetSpendTotal(S));
-  const [fixedOpen, setFixedOpen] = useState(false);
   const [loansOpen, setLoansOpen] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [included, setIncluded] = useState<Record<RowKey, boolean>>(ALL_INCLUDED);
-  const [excludedFixedItems, setExcludedFixedItems] = useState<Set<string>>(new Set());
   const [excludedLoanItems, setExcludedLoanItems] = useState<Set<string>>(new Set());
   const [excludedRecurringItems, setExcludedRecurringItems] = useState<Set<string>>(new Set());
   const { bundle } = useCardStatements(authEnabled);
@@ -141,10 +136,6 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   const ilp = computedIlpMonthly(S);
   const insurance = computedInsuranceMonthly(S);
 
-  const fixedItems = useMemo(
-    () => S.budget.filter((b) => b.type === "fixed" && !isDebtBudgetCategory(b.cat)),
-    [S.budget]
-  );
   const loanItems = useMemo(() => {
     const cardLoans = S.loans
       .filter((l) => l.end >= ym && l.monthly > 0)
@@ -155,14 +146,6 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
     return [...cardLoans, ...personalLoans];
   }, [S.loans, S.otherLoans, ym]);
 
-  const fixed = useMemo(
-    () =>
-      fixedItems.reduce(
-        (s, item) => (excludedFixedItems.has(item.id ?? item.cat) ? s : s + item.amt),
-        0
-      ),
-    [fixedItems, excludedFixedItems]
-  );
   const loans = useMemo(
     () =>
       loanItems.reduce((s, item) => (excludedLoanItems.has(item.key) ? s : s + item.amount), 0),
@@ -180,7 +163,6 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   const incomeTotal =
     (included.baseline ? baseline : 0) + (included.additive ? additiveIncome : 0);
   const expenseTotal =
-    (included.fixed ? fixed : 0) +
     (included.loans ? loans : 0) +
     (included.variableSpend ? variableSpend : 0) +
     (included.insurance ? insurance : 0) +
@@ -251,54 +233,6 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
               <td>Extra deposits (+cashflow)</td>
               <td className="num">{fmt(additiveIncome)}</td>
             </tr>
-            <tr className={rowClass("fixed")}>
-              <td>
-                <IncludeCheckbox
-                  checked={included.fixed}
-                  onChange={() => toggleIncluded("fixed")}
-                  label="Fixed obligations"
-                />
-              </td>
-              <td>Out</td>
-              <td>
-                {fixedItems.length > 0 ? (
-                  <button
-                    type="button"
-                    className="this-month-cashflow-toggle"
-                    onClick={() => setFixedOpen((v) => !v)}
-                    aria-expanded={fixedOpen}
-                  >
-                    <span className="caret">{fixedOpen ? "▾" : "▸"}</span>
-                    Fixed obligations
-                  </button>
-                ) : (
-                  "Fixed obligations"
-                )}
-              </td>
-              <td className="num">{fmt(fixed)}</td>
-            </tr>
-            {fixedOpen &&
-              fixedItems.map((item, i) => {
-                const key = item.id ?? item.cat;
-                const itemExcluded = excludedFixedItems.has(key);
-                return (
-                  <tr className={detailClass("fixed", itemExcluded)} key={`fixed-${key}-${i}`}>
-                    <td>
-                      <IncludeCheckbox
-                        checked={!itemExcluded}
-                        onChange={() =>
-                          setExcludedFixedItems((prev) => toggleSetMember(prev, key))
-                        }
-                        label={item.cat}
-                        disabled={!included.fixed}
-                      />
-                    </td>
-                    <td></td>
-                    <td>{item.cat}</td>
-                    <td className="num">{fmt(item.amt)}</td>
-                  </tr>
-                );
-              })}
             <tr className={rowClass("loans")}>
               <td>
                 <IncludeCheckbox
