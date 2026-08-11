@@ -1232,6 +1232,52 @@ tr.computed-row td {
 .this-month-cashflow-row-excluded input[type="checkbox"] {
   opacity: 1;
 }
+.this-month-cashflow-table th:first-child,
+.this-month-cashflow-table td:first-child {
+  width: 26px;
+  text-align: center;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.this-month-cashflow-table input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1.5px solid var(--line);
+  background: #fff;
+  border-radius: 2px;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: border-color 0.15s ease;
+}
+.this-month-cashflow-table input[type="checkbox"]::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  transform: scale(0);
+  background: var(--moss);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transition: transform 0.12s ease;
+}
+.this-month-cashflow-table input[type="checkbox"]:checked {
+  border-color: var(--moss);
+}
+.this-month-cashflow-table input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+.this-month-cashflow-table input[type="checkbox"]:focus-visible {
+  outline: 1.5px solid var(--moss);
+  outline-offset: 1px;
+}
+.this-month-cashflow-table input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  border-color: var(--line);
+  background: var(--paper);
+  opacity: 0.55;
+}
 .projection-table-scroll table {
   width: 100%;
   min-width: 38rem;

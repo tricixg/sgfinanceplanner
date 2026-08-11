@@ -5,9 +5,7 @@ import type { DashboardState, RecurringSubscription } from "@/lib/types";
 import { useCardStatements } from "@/hooks/useCardStatements";
 import { DecimalInput } from "@/components/DecimalInput";
 import {
-  budgetFixedTotal,
   budgetSpendTotal,
-  computedDebtMonthly,
   computedIlpMonthly,
   computedInsuranceMonthly,
   isDebtBudgetCategory,
@@ -44,20 +42,30 @@ const ALL_INCLUDED: Record<RowKey, boolean> = {
   cardBillsDue: true,
 };
 
+function toggleSetMember(set: Set<string>, value: string): Set<string> {
+  const next = new Set(set);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  return next;
+}
+
 function IncludeCheckbox({
   checked,
   onChange,
   label,
+  disabled,
 }: {
   checked: boolean;
   onChange: () => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <input
       type="checkbox"
       checked={checked}
       onChange={onChange}
+      disabled={disabled}
       aria-label={`Include ${label} in this month's totals`}
     />
   );
@@ -79,6 +87,9 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   const [loansOpen, setLoansOpen] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [included, setIncluded] = useState<Record<RowKey, boolean>>(ALL_INCLUDED);
+  const [excludedFixedItems, setExcludedFixedItems] = useState<Set<string>>(new Set());
+  const [excludedLoanItems, setExcludedLoanItems] = useState<Set<string>>(new Set());
+  const [excludedRecurringItems, setExcludedRecurringItems] = useState<Set<string>>(new Set());
   const { bundle } = useCardStatements(authEnabled);
 
   const toggleIncluded = (key: RowKey) =>
@@ -127,10 +138,9 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   );
 
   const baseline = stableTakeHome(S);
-  const fixed = budgetFixedTotal(S);
-  const loans = computedDebtMonthly(S, ym);
   const ilp = computedIlpMonthly(S);
   const insurance = computedInsuranceMonthly(S);
+
   const fixedItems = useMemo(
     () => S.budget.filter((b) => b.type === "fixed" && !isDebtBudgetCategory(b.cat)),
     [S.budget]
@@ -144,9 +154,27 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
       .map((l, i) => ({ key: `otherloan-${l.id ?? i}`, label: l.name, amount: l.monthly }));
     return [...cardLoans, ...personalLoans];
   }, [S.loans, S.otherLoans, ym]);
+
+  const fixed = useMemo(
+    () =>
+      fixedItems.reduce(
+        (s, item) => (excludedFixedItems.has(item.id ?? item.cat) ? s : s + item.amt),
+        0
+      ),
+    [fixedItems, excludedFixedItems]
+  );
+  const loans = useMemo(
+    () =>
+      loanItems.reduce((s, item) => (excludedLoanItems.has(item.key) ? s : s + item.amount), 0),
+    [loanItems, excludedLoanItems]
+  );
   const recurringTotal = useMemo(
-    () => recurringItems.reduce((s, x) => s + Math.max(0, Number(x.amount ?? 0)), 0),
-    [recurringItems]
+    () =>
+      recurringItems.reduce((s, x) => {
+        const amt = Math.max(0, Number(x.amount ?? 0));
+        return excludedRecurringItems.has(x.id ?? x.name) ? s : s + amt;
+      }, 0),
+    [recurringItems, excludedRecurringItems]
   );
 
   const incomeTotal =
@@ -163,8 +191,10 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
 
   const rowClass = (key: RowKey) =>
     included[key] ? undefined : "this-month-cashflow-row-excluded";
-  const detailClass = (key: RowKey) =>
-    `this-month-cashflow-detail-row${included[key] ? "" : " this-month-cashflow-row-excluded"}`;
+  const detailClass = (parentKey: RowKey, itemExcluded: boolean) =>
+    `this-month-cashflow-detail-row${
+      included[parentKey] && !itemExcluded ? "" : " this-month-cashflow-row-excluded"
+    }`;
 
   return (
     <section className="panel on">
@@ -187,7 +217,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
       </div>
 
       <div className="card table-scroll">
-        <table>
+        <table className="this-month-cashflow-table">
           <thead>
             <tr>
               <th></th>
@@ -248,14 +278,27 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
               <td className="num">{fmt(fixed)}</td>
             </tr>
             {fixedOpen &&
-              fixedItems.map((item, i) => (
-                <tr className={detailClass("fixed")} key={`fixed-${item.id ?? item.cat}-${i}`}>
-                  <td></td>
-                  <td></td>
-                  <td>{item.cat}</td>
-                  <td className="num">{fmt(item.amt)}</td>
-                </tr>
-              ))}
+              fixedItems.map((item, i) => {
+                const key = item.id ?? item.cat;
+                const itemExcluded = excludedFixedItems.has(key);
+                return (
+                  <tr className={detailClass("fixed", itemExcluded)} key={`fixed-${key}-${i}`}>
+                    <td>
+                      <IncludeCheckbox
+                        checked={!itemExcluded}
+                        onChange={() =>
+                          setExcludedFixedItems((prev) => toggleSetMember(prev, key))
+                        }
+                        label={item.cat}
+                        disabled={!included.fixed}
+                      />
+                    </td>
+                    <td></td>
+                    <td>{item.cat}</td>
+                    <td className="num">{fmt(item.amt)}</td>
+                  </tr>
+                );
+              })}
             <tr className={rowClass("loans")}>
               <td>
                 <IncludeCheckbox
@@ -283,14 +326,26 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
               <td className="num">{fmt(loans)}</td>
             </tr>
             {loansOpen &&
-              loanItems.map((item) => (
-                <tr className={detailClass("loans")} key={item.key}>
-                  <td></td>
-                  <td></td>
-                  <td>{item.label}</td>
-                  <td className="num">{fmt(item.amount)}</td>
-                </tr>
-              ))}
+              loanItems.map((item) => {
+                const itemExcluded = excludedLoanItems.has(item.key);
+                return (
+                  <tr className={detailClass("loans", itemExcluded)} key={item.key}>
+                    <td>
+                      <IncludeCheckbox
+                        checked={!itemExcluded}
+                        onChange={() =>
+                          setExcludedLoanItems((prev) => toggleSetMember(prev, item.key))
+                        }
+                        label={item.label}
+                        disabled={!included.loans}
+                      />
+                    </td>
+                    <td></td>
+                    <td>{item.label}</td>
+                    <td className="num">{fmt(item.amount)}</td>
+                  </tr>
+                );
+              })}
             <tr className={rowClass("variableSpend")}>
               <td>
                 <IncludeCheckbox
@@ -362,14 +417,27 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
               <td className="num">{fmt(recurringTotal)}</td>
             </tr>
             {recurringOpen &&
-              recurringItems.map((item, i) => (
-                <tr className={detailClass("recurring")} key={`rec-${item.id ?? item.name}-${i}`}>
-                  <td></td>
-                  <td></td>
-                  <td>{item.name}</td>
-                  <td className="num">{fmt(item.amount)}</td>
-                </tr>
-              ))}
+              recurringItems.map((item, i) => {
+                const key = item.id ?? item.name;
+                const itemExcluded = excludedRecurringItems.has(key);
+                return (
+                  <tr className={detailClass("recurring", itemExcluded)} key={`rec-${key}-${i}`}>
+                    <td>
+                      <IncludeCheckbox
+                        checked={!itemExcluded}
+                        onChange={() =>
+                          setExcludedRecurringItems((prev) => toggleSetMember(prev, key))
+                        }
+                        label={item.name}
+                        disabled={!included.recurring}
+                      />
+                    </td>
+                    <td></td>
+                    <td>{item.name}</td>
+                    <td className="num">{fmt(item.amount)}</td>
+                  </tr>
+                );
+              })}
             <tr className={rowClass("cardBillsDue")}>
               <td>
                 <IncludeCheckbox
