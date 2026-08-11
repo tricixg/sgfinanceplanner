@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { DashboardState } from "@/lib/types";
+import type { DashboardState, RecurringSubscription } from "@/lib/types";
 import { useCardStatements } from "@/hooks/useCardStatements";
 import { DecimalInput } from "@/components/DecimalInput";
 import {
@@ -9,6 +9,7 @@ import {
   budgetSpendTotal,
   computedIlpMonthly,
   computedInsuranceMonthly,
+  isDebtBudgetCategory,
   stableTakeHome,
 } from "@/lib/finance";
 import { currentYm, fmt } from "@/lib/finance/helpers";
@@ -29,8 +30,10 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
     return `${ny}-${String(nm).padStart(2, "0")}`;
   }, [ym]);
   const [additiveIncome, setAdditiveIncome] = useState(0);
-  const [subscriptions, setSubscriptions] = useState(0);
+  const [recurringItems, setRecurringItems] = useState<RecurringSubscription[]>([]);
   const [variableSpend, setVariableSpend] = useState(budgetSpendTotal(S));
+  const [fixedOpen, setFixedOpen] = useState(false);
+  const [recurringOpen, setRecurringOpen] = useState(false);
   const { bundle } = useCardStatements(authEnabled);
 
   useEffect(() => {
@@ -55,12 +58,12 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
     if (!authEnabled) return;
     void (async () => {
       const { res, data } = await fetchJson<{
-        items?: Array<{ amount?: number }>;
-        subscriptions?: Array<{ amount?: number }>;
+        items?: RecurringSubscription[];
+        subscriptions?: RecurringSubscription[];
       }>("/api/recurring-subscriptions", { credentials: "include" });
       if (res.ok) {
         const list = data.items ?? data.subscriptions ?? [];
-        setSubscriptions(list.reduce((s, x) => s + Math.max(0, Number(x.amount ?? 0)), 0));
+        setRecurringItems(list.filter((x) => Math.max(0, Number(x.amount ?? 0)) > 0));
       }
     })();
   }, [authEnabled]);
@@ -79,10 +82,18 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   const fixed = budgetFixedTotal(S);
   const ilp = computedIlpMonthly(S);
   const insurance = computedInsuranceMonthly(S);
+  const fixedItems = useMemo(
+    () => S.budget.filter((b) => b.type === "fixed" && !isDebtBudgetCategory(b.cat)),
+    [S.budget]
+  );
+  const recurringTotal = useMemo(
+    () => recurringItems.reduce((s, x) => s + Math.max(0, Number(x.amount ?? 0)), 0),
+    [recurringItems]
+  );
 
   const incomeTotal = baseline + additiveIncome;
   const expenseTotal =
-    fixed + variableSpend + ilp + insurance + subscriptions + cardBillsDue;
+    fixed + variableSpend + ilp + insurance + recurringTotal + cardBillsDue;
   const net = incomeTotal - expenseTotal;
 
   return (
@@ -117,7 +128,33 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
           <tbody>
             <tr><td>In</td><td>Baseline income</td><td className="num">{fmt(baseline)}</td></tr>
             <tr><td>In</td><td>Extra deposits (+cashflow)</td><td className="num">{fmt(additiveIncome)}</td></tr>
-            <tr><td>Out</td><td>Fixed obligations</td><td className="num">{fmt(fixed)}</td></tr>
+            <tr>
+              <td>Out</td>
+              <td>
+                {fixedItems.length > 0 ? (
+                  <button
+                    type="button"
+                    className="this-month-cashflow-toggle"
+                    onClick={() => setFixedOpen((v) => !v)}
+                    aria-expanded={fixedOpen}
+                  >
+                    <span className="caret">{fixedOpen ? "▾" : "▸"}</span>
+                    Fixed obligations
+                  </button>
+                ) : (
+                  "Fixed obligations"
+                )}
+              </td>
+              <td className="num">{fmt(fixed)}</td>
+            </tr>
+            {fixedOpen &&
+              fixedItems.map((item, i) => (
+                <tr className="this-month-cashflow-detail-row" key={`fixed-${item.id ?? item.cat}-${i}`}>
+                  <td></td>
+                  <td>{item.cat}</td>
+                  <td className="num">{fmt(item.amt)}</td>
+                </tr>
+              ))}
             <tr>
               <td>Out</td>
               <td>Variable spend</td>
@@ -133,7 +170,33 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
             </tr>
             <tr><td>Out</td><td>Insurance premiums</td><td className="num">{fmt(insurance)}</td></tr>
             <tr><td>Out</td><td>ILP premiums</td><td className="num">{fmt(ilp)}</td></tr>
-            <tr><td>Out</td><td>Subscriptions</td><td className="num">{fmt(subscriptions)}</td></tr>
+            <tr>
+              <td>Out</td>
+              <td>
+                {recurringItems.length > 0 ? (
+                  <button
+                    type="button"
+                    className="this-month-cashflow-toggle"
+                    onClick={() => setRecurringOpen((v) => !v)}
+                    aria-expanded={recurringOpen}
+                  >
+                    <span className="caret">{recurringOpen ? "▾" : "▸"}</span>
+                    Recurring
+                  </button>
+                ) : (
+                  "Recurring"
+                )}
+              </td>
+              <td className="num">{fmt(recurringTotal)}</td>
+            </tr>
+            {recurringOpen &&
+              recurringItems.map((item, i) => (
+                <tr className="this-month-cashflow-detail-row" key={`rec-${item.id ?? item.name}-${i}`}>
+                  <td></td>
+                  <td>{item.name}</td>
+                  <td className="num">{fmt(item.amount)}</td>
+                </tr>
+              ))}
             <tr>
               <td>Out</td>
               <td>Credit card statements due next month ({nextYm})</td>
