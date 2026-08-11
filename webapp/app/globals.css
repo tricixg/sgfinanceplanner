@@ -1223,8 +1223,14 @@ tr.computed-row td {
   color: var(--muted);
   font-size: 12.5px;
 }
-.this-month-cashflow-detail-row td:first-child {
+.this-month-cashflow-detail-row td:nth-child(3) {
   padding-left: 22px;
+}
+.this-month-cashflow-row-excluded td {
+  opacity: 0.45;
+}
+.this-month-cashflow-row-excluded input[type="checkbox"] {
+  opacity: 1;
 }
 .projection-table-scroll table {
   width: 100%;

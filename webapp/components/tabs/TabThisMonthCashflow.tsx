@@ -7,6 +7,7 @@ import { DecimalInput } from "@/components/DecimalInput";
 import {
   budgetFixedTotal,
   budgetSpendTotal,
+  computedDebtMonthly,
   computedIlpMonthly,
   computedInsuranceMonthly,
   isDebtBudgetCategory,
@@ -19,6 +20,48 @@ type Props = {
   state: DashboardState;
   authEnabled?: boolean;
 };
+
+type RowKey =
+  | "baseline"
+  | "additive"
+  | "fixed"
+  | "loans"
+  | "variableSpend"
+  | "insurance"
+  | "ilp"
+  | "recurring"
+  | "cardBillsDue";
+
+const ALL_INCLUDED: Record<RowKey, boolean> = {
+  baseline: true,
+  additive: true,
+  fixed: true,
+  loans: true,
+  variableSpend: true,
+  insurance: true,
+  ilp: true,
+  recurring: true,
+  cardBillsDue: true,
+};
+
+function IncludeCheckbox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      aria-label={`Include ${label} in this month's totals`}
+    />
+  );
+}
 
 export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   const ym = currentYm();
@@ -33,8 +76,13 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
   const [recurringItems, setRecurringItems] = useState<RecurringSubscription[]>([]);
   const [variableSpend, setVariableSpend] = useState(budgetSpendTotal(S));
   const [fixedOpen, setFixedOpen] = useState(false);
+  const [loansOpen, setLoansOpen] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
+  const [included, setIncluded] = useState<Record<RowKey, boolean>>(ALL_INCLUDED);
   const { bundle } = useCardStatements(authEnabled);
+
+  const toggleIncluded = (key: RowKey) =>
+    setIncluded((p) => ({ ...p, [key]: !p[key] }));
 
   useEffect(() => {
     setVariableSpend(budgetSpendTotal(S));
@@ -80,21 +128,43 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
 
   const baseline = stableTakeHome(S);
   const fixed = budgetFixedTotal(S);
+  const loans = computedDebtMonthly(S, ym);
   const ilp = computedIlpMonthly(S);
   const insurance = computedInsuranceMonthly(S);
   const fixedItems = useMemo(
     () => S.budget.filter((b) => b.type === "fixed" && !isDebtBudgetCategory(b.cat)),
     [S.budget]
   );
+  const loanItems = useMemo(() => {
+    const cardLoans = S.loans
+      .filter((l) => l.end >= ym && l.monthly > 0)
+      .map((l, i) => ({ key: `loan-${l.id ?? i}`, label: l.name || l.card, amount: l.monthly }));
+    const personalLoans = (S.otherLoans ?? [])
+      .filter((l) => l.loanType === "personal" && !l.paidAt && l.monthly > 0)
+      .map((l, i) => ({ key: `otherloan-${l.id ?? i}`, label: l.name, amount: l.monthly }));
+    return [...cardLoans, ...personalLoans];
+  }, [S.loans, S.otherLoans, ym]);
   const recurringTotal = useMemo(
     () => recurringItems.reduce((s, x) => s + Math.max(0, Number(x.amount ?? 0)), 0),
     [recurringItems]
   );
 
-  const incomeTotal = baseline + additiveIncome;
+  const incomeTotal =
+    (included.baseline ? baseline : 0) + (included.additive ? additiveIncome : 0);
   const expenseTotal =
-    fixed + variableSpend + ilp + insurance + recurringTotal + cardBillsDue;
+    (included.fixed ? fixed : 0) +
+    (included.loans ? loans : 0) +
+    (included.variableSpend ? variableSpend : 0) +
+    (included.insurance ? insurance : 0) +
+    (included.ilp ? ilp : 0) +
+    (included.recurring ? recurringTotal : 0) +
+    (included.cardBillsDue ? cardBillsDue : 0);
   const net = incomeTotal - expenseTotal;
+
+  const rowClass = (key: RowKey) =>
+    included[key] ? undefined : "this-month-cashflow-row-excluded";
+  const detailClass = (key: RowKey) =>
+    `this-month-cashflow-detail-row${included[key] ? "" : " this-month-cashflow-row-excluded"}`;
 
   return (
     <section className="panel on">
@@ -120,15 +190,45 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
         <table>
           <thead>
             <tr>
+              <th></th>
               <th>Type</th>
               <th>Line item</th>
               <th className="num">Amount</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>In</td><td>Baseline income</td><td className="num">{fmt(baseline)}</td></tr>
-            <tr><td>In</td><td>Extra deposits (+cashflow)</td><td className="num">{fmt(additiveIncome)}</td></tr>
-            <tr>
+            <tr className={rowClass("baseline")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.baseline}
+                  onChange={() => toggleIncluded("baseline")}
+                  label="Baseline income"
+                />
+              </td>
+              <td>In</td>
+              <td>Baseline income</td>
+              <td className="num">{fmt(baseline)}</td>
+            </tr>
+            <tr className={rowClass("additive")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.additive}
+                  onChange={() => toggleIncluded("additive")}
+                  label="Extra deposits"
+                />
+              </td>
+              <td>In</td>
+              <td>Extra deposits (+cashflow)</td>
+              <td className="num">{fmt(additiveIncome)}</td>
+            </tr>
+            <tr className={rowClass("fixed")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.fixed}
+                  onChange={() => toggleIncluded("fixed")}
+                  label="Fixed obligations"
+                />
+              </td>
               <td>Out</td>
               <td>
                 {fixedItems.length > 0 ? (
@@ -149,13 +249,56 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
             </tr>
             {fixedOpen &&
               fixedItems.map((item, i) => (
-                <tr className="this-month-cashflow-detail-row" key={`fixed-${item.id ?? item.cat}-${i}`}>
+                <tr className={detailClass("fixed")} key={`fixed-${item.id ?? item.cat}-${i}`}>
+                  <td></td>
                   <td></td>
                   <td>{item.cat}</td>
                   <td className="num">{fmt(item.amt)}</td>
                 </tr>
               ))}
-            <tr>
+            <tr className={rowClass("loans")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.loans}
+                  onChange={() => toggleIncluded("loans")}
+                  label="Loans & debt"
+                />
+              </td>
+              <td>Out</td>
+              <td>
+                {loanItems.length > 0 ? (
+                  <button
+                    type="button"
+                    className="this-month-cashflow-toggle"
+                    onClick={() => setLoansOpen((v) => !v)}
+                    aria-expanded={loansOpen}
+                  >
+                    <span className="caret">{loansOpen ? "▾" : "▸"}</span>
+                    Loans &amp; debt
+                  </button>
+                ) : (
+                  "Loans & debt"
+                )}
+              </td>
+              <td className="num">{fmt(loans)}</td>
+            </tr>
+            {loansOpen &&
+              loanItems.map((item) => (
+                <tr className={detailClass("loans")} key={item.key}>
+                  <td></td>
+                  <td></td>
+                  <td>{item.label}</td>
+                  <td className="num">{fmt(item.amount)}</td>
+                </tr>
+              ))}
+            <tr className={rowClass("variableSpend")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.variableSpend}
+                  onChange={() => toggleIncluded("variableSpend")}
+                  label="Variable spend"
+                />
+              </td>
               <td>Out</td>
               <td>Variable spend</td>
               <td className="num" style={{ width: 120 }}>
@@ -168,9 +311,38 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 />
               </td>
             </tr>
-            <tr><td>Out</td><td>Insurance premiums</td><td className="num">{fmt(insurance)}</td></tr>
-            <tr><td>Out</td><td>ILP premiums</td><td className="num">{fmt(ilp)}</td></tr>
-            <tr>
+            <tr className={rowClass("insurance")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.insurance}
+                  onChange={() => toggleIncluded("insurance")}
+                  label="Insurance premiums"
+                />
+              </td>
+              <td>Out</td>
+              <td>Insurance premiums</td>
+              <td className="num">{fmt(insurance)}</td>
+            </tr>
+            <tr className={rowClass("ilp")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.ilp}
+                  onChange={() => toggleIncluded("ilp")}
+                  label="ILP premiums"
+                />
+              </td>
+              <td>Out</td>
+              <td>ILP premiums</td>
+              <td className="num">{fmt(ilp)}</td>
+            </tr>
+            <tr className={rowClass("recurring")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.recurring}
+                  onChange={() => toggleIncluded("recurring")}
+                  label="Recurring"
+                />
+              </td>
               <td>Out</td>
               <td>
                 {recurringItems.length > 0 ? (
@@ -191,13 +363,21 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
             </tr>
             {recurringOpen &&
               recurringItems.map((item, i) => (
-                <tr className="this-month-cashflow-detail-row" key={`rec-${item.id ?? item.name}-${i}`}>
+                <tr className={detailClass("recurring")} key={`rec-${item.id ?? item.name}-${i}`}>
+                  <td></td>
                   <td></td>
                   <td>{item.name}</td>
                   <td className="num">{fmt(item.amount)}</td>
                 </tr>
               ))}
-            <tr>
+            <tr className={rowClass("cardBillsDue")}>
+              <td>
+                <IncludeCheckbox
+                  checked={included.cardBillsDue}
+                  onChange={() => toggleIncluded("cardBillsDue")}
+                  label="Credit card statements due next month"
+                />
+              </td>
               <td>Out</td>
               <td>Credit card statements due next month ({nextYm})</td>
               <td className="num">{fmt(cardBillsDue)}</td>
@@ -205,7 +385,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2}><strong>Net this month</strong></td>
+              <td colSpan={3}><strong>Net this month</strong></td>
               <td className={`num ${net >= 0 ? "pos" : "neg"}`}><strong>{fmt(net)}</strong></td>
             </tr>
           </tfoot>
