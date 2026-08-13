@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import {
@@ -27,27 +27,15 @@ type Props = {
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
   authEnabled?: boolean;
-  preloadedAdditiveByYm?: Record<string, number> | null;
-  preloadedAdditiveLoading?: boolean;
-  preloadedAdditiveStartYm?: string;
 };
 
-export function TabNow({
-  state: S,
-  setState,
-  savings,
-  authEnabled = false,
-  preloadedAdditiveByYm = null,
-  preloadedAdditiveLoading = false,
-  preloadedAdditiveStartYm = "",
-}: Props) {
+export function TabNow({ state: S, setState, savings, authEnabled = false }: Props) {
   const appData = useContext(AppDataContext);
   const [startYmDraft, setStartYmDraft] = useState(S.cashflowStartYm);
   const [savingStartYm, setSavingStartYm] = useState(false);
   const startYm = S.cashflowStartYm;
   const [additiveByYm, setAdditiveByYm] = useState<Record<string, number>>({});
   const [actualBaselineByYm, setActualBaselineByYm] = useState<Record<string, number>>({});
-  const prefetchAppliedForYm = useRef("");
 
   const loadAdditive = useCallback(async () => {
     if (!authEnabled || !startYm) return;
@@ -67,35 +55,8 @@ export function TabNow({
   }, [authEnabled, startYm]);
 
   useEffect(() => {
-    if (!preloadedAdditiveByYm) return;
-    if (!preloadedAdditiveStartYm || preloadedAdditiveStartYm !== startYm) return;
-    if (prefetchAppliedForYm.current === startYm) return;
-    prefetchAppliedForYm.current = startYm;
-    setAdditiveByYm(preloadedAdditiveByYm);
-    console.info("[TabNow] additive preloaded", { startYm });
-  }, [preloadedAdditiveByYm, preloadedAdditiveStartYm, startYm]);
-
-  useEffect(() => {
-    if (
-      preloadedAdditiveByYm &&
-      preloadedAdditiveStartYm === startYm &&
-      preloadedAdditiveLoading
-    ) {
-      return;
-    }
     void loadAdditive();
-    console.info("[TabNow] additive reload trigger", {
-      startYm,
-      hasSavingsSnapshot: Boolean(savings),
-    });
-  }, [
-    loadAdditive,
-    startYm,
-    savings,
-    preloadedAdditiveByYm,
-    preloadedAdditiveLoading,
-    preloadedAdditiveStartYm,
-  ]);
+  }, [loadAdditive]);
 
   useDomainEvent("savings:changed", () => {
     void loadAdditive();
