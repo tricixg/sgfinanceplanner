@@ -16,6 +16,7 @@ import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
+import { NetWorthGrowthChart } from "@/components/savings/NetWorthGrowthChart";
 
 type CloudAccountsApi = {
   accounts: UserSavingsAccount[];
@@ -670,11 +671,16 @@ export function TabCashAccounts({
             <p className="ui-hint account-totals-hint">
               {useCloudAccounts
                 ? "All accounts count toward the total. Uncheck Include in savings to omit from Savings only."
-                : "All accounts count toward the total. “In savings?” controls Savings rollup when signed in."}
+                : 'All accounts count toward the total. "In savings?" controls Savings rollup when signed in.'}
             </p>
           ) : null}
         </div>
       </div>
+
+      <NetWorthGrowthChart
+        portfolioHistory={S.portfolioHistory}
+        accountsConfigured={useCloudAccounts}
+      />
     </section>
   );
 }
