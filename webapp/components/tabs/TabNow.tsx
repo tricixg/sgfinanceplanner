@@ -135,6 +135,13 @@ export function TabNow({
           order: 2,
         },
         {
+          label: "Additional income",
+          data: rows.map((r) => r.incomeAdditive),
+          backgroundColor: "#4a8055",
+          stack: "inflows",
+          order: 2,
+        },
+        {
           label: "Fixed obligations",
           data: rows.map((r) => -r.fixed),
           backgroundColor: "#d8cfb4",
@@ -289,6 +296,7 @@ export function TabNow({
         <ChartBox type="bar" data={chartData} options={chartOpts} />
         <div className="legend">
           <span><i className="dot" style={{ background: "var(--moss)" }} />Baseline income</span>
+          <span><i className="dot" style={{ background: "#4a8055" }} />Additional income</span>
           <span><i className="dot" style={{ background: "var(--sand)" }} />Fixed obligations</span>
           <span><i className="dot" style={{ background: "var(--gold)" }} />Loan instalments</span>
           <span><i className="dot" style={{ background: "#7a9eb5" }} />ILP premiums</span>
@@ -316,7 +324,7 @@ export function TabNow({
               <tr key={r.ym}>
                 <td>{r.m}</td>
                 <td className="num">
-                  {fmt(r.incomeBaseline)}
+                  {fmt(r.income)}
                   {r.incomeIsActual ? (
                     <span className="note" style={{ marginLeft: 4 }}>
                       actual
