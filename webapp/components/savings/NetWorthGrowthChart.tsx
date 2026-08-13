@@ -12,6 +12,8 @@ type Period = "1y" | "2y" | "all";
 type Props = {
   portfolioHistory: PortfolioSnapshot[];
   accountsConfigured: boolean;
+  /** Current CPF total (OA + SA + MA) to optionally layer onto the line chart. */
+  cpfTotal: number;
 };
 
 function buildMonthlyNetWorth(
@@ -52,9 +54,10 @@ function filterByPeriod(
   return data.filter((d) => d.month >= cutoffYm);
 }
 
-export function NetWorthGrowthChart({ portfolioHistory, accountsConfigured }: Props) {
+export function NetWorthGrowthChart({ portfolioHistory, accountsConfigured, cpfTotal }: Props) {
   const [view, setView] = useState<View>("line");
   const [period, setPeriod] = useState<Period>("1y");
+  const [includeCpf, setIncludeCpf] = useState(false);
   const [cashPoints, setCashPoints] = useState<NetWorthMonthPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -77,13 +80,15 @@ export function NetWorthGrowthChart({ portfolioHistory, accountsConfigured }: Pr
 
   const hasData = filtered.length >= 2;
 
+  const cpfOffset = includeCpf && cpfTotal > 0 ? cpfTotal : 0;
+
   // Line chart data
   const lineData = {
     labels: filtered.map((d) => formatMonthLabel(d.month)),
     datasets: [
       {
-        label: "Net Worth",
-        data: filtered.map((d) => d.total),
+        label: includeCpf && cpfTotal > 0 ? "Net Worth (incl. CPF)" : "Net Worth",
+        data: filtered.map((d) => d.total + cpfOffset),
         borderColor: "var(--accent, #7c6f5b)",
         backgroundColor: "rgba(124,111,91,0.12)",
         fill: true,
@@ -189,13 +194,13 @@ export function NetWorthGrowthChart({ portfolioHistory, accountsConfigured }: Pr
   const yearPoints = filterByPeriod(combined, "1y") as typeof combined;
   const ytdDelta =
     yearPoints.length >= 2
-      ? yearPoints[yearPoints.length - 1].total - yearPoints[0].total
+      ? yearPoints[yearPoints.length - 1].total + cpfOffset - (yearPoints[0].total + cpfOffset)
       : null;
 
   return (
     <div style={{ marginTop: 24 }}>
       <div className="section-head" style={{ marginBottom: 8 }}>
-        <h2 style={{ marginBottom: 0 }}>Net worth growth</h2>
+        <h2 style={{ marginBottom: 0 }}>Net worth</h2>
         <div className="toolbar" style={{ marginTop: 0, gap: 6 }}>
           <div className="btn-group" role="group" aria-label="View">
             <button
@@ -225,6 +230,16 @@ export function NetWorthGrowthChart({ portfolioHistory, accountsConfigured }: Pr
               </button>
             ))}
           </div>
+          {view === "line" && cpfTotal > 0 && (
+            <button
+              type="button"
+              className={`btn sm${includeCpf ? "" : " ghost"}`}
+              onClick={() => setIncludeCpf((v) => !v)}
+              title="Toggle CPF (OA + SA + MA) in net worth"
+            >
+              CPF
+            </button>
+          )}
         </div>
       </div>
 

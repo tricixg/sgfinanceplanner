@@ -680,6 +680,7 @@ export function TabCashAccounts({
       <NetWorthGrowthChart
         portfolioHistory={S.portfolioHistory}
         accountsConfigured={useCloudAccounts}
+        cpfTotal={S.oa + S.sa + S.ma}
       />
     </section>
   );
