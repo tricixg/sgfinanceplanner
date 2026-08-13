@@ -3,12 +3,15 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fetchJson } from "@/lib/fetch-json";
-import type { DashboardState, PortfolioSnapshot } from "@/lib/types";
+import type { DashboardState, NetWorthSnapshot, PortfolioSnapshot } from "@/lib/types";
 import type { FinanceProfile } from "@/lib/profile/load";
+import type { CpfContribution } from "@/lib/cpf/types";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
 export const PORTFOLIO_HISTORY_LIMIT = 30;
+export const NET_WORTH_HISTORY_LIMIT = 60;
+export const CPF_CONTRIBUTIONS_LIMIT = 60;
 
 /** Profile scalar fields synced by setState — extend when FinanceProfile grows. */
 export const PROFILE_STATE_KEYS: (keyof FinanceProfile)[] = [
@@ -50,6 +53,8 @@ export function useAppDataProvider(enabled: boolean) {
   >([]);
   const [prefs, setPrefs] = useState<DashboardState["prefs"]>({});
   const [otherLoans, setOtherLoans] = useState<DashboardState["otherLoans"]>([]);
+  const [netWorthHistory, setNetWorthHistory] = useState<NetWorthSnapshot[]>([]);
+  const [cpfContributions, setCpfContributions] = useState<CpfContribution[]>([]);
 
   const state = useMemo((): DashboardState => {
     const base = createEmptyState();
@@ -97,6 +102,46 @@ export function useAppDataProvider(enabled: boolean) {
     }
   }, [enabled]);
 
+  const loadNetWorthHistory = useCallback(async () => {
+    if (!enabled) return;
+    try {
+      const { res, data } = await fetchJson<{
+        items?: NetWorthSnapshot[];
+        configured?: boolean;
+      }>(`/api/net-worth/snapshots?limit=${NET_WORTH_HISTORY_LIMIT}`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        setNetWorthHistory(data.items ?? []);
+        console.info("[useAppData] net worth history loaded", {
+          count: data.items?.length ?? 0,
+        });
+      }
+    } catch (e) {
+      console.warn("[useAppData] net worth history load failed", e);
+    }
+  }, [enabled]);
+
+  const loadCpfContributions = useCallback(async () => {
+    if (!enabled) return;
+    try {
+      const { res, data } = await fetchJson<{
+        items?: CpfContribution[];
+        configured?: boolean;
+      }>(`/api/cpf/contributions?limit=${CPF_CONTRIBUTIONS_LIMIT}`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        setCpfContributions(data.items ?? []);
+        console.info("[useAppData] cpf contributions loaded", {
+          count: data.items?.length ?? 0,
+        });
+      }
+    } catch (e) {
+      console.warn("[useAppData] cpf contributions load failed", e);
+    }
+  }, [enabled]);
+
   const load = useCallback(async () => {
     if (!enabled) {
       setCoreLoading(false);
@@ -105,6 +150,8 @@ export function useAppDataProvider(enabled: boolean) {
     }
     setCoreLoading(true);
     void loadSnapshots();
+    void loadNetWorthHistory();
+    void loadCpfContributions();
     try {
       const [prefsRes, profRes, loansRes, otherLoansRes, budgetRes, cardsRes, holdRes] =
         await Promise.all([
@@ -160,7 +207,7 @@ export function useAppDataProvider(enabled: boolean) {
     } finally {
       setCoreLoading(false);
     }
-  }, [enabled, loadSnapshots]);
+  }, [enabled, loadSnapshots, loadNetWorthHistory, loadCpfContributions]);
 
   useEffect(() => {
     void load();
@@ -348,6 +395,75 @@ export function useAppDataProvider(enabled: boolean) {
     });
   }, []);
 
+  /**
+   * Upserts the current month's net worth. Unlike appendSnapshot (one write per
+   * day, first write wins), this always posts on every call — the stored value
+   * for a month should reflect the latest known state as of that visit, so it
+   * keeps approximating "month end" more closely the closer to month-end you are.
+   */
+  const appendNetWorthSnapshot = useCallback(async (snap: NetWorthSnapshot) => {
+    await fetchJson("/api/net-worth/snapshots", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ snapshot: snap }),
+    });
+    setNetWorthHistory((hist) => {
+      const existingIdx = hist.findIndex((h) => h.month === snap.month);
+      if (existingIdx === -1) {
+        return [...hist, snap].slice(-NET_WORTH_HISTORY_LIMIT);
+      }
+      const next = [...hist];
+      next[existingIdx] = snap;
+      return next;
+    });
+  }, []);
+
+  const addCpfContribution = useCallback(
+    async (input: { month: string; oa: number; sa: number; ma: number; note?: string }) => {
+      const { res, data } = await fetchJson<{
+        item?: CpfContribution;
+        profile?: { oa: number; sa: number; ma: number };
+        error?: string;
+      }>("/api/cpf/contributions", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok || !data.item) {
+        throw new Error(data.error ?? "Failed to log CPF contribution");
+      }
+      const item = data.item;
+      setCpfContributions((list) =>
+        [...list, item].sort((a, b) => b.month.localeCompare(a.month))
+      );
+      if (data.profile) {
+        const profile = data.profile;
+        setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, ...profile } } : pb));
+      }
+      console.info("[useAppData] cpf contribution logged", { month: input.month });
+    },
+    []
+  );
+
+  const deleteCpfContribution = useCallback(async (id: string) => {
+    const { res, data } = await fetchJson<{
+      profile?: { oa: number; sa: number; ma: number };
+      error?: string;
+    }>(`/api/cpf/contributions/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error(data.error ?? "Failed to delete CPF contribution");
+    setCpfContributions((list) => list.filter((c) => c.id !== id));
+    if (data.profile) {
+      const profile = data.profile;
+      setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, ...profile } } : pb));
+    }
+    console.info("[useAppData] cpf contribution deleted", { id });
+  }, []);
+
   const savePrefs = useCallback(async (nextPrefs: DashboardState["prefs"]) => {
     const { res } = await fetchJson("/api/state", {
       method: "PUT",
@@ -482,6 +598,13 @@ export function useAppDataProvider(enabled: boolean) {
     deleteHoldingDividend,
     savePrefs,
     appendSnapshot,
+    netWorthHistory,
+    reloadNetWorthHistory: loadNetWorthHistory,
+    appendNetWorthSnapshot,
+    cpfContributions,
+    reloadCpfContributions: loadCpfContributions,
+    addCpfContribution,
+    deleteCpfContribution,
     cardsApi: configured
       ? { cards: creditCards, saveCards, configured: true as const }
       : undefined,

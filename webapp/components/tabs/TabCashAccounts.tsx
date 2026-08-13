@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { DashboardState, SavingsAccount } from "@/lib/types";
+import type { DashboardState, NetWorthSnapshot, SavingsAccount } from "@/lib/types";
 import type { AccountsBundle, SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
 import {
   cashAccountsTotal,
@@ -15,7 +15,8 @@ import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
-import { sgtNowInputDateTime } from "@/lib/time/sgt";
+import { NetWorthHistoryChart } from "@/components/savings/NetWorthHistoryChart";
+import { sgtNowInputDateTime, sgtTodayYmd } from "@/lib/time/sgt";
 
 type CloudAccountsApi = {
   accounts: UserSavingsAccount[];
@@ -41,6 +42,10 @@ type Props = {
   savings?: SavingsSnapshot | null;
   accountsApi?: CloudAccountsApi;
   savingsGoals?: SavingsGoal[];
+  netWorthApi?: {
+    history: NetWorthSnapshot[];
+    appendSnapshot: (snap: NetWorthSnapshot) => Promise<void>;
+  };
 };
 
 export function TabCashAccounts({
@@ -49,6 +54,7 @@ export function TabCashAccounts({
   savings,
   accountsApi,
   savingsGoals = [],
+  netWorthApi,
 }: Props) {
   const [includeCpf, setIncludeCpf] = useState(false);
   const [editingAccounts, setEditingAccounts] = useState(false);
@@ -76,9 +82,16 @@ export function TabCashAccounts({
         jointMonthlySave: 0,
       }
     : null;
-  const { liab, lnw } = wealthSummary(S, personalOnlySavings);
+  const { liab, lnw, cpf } = wealthSummary(S, personalOnlySavings);
   const totalNw = netWorthTotal(S, includeCpf, personalOnlySavings);
   const nwSlices = netWorthSlices(S, includeCpf, personalOnlySavings);
+
+  const appendNwSnapshot = netWorthApi?.appendSnapshot;
+  useEffect(() => {
+    if (!appendNwSnapshot) return;
+    const month = `${sgtTodayYmd().slice(0, 7)}-01`;
+    void appendNwSnapshot({ month, lnw, cpf });
+  }, [appendNwSnapshot, lnw, cpf]);
 
   const cashTotal = useCloudAccounts
     ? (accountsApi?.totals?.personalNetWorthCash ?? 0)
@@ -258,6 +271,8 @@ export function TabCashAccounts({
           </p>
         )}
       </div>
+
+      <NetWorthHistoryChart history={netWorthApi?.history ?? []} includeCpf={includeCpf} />
 
       <div className="section-head">
         <h2>Cash accounts</h2>

@@ -39,6 +39,19 @@ export type AppDataContextValue = {
   saveLoans: (next: DashboardState["loans"]) => Promise<void>;
   savePrefs: (next: DashboardState["prefs"]) => Promise<void>;
   appendSnapshot: (snap: import("@/lib/types").PortfolioSnapshot) => Promise<void>;
+  netWorthHistory: import("@/lib/types").NetWorthSnapshot[];
+  reloadNetWorthHistory: () => Promise<void>;
+  appendNetWorthSnapshot: (snap: import("@/lib/types").NetWorthSnapshot) => Promise<void>;
+  cpfContributions: import("@/lib/cpf/types").CpfContribution[];
+  reloadCpfContributions: () => Promise<void>;
+  addCpfContribution: (input: {
+    month: string;
+    oa: number;
+    sa: number;
+    ma: number;
+    note?: string;
+  }) => Promise<void>;
+  deleteCpfContribution: (id: string) => Promise<void>;
   saveBudget: (next: DashboardState["budget"]) => Promise<void>;
   saveCards: (next: DashboardState["creditCards"]) => Promise<void>;
   saveHoldings: (next: DashboardState["holdings"]) => Promise<void>;

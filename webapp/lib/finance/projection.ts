@@ -104,6 +104,33 @@ export function simulate5y(
   return series;
 }
 
+/**
+ * 5-year CPF projection driven by a flat monthly contribution (e.g. the last
+ * logged actual contribution) rather than a salary-derived formula. Same
+ * interest-crediting model as simulateCPF (OA 2.5%/yr, SA/MA 4%/yr, monthly
+ * compounding, contribution added before compounding), but as a rolling
+ * window from now instead of calendar year-end snapshots.
+ */
+export function simulateCPFFromContribution(
+  S: DashboardState,
+  monthly: { oa: number; sa: number; ma: number },
+  years = 5
+): { label: string; oa: number; sa: number; ma: number }[] {
+  let oa = S.oa;
+  let sa = S.sa;
+  let ma = S.ma;
+  const series = [{ label: "Now", oa, sa, ma }];
+  for (let m = 1; m <= years * 12; m++) {
+    oa = (oa + monthly.oa) * (1 + 0.025 / 12);
+    sa = (sa + monthly.sa) * (1 + 0.04 / 12);
+    ma = (ma + monthly.ma) * (1 + 0.04 / 12);
+    if (m % 12 === 0) {
+      series.push({ label: `Year ${m / 12}`, oa, sa, ma });
+    }
+  }
+  return series;
+}
+
 export function simulateCPF(
   S: DashboardState,
   growthPct: number

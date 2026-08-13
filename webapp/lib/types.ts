@@ -69,6 +69,13 @@ export type PortfolioSnapshot = {
   totalCost: number;
 };
 
+/** Month-end net worth snapshot; `lnw` excludes CPF so the include-CPF toggle can be applied retroactively. */
+export type NetWorthSnapshot = {
+  month: string;
+  lnw: number;
+  cpf: number;
+};
+
 /** Singapore investment-linked policy (ILP) — insurance + unit-linked funds. */
 export type IlpPolicy = {
   id?: string;
