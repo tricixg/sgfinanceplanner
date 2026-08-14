@@ -7,10 +7,50 @@ import {
   totalHousingGrants,
   type BTOSchemeSelection,
 } from "./bto-schemes";
-import { currentYm, fmt, formatMonthLabel } from "./helpers";
+import { fmt, formatMonthLabel } from "./helpers";
 
 /** Months from BTO application to the booking (1st) appointment. */
 const BOOKING_OFFSET_MONTHS = 4;
+
+/**
+ * BtoPlannerPrefs fields that describe the flat/application itself rather
+ * than either person — shared across a linked household via
+ * household_bto_planner instead of each user's own profile. Salary, own OA
+ * growth mode, and manual OA figures stay personal (per user).
+ */
+export const SHARED_BTO_FIELD_KEYS = [
+  "projectName",
+  "price",
+  "ltv",
+  "rate",
+  "tenure",
+  "yrsToKeys",
+  "applicationYm",
+  "monthsToAFL",
+  "optionFee",
+  "legalFee",
+  "staggered",
+  "maxLoanEligible",
+  "queueNumber",
+  "queueTotal",
+  "bookingDateActual",
+  "aflDateActual",
+  "keysDateActual",
+  "schemes",
+] as const satisfies readonly (keyof BtoPlannerPrefs)[];
+
+export type SharedBtoPlannerFields = Pick<
+  BtoPlannerPrefs,
+  (typeof SHARED_BTO_FIELD_KEYS)[number]
+>;
+
+export function splitSharedBtoFields(prefs: BtoPlannerPrefs): SharedBtoPlannerFields {
+  const out = {} as SharedBtoPlannerFields;
+  for (const key of SHARED_BTO_FIELD_KEYS) {
+    (out as Record<string, unknown>)[key] = prefs[key];
+  }
+  return out;
+}
 
 export type BTOInputs = {
   price: number;
@@ -70,6 +110,10 @@ export function normalizeBtoPlannerPrefs(
     return base;
   }
   return {
+    projectName:
+      typeof raw.projectName === "string" && raw.projectName.trim().length > 0
+        ? raw.projectName
+        : base.projectName,
     price: typeof raw.price === "number" ? raw.price : base.price,
     ltv: typeof raw.ltv === "number" ? raw.ltv : base.ltv,
     rate: typeof raw.rate === "number" ? raw.rate : base.rate,
@@ -126,12 +170,14 @@ export function defaultBtoPlannerPrefs(opts: {
   const tSal = opts.monthlySal || 6500;
   const pSal = 4300;
   return {
+    projectName: "Berlayar Rise",
     price: 580000,
     ltv: 75,
     rate: 2.6,
     tenure: 25,
     yrsToKeys: 4,
-    applicationYm: currentYm(),
+    // Launched June 2026; flat booking (1st appointment) starts Nov 2026.
+    applicationYm: "2026-06",
     monthsToAFL: 5,
     optionFee: 2000,
     legalFee: 650,
@@ -146,9 +192,10 @@ export function defaultBtoPlannerPrefs(opts: {
     pOAMonthly: cpfOAmonthly(pSal),
     queueNumber: 0,
     queueTotal: 0,
-    bookingDateActual: "",
+    // Booking known to start Nov 2026; estimated TOP ~Sep 2031.
+    bookingDateActual: "2026-11-01",
     aflDateActual: "",
-    keysDateActual: "",
+    keysDateActual: "2031-09-01",
     schemes: {
       ...defaultBTOSchemes(),
       ehg: { enabled: true, amountOverride: null },

@@ -12,16 +12,19 @@ import {
   formatCountdown,
   normalizeBtoPlannerPrefs,
   schemeComputedAmount,
+  splitSharedBtoFields,
   type BTOSchemeId,
   type BTOStage,
   type BTOStageId,
   type BTOStageStatus,
+  type SharedBtoPlannerFields,
 } from "@/lib/finance";
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { useHousehold } from "@/hooks/useHousehold";
+import { useHouseholdBtoPlanner } from "@/hooks/useHouseholdBtoPlanner";
 import { usePartnerCpf } from "@/hooks/usePartnerCpf";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 
@@ -88,8 +91,18 @@ function stageCountdownLabel(stage: BTOStage): string {
   return formatCountdown(stage.daysUntil);
 }
 
-function resolveBtoPrefs(S: DashboardState): BtoPlannerPrefs {
-  return normalizeBtoPlannerPrefs(S.btoPlanner, {
+/**
+ * Merges the household's shared BTO fields (project name, price, grants,
+ * loan terms, timeline) over the user's own personal fields (salary, OA
+ * growth mode) before normalizing — shared data wins when it's loaded, so
+ * both linked partners see and edit the same scenario.
+ */
+function resolveBtoPrefs(
+  S: DashboardState,
+  sharedRaw: Partial<SharedBtoPlannerFields> | null
+): BtoPlannerPrefs {
+  const combinedRaw = { ...(S.btoPlanner ?? {}), ...(sharedRaw ?? {}) };
+  return normalizeBtoPlannerPrefs(combinedRaw, {
     monthlySal: S.monthlySal,
     oa: S.oa,
   });
@@ -99,21 +112,24 @@ export function TabBTO({ state: S, setState }: Props) {
   const appData = useContext(AppDataContext);
   const household = useHousehold();
   const { partnerCpf, loading: partnerCpfLoading } = usePartnerCpf();
+  const { sharedBto, saveSharedBto } = useHouseholdBtoPlanner();
   const [editingSchemes, setEditingSchemes] = useState(false);
   const [editingCalc, setEditingCalc] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [prefsDraft, setPrefsDraft] = useState<BtoPlannerPrefs>(() => resolveBtoPrefs(S));
+  const [prefsDraft, setPrefsDraft] = useState<BtoPlannerPrefs>(() =>
+    resolveBtoPrefs(S, sharedBto)
+  );
   const editing = editingSchemes || editingCalc;
-  const p = editing ? prefsDraft : resolveBtoPrefs(S);
+  const p = editing ? prefsDraft : resolveBtoPrefs(S, sharedBto);
 
   const startSchemesEdit = () => {
-    setPrefsDraft(resolveBtoPrefs(S));
+    setPrefsDraft(resolveBtoPrefs(S, sharedBto));
     setEditingSchemes(true);
     console.info("[TabBTO] schemes edit on");
   };
 
   const startCalcEdit = () => {
-    setPrefsDraft(resolveBtoPrefs(S));
+    setPrefsDraft(resolveBtoPrefs(S, sharedBto));
     setEditingCalc(true);
     console.info("[TabBTO] calc edit on");
   };
@@ -121,11 +137,13 @@ export function TabBTO({ state: S, setState }: Props) {
   const saveBtoPrefs = async () => {
     setSaving(true);
     try {
+      const saves: Promise<unknown>[] = [saveSharedBto(splitSharedBtoFields(prefsDraft))];
       if (appData?.configured) {
-        await appData.saveProfile({ btoPlanner: prefsDraft });
+        saves.push(appData.saveProfile({ btoPlanner: prefsDraft }));
       } else {
         setState((prev) => ({ ...prev, btoPlanner: prefsDraft }));
       }
+      await Promise.all(saves);
       setEditingSchemes(false);
       setEditingCalc(false);
       console.info("[TabBTO] planner prefs saved");
@@ -247,7 +265,7 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const toggleScheme = (id: BTOSchemeId, enabled: boolean) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : resolveBtoPrefs(S);
+      const base = editingSchemes ? prev : resolveBtoPrefs(S, sharedBto);
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -263,7 +281,7 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const setSchemeOverride = (id: BTOSchemeId, amount: number | null) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : resolveBtoPrefs(S);
+      const base = editingSchemes ? prev : resolveBtoPrefs(S, sharedBto);
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -279,7 +297,7 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const resetSchemeAmount = (id: BTOSchemeId) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : resolveBtoPrefs(S);
+      const base = editingSchemes ? prev : resolveBtoPrefs(S, sharedBto);
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -324,13 +342,27 @@ export function TabBTO({ state: S, setState }: Props) {
     keys: b.cashKC > 0 ? `CPF ${fmt(b.cpfUsedKC)} + cash ${fmt(b.cashKC)}` : "CPF OA",
     mortgage: "CPF OA",
   };
-  const stageProgress: Partial<Record<BTOStageId, { pct: number; needed: number }>> = {
-    afl: { pct: neededAFL > 0 ? Math.min(100, (currentCombinedOA / neededAFL) * 100) : 100, needed: neededAFL },
-    keys: { pct: neededKC > 0 ? Math.min(100, (currentCombinedOA / neededKC) * 100) : 100, needed: neededKC },
+  const stageProgress: Partial<
+    Record<BTOStageId, { pct: number; needed: number; projected: number }>
+  > = {
+    afl: {
+      pct: neededAFL > 0 ? Math.min(100, (currentCombinedOA / neededAFL) * 100) : 100,
+      needed: neededAFL,
+      projected: b.cpfAvailAFL,
+    },
+    keys: {
+      pct: neededKC > 0 ? Math.min(100, (currentCombinedOA / neededKC) * 100) : 100,
+      needed: neededKC,
+      projected: b.cpfAvailKC,
+    },
   };
 
   return (
     <section className="panel on">
+      <div className="kicker" style={{ marginBottom: 6 }}>
+        {p.projectName} · {formatMonthLabel(p.applicationYm)} launch
+      </div>
+
       <div className="callout tip">
         Grants (Enhanced Housing Grant) reduce the purchase price, loan, and downpayment — type
         the amount you expect, or leave it on auto from combined household income (
@@ -487,6 +519,14 @@ export function TabBTO({ state: S, setState }: Props) {
       {editingCalc ? (
         <div className="card">
           <label className="bto-field">
+            Project name
+            <input
+              type="text"
+              value={p.projectName}
+              onChange={(e) => updatePrefs({ projectName: e.target.value })}
+            />
+          </label>
+          <label className="bto-field" style={{ marginTop: 12 }}>
             Flat price (list)
             <DecimalInput value={p.price} onChange={(v) => updatePrefs({ price: v })} />
           </label>
@@ -932,6 +972,12 @@ export function TabBTO({ state: S, setState }: Props) {
                       className="category-budget-progress"
                       style={{ width: `${progress.pct}%` }}
                     />
+                  </div>
+                  <div className="bto-stage-progress-lbl">
+                    Projected by then:{" "}
+                    <span className={progress.projected >= progress.needed ? "pos" : "neg"}>
+                      {fmt(progress.projected)}
+                    </span>
                   </div>
                 </>
               )}

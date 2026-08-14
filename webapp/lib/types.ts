@@ -175,6 +175,8 @@ export type BtoOAGrowthMode = "salary" | "manual" | "contributions";
 
 /** Persisted BTO Planner inputs (schemes, salaries, flat assumptions). */
 export type BtoPlannerPrefs = {
+  /** BTO project name, e.g. "Berlayar Rise". */
+  projectName: string;
   price: number;
   ltv: number;
   rate: number;

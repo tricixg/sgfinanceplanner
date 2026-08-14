@@ -7,6 +7,7 @@ import {
   formatCountdown,
   normalizeBTOSchemes,
   normalizeBtoPlannerPrefs,
+  splitSharedBtoFields,
 } from "./bto";
 
 const noGrantSchemes = { ehg: { enabled: false, amountOverride: null } };
@@ -40,6 +41,7 @@ describe("BTO schemes", () => {
       { monthlySal: 6000, oa: 10000 }
     );
     expect(p.schemes.ehg).toBeDefined();
+    expect(p.projectName.length).toBeGreaterThan(0);
     expect(p.price).toBe(500000);
     expect(p.monthsToAFL).toBeGreaterThan(0);
     expect(p.optionFee).toBeGreaterThan(0);
@@ -52,9 +54,36 @@ describe("BTO schemes", () => {
     expect(p.pOAMonthly).toBeGreaterThan(0);
     expect(p.queueNumber).toBe(0);
     expect(p.queueTotal).toBe(0);
-    expect(p.bookingDateActual).toBe("");
     expect(p.aflDateActual).toBe("");
-    expect(p.keysDateActual).toBe("");
+  });
+
+  it("preserves an explicitly blank projectName override as the default (falls back)", () => {
+    const p = normalizeBtoPlannerPrefs(
+      { projectName: "  " },
+      { monthlySal: 6000, oa: 10000 }
+    );
+    expect(p.projectName.length).toBeGreaterThan(0);
+  });
+
+  it("keeps a custom projectName when set", () => {
+    const p = normalizeBtoPlannerPrefs(
+      { projectName: "My BTO" },
+      { monthlySal: 6000, oa: 10000 }
+    );
+    expect(p.projectName).toBe("My BTO");
+  });
+
+  it("splitSharedBtoFields extracts only the household-shared subset", () => {
+    const p = normalizeBtoPlannerPrefs(
+      { queueNumber: 527, queueTotal: 988, tSal: 9999 },
+      { monthlySal: 6000, oa: 10000 }
+    );
+    const shared = splitSharedBtoFields(p);
+    expect(shared.queueNumber).toBe(527);
+    expect(shared.queueTotal).toBe(988);
+    expect(shared.price).toBe(p.price);
+    expect("tSal" in shared).toBe(false);
+    expect("pOA" in shared).toBe(false);
   });
 
   it("grants reduce net price and loan", () => {
