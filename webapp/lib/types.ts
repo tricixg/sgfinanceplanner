@@ -170,6 +170,9 @@ export type Goal = {
   where: string;
 };
 
+/** OA growth projection source for the BTO planner's payment waterfall. */
+export type BtoOAGrowthMode = "salary" | "manual" | "contributions";
+
 /** Persisted BTO Planner inputs (schemes, salaries, flat assumptions). */
 export type BtoPlannerPrefs = {
   price: number;
@@ -178,9 +181,32 @@ export type BtoPlannerPrefs = {
   tenure: number;
   yrsToKeys: number;
   applicationYm: string;
+  /** Months from booking to Agreement for Lease. */
+  monthsToAFL: number;
+  /** Option fee paid in cash at booking. */
+  optionFee: number;
+  /** Legal fee paid in cash at AFL. */
+  legalFee: number;
+  /** Staggered Downpayment Scheme: 5% @ AFL / 20% @ keys instead of 10% / 15%. */
+  staggered: boolean;
+  /** Bank/HDB-assessed max loan amount (AIP/HLE letter); 0 = not set, use LTV-derived loan. */
+  maxLoanEligible: number;
   tSal: number;
   pSal: number;
   pOA: number;
+  /** OA growth projection mode, tracked independently for self and partner. */
+  tOaGrowthMode: BtoOAGrowthMode;
+  pOaGrowthMode: BtoOAGrowthMode;
+  /** Manual monthly OA contribution, used when the respective mode === "manual". */
+  tOAMonthly: number;
+  pOAMonthly: number;
+  /** Queue number and total flat supply from the balloting result; 0 = not set. */
+  queueNumber: number;
+  queueTotal: number;
+  /** Actual milestone dates ("YYYY-MM-DD") once known from HDB — "" = not set, use the estimate. */
+  bookingDateActual: string;
+  aflDateActual: string;
+  keysDateActual: string;
   schemes: BTOSchemeSelection;
 };
 

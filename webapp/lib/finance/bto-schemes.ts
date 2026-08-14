@@ -20,12 +20,7 @@ const EHG_FAMILY_TIERS: { maxIncome: number; grant: number }[] = [
   { maxIncome: 9000, grant: 5000 },
 ];
 
-export type BTOSchemeId =
-  | "ehg"
-  | "family"
-  | "phg_with"
-  | "phg_near"
-  | "step_up";
+export type BTOSchemeId = "ehg";
 
 export type BTOSchemeDef = {
   id: BTOSchemeId;
@@ -51,50 +46,6 @@ export const BTO_SCHEME_DEFS: BTOSchemeDef[] = [
       "https://www.hdb.gov.sg/residential/buying-a-flat/new/cpf-housing-grants-for-bto-flats",
     fixedAmount: null,
   },
-  {
-    id: "family",
-    name: "CPF Housing Grant (Family Grant)",
-    appliesTo: "resale",
-    summary:
-      "Extra grant for first-timer families buying a resale flat (stackable with EHG). BTO buyers usually rely on EHG only.",
-    eligibility:
-      "First-timer family; resale flat; income ≤ $14,000/mo. Amount depends on flat size (e.g. $50k for 2–4 room).",
-    sourceUrl:
-      "https://www.hdb.gov.sg/residential/buying-a-flat/resale/cpf-housing-grants-for-resale-flats",
-    fixedAmount: 50000,
-  },
-  {
-    id: "phg_with",
-    name: "Proximity Housing Grant — living with",
-    appliesTo: "resale",
-    summary: "For resale buyers who will live in the same flat with parents or children.",
-    eligibility: "Resale purchase; live with parents/children in the flat.",
-    sourceUrl:
-      "https://www.hdb.gov.sg/residential/buying-a-flat/resale/cpf-housing-grants-for-resale-flats",
-    fixedAmount: 30000,
-  },
-  {
-    id: "phg_near",
-    name: "Proximity Housing Grant — living near",
-    appliesTo: "resale",
-    summary: "For resale buyers within 4 km of parents’ or children’s flat.",
-    eligibility: "Resale purchase; within 4 km of parents or married child.",
-    sourceUrl:
-      "https://www.hdb.gov.sg/residential/buying-a-flat/resale/cpf-housing-grants-for-resale-flats",
-    fixedAmount: 20000,
-  },
-  {
-    id: "step_up",
-    name: "Step-Up CPF Housing Grant",
-    appliesTo: "both",
-    summary:
-      "For families moving from public rental or a 2-room subsidised flat to a larger subsidised flat.",
-    eligibility:
-      "First-timer; currently in public rental or 2-room; buying 3-room or larger subsidised flat.",
-    sourceUrl:
-      "https://www.hdb.gov.sg/residential/buying-a-flat/new/cpf-housing-grants-for-bto-flats",
-    fixedAmount: 15000,
-  },
 ];
 
 export type BTOSchemeSelection = Record<
@@ -105,10 +56,6 @@ export type BTOSchemeSelection = Record<
 export function defaultBTOSchemes(): BTOSchemeSelection {
   return {
     ehg: { enabled: true, amountOverride: null },
-    family: { enabled: false, amountOverride: null },
-    phg_with: { enabled: false, amountOverride: null },
-    phg_near: { enabled: false, amountOverride: null },
-    step_up: { enabled: false, amountOverride: null },
   };
 }
 

@@ -156,6 +156,15 @@ export function addMonthsYm(ym: string, n: number): string {
   return `${ny}-${String(nm).padStart(2, "0")}`;
 }
 
+/** Whole days from one "YYYY-MM-DD" to another (negative if `toYmd` is earlier). */
+export function daysBetweenYmd(fromYmd: string, toYmd: string): number {
+  const parse = (ymd: string) => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((parse(toYmd) - parse(fromYmd)) / 86400000);
+}
+
 export function totalStatementAmount(
   S: DashboardState,
   enteredStatementAmounts?: number[] | null
