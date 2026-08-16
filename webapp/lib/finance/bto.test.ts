@@ -169,6 +169,20 @@ describe("buildBTOStages", () => {
     expect(booking.dateYmd).toBe("2026-03-01");
     expect(booking.status).toBe("next");
   });
+
+  it("shifts the AFL estimate to follow an overridden booking date, not the application month", () => {
+    // Default (no override): booking estimate is Jan + 4mo = May; AFL estimate
+    // is booking + 5mo = Oct.
+    const withoutOverride = buildBTOStages(prefs, "2026-01-01");
+    expect(withoutOverride.find((s) => s.id === "afl")!.estimatedYm).toBe("2026-10");
+
+    // Booking moved earlier via an actual date (Jan instead of the May
+    // estimate) — the AFL estimate should follow it (Jan + 5mo = Jun), not
+    // stay anchored to the old application-derived schedule (Oct).
+    const withEarlyBooking = { ...prefs, bookingDateActual: "2026-01-01" };
+    const stages = buildBTOStages(withEarlyBooking, "2026-01-01");
+    expect(stages.find((s) => s.id === "afl")!.estimatedYm).toBe("2026-06");
+  });
 });
 
 describe("computeBTO payment waterfall", () => {

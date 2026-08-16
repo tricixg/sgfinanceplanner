@@ -270,11 +270,15 @@ export function buildBTOStages(
   todayYmd: string
 ): BTOStage[] {
   const bookingEstYm = addMonthsYm(prefs.applicationYm, BOOKING_OFFSET_MONTHS);
-  const aflEstYm = addMonthsYm(prefs.applicationYm, BOOKING_OFFSET_MONTHS + prefs.monthsToAFL);
+  const bookingYmd = prefs.bookingDateActual || `${bookingEstYm}-15`;
+  // AFL is always estimated relative to the resolved booking date (actual if
+  // set, else the application-derived estimate) — not the application month
+  // directly — so overriding the booking date correctly shifts the AFL
+  // estimate along with it instead of leaving it anchored to the old schedule.
+  const aflEstYm = addMonthsYm(bookingYmd.slice(0, 7), prefs.monthsToAFL);
   const keysEstYm = addMonthsYm(prefs.applicationYm, Math.round(prefs.yrsToKeys * 12));
 
   const applicationYmd = `${prefs.applicationYm}-15`;
-  const bookingYmd = prefs.bookingDateActual || `${bookingEstYm}-15`;
   const aflYmd = prefs.aflDateActual || `${aflEstYm}-15`;
   const keysYmd = prefs.keysDateActual || `${keysEstYm}-15`;
 
