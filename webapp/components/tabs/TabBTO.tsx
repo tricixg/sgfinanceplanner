@@ -11,6 +11,7 @@ import {
   enabledSchemeRows,
   formatCountdown,
   normalizeBtoPlannerPrefs,
+  resolveBTOMonthOffsets,
   schemeComputedAmount,
   splitSharedBtoFields,
   type BTOSchemeId,
@@ -232,6 +233,17 @@ export function TabBTO({ state: S, setState }: Props) {
         ? (partnerMonthlyFromContrib ?? p.pOAMonthly)
         : cpfOAmonthly(p.pSal);
 
+  const todayYmd = useMemo(() => sgtTodayYmd(), []);
+
+  // Months from today to the resolved AFL/key-collection dates (actual date
+  // if set, else the estimate) — keeps the CPF projection below in sync with
+  // whatever the timeline is actually showing, instead of re-deriving a
+  // separate schedule from monthsToAFL/yrsToKeys off the application month.
+  const { aflOffsetMonths, kcOffsetMonths } = useMemo(
+    () => resolveBTOMonthOffsets(p, todayYmd),
+    [p, todayYmd]
+  );
+
   const b = useMemo(
     () =>
       computeBTO({
@@ -239,8 +251,6 @@ export function TabBTO({ state: S, setState }: Props) {
         ltv: p.ltv,
         rate: p.rate,
         tenure: p.tenure,
-        yrsToKeys: p.yrsToKeys,
-        monthsToAFL: p.monthsToAFL,
         optionFee: p.optionFee,
         legalFee: p.legalFee,
         staggered: p.staggered,
@@ -252,8 +262,10 @@ export function TabBTO({ state: S, setState }: Props) {
         tOA: S.oa,
         tOAMonthly: tOAMonthlyResolved,
         pOAMonthly: pOAMonthlyResolved,
+        aflOffsetMonths,
+        kcOffsetMonths,
       }),
-    [p, S.oa, effectivePOA, tOAMonthlyResolved, pOAMonthlyResolved]
+    [p, S.oa, effectivePOA, tOAMonthlyResolved, pOAMonthlyResolved, aflOffsetMonths, kcOffsetMonths]
   );
 
   const activeSchemes = useMemo(
@@ -310,7 +322,6 @@ export function TabBTO({ state: S, setState }: Props) {
     console.info("[TabBTO] scheme amount reset", id);
   };
 
-  const todayYmd = useMemo(() => sgtTodayYmd(), []);
   const stages = useMemo(() => buildBTOStages(p, todayYmd), [p, todayYmd]);
   const applicationStage = stages.find((s) => s.id === "application")!;
   const keysStage = stages.find((s) => s.id === "keys")!;

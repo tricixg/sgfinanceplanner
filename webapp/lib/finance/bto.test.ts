@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { calcEhgFamilyGrant, defaultBTOSchemes, totalHousingGrants } from "./bto-schemes";
 import {
   buildBTOStages,
-  buildBTOTimeline,
   computeBTO,
   formatCountdown,
   normalizeBTOSchemes,
   normalizeBtoPlannerPrefs,
+  resolveBTOMonthOffsets,
   splitSharedBtoFields,
 } from "./bto";
 
@@ -17,13 +17,6 @@ describe("BTO schemes", () => {
     expect(calcEhgFamilyGrant(1400)).toBe(80000);
     expect(calcEhgFamilyGrant(6500 + 4300)).toBe(0);
     expect(calcEhgFamilyGrant(4000)).toBeGreaterThan(0);
-  });
-
-  it("timeline derives dates from application month, months to AFL, and years to keys", () => {
-    const t = buildBTOTimeline("2026-06", 5, 4);
-    expect(t.application).toMatch(/Jun.*26/i);
-    expect(t.afl).toMatch(/Mar 27/i);
-    expect(t.keys).toMatch(/Jun 30/i);
   });
 
   it("normalizeBTOSchemes fills the ehg key and preserves overrides", () => {
@@ -94,8 +87,8 @@ describe("BTO schemes", () => {
       ltv: 75,
       rate: 2.6,
       tenure: 25,
-      yrsToKeys: 4,
-      monthsToAFL: 5,
+      aflOffsetMonths: 9,
+      kcOffsetMonths: 48,
       optionFee: 2000,
       legalFee: 650,
       staggered: false,
@@ -185,14 +178,51 @@ describe("buildBTOStages", () => {
   });
 });
 
+describe("resolveBTOMonthOffsets", () => {
+  const prefs = {
+    applicationYm: "2026-01",
+    monthsToAFL: 5,
+    yrsToKeys: 4,
+    bookingDateActual: "",
+    aflDateActual: "",
+    keysDateActual: "",
+  };
+
+  it("counts months from today to the resolved dates, not from the application month", () => {
+    // AFL estimate: booking (Jan+4=May) + 5mo = Oct 2026. From "today" = Jun
+    // 2026 that is ~4 months away, not 9 (which application+offset would give
+    // if today were mistaken for the application month).
+    const { aflOffsetMonths, kcOffsetMonths } = resolveBTOMonthOffsets(prefs, "2026-06-01");
+    expect(aflOffsetMonths).toBeCloseTo(4, 0);
+    expect(kcOffsetMonths).toBeGreaterThan(aflOffsetMonths);
+  });
+
+  it("follows actual AFL/key-collection dates instead of the estimates when set", () => {
+    const withActual = { ...prefs, aflDateActual: "2026-07-01", keysDateActual: "2026-08-01" };
+    const { aflOffsetMonths, kcOffsetMonths } = resolveBTOMonthOffsets(withActual, "2026-06-01");
+    expect(aflOffsetMonths).toBeCloseTo(1, 0);
+    expect(kcOffsetMonths).toBeCloseTo(2, 0);
+  });
+
+  it("never lets the key-collection offset land before the AFL offset", () => {
+    // Data-entry inconsistency: an actual KC date earlier than the AFL estimate.
+    const inconsistent = { ...prefs, keysDateActual: "2026-02-01" };
+    const { aflOffsetMonths, kcOffsetMonths } = resolveBTOMonthOffsets(
+      inconsistent,
+      "2026-01-01"
+    );
+    expect(kcOffsetMonths).toBeGreaterThanOrEqual(aflOffsetMonths);
+  });
+});
+
 describe("computeBTO payment waterfall", () => {
   const common = {
     price: 500000,
     ltv: 75,
     rate: 2.6,
     tenure: 25,
-    yrsToKeys: 4,
-    monthsToAFL: 5,
+    aflOffsetMonths: 9,
+    kcOffsetMonths: 48,
     optionFee: 2000,
     legalFee: 650,
     schemes: noGrantSchemes,

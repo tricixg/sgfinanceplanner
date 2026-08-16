@@ -7,7 +7,7 @@ import {
   totalHousingGrants,
   type BTOSchemeSelection,
 } from "./bto-schemes";
-import { fmt, formatMonthLabel } from "./helpers";
+import { fmt } from "./helpers";
 
 /** Months from BTO application to the booking (1st) appointment. */
 const BOOKING_OFFSET_MONTHS = 4;
@@ -57,8 +57,6 @@ export type BTOInputs = {
   ltv: number;
   rate: number;
   tenure: number;
-  yrsToKeys: number;
-  monthsToAFL: number;
   optionFee: number;
   legalFee: number;
   staggered: boolean;
@@ -71,6 +69,9 @@ export type BTOInputs = {
   /** Resolved monthly OA contribution for self/partner — already mode-resolved by the caller. */
   tOAMonthly: number;
   pOAMonthly: number;
+  /** Months from today to the resolved AFL/key-collection dates — already resolved by the caller via resolveBTOMonthOffsets. */
+  aflOffsetMonths: number;
+  kcOffsetMonths: number;
 };
 
 export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
@@ -205,23 +206,6 @@ export function defaultBtoPlannerPrefs(opts: {
   };
 }
 
-/** Payment timeline labels from BTO application month, months to AFL, and years to keys. */
-export function buildBTOTimeline(
-  applicationYm: string,
-  monthsToAFL: number,
-  yrsToKeys: number
-) {
-  const bookingYm = addMonthsYm(applicationYm, BOOKING_OFFSET_MONTHS);
-  const aflYm = addMonthsYm(applicationYm, BOOKING_OFFSET_MONTHS + monthsToAFL);
-  const keysYm = addMonthsYm(applicationYm, Math.round(yrsToKeys * 12));
-  return {
-    application: formatMonthLabel(applicationYm),
-    booking: `~${formatMonthLabel(bookingYm)}`,
-    afl: `~${formatMonthLabel(aflYm)}`,
-    keys: `~${formatMonthLabel(keysYm)}`,
-  };
-}
-
 /** "in 3 days" / "2 months ago" / "Today" style countdown label from a day delta. */
 export function formatCountdown(days: number): string {
   if (days === 0) return "Today";
@@ -251,36 +235,67 @@ export type BTOStage = {
   status: BTOStageStatus;
 };
 
+type BTOMilestonePrefs = Pick<
+  BtoPlannerPrefs,
+  | "applicationYm"
+  | "monthsToAFL"
+  | "yrsToKeys"
+  | "bookingDateActual"
+  | "aflDateActual"
+  | "keysDateActual"
+>;
+
 /**
- * Resolves the 5 BTO milestones (Application → Booking → AFL → Key collection →
- * Mortgage) against actual dates where the user has entered them, estimates
- * otherwise, and today's date — for the scrolling timeline's countdowns and
- * "which stage am I at" indicator.
+ * Single source of truth for resolving each BTO milestone to a concrete date —
+ * actual date if the user entered one, else an estimate. AFL is always
+ * estimated relative to the resolved booking date (not the application month
+ * directly), so overriding the booking date correctly shifts the AFL
+ * estimate along with it. Shared by buildBTOStages (display) and
+ * resolveBTOMonthOffsets (the CPF projection engine) so both agree on the
+ * same dates.
  */
-export function buildBTOStages(
-  prefs: Pick<
-    BtoPlannerPrefs,
-    | "applicationYm"
-    | "monthsToAFL"
-    | "yrsToKeys"
-    | "bookingDateActual"
-    | "aflDateActual"
-    | "keysDateActual"
-  >,
-  todayYmd: string
-): BTOStage[] {
+function resolveBTOMilestoneDates(prefs: BTOMilestonePrefs) {
   const bookingEstYm = addMonthsYm(prefs.applicationYm, BOOKING_OFFSET_MONTHS);
   const bookingYmd = prefs.bookingDateActual || `${bookingEstYm}-15`;
-  // AFL is always estimated relative to the resolved booking date (actual if
-  // set, else the application-derived estimate) — not the application month
-  // directly — so overriding the booking date correctly shifts the AFL
-  // estimate along with it instead of leaving it anchored to the old schedule.
   const aflEstYm = addMonthsYm(bookingYmd.slice(0, 7), prefs.monthsToAFL);
   const keysEstYm = addMonthsYm(prefs.applicationYm, Math.round(prefs.yrsToKeys * 12));
 
   const applicationYmd = `${prefs.applicationYm}-15`;
   const aflYmd = prefs.aflDateActual || `${aflEstYm}-15`;
   const keysYmd = prefs.keysDateActual || `${keysEstYm}-15`;
+
+  return { applicationYmd, bookingEstYm, bookingYmd, aflEstYm, aflYmd, keysEstYm, keysYmd };
+}
+
+/**
+ * Months from today to the resolved AFL and key-collection dates — used to
+ * time the CPF OA projection in computeBTO(). Computed from today (when the
+ * starting OA balance was captured), not from the application month, and
+ * from the same actual-or-estimated dates shown on the timeline, so the
+ * projection stays consistent with what's displayed.
+ */
+export function resolveBTOMonthOffsets(
+  prefs: BTOMilestonePrefs,
+  todayYmd: string
+): { aflOffsetMonths: number; kcOffsetMonths: number } {
+  const { aflYmd, keysYmd } = resolveBTOMilestoneDates(prefs);
+  const aflOffsetMonths = Math.max(0, Math.round(daysBetweenYmd(todayYmd, aflYmd) / 30.44));
+  const kcOffsetMonthsRaw = Math.max(0, Math.round(daysBetweenYmd(todayYmd, keysYmd) / 30.44));
+  return {
+    aflOffsetMonths,
+    kcOffsetMonths: Math.max(aflOffsetMonths, kcOffsetMonthsRaw),
+  };
+}
+
+/**
+ * Resolves the 5 BTO milestones (Application → Booking → AFL → Key collection →
+ * Mortgage) against actual dates where the user has entered them, estimates
+ * otherwise, and today's date — for the scrolling timeline's countdowns and
+ * "which stage am I at" indicator.
+ */
+export function buildBTOStages(prefs: BTOMilestonePrefs, todayYmd: string): BTOStage[] {
+  const { applicationYmd, bookingEstYm, bookingYmd, aflEstYm, aflYmd, keysEstYm, keysYmd } =
+    resolveBTOMilestoneDates(prefs);
 
   // Application is always treated as already submitted; find the first of the
   // remaining three milestones that hasn't passed yet — that's the "next" one.
@@ -365,8 +380,6 @@ export function computeBTO(inputs: BTOInputs) {
     ltv,
     rate,
     tenure,
-    yrsToKeys,
-    monthsToAFL,
     optionFee,
     legalFee,
     staggered,
@@ -408,9 +421,12 @@ export function computeBTO(inputs: BTOInputs) {
       ? (loan * (r * Math.pow(1 + r, n))) / (Math.pow(1 + r, n) - 1)
       : loan / n;
 
-  const bookingOffset = BOOKING_OFFSET_MONTHS;
-  const aflOffset = bookingOffset + monthsToAFL;
-  const kcOffset = Math.max(aflOffset, Math.round(yrsToKeys * 12));
+  // Months from today to each stage — resolved by the caller via
+  // resolveBTOMonthOffsets() from the actual-or-estimated dates, so this
+  // projection stays consistent with what the timeline displays. Clamped
+  // defensively so kcOffset never lands before aflOffset.
+  const aflOffset = Math.max(0, inputs.aflOffsetMonths);
+  const kcOffset = Math.max(aflOffset, inputs.kcOffsetMonths);
 
   const neededAFL = dpAFL + bsd + legalFee;
   const neededKC = dpKC;
