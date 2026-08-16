@@ -178,7 +178,9 @@ export function defaultBtoPlannerPrefs(opts: {
     yrsToKeys: 4,
     // Launched June 2026; flat booking (1st appointment) starts Nov 2026.
     applicationYm: "2026-06",
-    monthsToAFL: 5,
+    // HDB requires signing the Agreement for Lease within 9 months of booking
+    // an uncompleted flat — used as the estimate until an actual date is set.
+    monthsToAFL: 9,
     optionFee: 2000,
     legalFee: 650,
     staggered: false,

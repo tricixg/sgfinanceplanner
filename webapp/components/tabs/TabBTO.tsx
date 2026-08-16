@@ -585,10 +585,11 @@ export function TabBTO({ state: S, setState }: Props) {
               Months: booking → Agreement for Lease
               <DecimalInput
                 value={p.monthsToAFL}
-                min={4}
-                max={7}
+                min={1}
+                max={9}
                 onChange={(v) => updatePrefs({ monthsToAFL: v })}
               />
+              <span className="note">HDB requires signing within 9 months of booking</span>
             </label>
             <label className="bto-field">
               Legal fee at AFL (est.)
