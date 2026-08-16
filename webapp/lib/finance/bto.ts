@@ -69,7 +69,8 @@ export type BTOInputs = {
   /** Resolved monthly OA contribution for self/partner — already mode-resolved by the caller. */
   tOAMonthly: number;
   pOAMonthly: number;
-  /** Months from today to the resolved AFL/key-collection dates — already resolved by the caller via resolveBTOMonthOffsets. */
+  /** Months from today to the resolved Booking/AFL/key-collection dates — already resolved by the caller via resolveBTOMonthOffsets. */
+  bookingOffsetMonths: number;
   aflOffsetMonths: number;
   kcOffsetMonths: number;
 };
@@ -268,20 +269,27 @@ function resolveBTOMilestoneDates(prefs: BTOMilestonePrefs) {
 }
 
 /**
- * Months from today to the resolved AFL and key-collection dates — used to
- * time the CPF OA projection in computeBTO(). Computed from today (when the
- * starting OA balance was captured), not from the application month, and
- * from the same actual-or-estimated dates shown on the timeline, so the
- * projection stays consistent with what's displayed.
+ * Months from today to the resolved Booking, AFL, and key-collection dates —
+ * used to time the CPF OA projection (and its milestone markers) in
+ * computeBTO(). Computed from today (when the starting OA balance was
+ * captured), not from the application month, and from the same
+ * actual-or-estimated dates shown on the timeline, so the projection stays
+ * consistent with what's displayed. Booking/AFL/KC are clamped to stay in
+ * chronological order even if actual dates were entered inconsistently.
  */
 export function resolveBTOMonthOffsets(
   prefs: BTOMilestonePrefs,
   todayYmd: string
-): { aflOffsetMonths: number; kcOffsetMonths: number } {
-  const { aflYmd, keysYmd } = resolveBTOMilestoneDates(prefs);
+): { bookingOffsetMonths: number; aflOffsetMonths: number; kcOffsetMonths: number } {
+  const { bookingYmd, aflYmd, keysYmd } = resolveBTOMilestoneDates(prefs);
   const aflOffsetMonths = Math.max(0, Math.round(daysBetweenYmd(todayYmd, aflYmd) / 30.44));
   const kcOffsetMonthsRaw = Math.max(0, Math.round(daysBetweenYmd(todayYmd, keysYmd) / 30.44));
+  const bookingOffsetMonthsRaw = Math.max(
+    0,
+    Math.round(daysBetweenYmd(todayYmd, bookingYmd) / 30.44)
+  );
   return {
+    bookingOffsetMonths: Math.min(bookingOffsetMonthsRaw, aflOffsetMonths),
     aflOffsetMonths,
     kcOffsetMonths: Math.max(aflOffsetMonths, kcOffsetMonthsRaw),
   };
@@ -424,7 +432,11 @@ export function computeBTO(inputs: BTOInputs) {
   // Months from today to each stage — resolved by the caller via
   // resolveBTOMonthOffsets() from the actual-or-estimated dates, so this
   // projection stays consistent with what the timeline displays. Clamped
-  // defensively so kcOffset never lands before aflOffset.
+  // defensively so the stages never land out of chronological order.
+  const bookingOffset = Math.min(
+    Math.max(0, inputs.bookingOffsetMonths),
+    Math.max(0, inputs.aflOffsetMonths)
+  );
   const aflOffset = Math.max(0, inputs.aflOffsetMonths);
   const kcOffset = Math.max(aflOffset, inputs.kcOffsetMonths);
 
@@ -437,6 +449,10 @@ export function computeBTO(inputs: BTOInputs) {
   const labels = ["Now"];
   const tSeries = [to];
   const pSeries = [po];
+  // Parallel series: how much CPF is needed for the *next* upcoming payment
+  // at each plotted point — starts at the AFL bill, steps down to the KC
+  // bill right after AFL is paid, and to 0 once KC is paid too.
+  const neededSeries = [neededAFL];
 
   let cpfAvailAFL = pooled;
   let cpfUsedAFL = Math.min(neededAFL, cpfAvailAFL);
@@ -449,32 +465,78 @@ export function computeBTO(inputs: BTOInputs) {
 
   // CPF-first, cash-fills-the-remainder waterfall at each payment stage —
   // amounts drawn from a pooled (self + partner) OA balance that keeps
-  // compounding between stages; the individual to/po series below are an
-  // uninterrupted accumulation curve (informational, for the chart) and are
-  // not drawn down by payments.
+  // compounding between stages. The individual to/po series are split
+  // proportionally to each person's share at the moment of each payment, so
+  // the chart's stacked bars actually step down at Booking (marker only —
+  // cash, no OA drawdown), AFL, and Key Collection instead of showing an
+  // uninterrupted accumulation curve that never reflects money leaving.
   for (let m = 1; m <= kcOffset; m++) {
     to = (to + tOAMonthly) * (1 + 0.025 / 12);
     po = (po + pOAMonthly) * (1 + 0.025 / 12);
     pooled = (pooled + tOAMonthly + pOAMonthly) * (1 + 0.025 / 12);
+    let milestoneHit = false;
+
+    if (bookingOffset > 0 && m === bookingOffset) {
+      labels.push("Booking");
+      tSeries.push(to);
+      pSeries.push(po);
+      neededSeries.push(neededAFL);
+      milestoneHit = true;
+    }
 
     if (m === aflOffset) {
       cpfAvailAFL = pooled;
       cpfUsedAFL = Math.min(neededAFL, cpfAvailAFL);
       cashAFL = neededAFL - cpfUsedAFL;
+
+      labels.push("AFL");
+      tSeries.push(to);
+      pSeries.push(po);
+      neededSeries.push(neededAFL);
+
+      const totalBeforeAFL = to + po;
+      const toShareAFL = totalBeforeAFL > 0 ? to / totalBeforeAFL : 0.5;
+      to -= cpfUsedAFL * toShareAFL;
+      po -= cpfUsedAFL * (1 - toShareAFL);
       pooled -= cpfUsedAFL;
       balAfterAFL = pooled;
+
+      labels.push("AFL (paid)");
+      tSeries.push(to);
+      pSeries.push(po);
+      neededSeries.push(neededKC);
+      milestoneHit = true;
     }
+
     if (m === kcOffset) {
       cpfAvailKC = pooled;
       cpfUsedKC = Math.min(neededKC, cpfAvailKC);
       cashKC = neededKC - cpfUsedKC;
+
+      labels.push("Key collection");
+      tSeries.push(to);
+      pSeries.push(po);
+      neededSeries.push(neededKC);
+
+      const totalBeforeKC = to + po;
+      const toShareKC = totalBeforeKC > 0 ? to / totalBeforeKC : 0.5;
+      to -= cpfUsedKC * toShareKC;
+      po -= cpfUsedKC * (1 - toShareKC);
       pooled -= cpfUsedKC;
       balAfterKC = pooled;
+
+      labels.push("Key collection (paid)");
+      tSeries.push(to);
+      pSeries.push(po);
+      neededSeries.push(0);
+      milestoneHit = true;
     }
-    if (m % 6 === 0 || m === kcOffset) {
+
+    if (!milestoneHit && m % 6 === 0) {
       labels.push("M" + m);
       tSeries.push(to);
       pSeries.push(po);
+      neededSeries.push(neededSeries[neededSeries.length - 1]);
     }
   }
 
@@ -513,6 +575,7 @@ export function computeBTO(inputs: BTOInputs) {
     labels,
     tSeries,
     pSeries,
+    neededSeries,
     to,
     po,
     cpfAvailAFL,

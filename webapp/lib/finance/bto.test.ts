@@ -87,6 +87,7 @@ describe("BTO schemes", () => {
       ltv: 75,
       rate: 2.6,
       tenure: 25,
+      bookingOffsetMonths: 4,
       aflOffsetMonths: 9,
       kcOffsetMonths: 48,
       optionFee: 2000,
@@ -189,10 +190,15 @@ describe("resolveBTOMonthOffsets", () => {
   };
 
   it("counts months from today to the resolved dates, not from the application month", () => {
-    // AFL estimate: booking (Jan+4=May) + 5mo = Oct 2026. From "today" = Jun
-    // 2026 that is ~4 months away, not 9 (which application+offset would give
-    // if today were mistaken for the application month).
-    const { aflOffsetMonths, kcOffsetMonths } = resolveBTOMonthOffsets(prefs, "2026-06-01");
+    // Booking estimate: Jan + 4mo = May. AFL estimate: booking (May) + 5mo =
+    // Oct 2026. From "today" = Jun 2026 that is ~1 month to booking and ~4
+    // months to AFL, not 9 (which application+offset would give if today
+    // were mistaken for the application month).
+    const { bookingOffsetMonths, aflOffsetMonths, kcOffsetMonths } = resolveBTOMonthOffsets(
+      prefs,
+      "2026-06-01"
+    );
+    expect(bookingOffsetMonths).toBeGreaterThanOrEqual(0);
     expect(aflOffsetMonths).toBeCloseTo(4, 0);
     expect(kcOffsetMonths).toBeGreaterThan(aflOffsetMonths);
   });
@@ -204,14 +210,20 @@ describe("resolveBTOMonthOffsets", () => {
     expect(kcOffsetMonths).toBeCloseTo(2, 0);
   });
 
-  it("never lets the key-collection offset land before the AFL offset", () => {
-    // Data-entry inconsistency: an actual KC date earlier than the AFL estimate.
-    const inconsistent = { ...prefs, keysDateActual: "2026-02-01" };
-    const { aflOffsetMonths, kcOffsetMonths } = resolveBTOMonthOffsets(
+  it("never lets the key-collection offset land before the AFL offset, or booking before AFL", () => {
+    // Data-entry inconsistency: an actual KC date earlier than the AFL estimate,
+    // and a booking date later than the AFL estimate.
+    const inconsistent = {
+      ...prefs,
+      keysDateActual: "2026-02-01",
+      bookingDateActual: "2026-12-01",
+    };
+    const { bookingOffsetMonths, aflOffsetMonths, kcOffsetMonths } = resolveBTOMonthOffsets(
       inconsistent,
       "2026-01-01"
     );
     expect(kcOffsetMonths).toBeGreaterThanOrEqual(aflOffsetMonths);
+    expect(bookingOffsetMonths).toBeLessThanOrEqual(aflOffsetMonths);
   });
 });
 
@@ -221,6 +233,7 @@ describe("computeBTO payment waterfall", () => {
     ltv: 75,
     rate: 2.6,
     tenure: 25,
+    bookingOffsetMonths: 4,
     aflOffsetMonths: 9,
     kcOffsetMonths: 48,
     optionFee: 2000,
@@ -293,5 +306,42 @@ describe("computeBTO payment waterfall", () => {
     expect(capped.loan).toBe(300000);
     expect(capped.dpTotal).toBeCloseTo(capped.netPrice - 300000, 5);
     expect(capped.dpAFL + capped.dpKC).toBeGreaterThan(uncapped.dpAFL + uncapped.dpKC);
+  });
+
+  it("labels Booking/AFL/Key Collection as chart milestones and shows the drawdown at each payment", () => {
+    const b = computeBTO({
+      ...common,
+      price: 400000,
+      staggered: false,
+      maxLoanEligible: 0,
+      pOA: 200000,
+      tOA: 200000,
+      tOAMonthly: 500,
+      pOAMonthly: 500,
+    });
+
+    expect(b.labels).toContain("Booking");
+    expect(b.labels).toContain("AFL");
+    expect(b.labels).toContain("AFL (paid)");
+    expect(b.labels).toContain("Key collection");
+    expect(b.labels).toContain("Key collection (paid)");
+
+    const aflIdx = b.labels.indexOf("AFL");
+    const aflPaidIdx = b.labels.indexOf("AFL (paid)");
+    const beforeAFL = b.tSeries[aflIdx] + b.pSeries[aflIdx];
+    const afterAFL = b.tSeries[aflPaidIdx] + b.pSeries[aflPaidIdx];
+    expect(beforeAFL - afterAFL).toBeCloseTo(b.cpfUsedAFL, 2);
+
+    const kcIdx = b.labels.indexOf("Key collection");
+    const kcPaidIdx = b.labels.indexOf("Key collection (paid)");
+    const beforeKC = b.tSeries[kcIdx] + b.pSeries[kcIdx];
+    const afterKC = b.tSeries[kcPaidIdx] + b.pSeries[kcPaidIdx];
+    expect(beforeKC - afterKC).toBeCloseTo(b.cpfUsedKC, 2);
+
+    // neededSeries: starts at the AFL bill, steps to the KC bill right after
+    // AFL is paid, and to 0 once KC is paid too.
+    expect(b.neededSeries[0]).toBeCloseTo(b.dpAFL + b.bsd + b.legalFee, 5);
+    expect(b.neededSeries[aflPaidIdx]).toBeCloseTo(b.dpKC, 5);
+    expect(b.neededSeries[kcPaidIdx]).toBe(0);
   });
 });

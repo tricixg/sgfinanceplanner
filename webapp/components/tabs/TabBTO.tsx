@@ -235,11 +235,12 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const todayYmd = useMemo(() => sgtTodayYmd(), []);
 
-  // Months from today to the resolved AFL/key-collection dates (actual date
-  // if set, else the estimate) — keeps the CPF projection below in sync with
-  // whatever the timeline is actually showing, instead of re-deriving a
-  // separate schedule from monthsToAFL/yrsToKeys off the application month.
-  const { aflOffsetMonths, kcOffsetMonths } = useMemo(
+  // Months from today to the resolved Booking/AFL/key-collection dates
+  // (actual date if set, else the estimate) — keeps the CPF projection below
+  // in sync with whatever the timeline is actually showing, instead of
+  // re-deriving a separate schedule from monthsToAFL/yrsToKeys off the
+  // application month.
+  const { bookingOffsetMonths, aflOffsetMonths, kcOffsetMonths } = useMemo(
     () => resolveBTOMonthOffsets(p, todayYmd),
     [p, todayYmd]
   );
@@ -262,10 +263,20 @@ export function TabBTO({ state: S, setState }: Props) {
         tOA: S.oa,
         tOAMonthly: tOAMonthlyResolved,
         pOAMonthly: pOAMonthlyResolved,
+        bookingOffsetMonths,
         aflOffsetMonths,
         kcOffsetMonths,
       }),
-    [p, S.oa, effectivePOA, tOAMonthlyResolved, pOAMonthlyResolved, aflOffsetMonths, kcOffsetMonths]
+    [
+      p,
+      S.oa,
+      effectivePOA,
+      tOAMonthlyResolved,
+      pOAMonthlyResolved,
+      bookingOffsetMonths,
+      aflOffsetMonths,
+      kcOffsetMonths,
+    ]
   );
 
   const activeSchemes = useMemo(
@@ -847,9 +858,10 @@ export function TabBTO({ state: S, setState }: Props) {
               { label: "Your OA", data: b.tSeries, backgroundColor: "#2f5d3a", stack: "a" },
               { label: "Partner OA", data: b.pSeries, backgroundColor: "#3d6b8e", stack: "a" },
               {
-                label: "Downpayment due",
-                data: b.labels.map(() => b.dpKC),
+                label: "CPF needed for next payment",
+                data: b.neededSeries,
                 type: "line",
+                stepped: true,
                 borderColor: "#b5482e",
                 borderWidth: 2.5,
                 borderDash: [6, 4],
