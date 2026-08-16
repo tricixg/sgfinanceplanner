@@ -346,15 +346,19 @@ export function TabBTO({ state: S, setState }: Props) {
         ? "Flat booked — waiting to sign the Agreement for Lease"
         : "Agreement for Lease signed — waiting for key collection";
 
-  const neededAFL = b.dpAFL + b.bsd + b.legalFee;
-  const neededKC = b.dpKC;
   const currentCombinedOA = S.oa + effectivePOA;
+
+  // Key collection's downpayment is the flat 20%/15% (staggered/normal) share
+  // of net price, plus any loan-eligibility shortfall folded in on top of it
+  // — broken out here purely for display in the CPF-check breakdown below.
+  const dpKCBase = b.netPrice * (p.staggered ? 0.2 : 0.15);
+  const loanTopUp = Math.max(0, b.dpKC - dpKCBase);
 
   const stageAmount: Record<BTOStageId, string> = {
     application: "—",
     booking: fmt(b.optionFee),
-    afl: fmt(neededAFL),
-    keys: fmt(neededKC),
+    afl: fmt(b.neededAFL),
+    keys: fmt(b.neededKC),
     mortgage: fmt(b.mortgage) + "/mo",
   };
   const stagePaidFrom: Record<BTOStageId, string> = {
@@ -368,13 +372,13 @@ export function TabBTO({ state: S, setState }: Props) {
     Record<BTOStageId, { pct: number; needed: number; projected: number }>
   > = {
     afl: {
-      pct: neededAFL > 0 ? Math.min(100, (currentCombinedOA / neededAFL) * 100) : 100,
-      needed: neededAFL,
+      pct: b.neededAFL > 0 ? Math.min(100, (currentCombinedOA / b.neededAFL) * 100) : 100,
+      needed: b.neededAFL,
       projected: b.cpfAvailAFL,
     },
     keys: {
-      pct: neededKC > 0 ? Math.min(100, (currentCombinedOA / neededKC) * 100) : 100,
-      needed: neededKC,
+      pct: b.neededKC > 0 ? Math.min(100, (currentCombinedOA / b.neededKC) * 100) : 100,
+      needed: b.neededKC,
       projected: b.cpfAvailKC,
     },
   };
@@ -824,7 +828,10 @@ export function TabBTO({ state: S, setState }: Props) {
             <div className="lbl">HDB loan</div>
             <div className="val">{fmt(b.loan)}</div>
             {b.loanCapped && (
-              <div className="note">Capped to your assessed max eligible — downpayment increased</div>
+              <div className="note">
+                Capped to your assessed max eligible — the shortfall is topped up at key
+                collection
+              </div>
             )}
           </div>
           <div className="stat warn">
@@ -889,36 +896,72 @@ export function TabBTO({ state: S, setState }: Props) {
       <div className="split">
         <div className="card oa-gauge">
           <div className="section-lbl">AFL — CPF check</div>
-          <div className="g-head">
-            <span>Pooled CPF OA projected</span>
-            <b>{fmt(b.cpfAvailAFL)}</b>
+          <div className="minirow">
+            <span className="k">Downpayment ({p.staggered ? "5" : "10"}% of net price)</span>
+            <span className="v">{fmt(b.dpAFL)}</span>
           </div>
-          <div className="g-head">
-            <span>Used for this payment</span>
-            <b>{fmt(b.cpfUsedAFL)}</b>
+          <div className="minirow">
+            <span className="k">Option fee credit (paid at booking)</span>
+            <span className="v pos">−{fmt(b.optionFee)}</span>
           </div>
-          <div className="g-head">
-            <span>{b.cashAFL > 0 ? "Cash top-up needed" : "Remaining after payment"}</span>
-            <b className={b.cashAFL > 0 ? "neg" : "pos"}>
+          <div className="minirow">
+            <span className="k">Buyer&apos;s Stamp Duty</span>
+            <span className="v">+{fmt(b.bsd)}</span>
+          </div>
+          <div className="minirow">
+            <span className="k">Legal fee</span>
+            <span className="v">+{fmt(b.legalFee)}</span>
+          </div>
+          <div className="minirow tot">
+            <span className="k">Total due at AFL</span>
+            <span className="v">{fmt(b.neededAFL)}</span>
+          </div>
+          <div className="minirow" style={{ marginTop: 10 }}>
+            <span className="k">Pooled CPF OA projected</span>
+            <span className="v">{fmt(b.cpfAvailAFL)}</span>
+          </div>
+          <div className="minirow">
+            <span className="k">Used for this payment</span>
+            <span className="v">{fmt(b.cpfUsedAFL)}</span>
+          </div>
+          <div className="minirow tot">
+            <span className="k">
+              {b.cashAFL > 0 ? "Cash top-up needed" : "Remaining after payment"}
+            </span>
+            <span className={`v ${b.cashAFL > 0 ? "neg" : "pos"}`}>
               {fmt(b.cashAFL > 0 ? b.cashAFL : b.balAfterAFL)}
-            </b>
+            </span>
           </div>
         </div>
         <div className="card oa-gauge">
           <div className="section-lbl">Key collection — CPF check</div>
-          <div className="g-head">
-            <span>Pooled CPF OA projected</span>
-            <b>{fmt(b.cpfAvailKC)}</b>
+          <div className="minirow">
+            <span className="k">Downpayment ({p.staggered ? "20" : "15"}% of net price)</span>
+            <span className="v">{fmt(dpKCBase)}</span>
           </div>
-          <div className="g-head">
-            <span>Used for this payment</span>
-            <b>{fmt(b.cpfUsedKC)}</b>
+          {loanTopUp > 0 && (
+            <div className="minirow">
+              <span className="k">Loan-eligibility shortfall top-up</span>
+              <span className="v">+{fmt(loanTopUp)}</span>
+            </div>
+          )}
+          <div className="minirow tot">
+            <span className="k">Total due at key collection</span>
+            <span className="v">{fmt(b.neededKC)}</span>
           </div>
-          <div className="g-head">
-            <span>{b.cashKC > 0 ? "Cash shortfall" : "Surplus after payment"}</span>
-            <b className={b.cashKC > 0 ? "neg" : "pos"}>
+          <div className="minirow" style={{ marginTop: 10 }}>
+            <span className="k">Pooled CPF OA projected</span>
+            <span className="v">{fmt(b.cpfAvailKC)}</span>
+          </div>
+          <div className="minirow">
+            <span className="k">Used for this payment</span>
+            <span className="v">{fmt(b.cpfUsedKC)}</span>
+          </div>
+          <div className="minirow tot">
+            <span className="k">{b.cashKC > 0 ? "Cash shortfall" : "Surplus after payment"}</span>
+            <span className={`v ${b.cashKC > 0 ? "neg" : "pos"}`}>
               {fmt(b.cashKC > 0 ? b.cashKC : b.balAfterKC)}
-            </b>
+            </span>
           </div>
         </div>
       </div>

@@ -412,13 +412,13 @@ export function computeBTO(inputs: BTOInputs) {
   const loan = maxLoanEligible > 0 ? Math.min(ltvLoan, maxLoanEligible) : ltvLoan;
   const dpTotal = Math.max(0, netPrice - loan);
 
-  // Staggered Downpayment Scheme: 5% @ AFL / 20% @ keys instead of 10% / 15%
-  // (both expressed as a share of the total downpayment, so they hold even
-  // when the loan — and hence dpTotal — is eligibility-capped).
-  const aflShare = staggered ? 0.2 : 0.4;
-  const keyShare = staggered ? 0.8 : 0.6;
-  const dpAFL = dpTotal * aflShare;
-  const dpKC = dpTotal * keyShare;
+  // HDB's downpayment at AFL is a flat percentage of price — 5% under the
+  // Staggered Downpayment Scheme, 10% otherwise — fixed regardless of
+  // whether the loan covers the full LTV. Any shortfall between the
+  // LTV-implied loan and a lower assessed max eligible loan is a top-up that
+  // falls entirely on the key-collection payment, not spread into AFL.
+  const dpAFL = netPrice * (staggered ? 0.05 : 0.1);
+  const dpKC = Math.max(0, dpTotal - dpAFL);
 
   const bsd = calcBSD(netPrice);
 
@@ -440,7 +440,9 @@ export function computeBTO(inputs: BTOInputs) {
   const aflOffset = Math.max(0, inputs.aflOffsetMonths);
   const kcOffset = Math.max(aflOffset, inputs.kcOffsetMonths);
 
-  const neededAFL = dpAFL + bsd + legalFee;
+  // The option fee paid in cash at booking is later offset against the
+  // purchase price, crediting straight against the AFL downpayment due.
+  const neededAFL = Math.max(0, dpAFL - optionFee) + bsd + legalFee;
   const neededKC = dpKC;
 
   let to = tOA;
@@ -568,6 +570,8 @@ export function computeBTO(inputs: BTOInputs) {
     dpTotal,
     dpAFL,
     dpKC,
+    neededAFL,
+    neededKC,
     bsd,
     optionFee,
     legalFee,

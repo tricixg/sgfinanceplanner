@@ -1970,16 +1970,6 @@ footer {
 .oa-gauge {
   font-size: 12.5px;
 }
-.oa-gauge .g-head {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 0;
-  color: var(--muted);
-}
-.oa-gauge .g-head b {
-  font-family: "SF Mono", ui-monospace, monospace;
-  color: var(--ink);
-}
 
 .stat.cash .val {
   color: var(--sky);

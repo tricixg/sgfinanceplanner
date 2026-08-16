@@ -253,6 +253,22 @@ describe("computeBTO payment waterfall", () => {
     expect(staggered.dpKC).toBeGreaterThan(normal.dpKC);
   });
 
+  it("AFL downpayment is a flat 5%/10% of net price, and credits the option fee already paid", () => {
+    const shared = { ...common, maxLoanEligible: 0, pOA: 0, tOA: 0, tOAMonthly: 0, pOAMonthly: 0 };
+    const staggered = computeBTO({ ...shared, staggered: true });
+    const normal = computeBTO({ ...shared, staggered: false });
+
+    expect(staggered.dpAFL).toBeCloseTo(staggered.netPrice * 0.05, 5);
+    expect(normal.dpAFL).toBeCloseTo(normal.netPrice * 0.1, 5);
+
+    // Cash due at AFL = the flat downpayment, minus the option fee already
+    // paid at booking (credited against the price), plus BSD and legal fee.
+    expect(staggered.cashAFL).toBeCloseTo(
+      staggered.dpAFL - common.optionFee + staggered.bsd + staggered.legalFee,
+      5
+    );
+  });
+
   it("falls back to cash for any remainder when CPF OA can't cover a stage", () => {
     const b = computeBTO({
       ...common,
@@ -264,7 +280,8 @@ describe("computeBTO payment waterfall", () => {
       pOAMonthly: 0,
     });
     expect(b.cpfUsedAFL).toBe(0);
-    expect(b.cashAFL).toBeCloseTo(b.dpAFL + b.bsd + b.legalFee, 5);
+    // AFL cash is net of the option fee, already credited against the price.
+    expect(b.cashAFL).toBeCloseTo(b.dpAFL - common.optionFee + b.bsd + b.legalFee, 5);
     expect(b.cpfUsedKC).toBe(0);
     expect(b.cashKC).toBeCloseTo(b.dpKC, 5);
     expect(b.dpOK).toBe(false);
@@ -306,6 +323,12 @@ describe("computeBTO payment waterfall", () => {
     expect(capped.loan).toBe(300000);
     expect(capped.dpTotal).toBeCloseTo(capped.netPrice - 300000, 5);
     expect(capped.dpAFL + capped.dpKC).toBeGreaterThan(uncapped.dpAFL + uncapped.dpKC);
+
+    // HDB's AFL downpayment is a flat 10%/5% of price — capping the loan
+    // must NOT change it; the whole shortfall lands on key collection.
+    expect(capped.dpAFL).toBeCloseTo(uncapped.dpAFL, 5);
+    expect(capped.dpAFL).toBeCloseTo(capped.netPrice * 0.1, 5);
+    expect(capped.dpKC).toBeGreaterThan(uncapped.dpKC);
   });
 
   it("labels Booking/AFL/Key Collection as chart milestones and shows the drawdown at each payment", () => {
@@ -338,9 +361,12 @@ describe("computeBTO payment waterfall", () => {
     const afterKC = b.tSeries[kcPaidIdx] + b.pSeries[kcPaidIdx];
     expect(beforeKC - afterKC).toBeCloseTo(b.cpfUsedKC, 2);
 
-    // neededSeries: starts at the AFL bill, steps to the KC bill right after
-    // AFL is paid, and to 0 once KC is paid too.
-    expect(b.neededSeries[0]).toBeCloseTo(b.dpAFL + b.bsd + b.legalFee, 5);
+    // neededSeries: starts at the AFL bill (net of the option fee credit),
+    // steps to the KC bill right after AFL is paid, and to 0 once KC is paid too.
+    expect(b.neededSeries[0]).toBeCloseTo(
+      b.dpAFL - common.optionFee + b.bsd + b.legalFee,
+      5
+    );
     expect(b.neededSeries[aflPaidIdx]).toBeCloseTo(b.dpKC, 5);
     expect(b.neededSeries[kcPaidIdx]).toBe(0);
   });
