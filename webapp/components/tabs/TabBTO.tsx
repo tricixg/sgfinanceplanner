@@ -348,12 +348,6 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const currentCombinedOA = S.oa + effectivePOA;
 
-  // Key collection's downpayment is the flat 20%/15% (staggered/normal) share
-  // of net price, plus any loan-eligibility shortfall folded in on top of it
-  // — broken out here purely for display in the CPF-check breakdown below.
-  const dpKCBase = b.netPrice * (p.staggered ? 0.2 : 0.15);
-  const loanTopUp = Math.max(0, b.dpKC - dpKCBase);
-
   const stageAmount: Record<BTOStageId, string> = {
     application: "—",
     booking: fmt(b.optionFee),
@@ -390,13 +384,15 @@ export function TabBTO({ state: S, setState }: Props) {
       </div>
 
       <div className="callout tip">
-        Grants (Enhanced Housing Grant) reduce the purchase price, loan, and downpayment — type
-        the amount you expect, or leave it on auto from combined household income (
+        Grants (Enhanced Housing Grant) are credited straight into CPF OA to help pay the
+        downpayment — they don&apos;t reduce the loan, BSD, or the downpayment percentages
+        themselves, which are fixed shares of the full price regardless of grants. Type the
+        amount you expect, or leave it on auto from combined household income (
         {fmt(householdIncome)}/mo). The Staggered Downpayment Scheme shifts more of the 25%
         downpayment to key collection (5% + 20% instead of 10% + 15%). CPF OA starts from your
         real balance ({fmt(S.oa)}) and your partner&apos;s
         {partnerOALive != null ? ` live balance (${fmt(partnerOALive)})` : " manually-entered balance"}
-        , then grows monthly using the projection mode you choose below.
+        , plus any grants, then grows monthly using the projection mode you choose below.
       </div>
 
       <div className="section-head">
@@ -491,14 +487,16 @@ export function TabBTO({ state: S, setState }: Props) {
           );
         })}
         <div className="minirow tot">
-          <span className="k">Total grants applied</span>
+          <span className="k">Total grants — credited to CPF OA</span>
           <span className="v">{fmt(b.totalGrants)}</span>
         </div>
         <div className="minirow" style={{ border: "none" }}>
-          <span className="k">Net purchase price (after grants)</span>
+          <span className="k">If grants directly reduced price</span>
           <span className="v">{fmt(b.netPrice)}</span>
           <span className="note" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-            List price {fmt(b.price)} − grants {fmt(b.totalGrants)}
+            List price {fmt(b.price)} − grants {fmt(b.totalGrants)} — shown for reference only;
+            the loan, BSD, and downpayment are based on the full list price, with grants
+            credited to CPF OA instead.
           </span>
         </div>
       </div>
@@ -815,8 +813,8 @@ export function TabBTO({ state: S, setState }: Props) {
             <div className="val">{fmt(b.price)}</div>
           </div>
           <div className="stat">
-            <div className="lbl">After grants</div>
-            <div className="val">{fmt(b.netPrice)}</div>
+            <div className="lbl">Grants credited to CPF</div>
+            <div className="val">{fmt(b.totalGrants)}</div>
             <div className="note">{activeSchemes.length} scheme(s) on</div>
           </div>
         </div>
@@ -897,7 +895,7 @@ export function TabBTO({ state: S, setState }: Props) {
         <div className="card oa-gauge">
           <div className="section-lbl">AFL — CPF check</div>
           <div className="minirow">
-            <span className="k">Downpayment ({p.staggered ? "5" : "10"}% of net price)</span>
+            <span className="k">Downpayment ({p.staggered ? "5" : "10"}% of price)</span>
             <span className="v">{fmt(b.dpAFL)}</span>
           </div>
           <div className="minirow">
@@ -936,13 +934,13 @@ export function TabBTO({ state: S, setState }: Props) {
         <div className="card oa-gauge">
           <div className="section-lbl">Key collection — CPF check</div>
           <div className="minirow">
-            <span className="k">Downpayment ({p.staggered ? "20" : "15"}% of net price)</span>
-            <span className="v">{fmt(dpKCBase)}</span>
+            <span className="k">Downpayment ({p.staggered ? "20" : "15"}% of price)</span>
+            <span className="v">{fmt(b.dpKCBase)}</span>
           </div>
-          {loanTopUp > 0 && (
+          {b.loanShortfall > 0 && (
             <div className="minirow">
               <span className="k">Loan-eligibility shortfall top-up</span>
-              <span className="v">+{fmt(loanTopUp)}</span>
+              <span className="v">+{fmt(b.loanShortfall)}</span>
             </div>
           )}
           <div className="minirow tot">

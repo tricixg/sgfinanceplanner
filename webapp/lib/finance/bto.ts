@@ -403,24 +403,30 @@ export function computeBTO(inputs: BTOInputs) {
   const ltvFrac = ltv / 100;
   const rateFrac = rate / 100;
   const totalGrants = totalHousingGrants(schemes, { tSal, pSal });
+  // Informational only below (shown as "after grants") — grants don't reduce
+  // the loan, BSD, or downpayment bills; see the CPF-credit note further down.
   const netPrice = Math.max(0, price - totalGrants);
 
-  // Loan is LTV-derived unless a bank/HDB-assessed max eligible amount caps it lower;
-  // the downpayment always absorbs whatever the loan doesn't cover.
-  const ltvLoan = netPrice * ltvFrac;
+  // Loan eligibility, BSD, and the downpayment percentages are all based on
+  // the full purchase price — CPF housing grants don't reduce them. Loan is
+  // LTV-derived unless a bank/HDB-assessed max eligible amount caps it lower.
+  const ltvLoan = price * ltvFrac;
   const loanCapped = maxLoanEligible > 0 && maxLoanEligible < ltvLoan;
   const loan = maxLoanEligible > 0 ? Math.min(ltvLoan, maxLoanEligible) : ltvLoan;
-  const dpTotal = Math.max(0, netPrice - loan);
 
-  // HDB's downpayment at AFL is a flat percentage of price — 5% under the
-  // Staggered Downpayment Scheme, 10% otherwise — fixed regardless of
-  // whether the loan covers the full LTV. Any shortfall between the
+  // HDB's downpayment is a flat percentage of price — 5%/20% (AFL/KC) under
+  // the Staggered Downpayment Scheme, 10%/15% otherwise — fixed regardless of
+  // grants or whether the loan covers the full LTV. Any shortfall between the
   // LTV-implied loan and a lower assessed max eligible loan is a top-up that
   // falls entirely on the key-collection payment, not spread into AFL.
-  const dpAFL = netPrice * (staggered ? 0.05 : 0.1);
-  const dpKC = Math.max(0, dpTotal - dpAFL);
+  // Grants instead credit extra CPF OA funds (below) to help pay these bills.
+  const dpAFL = price * (staggered ? 0.05 : 0.1);
+  const dpKCBase = price * (staggered ? 0.2 : 0.15);
+  const loanShortfall = Math.max(0, ltvLoan - loan);
+  const dpKC = dpKCBase + loanShortfall;
+  const dpTotal = dpAFL + dpKC;
 
-  const bsd = calcBSD(netPrice);
+  const bsd = calcBSD(price);
 
   const n = tenure * 12;
   const r = rateFrac / 12;
@@ -445,9 +451,13 @@ export function computeBTO(inputs: BTOInputs) {
   const neededAFL = Math.max(0, dpAFL - optionFee) + bsd + legalFee;
   const neededKC = dpKC;
 
-  let to = tOA;
-  let po = pOA;
-  let pooled = tOA + pOA;
+  // CPF housing grants are credited into CPF OA as extra funds to help pay
+  // the (grant-independent) downpayment bills above — split between self and
+  // partner in proportion to their current OA balance.
+  const grantShare = tOA + pOA > 0 ? tOA / (tOA + pOA) : 0.5;
+  let to = tOA + totalGrants * grantShare;
+  let po = pOA + totalGrants * (1 - grantShare);
+  let pooled = to + po;
   const labels = ["Now"];
   const tSeries = [to];
   const pSeries = [po];
@@ -570,6 +580,8 @@ export function computeBTO(inputs: BTOInputs) {
     dpTotal,
     dpAFL,
     dpKC,
+    dpKCBase,
+    loanShortfall,
     neededAFL,
     neededKC,
     bsd,

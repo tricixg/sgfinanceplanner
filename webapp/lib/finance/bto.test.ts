@@ -79,10 +79,8 @@ describe("BTO schemes", () => {
     expect("pOA" in shared).toBe(false);
   });
 
-  it("grants reduce net price and loan", () => {
-    const schemes = defaultBTOSchemes();
-    const grants = totalHousingGrants(schemes, { tSal: 2000, pSal: 1500 });
-    const b = computeBTO({
+  it("grants reduce the informational net price but not the loan/BSD/downpayment — they credit CPF OA instead", () => {
+    const base = {
       price: 580000,
       ltv: 75,
       rate: 2.6,
@@ -94,17 +92,32 @@ describe("BTO schemes", () => {
       legalFee: 650,
       staggered: false,
       maxLoanEligible: 0,
-      schemes,
       tSal: 2000,
       pSal: 1500,
       pOA: 0,
       tOA: 20000,
       tOAMonthly: 400,
       pOAMonthly: 300,
-    });
-    expect(b.totalGrants).toBe(grants);
-    expect(b.netPrice).toBe(580000 - grants);
-    expect(b.loan).toBeCloseTo(b.netPrice * 0.75, 0);
+    };
+    const schemes = defaultBTOSchemes();
+    const grants = totalHousingGrants(schemes, { tSal: 2000, pSal: 1500 });
+    expect(grants).toBeGreaterThan(0);
+
+    const withGrants = computeBTO({ ...base, schemes });
+    const withoutGrants = computeBTO({ ...base, schemes: noGrantSchemes });
+
+    expect(withGrants.totalGrants).toBe(grants);
+    expect(withGrants.netPrice).toBe(580000 - grants);
+
+    // Loan eligibility, BSD, and the downpayment percentages are all based on
+    // the full price — grants don't change any of them.
+    expect(withGrants.loan).toBeCloseTo(withoutGrants.loan, 5);
+    expect(withGrants.loan).toBeCloseTo(580000 * 0.75, 0);
+    expect(withGrants.bsd).toBeCloseTo(withoutGrants.bsd, 5);
+    expect(withGrants.dpAFL).toBeCloseTo(withoutGrants.dpAFL, 5);
+
+    // Grants instead show up as extra CPF OA available to pay the bills.
+    expect(withGrants.cpfAvailAFL).toBeGreaterThan(withoutGrants.cpfAvailAFL);
   });
 });
 
@@ -253,13 +266,13 @@ describe("computeBTO payment waterfall", () => {
     expect(staggered.dpKC).toBeGreaterThan(normal.dpKC);
   });
 
-  it("AFL downpayment is a flat 5%/10% of net price, and credits the option fee already paid", () => {
+  it("AFL downpayment is a flat 5%/10% of price, and credits the option fee already paid", () => {
     const shared = { ...common, maxLoanEligible: 0, pOA: 0, tOA: 0, tOAMonthly: 0, pOAMonthly: 0 };
     const staggered = computeBTO({ ...shared, staggered: true });
     const normal = computeBTO({ ...shared, staggered: false });
 
-    expect(staggered.dpAFL).toBeCloseTo(staggered.netPrice * 0.05, 5);
-    expect(normal.dpAFL).toBeCloseTo(normal.netPrice * 0.1, 5);
+    expect(staggered.dpAFL).toBeCloseTo(common.price * 0.05, 5);
+    expect(normal.dpAFL).toBeCloseTo(common.price * 0.1, 5);
 
     // Cash due at AFL = the flat downpayment, minus the option fee already
     // paid at booking (credited against the price), plus BSD and legal fee.
@@ -318,17 +331,18 @@ describe("computeBTO payment waterfall", () => {
     const capped = computeBTO({ ...shared, maxLoanEligible: 300000 });
 
     expect(uncapped.loanCapped).toBe(false);
-    expect(uncapped.loan).toBeCloseTo(uncapped.netPrice * 0.75, 0);
+    expect(uncapped.loan).toBeCloseTo(shared.price * 0.75, 0);
     expect(capped.loanCapped).toBe(true);
     expect(capped.loan).toBe(300000);
-    expect(capped.dpTotal).toBeCloseTo(capped.netPrice - 300000, 5);
+    expect(capped.dpTotal).toBeCloseTo(shared.price - 300000, 5);
     expect(capped.dpAFL + capped.dpKC).toBeGreaterThan(uncapped.dpAFL + uncapped.dpKC);
 
     // HDB's AFL downpayment is a flat 10%/5% of price — capping the loan
     // must NOT change it; the whole shortfall lands on key collection.
     expect(capped.dpAFL).toBeCloseTo(uncapped.dpAFL, 5);
-    expect(capped.dpAFL).toBeCloseTo(capped.netPrice * 0.1, 5);
+    expect(capped.dpAFL).toBeCloseTo(shared.price * 0.1, 5);
     expect(capped.dpKC).toBeGreaterThan(uncapped.dpKC);
+    expect(capped.loanShortfall).toBeCloseTo(uncapped.loan - 300000, 5);
   });
 
   it("labels Booking/AFL/Key Collection as chart milestones and shows the drawdown at each payment", () => {
