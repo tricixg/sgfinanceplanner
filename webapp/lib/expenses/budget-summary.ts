@@ -25,6 +25,8 @@ export type BudgetImportRow = {
   transactionType: string;
 };
 
+export type ExpenseWithReimbursement = Expense & { reimbursedAmount: number };
+
 export type CategoryBudgetSummary = {
   budgetLineId: string;
   category: string;
@@ -33,13 +35,13 @@ export type CategoryBudgetSummary = {
   allocated: number;
   spent: number;
   remaining: number;
-  expenses: Expense[];
+  expenses: ExpenseWithReimbursement[];
   imports: BudgetImportRow[];
 };
 
 export type UncategorizedSummary = {
   spent: number;
-  expenses: Expense[];
+  expenses: ExpenseWithReimbursement[];
   imports: BudgetImportRow[];
 };
 
@@ -120,11 +122,11 @@ export function buildBudgetExpenseSummary(
       const cat = categoryMap.get(lineId)!;
       const reimbursed = reimbursements.expense.get(exp.id) ?? 0;
       cat.spent += netBudgetSpend(exp.amount, reimbursed);
-      cat.expenses.push(exp);
+      cat.expenses.push({ ...exp, reimbursedAmount: reimbursed });
     } else {
       const reimbursed = reimbursements.expense.get(exp.id) ?? 0;
       uncategorized.spent += netBudgetSpend(exp.amount, reimbursed);
-      uncategorized.expenses.push(exp);
+      uncategorized.expenses.push({ ...exp, reimbursedAmount: reimbursed });
     }
   }
 

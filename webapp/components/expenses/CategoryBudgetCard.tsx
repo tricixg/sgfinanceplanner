@@ -8,6 +8,7 @@ import { expenseEntrySourceLabel } from "@/lib/expenses/entry-source";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
+import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -80,6 +81,7 @@ export function CategoryBudgetCard({
       date: x.spentAt,
       amount: x.amount,
       note: x.note,
+      reimbursedAmount: x.reimbursedAmount,
     })),
     ...category.imports.map((x) => ({
       id: x.id,
@@ -181,7 +183,25 @@ export function CategoryBudgetCard({
                     {r.kind === "import" ? "import" : r.source}
                   </span>
                 </td>
-                <td>{r.note || "—"}</td>
+                <td>
+                  {r.note || "—"}
+                  {r.kind === "expense" && r.reimbursedAmount > 0 ? (
+                    <>
+                      {" "}
+                      <span
+                        className={`tag ${
+                          reimbursementStatus(r.amount, r.reimbursedAmount) === "full"
+                            ? "t-ok"
+                            : "t-soon"
+                        }`}
+                      >
+                        {reimbursementStatus(r.amount, r.reimbursedAmount) === "full"
+                          ? "Reimbursed"
+                          : `Partial · ${fmt2(r.reimbursedAmount)} of ${fmt2(r.amount)}`}
+                      </span>
+                    </>
+                  ) : null}
+                </td>
                 <td className="num">{fmt2(r.amount)}</td>
                 <td>
                   {r.kind === "expense" ? (

@@ -73,6 +73,7 @@ export function expenseToUnified(expense: ExpenseForTransaction): UnifiedTransac
     transactionType:
       expense.autoCategory === "subscription" ? "subscription" : "expense",
     savingsKind: null,
+    reimbursedAmount: 0,
     financialAccountId: expense.financialAccountId,
     savingsAccountId: null,
     poolId: null,

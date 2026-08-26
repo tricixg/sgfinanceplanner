@@ -8,6 +8,7 @@ import { expenseEntrySourceLabel } from "@/lib/expenses/entry-source";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
+import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -43,6 +44,7 @@ export function ZeroBudgetCategoryItem({
       date: x.spentAt,
       amount: x.amount,
       note: x.note,
+      reimbursedAmount: x.reimbursedAmount,
     })),
     ...category.imports.map((x) => ({
       id: x.id,
@@ -122,6 +124,19 @@ export function ZeroBudgetCategoryItem({
                 {r.kind === "import" ? <span className="tag t-warn">import</span> : null}
                 {r.kind === "expense" && r.source !== "manual" ? (
                   <span className="tag t-live">{r.source}</span>
+                ) : null}
+                {r.kind === "expense" && r.reimbursedAmount > 0 ? (
+                  <span
+                    className={`tag ${
+                      reimbursementStatus(r.amount, r.reimbursedAmount) === "full"
+                        ? "t-ok"
+                        : "t-soon"
+                    }`}
+                  >
+                    {reimbursementStatus(r.amount, r.reimbursedAmount) === "full"
+                      ? "Reimbursed"
+                      : `Partial · ${fmt2(r.reimbursedAmount)} of ${fmt2(r.amount)}`}
+                  </span>
                 ) : null}
                 {r.kind === "expense" ? (
                   <button

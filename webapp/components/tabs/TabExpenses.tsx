@@ -10,6 +10,7 @@ import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
 
 export function TabExpenses({ enabled }: { enabled: boolean }) {
   const { accounts: financialAccounts } = useFinancialAccounts();
@@ -211,7 +212,25 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
                         <span className="tag">manual</span>
                       </td>
                       <td>{x.category || "—"}</td>
-                      <td>{x.note || "—"}</td>
+                      <td>
+                        {x.note || "—"}
+                        {x.reimbursedAmount > 0 ? (
+                          <>
+                            {" "}
+                            <span
+                              className={`tag ${
+                                reimbursementStatus(x.amount, x.reimbursedAmount) === "full"
+                                  ? "t-ok"
+                                  : "t-soon"
+                              }`}
+                            >
+                              {reimbursementStatus(x.amount, x.reimbursedAmount) === "full"
+                                ? "Reimbursed"
+                                : `Partial · ${fmt2(x.reimbursedAmount)} of ${fmt2(x.amount)}`}
+                            </span>
+                          </>
+                        ) : null}
+                      </td>
                       <td className="num">{fmt2(x.amount)}</td>
                     </tr>
                   ))}

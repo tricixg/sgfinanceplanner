@@ -102,6 +102,21 @@ describe("buildBudgetExpenseSummary", () => {
     );
     expect(summary.categories[0].spent).toBe(60);
     expect(summary.categories[0].expenses[0].amount).toBe(100);
+    expect(summary.categories[0].expenses[0].reimbursedAmount).toBe(40);
+  });
+
+  it("attaches zero reimbursedAmount when no reimbursements exist", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [
+        expense({ id: "e1", amount: 100, budgetLineId: "a1" }),
+        expense({ id: "e2", amount: 25, category: "Coffee" }),
+      ],
+      []
+    );
+    expect(summary.categories[0].expenses[0].reimbursedAmount).toBe(0);
+    expect(summary.uncategorized.expenses[0].reimbursedAmount).toBe(0);
   });
 
   it("puts unmatched spend in uncategorized", () => {

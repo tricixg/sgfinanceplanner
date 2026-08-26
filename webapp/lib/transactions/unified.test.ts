@@ -3,6 +3,7 @@ import { expenseToUnified } from "@/lib/expenses/list-for-transactions";
 import { compareSgtSortAtDescending } from "@/lib/time/sgt";
 import {
   budgetToUnified,
+  reimbursedAmountForUnified,
   savingsToUnified,
   unifiedListHasFilters,
 } from "@/lib/transactions/unified";
@@ -110,6 +111,46 @@ describe("unified transaction merge (unit sort)", () => {
 
     expect(expense.recordType).toBe("expense");
     expect(`${expense.recordType}-${expense.id}`).toBe("expense-same-id");
+  });
+});
+
+describe("reimbursedAmountForUnified", () => {
+  const totals = {
+    expense: new Map([["e1", 40]]),
+    budget: new Map([["b1", 20]]),
+  };
+
+  it("looks up expense records in the expense map", () => {
+    expect(
+      reimbursedAmountForUnified({ recordType: "expense", id: "e1", transactionType: null }, totals)
+    ).toBe(40);
+  });
+
+  it("looks up budget expense/subscription rows in the budget map", () => {
+    expect(
+      reimbursedAmountForUnified({ recordType: "budget", id: "b1", transactionType: "expense" }, totals)
+    ).toBe(20);
+    expect(
+      reimbursedAmountForUnified(
+        { recordType: "budget", id: "b1", transactionType: "subscription" },
+        totals
+      )
+    ).toBe(20);
+  });
+
+  it("ignores budget income rows and savings rows", () => {
+    expect(
+      reimbursedAmountForUnified({ recordType: "budget", id: "b1", transactionType: "income" }, totals)
+    ).toBe(0);
+    expect(
+      reimbursedAmountForUnified({ recordType: "savings", id: "e1", transactionType: null }, totals)
+    ).toBe(0);
+  });
+
+  it("defaults to zero when no linked reimbursement exists", () => {
+    expect(
+      reimbursedAmountForUnified({ recordType: "expense", id: "unknown", transactionType: null }, totals)
+    ).toBe(0);
   });
 });
 

@@ -12,6 +12,14 @@ export function netBudgetSpend(gross: number, reimbursed: number): number {
   return net <= AMOUNT_EPS ? 0 : Math.max(0, net);
 }
 
+export type ReimbursementStatus = "none" | "partial" | "full";
+
+export function reimbursementStatus(amount: number, reimbursed: number): ReimbursementStatus {
+  if (reimbursed <= AMOUNT_EPS) return "none";
+  if (reimbursed >= amount - AMOUNT_EPS) return "full";
+  return "partial";
+}
+
 function addToMap(map: Map<string, number>, id: string, amount: number): void {
   if (!(amount > 0)) return;
   map.set(id, (map.get(id) ?? 0) + amount);

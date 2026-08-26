@@ -21,6 +21,7 @@ import {
   isoInstantToSgtSortAt,
   sgtSpentAtToIso,
 } from "@/lib/time/sgt";
+import { loadReimbursementTotals, type ReimbursementTotalsBySource } from "@/lib/transactions/reimburse-totals";
 
 function budgetSortAt(tx: BudgetTransaction): string {
   return sgtSpentAtToIso(tx.spentAt, tx.spentTime ?? "00:00:00");
@@ -55,6 +56,7 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
     balanceAfter: tx.balanceAfter,
     transactionType: null,
     savingsKind: tx.kind,
+    reimbursedAmount: 0,
     financialAccountId: null,
     savingsAccountId: tx.accountId,
     poolId: tx.poolId,
@@ -87,6 +89,7 @@ export function budgetToUnified(tx: BudgetTransaction): UnifiedTransaction {
     balanceAfter: null,
     transactionType: tx.transactionType,
     savingsKind: null,
+    reimbursedAmount: 0,
     financialAccountId: tx.financialAccountId,
     savingsAccountId: null,
     poolId: null,
@@ -160,6 +163,21 @@ function roundCents(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** Looks up the linked reimbursement total for a row (expense records, and budget rows that are themselves expense/subscription spend). */
+export function reimbursedAmountForUnified(
+  tx: Pick<UnifiedTransaction, "recordType" | "id" | "transactionType">,
+  totals: ReimbursementTotalsBySource
+): number {
+  if (tx.recordType === "expense") return totals.expense.get(tx.id) ?? 0;
+  if (
+    tx.recordType === "budget" &&
+    (tx.transactionType === "expense" || tx.transactionType === "subscription")
+  ) {
+    return totals.budget.get(tx.id) ?? 0;
+  }
+  return 0;
+}
+
 export function unifiedListHasFilters(opts: ListUnifiedOpts): boolean {
   return Boolean(
     opts.accountId ||
@@ -207,8 +225,9 @@ export async function listUnifiedTransactions(
   const fetchExpenses = includeExpenses;
 
   const window = offset + limit;
+  const needsReimbursements = fetchExpenses || fetchBudget;
 
-  const [savingsPage, budgetPage, expensePage] = await Promise.all([
+  const [savingsPage, budgetPage, expensePage, reimbursements] = await Promise.all([
     fetchSavings
       ? listAllTransactions(supabase, {
           userId,
@@ -246,6 +265,9 @@ export async function listUnifiedTransactions(
           category: opts.category,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
+    needsReimbursements
+      ? loadReimbursementTotals(supabase, userId)
+      : Promise.resolve({ expense: new Map(), budget: new Map() } as ReimbursementTotalsBySource),
   ]);
 
   const savingsTotal = fetchSavings ? savingsPage.total : 0;
@@ -258,7 +280,10 @@ export async function listUnifiedTransactions(
     ...expensePage.items.map(expenseToUnified),
   ].sort((a, b) => compareSgtSortAtDescending(a.sortAt, b.sortAt));
 
-  const items = merged.slice(offset, offset + limit);
+  const items = merged.slice(offset, offset + limit).map((item) => ({
+    ...item,
+    reimbursedAmount: reimbursedAmountForUnified(item, reimbursements),
+  }));
   const total = savingsTotal + budgetTotal + expenseTotal;
   const nextOffset = offset + items.length < total ? offset + limit : null;
 

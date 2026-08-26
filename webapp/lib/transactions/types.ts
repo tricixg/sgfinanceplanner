@@ -62,6 +62,8 @@ export type UnifiedTransaction = {
   transactionType: BudgetTransactionType | null;
   /** Savings: deposit | withdrawal | adjustment */
   savingsKind: SavingsTransactionKind | null;
+  /** Sum of linked reimbursement deposits/income for this record (expense/budget only). */
+  reimbursedAmount: number;
   financialAccountId?: string | null;
   savingsAccountId?: string | null;
   poolId?: string | null;

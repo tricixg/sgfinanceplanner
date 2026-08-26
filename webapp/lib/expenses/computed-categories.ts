@@ -42,7 +42,7 @@ export function buildComputedCategories(
       allocated,
       spent,
       remaining: allocated - spent,
-      expenses: matched,
+      expenses: matched.map((e) => ({ ...e, reimbursedAmount: 0 })),
       imports: [] as BudgetImportRow[],
     };
   });

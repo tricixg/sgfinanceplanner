@@ -12,6 +12,7 @@ import { sgtTodayYmd, sgtYmdDaysAgo } from "@/lib/time/sgt";
 import { Snackbar } from "@/components/Snackbar";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { TransactionActionModal } from "@/components/savings/TransactionActionModal";
+import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
 
 const PAGE_SIZE = 50;
 
@@ -414,7 +415,6 @@ export function TransactionsHistoryPage() {
                   <th className="num">Amount</th>
                   <th>Account</th>
                   <th>Note</th>
-                  <th>Goal</th>
                   <th className="num">Balance</th>
                 </tr>
               </thead>
@@ -431,8 +431,27 @@ export function TransactionsHistoryPage() {
                     <td style={{ textTransform: "capitalize" }}>{tx.typeLabel}</td>
                     <td className="num">{fmtSigned2(tx.amount)}</td>
                     <td>{tx.accountName ?? "—"}</td>
-                    <td>{tx.note || "—"}</td>
-                    <td>{tx.goalName ?? "—"}</td>
+                    <td>
+                      {tx.note || "—"}
+                      {tx.reimbursedAmount > 0 ? (
+                        <>
+                          {" "}
+                          <span
+                            className={`tag ${
+                              reimbursementStatus(Math.abs(tx.amount), tx.reimbursedAmount) ===
+                              "full"
+                                ? "t-ok"
+                                : "t-soon"
+                            }`}
+                          >
+                            {reimbursementStatus(Math.abs(tx.amount), tx.reimbursedAmount) ===
+                            "full"
+                              ? "Reimbursed"
+                              : `Partial · ${fmt2(tx.reimbursedAmount)} of ${fmt2(Math.abs(tx.amount))}`}
+                          </span>
+                        </>
+                      ) : null}
+                    </td>
                     <td className="num">
                       {tx.balanceAfter != null ? fmt2(tx.balanceAfter) : "—"}
                     </td>
@@ -444,7 +463,7 @@ export function TransactionsHistoryPage() {
                   <tr>
                     <th colSpan={4}>Total ({total})</th>
                     <th className="num">{fmtSigned2(amountTotal)}</th>
-                    <th colSpan={4} />
+                    <th colSpan={3} />
                   </tr>
                 </tfoot>
               ) : null}
