@@ -31,6 +31,8 @@ type Props = {
   fundPnl?: number;
   /** Cash accounts offered as a funding source when depositing into a fund. */
   fromAccountOptions?: GoalOption[];
+  /** When provided, shows a delete control on each history row. */
+  onDeleteTransaction?: (transactionId: string) => Promise<void>;
   onRecord: (payload: {
     amount: number;
     occurredAt?: string;
@@ -87,6 +89,7 @@ export function SavingsLedgerModal({
   goalOptions = [],
   fundPnl,
   fromAccountOptions = [],
+  onDeleteTransaction,
   onRecord,
 }: Props) {
   const meta = useLedgerMeta(target);
@@ -437,6 +440,7 @@ export function SavingsLedgerModal({
             fetchUrl={meta.historyUrl}
             refreshKey={historyKey}
             viewMoreHref={meta.viewMoreHref}
+            onDelete={onDeleteTransaction}
           />
         </div>
       </div>

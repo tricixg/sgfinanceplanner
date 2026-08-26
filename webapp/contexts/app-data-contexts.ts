@@ -131,6 +131,7 @@ export type FundsContextValue = {
       goalId?: string | null;
     }
   ) => Promise<void>;
+  deleteFundTransaction: (fundId: string, transactionId: string) => Promise<void>;
 };
 
 export type MilesContextValue = {

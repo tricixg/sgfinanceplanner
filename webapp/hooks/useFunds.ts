@@ -112,6 +112,22 @@ export function useFundsProvider(enabled: boolean) {
     [load]
   );
 
+  const deleteFundTransaction = useCallback(
+    async (fundId: string, transactionId: string) => {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/funds/${fundId}/transactions/${transactionId}`,
+        { method: "DELETE", credentials: "include" }
+      );
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to delete transaction");
+      }
+      console.info("[useFunds] transaction deleted", { fundId, transactionId });
+      dispatchDomainEvent(["funds:changed", "savings:changed"]);
+      await load();
+    },
+    [load]
+  );
+
   return useMemo(
     () => ({
       funds,
@@ -121,8 +137,18 @@ export function useFundsProvider(enabled: boolean) {
       reload: load,
       saveFunds,
       recordFundTransaction,
+      deleteFundTransaction,
     }),
-    [funds, totals, loading, configured, load, saveFunds, recordFundTransaction]
+    [
+      funds,
+      totals,
+      loading,
+      configured,
+      load,
+      saveFunds,
+      recordFundTransaction,
+      deleteFundTransaction,
+    ]
   );
 }
 

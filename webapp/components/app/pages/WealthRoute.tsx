@@ -32,6 +32,7 @@ function WealthContent({
               totals: fundsApi.totals,
               saveFunds: fundsApi.saveFunds,
               recordFundTransaction: fundsApi.recordFundTransaction,
+              deleteFundTransaction: fundsApi.deleteFundTransaction,
             }
           : undefined
       }

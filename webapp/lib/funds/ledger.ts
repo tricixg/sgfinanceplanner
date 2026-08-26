@@ -112,6 +112,73 @@ export async function applyFundTransaction(
   return mapped;
 }
 
+export async function deleteFundTransaction(
+  supabase: SupabaseClient,
+  userId: string,
+  fundId: string,
+  transactionId: string
+): Promise<void> {
+  const { data: tx, error: readErr } = await supabase
+    .from("fund_transactions")
+    .select("id, amount, goal_id")
+    .eq("id", transactionId)
+    .eq("fund_id", fundId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (readErr) throw new Error(readErr.message);
+  if (!tx) throw new Error("Transaction not found");
+
+  const reverse = -Number(tx.amount);
+
+  const { data: fund, error: fundErr } = await supabase
+    .from("investment_funds")
+    .select("balance")
+    .eq("id", fundId)
+    .maybeSingle();
+  if (fundErr || !fund) throw new Error(fundErr?.message ?? "Fund not found");
+
+  const nextBalance = Number(fund.balance) + reverse;
+  if (nextBalance < 0) throw new Error("Insufficient balance");
+
+  const { error: updErr } = await supabase
+    .from("investment_funds")
+    .update({ balance: nextBalance, updated_at: new Date().toISOString() })
+    .eq("id", fundId);
+  if (updErr) throw new Error(updErr.message);
+
+  if (tx.goal_id) {
+    const { data: goal, error: goalErr } = await supabase
+      .from("savings_goals")
+      .select("saved_amount")
+      .eq("id", tx.goal_id)
+      .maybeSingle();
+    if (goalErr || !goal) throw new Error(goalErr?.message ?? "Goal not found");
+    const nextSaved = Math.max(0, Number(goal.saved_amount) + reverse);
+    const { error: goalUpdErr } = await supabase
+      .from("savings_goals")
+      .update({ saved_amount: nextSaved, updated_at: new Date().toISOString() })
+      .eq("id", tx.goal_id);
+    if (goalUpdErr) throw new Error(goalUpdErr.message);
+  }
+
+  const { error: delErr } = await supabase
+    .from("fund_transactions")
+    .delete()
+    .eq("id", transactionId)
+    .eq("fund_id", fundId)
+    .eq("user_id", userId);
+  if (delErr) throw new Error(delErr.message);
+
+  console.info("[funds/ledger] transaction deleted with balance rollback", {
+    userId,
+    fundId,
+    transactionId,
+    amount: tx.amount,
+    goalId: tx.goal_id ?? null,
+  });
+}
+
 async function enrichWithGoalNames(
   supabase: SupabaseClient,
   items: FundTransaction[]

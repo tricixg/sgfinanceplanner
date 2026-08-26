@@ -49,6 +49,7 @@ type FundsApi = {
       goalId?: string | null;
     }
   ) => Promise<void>;
+  deleteFundTransaction: (fundId: string, transactionId: string) => Promise<void>;
 };
 
 type AccountsApi = {
@@ -593,6 +594,14 @@ export function TabWealth({
             name: a.name,
           }))}
           onClose={() => setLedgerFundId(null)}
+          onDeleteTransaction={
+            fundsApi
+              ? async (transactionId) => {
+                  await fundsApi.deleteFundTransaction(ledgerFund.id, transactionId);
+                  setFundsTxRefresh((k) => k + 1);
+                }
+              : undefined
+          }
           onRecord={async (payload) => {
             if (!fundsApi || payload.kind === "adjustment") return;
             if (payload.fromAccountId && accountsApi) {
