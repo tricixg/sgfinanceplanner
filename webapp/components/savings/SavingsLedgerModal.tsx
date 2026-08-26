@@ -39,6 +39,7 @@ type Props = {
     goalId?: string;
     incomeCategoryId?: string;
     fromAccountId?: string;
+    toAccountId?: string;
   }) => Promise<void>;
 };
 
@@ -93,6 +94,7 @@ export function SavingsLedgerModal({
   const [adjustmentMode, setAdjustmentMode] = useState<AdjustmentMode>("set_balance");
   const [goalId, setGoalId] = useState("");
   const [fromAccountId, setFromAccountId] = useState("");
+  const [toAccountId, setToAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
@@ -124,6 +126,7 @@ export function SavingsLedgerModal({
     setAmount("");
     setIncomeCategoryId("");
     setFromAccountId("");
+    setToAccountId("");
     setError("");
   }, [targetKey, kind]);
 
@@ -146,6 +149,9 @@ export function SavingsLedgerModal({
 
   const showFromAccount =
     target.variant === "fund" && kind === "deposit" && fromAccountOptions.length > 0;
+
+  const showToAccount =
+    target.variant === "fund" && kind === "withdrawal" && fromAccountOptions.length > 0;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -202,12 +208,14 @@ export function SavingsLedgerModal({
         goalId: showGoalPicker && goalId ? goalId : undefined,
         incomeCategoryId: showIncomeCategory ? incomeCategoryId : undefined,
         fromAccountId: showFromAccount && fromAccountId ? fromAccountId : undefined,
+        toAccountId: showToAccount && toAccountId ? toAccountId : undefined,
       });
       setAmount("");
       setNote("");
       setGoalId("");
       setIncomeCategoryId("");
       setFromAccountId("");
+      setToAccountId("");
       setHistoryKey((k) => k + 1);
       dispatchDomainEvent(["savings:changed", "accounts:changed"]);
       console.info("[SavingsLedgerModal] recorded", {
@@ -216,6 +224,7 @@ export function SavingsLedgerModal({
         amount: resolved,
         goalId: goalId || null,
         fromAccountId: fromAccountId || null,
+        toAccountId: toAccountId || null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to record");
@@ -296,6 +305,25 @@ export function SavingsLedgerModal({
                 <select
                   value={fromAccountId}
                   onChange={(e) => setFromAccountId(e.target.value)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">None — balance only</option>
+                  {fromAccountOptions.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name || "Account"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {showToAccount ? (
+              <label className="ctrl" style={{ fontSize: 13, flex: "2 1 200px" }}>
+                <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
+                  To account (optional)
+                </span>
+                <select
+                  value={toAccountId}
+                  onChange={(e) => setToAccountId(e.target.value)}
                   style={{ width: "100%" }}
                 >
                   <option value="">None — balance only</option>

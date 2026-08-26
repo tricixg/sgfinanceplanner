@@ -610,6 +610,21 @@ export function TabWealth({
                 kind: payload.kind,
                 note: payload.note || `Transfer from ${fromName}`,
               });
+            } else if (payload.kind === "withdrawal" && payload.toAccountId && accountsApi) {
+              const toName =
+                accountsApi.accounts.find((a) => a.id === payload.toAccountId)?.name ??
+                "Account";
+              await fundsApi.recordFundTransaction(ledgerFund.id, {
+                ...payload,
+                kind: payload.kind,
+                note: payload.note || `Transfer to ${toName}`,
+              });
+              await accountsApi.recordAccountTransaction(payload.toAccountId, {
+                amount: payload.amount,
+                kind: "adjustment",
+                occurredAt: payload.occurredAt,
+                note: `Transfer from ${ledgerFund.name || "Fund"}`,
+              });
             } else {
               await fundsApi.recordFundTransaction(ledgerFund.id, {
                 ...payload,
