@@ -114,30 +114,32 @@ export async function reverseExpenseLedger(
 
   for (const row of savingsRows ?? []) {
     const accountId = row.account_id ? String(row.account_id) : null;
-    if (!accountId) continue;
-
     const withdrawalAmount = Number(row.amount ?? 0);
     const restoreAmount = -withdrawalAmount;
-    if (restoreAmount === 0) continue;
 
-    const { data: acct, error: acctErr } = await supabase
-      .from("user_savings_accounts")
-      .select("balance")
-      .eq("id", accountId)
-      .maybeSingle();
-    if (acctErr || !acct) {
-      throw new Error(acctErr?.message ?? "Account not found");
+    if (accountId && restoreAmount !== 0) {
+      const { data: acct, error: acctErr } = await supabase
+        .from("user_savings_accounts")
+        .select("balance")
+        .eq("id", accountId)
+        .maybeSingle();
+      if (acctErr || !acct) {
+        throw new Error(acctErr?.message ?? "Account not found");
+      }
+      const nextBalance = Number(acct.balance ?? 0) + restoreAmount;
+      if (nextBalance < 0) {
+        throw new Error("Insufficient balance for reversal");
+      }
+      const { error: updErr } = await supabase
+        .from("user_savings_accounts")
+        .update({ balance: nextBalance, updated_at: new Date().toISOString() })
+        .eq("id", accountId);
+      if (updErr) throw new Error(updErr.message);
     }
-    const nextBalance = Number(acct.balance ?? 0) + restoreAmount;
-    if (nextBalance < 0) {
-      throw new Error("Insufficient balance for reversal");
-    }
-    const { error: updErr } = await supabase
-      .from("user_savings_accounts")
-      .update({ balance: nextBalance, updated_at: new Date().toISOString() })
-      .eq("id", accountId);
-    if (updErr) throw new Error(updErr.message);
 
+    // Always remove the linked row, even when it had no account (record-only
+    // entries) — otherwise it dangles with a stale expense_id after the
+    // expense is deleted and keeps showing up in history views.
     const { error: delErr } = await supabase
       .from("savings_transactions")
       .delete()

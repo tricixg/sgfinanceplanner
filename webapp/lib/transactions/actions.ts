@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
+import { restoreOtherLoanPayment, restoreOtherLoanDrawDown } from "@/lib/other-loans/pay";
 import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { createBudgetTransaction, deleteBudgetTransaction, getBudgetTransactionById } from "@/lib/budget/transactions";
 import { syncStatementAfterPaymentTransactionDelete } from "@/lib/credit-cards/card-statements/pay";
@@ -91,14 +92,56 @@ export async function deleteTransactionWithLedger(
         });
       }
     }
+
+    if (row.auto_category === "debt" && row.other_loan_id) {
+      const adj = await restoreOtherLoanPayment(
+        supabase,
+        userId,
+        String(row.other_loan_id),
+        Number(row.amount ?? 0)
+      );
+      if (!adj.ok) {
+        console.error("[tx-actions] expense delete other-loan restore failed", {
+          expenseId: id,
+          error: adj.error,
+        });
+      }
+    }
     return;
   }
 
   if (recordType === "savings") {
     const existing = await getSavingsTransactionById(supabase, userId, id);
     if (!existing) throw new Error("Not found");
+
+    const { data: srcRow } = await supabase
+      .from("savings_transactions")
+      .select("source_record_type, source_record_id")
+      .eq("user_id", userId)
+      .eq("id", id)
+      .maybeSingle();
+
     await deleteSavingsTransaction(supabase, userId, id);
     await syncStatementAfterPaymentTransactionDelete(supabase, userId, id, existing.amount);
+
+    if (
+      srcRow?.source_record_type === "other_loan" &&
+      srcRow.source_record_id &&
+      existing.kind === "deposit"
+    ) {
+      const adj = await restoreOtherLoanDrawDown(
+        supabase,
+        userId,
+        String(srcRow.source_record_id),
+        Math.abs(existing.amount)
+      );
+      if (!adj.ok) {
+        console.error("[tx-actions] savings delete draw-down restore failed", {
+          transactionId: id,
+          error: adj.error,
+        });
+      }
+    }
     return;
   }
 

@@ -56,6 +56,47 @@ export async function restoreOtherLoanPayment(
   return { ok: true };
 }
 
+/** Undo the outstanding/principal bookkeeping from addToOtherLoan — used when
+ *  a linked draw-down savings_transactions row is deleted from the history. */
+export async function restoreOtherLoanDrawDown(
+  supabase: SupabaseClient,
+  userId: string,
+  loanId: string,
+  amount: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: row, error } = await supabase
+    .from("other_loans")
+    .select("id, outstanding, principal")
+    .eq("id", loanId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!row) return { ok: false, error: "Loan not found" };
+
+  const nextOutstanding = roundMoney(Math.max(0, Number(row.outstanding ?? 0) - amount));
+  const nextPrincipal = roundMoney(Math.max(0, Number(row.principal ?? 0) - amount));
+
+  const { error: updErr } = await supabase
+    .from("other_loans")
+    .update({
+      outstanding: nextOutstanding,
+      principal: nextPrincipal,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", loanId)
+    .eq("user_id", userId);
+
+  if (updErr) return { ok: false, error: updErr.message };
+
+  console.info("[other-loans] draw-down restored (transaction deleted)", {
+    loanId,
+    amount,
+    nextOutstanding,
+  });
+  return { ok: true };
+}
+
 export async function recordOtherLoanPayment(
   supabase: SupabaseClient,
   userId: string,

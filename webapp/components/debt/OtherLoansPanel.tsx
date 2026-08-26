@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import type { OtherLoan, OtherLoanType } from "@/lib/other-loans/types";
 import type { OtherLoanPaymentRow } from "@/lib/other-loans/payment-history";
@@ -42,6 +42,122 @@ function fmtPaymentWhen(iso: string): string {
   });
 }
 
+function OtherLoanHistoryTable({
+  loanId,
+  onChanged,
+}: {
+  loanId: string;
+  onChanged: () => Promise<void>;
+}) {
+  const [payments, setPayments] = useState<OtherLoanPaymentRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { res, data } = await fetchJson<{
+        payments?: OtherLoanPaymentRow[];
+        error?: string;
+      }>(`/api/other-loans/${loanId}/payments`, { credentials: "include" });
+
+      if (!res.ok) throw new Error(data.error ?? "Failed to load transaction history");
+      setPayments(data.payments ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load transaction history");
+    } finally {
+      setLoading(false);
+    }
+  }, [loanId]);
+
+  useEffect(() => {
+    if (!loanId) {
+      setPayments([]);
+      setLoading(false);
+      return;
+    }
+    void load();
+  }, [loanId, load]);
+
+  const remove = async (p: OtherLoanPaymentRow) => {
+    const label = p.kind === "deposit" ? "draw-down" : "payment";
+    if (!confirm(`Delete this ${label} of ${fmt2(p.amount)} and reverse the loan balance?`)) {
+      return;
+    }
+    setDeletingId(p.id);
+    try {
+      const recordType = p.expenseId ? "expense" : "savings";
+      const targetId = p.expenseId ?? p.id;
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/transactions/${recordType}/${targetId}`,
+        { method: "DELETE", credentials: "include" }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to delete");
+      await load();
+      await onChanged();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="other-loan-pay-history">
+      <h4 className="other-loan-pay-history-title">Transaction history</h4>
+      {loading ? (
+        <p className="note">Loading…</p>
+      ) : error ? (
+        <p className="note" style={{ color: "var(--rust)" }}>
+          {error}
+        </p>
+      ) : payments.length === 0 ? (
+        <p className="note" style={{ fontStyle: "italic" }}>
+          No transactions recorded yet.
+        </p>
+      ) : (
+        <div className="table-scroll">
+          <table className="other-loan-pay-history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Account</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p.id}>
+                  <td>{fmtPaymentWhen(p.occurredAt)}</td>
+                  <td>{p.kind === "deposit" ? "Draw-down" : "Payment"}</td>
+                  <td className="num">{fmt2(p.amount)}</td>
+                  <td>{p.accountName}</td>
+                  <td>{p.note || "—"}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn del sm"
+                      onClick={() => void remove(p)}
+                      disabled={deletingId === p.id}
+                    >
+                      {deletingId === p.id ? "…" : "del"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function defaultOtherLoan(loanType: OtherLoanType): OtherLoan {
   if (loanType === "balance_transfer") {
     return {
@@ -71,10 +187,12 @@ function OtherLoanPayModal({
   loan,
   onClose,
   onPaid,
+  onLoanChanged,
 }: {
   loan: OtherLoan;
   onClose: () => void;
   onPaid: () => Promise<void>;
+  onLoanChanged: () => Promise<void>;
 }) {
   const { accounts } = useFinancialAccounts();
   const cashAccounts = accounts.filter((a) => a.accountType === "cash");
@@ -85,49 +203,6 @@ function OtherLoanPayModal({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-  const [payments, setPayments] = useState<OtherLoanPaymentRow[]>([]);
-  const [paymentsLoading, setPaymentsLoading] = useState(true);
-  const [paymentsError, setPaymentsError] = useState("");
-
-  useEffect(() => {
-    if (!loan.id) {
-      setPayments([]);
-      setPaymentsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setPaymentsLoading(true);
-    setPaymentsError("");
-
-    void (async () => {
-      try {
-        const { res, data } = await fetchJson<{
-          payments?: OtherLoanPaymentRow[];
-          error?: string;
-        }>(`/api/other-loans/${loan.id}/payments`, { credentials: "include" });
-
-        if (!res.ok) throw new Error(data.error ?? "Failed to load payment history");
-        if (!cancelled) {
-          setPayments(data.payments ?? []);
-          console.info("[OtherLoanPayModal] payment history loaded", {
-            loanId: loan.id,
-            count: data.payments?.length ?? 0,
-          });
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setPaymentsError(e instanceof Error ? e.message : "Failed to load payment history");
-        }
-      } finally {
-        if (!cancelled) setPaymentsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [loan.id]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,45 +246,9 @@ function OtherLoanPayModal({
           {loan.amountPaid > 0 ? ` · paid ${fmt2(loan.amountPaid)}` : ""}
         </p>
 
-        <div className="other-loan-pay-history">
-          <h4 className="other-loan-pay-history-title">Transaction history</h4>
-          {paymentsLoading ? (
-            <p className="note">Loading…</p>
-          ) : paymentsError ? (
-            <p className="note" style={{ color: "var(--rust)" }}>
-              {paymentsError}
-            </p>
-          ) : payments.length === 0 ? (
-            <p className="note" style={{ fontStyle: "italic" }}>
-              No transactions recorded yet.
-            </p>
-          ) : (
-            <div className="table-scroll">
-              <table className="other-loan-pay-history-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Amount</th>
-                    <th>Account</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p) => (
-                    <tr key={p.id}>
-                      <td>{fmtPaymentWhen(p.occurredAt)}</td>
-                      <td>{p.kind === "deposit" ? "Draw-down" : "Payment"}</td>
-                      <td className="num">{fmt2(p.amount)}</td>
-                      <td>{p.accountName}</td>
-                      <td>{p.note || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {loan.id ? (
+          <OtherLoanHistoryTable loanId={loan.id} onChanged={onLoanChanged} />
+        ) : null}
 
         <hr style={{ margin: "16px 0" }} />
 
@@ -262,10 +301,12 @@ function OtherLoanAddModal({
   loan,
   onClose,
   onAdded,
+  onLoanChanged,
 }: {
   loan: OtherLoan;
   onClose: () => void;
   onAdded: () => Promise<void>;
+  onLoanChanged: () => Promise<void>;
 }) {
   const { accounts } = useFinancialAccounts();
   const cashAccounts = accounts.filter((a) => a.accountType === "cash");
@@ -276,40 +317,6 @@ function OtherLoanAddModal({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-  const [payments, setPayments] = useState<OtherLoanPaymentRow[]>([]);
-  const [paymentsLoading, setPaymentsLoading] = useState(true);
-  const [paymentsError, setPaymentsError] = useState("");
-
-  useEffect(() => {
-    if (!loan.id) {
-      setPayments([]);
-      setPaymentsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setPaymentsLoading(true);
-    setPaymentsError("");
-
-    void (async () => {
-      try {
-        const { res, data } = await fetchJson<{
-          payments?: OtherLoanPaymentRow[];
-          error?: string;
-        }>(`/api/other-loans/${loan.id}/payments`, { credentials: "include" });
-
-        if (!res.ok) throw new Error(data.error ?? "Failed to load history");
-        if (!cancelled) setPayments(data.payments ?? []);
-      } catch (e) {
-        if (!cancelled)
-          setPaymentsError(e instanceof Error ? e.message : "Failed to load history");
-      } finally {
-        if (!cancelled) setPaymentsLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [loan.id]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,41 +359,9 @@ function OtherLoanAddModal({
           {loan.name} · outstanding {fmt2(loan.outstanding)}
         </p>
 
-        <div className="other-loan-pay-history">
-          <h4 className="other-loan-pay-history-title">Transaction history</h4>
-          {paymentsLoading ? (
-            <p className="note">Loading…</p>
-          ) : paymentsError ? (
-            <p className="note" style={{ color: "var(--rust)" }}>{paymentsError}</p>
-          ) : payments.length === 0 ? (
-            <p className="note" style={{ fontStyle: "italic" }}>No transactions recorded yet.</p>
-          ) : (
-            <div className="table-scroll">
-              <table className="other-loan-pay-history-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Amount</th>
-                    <th>Account</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p) => (
-                    <tr key={p.id}>
-                      <td>{fmtPaymentWhen(p.occurredAt)}</td>
-                      <td>{p.kind === "deposit" ? "Draw-down" : "Payment"}</td>
-                      <td className="num">{fmt2(p.amount)}</td>
-                      <td>{p.accountName}</td>
-                      <td>{p.note || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {loan.id ? (
+          <OtherLoanHistoryTable loanId={loan.id} onChanged={onLoanChanged} />
+        ) : null}
 
         <hr style={{ margin: "16px 0" }} />
 
@@ -566,6 +541,21 @@ export function OtherLoansPanel({
       dispatchDomainEvent(["otherLoans:changed", "cards:changed"]);
     }
     onSaved("Draw-down recorded");
+  };
+
+  const refreshLoansOnly = async () => {
+    const { res, data } = await fetchJson<{ otherLoans?: OtherLoan[] }>(
+      "/api/other-loans",
+      { credentials: "include" }
+    );
+    if (res.ok) {
+      const next = data.otherLoans ?? [];
+      setState((prev) => ({ ...prev, otherLoans: next }));
+      setPayLoan((prev) => (prev ? (next.find((l) => l.id === prev.id) ?? prev) : prev));
+      setAddLoanModal((prev) => (prev ? (next.find((l) => l.id === prev.id) ?? prev) : prev));
+      dispatchDomainEvent(["otherLoans:changed", "expense:changed", "cards:changed"]);
+    }
+    onSaved("Transaction deleted");
   };
 
   const renderBalanceTransferEditRows = () => {
@@ -993,12 +983,14 @@ export function OtherLoansPanel({
           loan={payLoan}
           onClose={() => setPayLoan(null)}
           onPaid={reloadAfterPay}
+          onLoanChanged={refreshLoansOnly}
         />
       ) : null}
 
       {addLoanModal ? (
         <OtherLoanAddModal
           loan={addLoanModal}
+          onLoanChanged={refreshLoansOnly}
           onClose={() => setAddLoanModal(null)}
           onAdded={reloadAfterAdd}
         />
