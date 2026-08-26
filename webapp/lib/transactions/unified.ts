@@ -14,6 +14,8 @@ import {
 } from "@/lib/expenses/list-for-transactions";
 import { sumBudgetTransactionAmounts } from "@/lib/budget/transactions";
 import type { ListUnifiedOpts, UnifiedTransaction } from "@/lib/transactions/types";
+import { EXCLUDED_FROM_BUDGET_LABEL } from "@/lib/transactions/types";
+import { resolveSavingsCategoryFilter } from "@/lib/transactions/category-filter";
 import {
   compareSgtSortAtDescending,
   isoInstantToSgtSortAt,
@@ -32,7 +34,7 @@ function signedBudgetAmount(tx: BudgetTransaction): number {
 export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
   const category =
     tx.incomeCategoryName ??
-    (tx.excludeFromBudget ? "Excluded from budget" : null);
+    (tx.excludeFromBudget ? EXCLUDED_FROM_BUDGET_LABEL : null);
   return {
     id: tx.id,
     recordType: "savings",
@@ -167,7 +169,8 @@ export function unifiedListHasFilters(opts: ListUnifiedOpts): boolean {
       opts.transactionType ||
       (opts.source && opts.source !== "all") ||
       opts.dateFrom ||
-      opts.dateTo
+      opts.dateTo ||
+      opts.category
   );
 }
 
@@ -189,14 +192,17 @@ export async function listUnifiedTransactions(
     !opts.kind &&
     opts.transactionType !== "income";
 
-  const accountFilters = await resolveAccountFilters(supabase, userId, opts);
+  const [accountFilters, categoryFilter] = await Promise.all([
+    resolveAccountFilters(supabase, userId, opts),
+    resolveSavingsCategoryFilter(supabase, userId, opts.category),
+  ]);
 
   const skipSavingsForCardOnly =
     Boolean(accountFilters.financialAccountId) &&
     !accountFilters.accountId &&
     !accountFilters.poolId;
 
-  const fetchSavings = includeSavings && !skipSavingsForCardOnly;
+  const fetchSavings = includeSavings && !skipSavingsForCardOnly && !categoryFilter.skip;
   const fetchBudget = includeBudget;
   const fetchExpenses = includeExpenses;
 
@@ -213,6 +219,9 @@ export async function listUnifiedTransactions(
           kind: opts.kind,
           dateFrom: opts.dateFrom,
           dateTo: opts.dateTo,
+          incomeCategoryId: categoryFilter.incomeCategoryId,
+          categoryBlank: categoryFilter.categoryBlank,
+          excludeFromBudget: categoryFilter.excludeFromBudget,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
     fetchBudget
@@ -223,6 +232,7 @@ export async function listUnifiedTransactions(
           transactionType: opts.transactionType,
           dateFrom: opts.dateFrom,
           dateTo: opts.dateTo,
+          category: opts.category,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
     fetchExpenses
@@ -233,6 +243,7 @@ export async function listUnifiedTransactions(
           transactionType: opts.transactionType,
           dateFrom: opts.dateFrom,
           dateTo: opts.dateTo,
+          category: opts.category,
         })
       : Promise.resolve({ items: [], total: 0, nextOffset: null }),
   ]);
@@ -262,6 +273,9 @@ export async function listUnifiedTransactions(
             kind: opts.kind,
             dateFrom: opts.dateFrom,
             dateTo: opts.dateTo,
+            incomeCategoryId: categoryFilter.incomeCategoryId,
+            categoryBlank: categoryFilter.categoryBlank,
+            excludeFromBudget: categoryFilter.excludeFromBudget,
           })
         : Promise.resolve(0),
       fetchBudget
@@ -270,6 +284,7 @@ export async function listUnifiedTransactions(
             transactionType: opts.transactionType,
             dateFrom: opts.dateFrom,
             dateTo: opts.dateTo,
+            category: opts.category,
           })
         : Promise.resolve(0),
       fetchExpenses
@@ -278,6 +293,7 @@ export async function listUnifiedTransactions(
             transactionType: opts.transactionType,
             dateFrom: opts.dateFrom,
             dateTo: opts.dateTo,
+            category: opts.category,
           })
         : Promise.resolve(0),
     ]);

@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   const sourceParam = searchParams.get("source")?.trim();
   const source =
     sourceParam === "savings" || sourceParam === "budget" ? sourceParam : "all";
+  const category = searchParams.get("category")?.trim() || undefined;
 
   const dateRange = parseDateRangeFilter(
     searchParams.get("dateFrom"),
@@ -99,6 +100,7 @@ export async function GET(req: NextRequest) {
       source,
       dateFrom: dateRange.dateFrom,
       dateTo: dateRange.dateTo,
+      category,
     });
     console.info("[api/transactions] listed", {
       userId: auth.user.id,

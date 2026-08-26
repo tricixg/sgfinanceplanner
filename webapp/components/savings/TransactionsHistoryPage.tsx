@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { UnifiedTransaction } from "@/lib/transactions/types";
+import { UNCATEGORIZED_CATEGORY_FILTER } from "@/lib/transactions/types";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
@@ -75,6 +76,7 @@ function buildQuery(params: {
   financialAccountId: string;
   type: string;
   source: string;
+  category: string;
   dateFrom: string;
   dateTo: string;
   offset: number;
@@ -86,6 +88,7 @@ function buildQuery(params: {
   if (kind) qs.set("kind", kind);
   if (transactionType) qs.set("transactionType", transactionType);
   if (params.source && params.source !== "all") qs.set("source", params.source);
+  if (params.category) qs.set("category", params.category);
   if (params.dateFrom) qs.set("dateFrom", params.dateFrom);
   if (params.dateTo) qs.set("dateTo", params.dateTo);
   return qs.toString();
@@ -99,6 +102,7 @@ export function TransactionsHistoryPage() {
   const financialAccountId = searchParams.get("financialAccountId") ?? "";
   const type = readTypeFromSearchParams(searchParams);
   const source = searchParams.get("source") ?? "all";
+  const category = searchParams.get("category") ?? "";
   const dateFrom = searchParams.get("dateFrom") ?? "";
   const dateTo = searchParams.get("dateTo") ?? "";
   const period = detectPeriod(dateFrom, dateTo);
@@ -110,6 +114,7 @@ export function TransactionsHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedTx, setSelectedTx] = useState<UnifiedTransaction | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const snackbar = useSnackbar();
 
   const { accounts: financialAccounts } = useFinancialAccounts();
@@ -131,6 +136,7 @@ export function TransactionsHistoryPage() {
         financialAccountId: effectiveFinancialAccountId,
         type,
         source,
+        category,
         dateFrom,
         dateTo,
         offset: nextOffset,
@@ -169,25 +175,48 @@ export function TransactionsHistoryPage() {
         setLoadingMore(false);
       }
     },
-    [accountId, effectiveFinancialAccountId, type, source, dateFrom, dateTo, offset]
+    [accountId, effectiveFinancialAccountId, type, source, category, dateFrom, dateTo, offset]
   );
+
+  const loadCategoryOptions = useCallback(async () => {
+    try {
+      const { res, data } = await fetchJson<{ categories?: string[]; error?: string }>(
+        "/api/transactions/categories",
+        { credentials: "include" }
+      );
+      if (res.ok) setCategoryOptions(data.categories ?? []);
+    } catch (e) {
+      console.error("[TransactionsHistoryPage] category options load failed", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadCategoryOptions();
+  }, [loadCategoryOptions]);
 
   useEffect(() => {
     setOffset(0);
     void load(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId, effectiveFinancialAccountId, type, source, dateFrom, dateTo]);
+  }, [accountId, effectiveFinancialAccountId, type, source, category, dateFrom, dateTo]);
 
   useDomainEvent(
     ["expense:changed", "savings:changed", "accounts:changed"],
     () => {
       setOffset(0);
       void load(false);
+      void loadCategoryOptions();
     }
   );
 
   const hasFilters = Boolean(
-    accountId || financialAccountId || type || source !== "all" || dateFrom || dateTo
+    accountId ||
+      financialAccountId ||
+      type ||
+      source !== "all" ||
+      category ||
+      dateFrom ||
+      dateTo
   );
 
   const selectedAccountValue = useMemo(() => {
@@ -204,6 +233,7 @@ export function TransactionsHistoryPage() {
     financialAccountId?: string;
     type?: string;
     source?: string;
+    category?: string;
     dateFrom?: string;
     dateTo?: string;
   }) => {
@@ -213,12 +243,14 @@ export function TransactionsHistoryPage() {
       next.financialAccountId !== undefined ? next.financialAccountId : financialAccountId;
     const t = next.type !== undefined ? next.type : type;
     const src = next.source !== undefined ? next.source : source;
+    const cat = next.category !== undefined ? next.category : category;
     const from = next.dateFrom !== undefined ? next.dateFrom : dateFrom;
     const to = next.dateTo !== undefined ? next.dateTo : dateTo;
     if (a) params.set("accountId", a);
     if (fa) params.set("financialAccountId", fa);
     if (t) params.set("type", t);
     if (src && src !== "all") params.set("source", src);
+    if (cat) params.set("category", cat);
     if (from) params.set("dateFrom", from);
     if (to) params.set("dateTo", to);
     const path = params.toString() ? `/transactions?${params}` : "/transactions";
@@ -299,6 +331,19 @@ export function TransactionsHistoryPage() {
             <option value="savings">Ledger</option>
             <option value="budget">Budget</option>
             <option value="expense">Recorded</option>
+          </select>
+        </label>
+
+        <label className="tx-filter">
+          <span className="tx-filter-label">Category</span>
+          <select value={category} onChange={(e) => setFilters({ category: e.target.value })}>
+            <option value="">All</option>
+            <option value={UNCATEGORIZED_CATEGORY_FILTER}>Uncategorized</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </label>
 

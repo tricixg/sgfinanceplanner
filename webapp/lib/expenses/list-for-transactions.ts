@@ -8,6 +8,7 @@ import { isoInstantToSgtSortAt, sgtSpentAtToIso } from "@/lib/time/sgt";
 import { expenseEntrySourceLabel } from "@/lib/expenses/entry-source";
 import type { Expense } from "@/lib/savings/types";
 import type { BudgetTransactionType, UnifiedTransaction } from "@/lib/transactions/types";
+import { UNCATEGORIZED_CATEGORY_FILTER } from "@/lib/transactions/types";
 
 export type ExpenseForTransaction = Expense & {
   accountName: string | null;
@@ -21,6 +22,7 @@ export type ListExpensesForTransactionsOpts = {
   transactionType?: BudgetTransactionType;
   dateFrom?: string;
   dateTo?: string;
+  category?: string;
 };
 
 export function expenseMatchesTransactionType(
@@ -108,6 +110,11 @@ export async function listExpensesForTransactions(
   } else if (opts.transactionType === "expense") {
     query = query.or("auto_category.is.null,auto_category.neq.subscription");
   }
+  if (opts.category === UNCATEGORIZED_CATEGORY_FILTER) {
+    query = query.eq("category", "");
+  } else if (opts.category) {
+    query = query.eq("category", opts.category);
+  }
   if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
   if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);
 
@@ -174,6 +181,11 @@ export async function sumExpenseAmountsForTransactions(
     query = query.eq("auto_category", "subscription");
   } else if (opts.transactionType === "expense") {
     query = query.or("auto_category.is.null,auto_category.neq.subscription");
+  }
+  if (opts.category === UNCATEGORIZED_CATEGORY_FILTER) {
+    query = query.eq("category", "");
+  } else if (opts.category) {
+    query = query.eq("category", opts.category);
   }
   if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
   if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);

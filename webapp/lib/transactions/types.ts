@@ -1,5 +1,8 @@
 import type { SavingsTransactionKind } from "@/lib/savings/types";
 
+export const UNCATEGORIZED_CATEGORY_FILTER = "__uncategorized__";
+export const EXCLUDED_FROM_BUDGET_LABEL = "Excluded from budget";
+
 export type FinancialAccountType = "cash" | "credit_card";
 
 export type FinancialAccount = {
@@ -81,4 +84,6 @@ export type ListUnifiedOpts = {
   dateFrom?: string;
   /** Inclusive YYYY-MM-DD */
   dateTo?: string;
+  /** Category text, or UNCATEGORIZED_CATEGORY_FILTER for blank/no category. */
+  category?: string;
 };

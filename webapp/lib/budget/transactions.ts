@@ -10,6 +10,7 @@ import type {
   BudgetTransaction,
   BudgetTransactionType,
 } from "@/lib/transactions/types";
+import { UNCATEGORIZED_CATEGORY_FILTER } from "@/lib/transactions/types";
 import { mapBudgetTransaction } from "@/lib/budget/mappers";
 
 export type ListBudgetOpts = {
@@ -19,6 +20,7 @@ export type ListBudgetOpts = {
   transactionType?: BudgetTransactionType;
   dateFrom?: string;
   dateTo?: string;
+  category?: string;
 };
 
 export async function listBudgetTransactions(
@@ -40,6 +42,11 @@ export async function listBudgetTransactions(
   }
   if (opts.transactionType) {
     query = query.eq("transaction_type", opts.transactionType);
+  }
+  if (opts.category === UNCATEGORIZED_CATEGORY_FILTER) {
+    query = query.eq("category", "");
+  } else if (opts.category) {
+    query = query.eq("category", opts.category);
   }
   if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
   if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);
@@ -76,6 +83,11 @@ export async function sumBudgetTransactionAmounts(
   }
   if (opts.transactionType) {
     query = query.eq("transaction_type", opts.transactionType);
+  }
+  if (opts.category === UNCATEGORIZED_CATEGORY_FILTER) {
+    query = query.eq("category", "");
+  } else if (opts.category) {
+    query = query.eq("category", opts.category);
   }
   if (opts.dateFrom) query = query.gte("spent_at", opts.dateFrom);
   if (opts.dateTo) query = query.lte("spent_at", opts.dateTo);

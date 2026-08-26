@@ -339,6 +339,9 @@ export type ListTransactionsOpts = {
   kind?: SavingsTransactionKind;
   dateFrom?: string;
   dateTo?: string;
+  incomeCategoryId?: string;
+  categoryBlank?: boolean;
+  excludeFromBudget?: boolean;
 };
 
 type SavingsListFilterResult =
@@ -418,6 +421,13 @@ export async function listAllTransactions(
   query = applySavingsVisibilityFilters(query, opts, filters.scope);
 
   if (opts.kind) query = query.eq("kind", opts.kind);
+  if (opts.incomeCategoryId) query = query.eq("income_category_id", opts.incomeCategoryId);
+  if (opts.categoryBlank) {
+    query = query.is("income_category_id", null).eq("exclude_from_budget", false);
+  }
+  if (opts.excludeFromBudget) {
+    query = query.is("income_category_id", null).eq("exclude_from_budget", true);
+  }
   if (opts.dateFrom) {
     query = query.gte("occurred_at", savingsOccurredAtLowerBound(opts.dateFrom));
   }
@@ -459,6 +469,13 @@ export async function sumSavingsTransactionAmounts(
   query = applySavingsVisibilityFilters(query, opts, filters.scope);
 
   if (opts.kind) query = query.eq("kind", opts.kind);
+  if (opts.incomeCategoryId) query = query.eq("income_category_id", opts.incomeCategoryId);
+  if (opts.categoryBlank) {
+    query = query.is("income_category_id", null).eq("exclude_from_budget", false);
+  }
+  if (opts.excludeFromBudget) {
+    query = query.is("income_category_id", null).eq("exclude_from_budget", true);
+  }
   if (opts.dateFrom) {
     query = query.gte("occurred_at", savingsOccurredAtLowerBound(opts.dateFrom));
   }

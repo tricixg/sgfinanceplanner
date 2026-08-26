@@ -7,6 +7,7 @@ import {
   unifiedListHasFilters,
 } from "@/lib/transactions/unified";
 import type { BudgetTransaction } from "@/lib/transactions/types";
+import { UNCATEGORIZED_CATEGORY_FILTER } from "@/lib/transactions/types";
 import type { SavingsTransaction } from "@/lib/savings/types";
 
 describe("unified transaction merge (unit sort)", () => {
@@ -122,5 +123,7 @@ describe("unifiedListHasFilters", () => {
     expect(unifiedListHasFilters({ dateFrom: "2026-05-01" })).toBe(true);
     expect(unifiedListHasFilters({ transactionType: "expense" })).toBe(true);
     expect(unifiedListHasFilters({ source: "savings" })).toBe(true);
+    expect(unifiedListHasFilters({ category: "Groceries" })).toBe(true);
+    expect(unifiedListHasFilters({ category: UNCATEGORIZED_CATEGORY_FILTER })).toBe(true);
   });
 });
