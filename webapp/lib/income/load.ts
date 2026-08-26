@@ -70,7 +70,9 @@ export async function saveIncomeCategories(
       slug,
       sort_order: i,
       counts_in_baseline: system ? slug === "salary" || slug === "comms" : false,
-      counts_as_additive: system ? slug === "poker" || slug === "others" : true,
+      counts_as_additive: system
+        ? slug === "poker" || slug === "others" || slug === "reimbursement"
+        : true,
       updated_at: new Date().toISOString(),
     };
 
@@ -106,6 +108,15 @@ export async function findIncomeCategoryBySlug(
 ): Promise<IncomeCategory | null> {
   const categories = await loadIncomeCategories(supabase, userId);
   return categories.find((c) => c.slug === slug) ?? null;
+}
+
+export async function findIncomeCategoryByName(
+  supabase: SupabaseClient,
+  userId: string,
+  name: string
+): Promise<IncomeCategory | null> {
+  const categories = await loadIncomeCategories(supabase, userId);
+  return categories.find((c) => c.name === name) ?? null;
 }
 
 export async function verifyIncomeCategory(

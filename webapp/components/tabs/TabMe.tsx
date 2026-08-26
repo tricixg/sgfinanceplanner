@@ -318,7 +318,7 @@ export function TabMe({
               <span></span>
             </div>
             <div className="editrow">
-              <span>Comms allowance / mo (non-CPF)</span>
+              <span>Communication allowance / mo (non-CPF)</span>
               <DecimalInput
                 value={salaryDraft.comms}
                 onChange={(v) => setSalaryDraft((d) => ({ ...d, comms: v }))}
@@ -352,7 +352,7 @@ export function TabMe({
               <span className="v">{fmt2(S.monthlySal)}</span>
             </div>
             <div className="minirow">
-              <span className="k">Comms allowance / mo (non-CPF)</span>
+              <span className="k">Communication allowance / mo (non-CPF)</span>
               <span className="v">{fmt2(S.comms)}</span>
             </div>
             <div className="minirow">

@@ -17,7 +17,13 @@ export type IncomeCategoryInput = {
   countsAsAdditive?: boolean;
 };
 
-export const SYSTEM_INCOME_SLUGS = ["salary", "poker", "comms", "others"] as const;
+export const SYSTEM_INCOME_SLUGS = [
+  "salary",
+  "poker",
+  "comms",
+  "others",
+  "reimbursement",
+] as const;
 export type SystemIncomeSlug = (typeof SYSTEM_INCOME_SLUGS)[number];
 
 export function isSystemIncomeSlug(slug: string): slug is SystemIncomeSlug {

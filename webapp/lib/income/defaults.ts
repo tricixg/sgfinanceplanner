@@ -9,7 +9,7 @@ export const DEFAULT_INCOME_CATEGORIES: IncomeCategoryInput[] = [
     countsAsAdditive: false,
   },
   {
-    name: "Comms",
+    name: "Communication",
     slug: "comms",
     sortOrder: 1,
     countsInBaseline: true,
@@ -26,6 +26,13 @@ export const DEFAULT_INCOME_CATEGORIES: IncomeCategoryInput[] = [
     name: "Others",
     slug: "others",
     sortOrder: 3,
+    countsInBaseline: false,
+    countsAsAdditive: true,
+  },
+  {
+    name: "Reimbursement",
+    slug: "reimbursement",
+    sortOrder: 4,
     countsInBaseline: false,
     countsAsAdditive: true,
   },

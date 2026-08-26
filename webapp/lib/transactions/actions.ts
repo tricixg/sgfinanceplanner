@@ -10,6 +10,7 @@ import { mapExpense } from "@/lib/savings/db-mappers";
 import { applyReimbursementBudgetImpact } from "@/lib/transactions/reimburse-budget-impact";
 import { formatReimbursementNote } from "@/lib/transactions/reimbursement-note";
 import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
+import { findIncomeCategoryBySlug, verifyIncomeCategory } from "@/lib/income/load";
 
 export type TransactionRecordType = "expense" | "savings" | "budget";
 
@@ -159,13 +160,22 @@ export async function reimburseTransactionWithLedger(
     amount: number;
     financialAccountId?: string;
     note?: string;
+    incomeCategoryId?: string;
   }
 ): Promise<{ recordType: "savings" | "budget"; item: unknown }> {
   const { recordType, id, amount } = input;
   if (!(amount > 0)) throw new Error("Valid amount required");
 
+  const incomeCategory = input.incomeCategoryId
+    ? await verifyIncomeCategory(supabase, userId, input.incomeCategoryId)
+    : await findIncomeCategoryBySlug(supabase, userId, "reimbursement");
+  if (input.incomeCategoryId && !incomeCategory) {
+    throw new Error("Invalid income category");
+  }
+  const category = incomeCategory?.name ?? "Reimbursement";
+  const incomeCategoryId = incomeCategory?.id ?? null;
+
   let defaultFinancialAccountId: string | null = null;
-  let category = "Reimbursement";
   let sourceMeta: {
     id: string;
     amount: number;
@@ -184,7 +194,6 @@ export async function reimburseTransactionWithLedger(
     if (!data) throw new Error("Not found");
     const exp = mapExpense(data);
     defaultFinancialAccountId = exp.financialAccountId ?? null;
-    category = exp.category || "Expense";
     const spentAt = String(exp.spentAt ?? "").slice(0, 10);
     sourceMeta = {
       id: exp.id,
@@ -198,7 +207,6 @@ export async function reimburseTransactionWithLedger(
     const tx = await getBudgetTransactionById(supabase, userId, id);
     if (!tx) throw new Error("Not found");
     defaultFinancialAccountId = tx.financialAccountId;
-    category = tx.category || "Budget";
     sourceMeta = {
       id: tx.id,
       amount: tx.amount,
@@ -256,6 +264,7 @@ export async function reimburseTransactionWithLedger(
       note,
       sourceRecordType: recordType,
       sourceRecordId: id,
+      incomeCategoryId,
     });
     result = { recordType: "savings", item: row };
   } else {

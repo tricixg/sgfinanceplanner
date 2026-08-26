@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { fmtSigned2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import type { DomainEventName } from "@/lib/events/domain-events";
+
+const REIMBURSE_CATEGORY_SLUGS = ["reimbursement", "comms"];
 
 type Props = {
   tx: UnifiedTransaction;
@@ -38,6 +41,7 @@ function eventsForTransactionChange(
 
 export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const { accounts } = useFinancialAccounts();
+  const { categories: incomeCategories } = useIncomeCategories(true);
   const [note, setNote] = useState(tx.note ?? "");
   const [category, setCategory] = useState(tx.category ?? "");
   const [date, setDate] = useState(toDateInput(tx));
@@ -49,6 +53,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const [financialAccountId, setFinancialAccountId] = useState(
     tx.financialAccountId ?? ""
   );
+  const [reimburseCategoryId, setReimburseCategoryId] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const reimburseLock = useRef(false);
@@ -60,6 +65,19 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const canReimburse = true;
 
   const accountOptions = useMemo(() => accounts, [accounts]);
+  const reimburseCategoryOptions = useMemo(
+    () => incomeCategories.filter((c) => REIMBURSE_CATEGORY_SLUGS.includes(c.slug)),
+    [incomeCategories]
+  );
+
+  useEffect(() => {
+    if (!reimburseCategoryId && reimburseCategoryOptions.length) {
+      const def =
+        reimburseCategoryOptions.find((c) => c.slug === "reimbursement") ??
+        reimburseCategoryOptions[0];
+      setReimburseCategoryId(def.id);
+    }
+  }, [reimburseCategoryOptions, reimburseCategoryId]);
 
   const saveEdit = async () => {
     setBusy(true);
@@ -115,6 +133,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
           body: JSON.stringify({
             amount: Number(reimburseAmount || 0),
             financialAccountId: financialAccountId || undefined,
+            incomeCategoryId: reimburseCategoryId || undefined,
           }),
         }
       );
@@ -212,6 +231,21 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
                   ))}
                 </select>
               </label>
+              {reimburseCategoryOptions.length ? (
+                <label>
+                  Reimburse category
+                  <select
+                    value={reimburseCategoryId}
+                    onChange={(e) => setReimburseCategoryId(e.target.value)}
+                  >
+                    {reimburseCategoryOptions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </>
           ) : null}
         </fieldset>

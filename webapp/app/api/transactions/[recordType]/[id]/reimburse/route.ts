@@ -22,7 +22,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Invalid record type" }, { status: 400 });
   }
 
-  let body: { amount?: number; financialAccountId?: string; note?: string };
+  let body: {
+    amount?: number;
+    financialAccountId?: string;
+    note?: string;
+    incomeCategoryId?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -41,11 +46,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       amount,
       financialAccountId: body.financialAccountId,
       note: body.note,
+      incomeCategoryId: body.incomeCategoryId,
     });
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Reimburse failed";
-    const status = msg === "Not found" ? 404 : 500;
+    const status =
+      msg === "Not found" ? 404 : msg === "Invalid income category" ? 400 : 500;
     console.error("[transactions-action] reimburse failed", {
       recordType,
       id,
