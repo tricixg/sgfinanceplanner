@@ -249,7 +249,6 @@ export function TabBTO({ state: S, setState }: Props) {
     () =>
       computeBTO({
         price: p.price,
-        ltv: p.ltv,
         rate: p.rate,
         tenure: p.tenure,
         optionFee: p.optionFee,
@@ -574,10 +573,6 @@ export function TabBTO({ state: S, setState }: Props) {
                 <option value={1000}>$1,000 — 3-room</option>
                 <option value={2000}>$2,000 — 4/5-room / 3Gen</option>
               </select>
-            </label>
-            <label className="bto-field">
-              HDB loan LTV %
-              <DecimalInput value={p.ltv} onChange={(v) => updatePrefs({ ltv: v })} />
             </label>
             <label className="bto-field">
               Loan interest % p.a.

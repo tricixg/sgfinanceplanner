@@ -82,7 +82,6 @@ describe("BTO schemes", () => {
   it("grants reduce the informational net price but not the loan/BSD/downpayment — they credit CPF OA instead", () => {
     const base = {
       price: 580000,
-      ltv: 75,
       rate: 2.6,
       tenure: 25,
       bookingOffsetMonths: 4,
@@ -243,7 +242,6 @@ describe("resolveBTOMonthOffsets", () => {
 describe("computeBTO payment waterfall", () => {
   const common = {
     price: 500000,
-    ltv: 75,
     rate: 2.6,
     tenure: 25,
     bookingOffsetMonths: 4,

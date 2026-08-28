@@ -180,7 +180,6 @@ export type BtoPlannerPrefs = {
   /** BTO project name, e.g. "Berlayar Rise". */
   projectName: string;
   price: number;
-  ltv: number;
   rate: number;
   tenure: number;
   yrsToKeys: number;
@@ -193,7 +192,7 @@ export type BtoPlannerPrefs = {
   legalFee: number;
   /** Staggered Downpayment Scheme: 5% @ AFL / 20% @ keys instead of 10% / 15%. */
   staggered: boolean;
-  /** Bank/HDB-assessed max loan amount (AIP/HLE letter); 0 = not set, use LTV-derived loan. */
+  /** Bank/HDB-assessed max loan amount (AIP/HLE letter); 0 = not set, use HDB's fixed 75% max LTV. */
   maxLoanEligible: number;
   tSal: number;
   pSal: number;

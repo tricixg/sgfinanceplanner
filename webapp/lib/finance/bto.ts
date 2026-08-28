@@ -12,6 +12,9 @@ import { fmt } from "./helpers";
 /** Months from BTO application to the booking (1st) appointment. */
 const BOOKING_OFFSET_MONTHS = 4;
 
+/** HDB's fixed max loan-to-value ratio — not something a buyer can choose. */
+const MAX_HDB_LTV = 0.75;
+
 /**
  * BtoPlannerPrefs fields that describe the flat/application itself rather
  * than either person — shared across a linked household via
@@ -21,7 +24,6 @@ const BOOKING_OFFSET_MONTHS = 4;
 export const SHARED_BTO_FIELD_KEYS = [
   "projectName",
   "price",
-  "ltv",
   "rate",
   "tenure",
   "yrsToKeys",
@@ -54,7 +56,6 @@ export function splitSharedBtoFields(prefs: BtoPlannerPrefs): SharedBtoPlannerFi
 
 export type BTOInputs = {
   price: number;
-  ltv: number;
   rate: number;
   tenure: number;
   optionFee: number;
@@ -117,7 +118,6 @@ export function normalizeBtoPlannerPrefs(
         ? raw.projectName
         : base.projectName,
     price: typeof raw.price === "number" ? raw.price : base.price,
-    ltv: typeof raw.ltv === "number" ? raw.ltv : base.ltv,
     rate: typeof raw.rate === "number" ? raw.rate : base.rate,
     tenure: typeof raw.tenure === "number" ? raw.tenure : base.tenure,
     yrsToKeys: typeof raw.yrsToKeys === "number" ? raw.yrsToKeys : base.yrsToKeys,
@@ -174,7 +174,6 @@ export function defaultBtoPlannerPrefs(opts: {
   return {
     projectName: "Berlayar Rise",
     price: 580000,
-    ltv: 75,
     rate: 2.6,
     tenure: 25,
     yrsToKeys: 4,
@@ -385,7 +384,6 @@ export function calcBSD(price: number): number {
 export function computeBTO(inputs: BTOInputs) {
   const {
     price,
-    ltv,
     rate,
     tenure,
     optionFee,
@@ -400,7 +398,6 @@ export function computeBTO(inputs: BTOInputs) {
     tOAMonthly,
     pOAMonthly,
   } = inputs;
-  const ltvFrac = ltv / 100;
   const rateFrac = rate / 100;
   const totalGrants = totalHousingGrants(schemes, { tSal, pSal });
   // Informational only below (shown as "after grants") — grants don't reduce
@@ -409,20 +406,22 @@ export function computeBTO(inputs: BTOInputs) {
 
   // Loan eligibility, BSD, and the downpayment percentages are all based on
   // the full purchase price — CPF housing grants don't reduce them. Loan is
-  // LTV-derived unless a bank/HDB-assessed max eligible amount caps it lower.
-  const ltvLoan = price * ltvFrac;
-  const loanCapped = maxLoanEligible > 0 && maxLoanEligible < ltvLoan;
-  const loan = maxLoanEligible > 0 ? Math.min(ltvLoan, maxLoanEligible) : ltvLoan;
+  // capped at HDB's fixed 75% max LTV unless a bank/HDB-assessed max eligible
+  // amount caps it lower.
+  const maxHdbLoan = price * MAX_HDB_LTV;
+  const loanCapped = maxLoanEligible > 0 && maxLoanEligible < maxHdbLoan;
+  const loan = maxLoanEligible > 0 ? Math.min(maxHdbLoan, maxLoanEligible) : maxHdbLoan;
 
   // HDB's downpayment is a flat percentage of price — 5%/20% (AFL/KC) under
   // the Staggered Downpayment Scheme, 10%/15% otherwise — fixed regardless of
-  // grants or whether the loan covers the full LTV. Any shortfall between the
-  // LTV-implied loan and a lower assessed max eligible loan is a top-up that
-  // falls entirely on the key-collection payment, not spread into AFL.
-  // Grants instead credit extra CPF OA funds (below) to help pay these bills.
+  // grants or whether the loan covers the full LTV. Any shortfall between
+  // HDB's max loan (75% LTV) and a lower assessed max eligible loan is a
+  // top-up that falls entirely on the key-collection payment, not spread
+  // into AFL. Grants instead credit extra CPF OA funds (below) to help pay
+  // these bills.
   const dpAFL = price * (staggered ? 0.05 : 0.1);
   const dpKCBase = price * (staggered ? 0.2 : 0.15);
-  const loanShortfall = Math.max(0, ltvLoan - loan);
+  const loanShortfall = Math.max(0, maxHdbLoan - loan);
   const dpKC = dpKCBase + loanShortfall;
   const dpTotal = dpAFL + dpKC;
 
