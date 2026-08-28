@@ -3,7 +3,7 @@ import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
-import { loanLoadForMonth, otherLoanMonthlyLoad } from "@/lib/finance/loanLoad";
+import { totalLoanLoadForMonth } from "@/lib/finance/loanLoad";
 import { loadLoans } from "@/lib/loans/load";
 import { loadOtherLoans } from "@/lib/other-loans/load";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
@@ -71,7 +71,7 @@ export async function loadMonthBudgetSummary(
   }));
 
   const computedAlloc = {
-    debt: loanLoadForMonth(loans, ym) + otherLoanMonthlyLoad(otherLoans),
+    debt: totalLoanLoadForMonth(loans, otherLoans, ym),
     insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
     ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
   };

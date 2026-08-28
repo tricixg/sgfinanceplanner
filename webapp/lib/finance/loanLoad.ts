@@ -20,3 +20,12 @@ export function otherLoanMonthlyLoad(otherLoans: OtherLoan[]): number {
     0
   );
 }
+
+/** Combined monthly loan/debt load: card-linked instalments plus personal loans. */
+export function totalLoanLoadForMonth(
+  loans: DashboardState["loans"],
+  otherLoans: OtherLoan[],
+  ym: string
+): number {
+  return loanLoadForMonth(loans, ym) + otherLoanMonthlyLoad(otherLoans ?? []);
+}

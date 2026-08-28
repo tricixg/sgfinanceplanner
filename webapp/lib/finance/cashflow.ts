@@ -6,7 +6,7 @@ import { computedInsuranceMonthly } from "./insurance";
 import { computedIlpMonthly } from "./ilp";
 import { formatMonthLabel } from "./helpers";
 import { monthCashIncome } from "@/lib/income/hybrid-cashflow";
-import { loanLoadForMonth } from "./loanLoad";
+import { loanLoadForMonth, totalLoanLoadForMonth } from "./loanLoad";
 
 export { stableTakeHome } from "./income";
 
@@ -27,7 +27,7 @@ export type MonthRow = {
   running: number;
 };
 
-export { loanLoadForMonth } from "./loanLoad";
+export { loanLoadForMonth, totalLoanLoadForMonth } from "./loanLoad";
 
 export function insMonthly(S: DashboardState): number {
   return computedInsuranceMonthly(S);
@@ -80,7 +80,7 @@ export function buildMonths(
 
   let running = resolveDashboardCash(S, savings).cash;
   return months.map((o) => {
-    const loans = loanLoadForMonth(S.loans, o.ym);
+    const loans = totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], o.ym);
     const net = o.income - o.fixed - o.spend - loans - ilpPrem - insurance;
     running += net;
     return {
@@ -103,5 +103,5 @@ export function currentLoanLoad(S: DashboardState, ym?: string): number {
   const ymVal =
     ym ??
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-  return loanLoadForMonth(S.loans, ymVal);
+  return totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], ymVal);
 }

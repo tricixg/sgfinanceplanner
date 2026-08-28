@@ -5,7 +5,7 @@ import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { loadLoans } from "@/lib/loans/load";
 import { loadOtherLoans } from "@/lib/other-loans/load";
-import { loanLoadForMonth, otherLoanMonthlyLoad } from "@/lib/finance/loanLoad";
+import { totalLoanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
   }));
 
   const computedAlloc = {
-    debt: loanLoadForMonth(loans, ym) + otherLoanMonthlyLoad(otherLoans),
+    debt: totalLoanLoadForMonth(loans, otherLoans, ym),
     insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
     ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
   };

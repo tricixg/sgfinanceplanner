@@ -6,7 +6,7 @@ import type { SavingsSnapshot } from "@/lib/savings/types";
 import {
   buildMonths,
   stableTakeHome,
-  loanLoadForMonth,
+  totalLoanLoadForMonth,
   budgetFixedTotal,
   budgetSpendTotal,
   computedIlpMonthly,
@@ -81,8 +81,8 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
   const newCash = stableTakeHome(S);
   const firstYm = rows[0]?.ym ?? startYm;
   const lastYm = rows[rows.length - 1]?.ym ?? startYm;
-  const loadFirst = loanLoadForMonth(S.loans, firstYm);
-  const loadLast = loanLoadForMonth(S.loans, lastYm);
+  const loadFirst = totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], firstYm);
+  const loadLast = totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], lastYm);
 
   const chartData = useMemo(
     () => ({
@@ -178,7 +178,7 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
   };
 
   const midYm = rows[2]?.ym ?? firstYm;
-  const midLoans = loanLoadForMonth(S.loans, midYm);
+  const midLoans = totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], midYm);
   const items: [string, number][] = [
     ...S.budget
       .filter((b) => b.type !== "save" && b.type !== "invest")
