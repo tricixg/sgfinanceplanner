@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { MilesBalance, MilesTotals } from "@/lib/miles/types";
 import { MilesContext } from "@/contexts/app-data-contexts";
@@ -41,8 +41,11 @@ export function useMilesProvider(enabled: boolean) {
     }
   }, [enabled]);
 
-  useEffect(() => {
-    load();
+  const requestedRef = useRef(false);
+  const ensureLoaded = useCallback(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
+    void load();
   }, [load]);
 
   useEffect(() => {
@@ -89,9 +92,10 @@ export function useMilesProvider(enabled: boolean) {
       loading,
       configured,
       reload: load,
+      ensureLoaded,
       saveBalances,
     }),
-    [balances, totals, loading, configured, load, saveBalances]
+    [balances, totals, loading, configured, load, ensureLoaded, saveBalances]
   );
 }
 
@@ -100,5 +104,9 @@ export function useMiles() {
   if (!ctx) {
     throw new Error("useMiles must be used within AppDataProvider");
   }
+  useEffect(() => {
+    ctx.ensureLoaded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLoaded only, not ctx itself
+  }, [ctx.ensureLoaded]);
   return ctx;
 }

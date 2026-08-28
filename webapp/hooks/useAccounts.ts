@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import {
   ACCOUNTS_CHANGED_EVENT,
@@ -45,8 +45,11 @@ export function useAccountsProvider(enabled: boolean) {
     }
   }, [enabled]);
 
-  useEffect(() => {
-    load();
+  const requestedRef = useRef(false);
+  const ensureLoaded = useCallback(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
+    void load();
   }, [load]);
 
   useEffect(() => {
@@ -133,10 +136,20 @@ export function useAccountsProvider(enabled: boolean) {
       loading,
       configured,
       reload: load,
+      ensureLoaded,
       saveAccounts,
       recordAccountTransaction,
     }),
-    [accounts, totals, loading, configured, load, saveAccounts, recordAccountTransaction]
+    [
+      accounts,
+      totals,
+      loading,
+      configured,
+      load,
+      ensureLoaded,
+      saveAccounts,
+      recordAccountTransaction,
+    ]
   );
 }
 
@@ -145,5 +158,9 @@ export function useAccounts() {
   if (!ctx) {
     throw new Error("useAccounts must be used within AppDataProvider");
   }
+  useEffect(() => {
+    ctx.ensureLoaded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLoaded only, not ctx itself
+  }, [ctx.ensureLoaded]);
   return ctx;
 }

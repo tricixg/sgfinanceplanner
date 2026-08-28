@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { HouseholdMember, PartnerInvite } from "@/lib/savings/types";
 import { HouseholdContext } from "@/contexts/app-data-contexts";
@@ -49,8 +49,11 @@ export function useHouseholdProvider(enabled: boolean) {
     }
   }, [enabled]);
 
-  useEffect(() => {
-    load();
+  const requestedRef = useRef(false);
+  const ensureLoaded = useCallback(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
+    void load();
   }, [load]);
 
   const sendInvite = useCallback(
@@ -114,6 +117,7 @@ export function useHouseholdProvider(enabled: boolean) {
     loading,
     configured,
     reload: load,
+    ensureLoaded,
     sendInvite,
     respondInvite,
     unlinkPartner,
@@ -125,5 +129,9 @@ export function useHousehold() {
   if (!ctx) {
     throw new Error("useHousehold must be used within AppDataProvider");
   }
+  useEffect(() => {
+    ctx.ensureLoaded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLoaded only, not ctx itself
+  }, [ctx.ensureLoaded]);
   return ctx;
 }

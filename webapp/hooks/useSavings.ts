@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { SavingsBundle, SavingsGoal, SavingsPool } from "@/lib/savings/types";
 import { SavingsContext } from "@/contexts/app-data-contexts";
@@ -93,8 +93,11 @@ export function useSavingsProvider(enabled: boolean) {
     [enabled]
   );
 
-  useEffect(() => {
-    load();
+  const requestedRef = useRef(false);
+  const ensureLoaded = useCallback(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
+    void load();
   }, [load]);
 
   useDomainEvent("savings:changed", () => {
@@ -199,6 +202,7 @@ export function useSavingsProvider(enabled: boolean) {
     configured,
     error,
     reload: load,
+    ensureLoaded,
     savePools,
     saveGoals,
     recordGoalDeposit,
@@ -211,5 +215,9 @@ export function useSavings() {
   if (!ctx) {
     throw new Error("useSavings must be used within AppDataProvider");
   }
+  useEffect(() => {
+    ctx.ensureLoaded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLoaded only, not ctx itself
+  }, [ctx.ensureLoaded]);
   return ctx;
 }

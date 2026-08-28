@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { Fund, FundsTotals } from "@/lib/funds/types";
 import { FundsContext } from "@/contexts/app-data-contexts";
@@ -41,8 +41,11 @@ export function useFundsProvider(enabled: boolean) {
     }
   }, [enabled]);
 
-  useEffect(() => {
-    load();
+  const requestedRef = useRef(false);
+  const ensureLoaded = useCallback(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
+    void load();
   }, [load]);
 
   useEffect(() => {
@@ -135,6 +138,7 @@ export function useFundsProvider(enabled: boolean) {
       loading,
       configured,
       reload: load,
+      ensureLoaded,
       saveFunds,
       recordFundTransaction,
       deleteFundTransaction,
@@ -145,6 +149,7 @@ export function useFundsProvider(enabled: boolean) {
       loading,
       configured,
       load,
+      ensureLoaded,
       saveFunds,
       recordFundTransaction,
       deleteFundTransaction,
@@ -157,5 +162,9 @@ export function useFunds() {
   if (!ctx) {
     throw new Error("useFunds must be used within AppDataProvider");
   }
+  useEffect(() => {
+    ctx.ensureLoaded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLoaded only, not ctx itself
+  }, [ctx.ensureLoaded]);
   return ctx;
 }

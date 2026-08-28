@@ -72,6 +72,7 @@ export type SavingsContextValue = {
   configured: boolean;
   error: string;
   reload: (opts?: { silent?: boolean }) => Promise<void>;
+  ensureLoaded: () => void;
   savePools: (pools: SavingsPool[]) => Promise<void>;
   saveGoals: (goals: SavingsGoal[]) => Promise<void>;
   recordGoalDeposit: (
@@ -101,6 +102,7 @@ export type AccountsContextValue = {
   loading: boolean;
   configured: boolean;
   reload: () => Promise<void>;
+  ensureLoaded: () => void;
   saveAccounts: (next: UserSavingsAccount[]) => Promise<void>;
   recordAccountTransaction: (
     accountId: string,
@@ -120,6 +122,7 @@ export type FundsContextValue = {
   loading: boolean;
   configured: boolean;
   reload: () => Promise<void>;
+  ensureLoaded: () => void;
   saveFunds: (next: Fund[]) => Promise<void>;
   recordFundTransaction: (
     fundId: string,
@@ -140,6 +143,7 @@ export type MilesContextValue = {
   loading: boolean;
   configured: boolean;
   reload: () => Promise<void>;
+  ensureLoaded: () => void;
   saveBalances: (next: MilesBalance[]) => Promise<void>;
 };
 
@@ -152,6 +156,7 @@ export type HouseholdContextValue = {
   loading: boolean;
   configured: boolean;
   reload: () => Promise<void>;
+  ensureLoaded: () => void;
   sendInvite: (email: string) => Promise<void>;
   respondInvite: (id: string, action: "accept" | "decline" | "cancel") => Promise<void>;
   unlinkPartner: () => Promise<void>;
@@ -162,6 +167,7 @@ export type FinancialAccountsContextValue = {
   loading: boolean;
   configured: boolean;
   reload: () => Promise<void>;
+  ensureLoaded: () => void;
 };
 
 export const AppDataContext = createContext<AppDataContextValue | null>(null);

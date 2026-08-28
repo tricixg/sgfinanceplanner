@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { FinancialAccountsContext } from "@/contexts/app-data-contexts";
@@ -40,7 +40,10 @@ export function useFinancialAccountsProvider(enabled: boolean) {
     }
   }, [enabled]);
 
-  useEffect(() => {
+  const requestedRef = useRef(false);
+  const ensureLoaded = useCallback(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
     void load();
   }, [load]);
 
@@ -53,6 +56,7 @@ export function useFinancialAccountsProvider(enabled: boolean) {
     loading,
     configured,
     reload: load,
+    ensureLoaded,
   };
 }
 
@@ -61,5 +65,9 @@ export function useFinancialAccounts() {
   if (!ctx) {
     throw new Error("useFinancialAccounts must be used within AppDataProvider");
   }
+  useEffect(() => {
+    ctx.ensureLoaded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLoaded only, not ctx itself
+  }, [ctx.ensureLoaded]);
   return ctx;
 }

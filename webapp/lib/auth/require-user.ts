@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 import {
   getDevBypassEmail,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/auth/dev-bypass";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { TRUSTED_USER_HEADER, decodeTrustedUser } from "@/lib/auth/trusted-header";
 
 function devBypassUser(): User | null {
   const id = getDevBypassUserId();
@@ -22,11 +24,33 @@ function devBypassUser(): User | null {
   } as User;
 }
 
+async function trustedHeaderUser(): Promise<User | null> {
+  const headerStore = await headers();
+  const trusted = decodeTrustedUser(headerStore.get(TRUSTED_USER_HEADER));
+  if (!trusted) return null;
+  return {
+    id: trusted.id,
+    email: trusted.email,
+    app_metadata: {},
+    user_metadata: { has_password: trusted.hasPassword },
+    aud: "authenticated",
+    created_at: new Date().toISOString(),
+  } as User;
+}
+
 export async function getSessionUser(): Promise<User | null> {
   if (isDevAuthBypass()) {
     return devBypassUser();
   }
   if (!isSupabaseAuthConfigured()) return null;
+
+  // Middleware already verified this request's JWT against Supabase Auth and forwarded the
+  // result — trust it instead of paying for a second network round-trip here. Falls through
+  // to a live check only if the header is missing (a request that somehow bypassed
+  // middleware), so there's no security downgrade either way.
+  const fromHeader = await trustedHeaderUser();
+  if (fromHeader) return fromHeader;
+
   const supabase = await createClient();
   const {
     data: { user },
