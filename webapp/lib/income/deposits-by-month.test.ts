@@ -26,4 +26,34 @@ describe("addAdditiveRowsToMonths", () => {
     ]);
     expect(result["2026-05"]).toBe(45);
   });
+
+  it("ignores reimbursement-linked deposits when excludeReimbursements is set (additive bucket)", () => {
+    const result = { "2026-05": 0 };
+    addAdditiveRowsToMonths(
+      result,
+      [
+        {
+          occurred_at: "2026-05-01T00:00:00Z",
+          amount: 500,
+          source_record_id: "expense-123",
+        },
+        { occurred_at: "2026-05-02T00:00:00Z", amount: 80, source_record_id: null },
+      ],
+      true
+    );
+    expect(result["2026-05"]).toBe(80);
+  });
+
+  it("counts reimbursement-linked deposits by default (baseline bucket)", () => {
+    const result = { "2026-05": 0 };
+    addAdditiveRowsToMonths(result, [
+      {
+        occurred_at: "2026-05-01T00:00:00Z",
+        amount: 500,
+        source_record_id: "expense-123",
+      },
+      { occurred_at: "2026-05-02T00:00:00Z", amount: 80, source_record_id: null },
+    ]);
+    expect(result["2026-05"]).toBe(580);
+  });
 });

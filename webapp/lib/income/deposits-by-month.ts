@@ -10,9 +10,17 @@ function addMonthsYm(ym: string, n: number): string {
 
 export function addAdditiveRowsToMonths(
   result: Record<string, number>,
-  rows: Array<{ occurred_at?: unknown; amount?: unknown }>
+  rows: Array<{ occurred_at?: unknown; amount?: unknown; source_record_id?: unknown }>,
+  excludeReimbursements = false
 ): Record<string, number> {
   for (const row of rows) {
+    // Reimbursement-linked deposits (source_record_id set) return money for an expense
+    // this model's flat budget allocation never subtracted as an outflow — counting them
+    // as additive income would double it. Only applies to the additive bucket: deposits
+    // filed under the Communication category are tracked as real recurring income by
+    // design and should keep replacing the baseline, even if they happen to also be
+    // linked to a source record.
+    if (excludeReimbursements && row.source_record_id != null) continue;
     const occurred = String(row.occurred_at ?? "");
     const ym = occurred.slice(0, 7);
     if (!(ym in result)) continue;
@@ -58,7 +66,7 @@ async function loadIncomeByYmForFlag(
 
   const { data: rows, error } = await supabase
     .from("savings_transactions")
-    .select("amount, occurred_at, income_category_id")
+    .select("amount, occurred_at, income_category_id, source_record_id")
     .eq("user_id", userId)
     .eq("kind", "deposit")
     .in("income_category_id", categoryIds)
@@ -67,7 +75,7 @@ async function loadIncomeByYmForFlag(
 
   if (error) throw new Error(error.message);
 
-  addAdditiveRowsToMonths(result, rows ?? []);
+  addAdditiveRowsToMonths(result, rows ?? [], flagColumn === "counts_as_additive");
 
   console.info("[income] deposits by month", { userId, startYm, count, flagColumn, result });
   return result;
