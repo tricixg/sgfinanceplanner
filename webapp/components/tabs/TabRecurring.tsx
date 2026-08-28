@@ -9,13 +9,15 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { formatDeductionDayLabel } from "@/lib/recurring/prefill";
-import type { BudgetItem, RecurringInvestment, RecurringSubscription } from "@/lib/types";
+import type { RecurringInvestment, RecurringSubscription } from "@/lib/types";
 import { defaultRecurringInvestment, defaultRecurringSubscription } from "@/lib/finance/budget";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
+import { useAppData } from "@/hooks/useAppData";
+import { useFunds } from "@/hooks/useFunds";
 
 const KIND_LABEL: Record<RecurringRow["kind"], string> = {
   debt: "Debt",
@@ -24,8 +26,6 @@ const KIND_LABEL: Record<RecurringRow["kind"], string> = {
   subscription: "Other Recurring",
   invest: "Recurring Invest",
 };
-
-type FundOption = { id: string; name: string };
 
 type Props = {
   enabled: boolean;
@@ -48,37 +48,13 @@ export function TabRecurring({ enabled, onReload }: Props) {
   const [investDraft, setInvestDraft] = useState<RecurringInvestment[]>([]);
   const [savingInvest, setSavingInvest] = useState(false);
   const [investError, setInvestError] = useState("");
-  const [budgetLines, setBudgetLines] = useState<BudgetItem[]>([]);
-  const [funds, setFunds] = useState<FundOption[]>([]);
-
-  const loadBudgetLines = useCallback(async () => {
-    if (!enabled) return;
-    const { res, data } = await fetchJson<{ budget?: BudgetItem[] }>("/api/budget-lines", {
-      credentials: "include",
-    });
-    if (res.ok) setBudgetLines(data.budget ?? []);
-  }, [enabled]);
-
-  const loadFunds = useCallback(async () => {
-    if (!enabled) return;
-    const { res, data } = await fetchJson<{ funds?: FundOption[] }>("/api/funds", {
-      credentials: "include",
-    });
-    if (res.ok) setFunds(data.funds ?? []);
-  }, [enabled]);
-
-  useEffect(() => {
-    void loadBudgetLines();
-    void loadFunds();
-  }, [loadBudgetLines, loadFunds]);
-
-  useDomainEvent(["budget:changed"], () => {
-    void loadBudgetLines();
-  });
-
-  useDomainEvent(["funds:changed"], () => {
-    void loadFunds();
-  });
+  // Both already live in the shared session cache — no need to fetch our own
+  // copy. state.budget stays current via the same AppDataProvider instance
+  // every save goes through; useFunds() lazy-loads + auto-refreshes on
+  // funds:changed internally (see hooks/useFunds.ts).
+  const { state } = useAppData();
+  const { funds } = useFunds();
+  const budgetLines = state.budget;
 
   const categoryOptions = budgetLines.filter((b) => b.type === "fixed" || b.type === "spend");
   const categoryName = (id?: string) =>
