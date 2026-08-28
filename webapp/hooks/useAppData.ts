@@ -8,6 +8,7 @@ import type { FinanceProfile } from "@/lib/profile/load";
 import type { CpfContribution } from "@/lib/cpf/types";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 export const PORTFOLIO_HISTORY_LIMIT = 30;
 export const NET_WORTH_HISTORY_LIMIT = 60;
@@ -249,6 +250,15 @@ export function useAppDataProvider(enabled: boolean) {
       });
     }
   }, []);
+
+  // Dispatched by TabCards/CardPaymentModal (a statement payment can pay down
+  // a linked BT loan) and OtherLoansPanel (direct edits) — nothing else keeps
+  // the session-cached otherLoans in sync with those, so Debt and the net
+  // worth liabilities breakdown would otherwise show stale balances until a
+  // full reload.
+  useDomainEvent(["otherLoans:changed"], () => {
+    void reloadOtherLoans();
+  });
 
   const patchProfile = useCallback(
     async (patch: Partial<FinanceProfile>) => {
