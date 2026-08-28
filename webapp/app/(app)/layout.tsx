@@ -1,6 +1,5 @@
 "use client";
 
-import "@/components/chart-setup";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/app/AppShell";
 import { AppSessionProvider } from "@/contexts/AppSessionContext";
