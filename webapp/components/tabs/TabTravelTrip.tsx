@@ -160,8 +160,11 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
   useEffect(() => {
     if (!enabled) return;
     void load();
+    // editingTrip deliberately excluded: entering/canceling/saving the edit
+    // form never needs a refetch (see saveTripMeta and the Cancel handler,
+    // both of which update trip/tripDraft directly from data already in hand).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, tripId, editingTrip]);
+  }, [enabled, tripId]);
 
   const saveTripMeta = async () => {
     if (!trip) return;
