@@ -45,7 +45,6 @@ export function LoginClient() {
   const [configured, setConfigured] = useState(false);
   const [step, setStep] = useState<Step>({ type: "email" });
   const [email, setEmail] = useState("");
-  const [checking2, setChecking2] = useState(false);
   const [formError, setFormError] = useState(initialError);
 
   const checkSession = useCallback(async () => {
@@ -87,34 +86,17 @@ export function LoginClient() {
     window.history.replaceState({}, "", `/login${suffix}`);
   }, [authCode, next]);
 
-  const handleEmailContinue = async (e: React.FormEvent) => {
+  const handleEmailContinue = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed) return;
     setFormError("");
-    setChecking2(true);
-    try {
-      const { res, data } = await fetchJson<{
-        isKnownUser?: boolean;
-        hasPassword?: boolean;
-      }>("/api/auth/check-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: trimmed }),
-      });
-      if (!res.ok) throw new Error("Check failed");
-      if (data.hasPassword) {
-        setStep({ type: "password", email: trimmed });
-      } else {
-        setStep({ type: "magic-link", email: trimmed });
-      }
-    } catch (e) {
-      console.error("[login] check-email failed", e);
-      setStep({ type: "magic-link", email: trimmed });
-    } finally {
-      setChecking2(false);
-    }
+    // Land on magic-link by default — it's the only path that works for a brand-new
+    // email (password is opt-in, set from Me/Settings after first sign-in). Whether
+    // this email has an account or a password is never checked ahead of time: doing
+    // so would mean an unauthenticated endpoint that answers that question for any
+    // email, which is an account-enumeration vector.
+    setStep({ type: "magic-link", email: trimmed });
   };
 
   if (checking) {
@@ -162,6 +144,9 @@ export function LoginClient() {
         redirectNext={next}
         initialEmail={step.email}
         onBack={() => setStep({ type: "email" })}
+        onSwitchToPassword={() =>
+          setStep({ type: "password", email: step.email })
+        }
       />
     );
   }
@@ -172,8 +157,8 @@ export function LoginClient() {
         <div className="kicker">{appConfig.kicker}</div>
         <h1 className="pin-title">Continue with email</h1>
         <p className="sub" style={{ marginBottom: 20 }}>
-          Enter your email to sign in. If you have set up a password, you can use it
-          directly. Otherwise a magic link will be sent.
+          Enter your email to sign in with a magic link, or switch to a password on
+          the next screen if you have one set up.
         </p>
         <form onSubmit={handleEmailContinue}>
           <label className="pin-label auth-label">
@@ -194,12 +179,8 @@ export function LoginClient() {
               {formError}
             </p>
           ) : null}
-          <button
-            type="submit"
-            className="btn"
-            disabled={checking2 || !email.trim()}
-          >
-            {checking2 ? "Checking…" : "Continue"}
+          <button type="submit" className="btn" disabled={!email.trim()}>
+            Continue
           </button>
         </form>
       </div>

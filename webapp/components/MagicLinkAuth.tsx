@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { appConfig } from "@/lib/config";
 
 type Props = {
   redirectNext?: string;
   initialError?: string;
-  /** Pre-filled email — also triggers auto-send. */
+  /** Pre-filled email — the user still has to click Send. */
   initialEmail?: string;
   onBack?: () => void;
+  onSwitchToPassword?: () => void;
 };
 
 export function MagicLinkAuth({
@@ -17,12 +18,12 @@ export function MagicLinkAuth({
   initialError = "",
   initialEmail = "",
   onBack,
+  onSwitchToPassword,
 }: Props) {
   const [email, setEmail] = useState(initialEmail);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(initialError);
   const [submitting, setSubmitting] = useState(false);
-  const autoSentRef = useRef(false);
 
   const sendMagicLink = async (targetEmail: string) => {
     setError("");
@@ -50,15 +51,6 @@ export function MagicLinkAuth({
     }
   };
 
-  // Auto-send when email is pre-filled from the email-first flow
-  useEffect(() => {
-    if (initialEmail && !autoSentRef.current) {
-      autoSentRef.current = true;
-      void sendMagicLink(initialEmail);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     void sendMagicLink(email);
@@ -85,7 +77,6 @@ export function MagicLinkAuth({
                 className="btn ghost"
                 onClick={() => {
                   setSent(false);
-                  autoSentRef.current = false;
                   setError("");
                 }}
               >
@@ -98,8 +89,6 @@ export function MagicLinkAuth({
               ) : null}
             </div>
           </>
-        ) : submitting && initialEmail ? (
-          <p className="sub">Sending magic link to <strong>{email}</strong>…</p>
         ) : (
           <>
             <p className="sub" style={{ marginBottom: 20 }}>
@@ -133,11 +122,22 @@ export function MagicLinkAuth({
                 {submitting ? "Sending…" : "Send magic link"}
               </button>
             </form>
-            {onBack ? (
-              <div style={{ marginTop: 12 }}>
-                <button type="button" className="btn ghost sm" onClick={onBack}>
-                  Use different email
-                </button>
+            {onSwitchToPassword || onBack ? (
+              <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {onSwitchToPassword ? (
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    onClick={onSwitchToPassword}
+                  >
+                    Sign in with a password instead
+                  </button>
+                ) : null}
+                {onBack ? (
+                  <button type="button" className="btn ghost sm" onClick={onBack}>
+                    Use different email
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </>
