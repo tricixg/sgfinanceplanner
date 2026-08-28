@@ -20,7 +20,13 @@ function YearContent({
 export function YearRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => <YearContent state={state} setState={setState} />}
+      {({ state, setState, loading }) =>
+        loading ? (
+          <p className="loading">Loading your financial data…</p>
+        ) : (
+          <YearContent state={state} setState={setState} />
+        )
+      }
     </DomainPage>
   );
 }

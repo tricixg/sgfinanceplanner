@@ -56,9 +56,13 @@ function CashAccountsContent({
 export function CashAccountsRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => (
-        <CashAccountsContent state={state} setState={setState} />
-      )}
+      {({ state, setState, loading }) =>
+        loading ? (
+          <p className="loading">Loading your financial data…</p>
+        ) : (
+          <CashAccountsContent state={state} setState={setState} />
+        )
+      }
     </DomainPage>
   );
 }

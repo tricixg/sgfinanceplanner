@@ -16,7 +16,13 @@ function ThisMonthCashflowContent({
 export function ThisMonthCashflowRoute() {
   return (
     <DomainPage>
-      {({ state }) => <ThisMonthCashflowContent state={state} />}
+      {({ state, loading }) =>
+        loading ? (
+          <p className="loading">Loading your financial data…</p>
+        ) : (
+          <ThisMonthCashflowContent state={state} />
+        )
+      }
     </DomainPage>
   );
 }

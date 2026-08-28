@@ -18,9 +18,13 @@ function ThisMonthContent({
 export function ThisMonthRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => (
-        <ThisMonthContent state={state} setState={setState} />
-      )}
+      {({ state, setState, loading }) =>
+        loading ? (
+          <p className="loading">Loading your financial data…</p>
+        ) : (
+          <ThisMonthContent state={state} setState={setState} />
+        )
+      }
     </DomainPage>
   );
 }

@@ -7,12 +7,16 @@ import { TabCPF } from "@/components/tabs/TabCPF";
 import { TabBTO } from "@/components/tabs/TabBTO";
 import { TabMiles } from "@/components/tabs/TabMiles";
 
+const LOADING = <p className="loading">Loading your financial data…</p>;
+
 export function CardsRoute() {
   return (
     <DomainPage>
-      {({ state, setState, cardsApi }) => (
-        <TabCards state={state} setState={setState} cardsApi={cardsApi} />
-      )}
+      {({ state, setState, cardsApi, loading }) =>
+        loading ? LOADING : (
+          <TabCards state={state} setState={setState} cardsApi={cardsApi} />
+        )
+      }
     </DomainPage>
   );
 }
@@ -20,7 +24,9 @@ export function CardsRoute() {
 export function DebtRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => <TabDebt state={state} setState={setState} />}
+      {({ state, setState, loading }) =>
+        loading ? LOADING : <TabDebt state={state} setState={setState} />
+      }
     </DomainPage>
   );
 }
@@ -28,7 +34,9 @@ export function DebtRoute() {
 export function CpfRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => <TabCPF state={state} setState={setState} />}
+      {({ state, setState, loading }) =>
+        loading ? LOADING : <TabCPF state={state} setState={setState} />
+      }
     </DomainPage>
   );
 }
@@ -36,7 +44,9 @@ export function CpfRoute() {
 export function BtoRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => <TabBTO state={state} setState={setState} />}
+      {({ state, setState, loading }) =>
+        loading ? LOADING : <TabBTO state={state} setState={setState} />
+      }
     </DomainPage>
   );
 }
@@ -44,7 +54,9 @@ export function BtoRoute() {
 export function MilesRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => <TabMiles state={state} setState={setState} />}
+      {({ state, setState, loading }) =>
+        loading ? LOADING : <TabMiles state={state} setState={setState} />
+      }
     </DomainPage>
   );
 }

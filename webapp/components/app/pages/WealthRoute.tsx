@@ -52,13 +52,17 @@ function WealthContent({
 export function WealthRoute() {
   return (
     <DomainPage>
-      {({ state, setState, snapshotsLoading }) => (
-        <WealthContent
-          state={state}
-          setState={setState}
-          snapshotsLoading={snapshotsLoading}
-        />
-      )}
+      {({ state, setState, loading, snapshotsLoading }) =>
+        loading ? (
+          <p className="loading">Loading your financial data…</p>
+        ) : (
+          <WealthContent
+            state={state}
+            setState={setState}
+            snapshotsLoading={snapshotsLoading}
+          />
+        )
+      }
     </DomainPage>
   );
 }

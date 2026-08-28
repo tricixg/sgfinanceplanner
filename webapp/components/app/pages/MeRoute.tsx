@@ -62,7 +62,13 @@ function MeContent({
 export function MeRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => <MeContent state={state} setState={setState} />}
+      {({ state, setState, loading }) =>
+        loading ? (
+          <p className="loading">Loading your financial data…</p>
+        ) : (
+          <MeContent state={state} setState={setState} />
+        )
+      }
     </DomainPage>
   );
 }

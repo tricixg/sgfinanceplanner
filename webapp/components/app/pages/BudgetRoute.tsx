@@ -22,9 +22,13 @@ function BudgetContent({
 export function BudgetRoute() {
   return (
     <DomainPage>
-      {({ state, setState }) => (
-        <BudgetContent state={state} setState={setState} />
-      )}
+      {({ state, setState, loading }) =>
+        loading ? (
+          <p className="loading">Loading your financial data…</p>
+        ) : (
+          <BudgetContent state={state} setState={setState} />
+        )
+      }
     </DomainPage>
   );
 }
