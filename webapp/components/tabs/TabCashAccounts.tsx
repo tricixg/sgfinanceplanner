@@ -51,6 +51,9 @@ type Props = {
   openCycles?: OpenCycleEstimate[];
 };
 
+// Matches the persist-on-settle debounce in hooks/usePersistedState.ts.
+const NET_WORTH_SNAPSHOT_DEBOUNCE_MS = 800;
+
 const ALL_LIABILITIES_INCLUDED: Record<LiabilityKey, boolean> = {
   margin: true,
   instalmentLoans: true,
@@ -117,8 +120,14 @@ export function TabCashAccounts({
   const appendNwSnapshot = netWorthApi?.appendSnapshot;
   useEffect(() => {
     if (!appendNwSnapshot) return;
-    const month = `${sgtTodayYmd().slice(0, 7)}-01`;
-    void appendNwSnapshot({ month, lnw: baselineLnw, cpf });
+    // baselineLnw/cpf can settle across a few renders as savings/openCycles
+    // resolve — debounce so one visit writes once, not once per intermediate
+    // value, while still always writing the latest figure on genuine visits.
+    const timer = setTimeout(() => {
+      const month = `${sgtTodayYmd().slice(0, 7)}-01`;
+      void appendNwSnapshot({ month, lnw: baselineLnw, cpf });
+    }, NET_WORTH_SNAPSHOT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
   }, [appendNwSnapshot, baselineLnw, cpf]);
 
   const cashTotal = useCloudAccounts
