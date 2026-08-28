@@ -10,6 +10,8 @@ export type UserSavingsAccount = {
   sortOrder: number;
   /** When false, balance counts toward net worth but not savings-tab totals. */
   includeInSavings: boolean;
+  /** Hidden from the accounts list but still saved and still counts toward totals. */
+  hidden: boolean;
 };
 
 /** Joint cash pool (savings_pools) for a household. */

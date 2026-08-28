@@ -107,6 +107,7 @@ export function TabWealth({
   const [dividendModalOpen, setDividendModalOpen] = useState(false);
   const [dividendInitialId, setDividendInitialId] = useState<string | null>(null);
   const [dividendsTxRefresh, setDividendsTxRefresh] = useState(0);
+  const [showHiddenFunds, setShowHiddenFunds] = useState(false);
 
   const ilpPolicies = editingIlp ? ilpDraft : S.ilpPolicies;
   const displayHoldings = editingHoldings ? holdingsDraft : S.holdings;
@@ -126,6 +127,9 @@ export function TabWealth({
     ledgerFundId && fundsApi
       ? fundsApi.funds.find((f) => f.id === ledgerFundId) ?? null
       : null;
+
+  const visibleFunds = (fundsApi?.funds ?? []).filter((f) => !f.hidden);
+  const hiddenFundsCount = fundsDraft.filter((f) => f.hidden).length;
 
   const startFundsEdit = () => {
     setFundsDraft(fundsApi?.funds ?? []);
@@ -163,12 +167,9 @@ export function TabWealth({
         notes: "",
         sortOrder: prev.length,
         lifetimePayouts: 0,
+        hidden: false,
       },
     ]);
-  };
-
-  const removeFundRow = (i: number) => {
-    setFundsDraft((prev) => prev.filter((_, j) => j !== i));
   };
   const ilpPrem = computedIlpMonthly(wealthState);
   const totals = portfolioTotals(displayHoldings);
@@ -494,9 +495,28 @@ export function TabWealth({
           <>
             {fundsDraft.length === 0 ? (
               <p className="note">Add money-market or cash-management funds.</p>
-            ) : (
-              fundsDraft.map((f, i) => (
-                <div className="editrow accounts" key={f.id || i} style={{ marginBottom: 8 }}>
+            ) : null}
+            {hiddenFundsCount > 0 && (
+              <button
+                type="button"
+                className="disclosure-toggle"
+                onClick={() => setShowHiddenFunds((v) => !v)}
+                aria-expanded={showHiddenFunds}
+                style={{ marginBottom: 8 }}
+              >
+                <span className="caret">{showHiddenFunds ? "▾" : "▸"}</span>
+                {showHiddenFunds ? "Hide" : "Show"} {hiddenFundsCount} hidden fund
+                {hiddenFundsCount === 1 ? "" : "s"}
+              </button>
+            )}
+            {fundsDraft.map((f, i) => {
+              if (f.hidden && !showHiddenFunds) return null;
+              return (
+                <div
+                  className="editrow accounts"
+                  key={f.id || i}
+                  style={{ marginBottom: 8, opacity: f.hidden ? 0.6 : undefined }}
+                >
                   <input
                     type="text"
                     value={f.name}
@@ -520,21 +540,31 @@ export function TabWealth({
                     placeholder="Notes"
                     onChange={(e) => updateFund(i, { notes: e.target.value })}
                   />
-                  <button
-                    type="button"
-                    className="btn del sm"
-                    onClick={() => removeFundRow(i)}
-                  >
-                    del
-                  </button>
+                  {f.hidden ? (
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      onClick={() => updateFund(i, { hidden: false })}
+                    >
+                      Unhide
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn del sm"
+                      onClick={() => updateFund(i, { hidden: true })}
+                    >
+                      Hide
+                    </button>
+                  )}
                 </div>
-              ))
-            )}
+              );
+            })}
             <button type="button" className="btn ghost sm" onClick={addFundRow}>
               + Add fund
             </button>
           </>
-        ) : fundsApi.funds.length === 0 ? (
+        ) : visibleFunds.length === 0 ? (
           <p className="note">No funds yet. Click Edit to add one.</p>
         ) : (
           <div className="table-scroll">
@@ -548,7 +578,7 @@ export function TabWealth({
                 </tr>
               </thead>
               <tbody>
-                {fundsApi.funds.map((f) => (
+                {visibleFunds.map((f) => (
                   <tr
                     key={f.id}
                     className="ledger-row"

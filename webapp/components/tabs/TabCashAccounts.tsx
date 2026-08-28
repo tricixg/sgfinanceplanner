@@ -89,6 +89,7 @@ export function TabCashAccounts({
   const [transferring, setTransferring] = useState(false);
   const [txRefresh, setTxRefresh] = useState(0);
   const [ledgerAccountId, setLedgerAccountId] = useState<string | null>(null);
+  const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
   const useCloudAccounts = Boolean(accountsApi);
 
   const personalOnlySavings = savings
@@ -133,6 +134,10 @@ export function TabCashAccounts({
       : null;
 
   const transferAccounts = useCloudAccounts ? accountsApi?.accounts ?? [] : [];
+  const visibleAccounts = useCloudAccounts
+    ? (accountsApi?.accounts ?? []).filter((a) => !a.hidden)
+    : [];
+  const hiddenAccountsCount = cloudDraft.filter((a) => a.hidden).length;
   const transferGoalOptions = savingsGoals
     .filter((g) => g.scope === "individual")
     .map((g) => ({ id: g.id, name: g.name }));
@@ -505,10 +510,28 @@ export function TabCashAccounts({
                 {cloudDraft.length === 0 ? (
                   <p className="note">Add bank accounts or cash jars. Set opening balance on new rows only.</p>
                 ) : null}
+                {hiddenAccountsCount > 0 && (
+                  <button
+                    type="button"
+                    className="disclosure-toggle"
+                    onClick={() => setShowHiddenAccounts((v) => !v)}
+                    aria-expanded={showHiddenAccounts}
+                    style={{ marginBottom: 8 }}
+                  >
+                    <span className="caret">{showHiddenAccounts ? "▾" : "▸"}</span>
+                    {showHiddenAccounts ? "Hide" : "Show"} {hiddenAccountsCount} hidden account
+                    {hiddenAccountsCount === 1 ? "" : "s"}
+                  </button>
+                )}
                 {cloudDraft.map((a, i) => {
+                  if (a.hidden && !showHiddenAccounts) return null;
                   const isNew = !/^[0-9a-f-]{36}$/i.test(a.id);
                   return (
-                    <div className="editrow accounts" key={a.id || i} style={{ marginBottom: 8 }}>
+                    <div
+                      className="editrow accounts"
+                      key={a.id || i}
+                      style={{ marginBottom: 8, opacity: a.hidden ? 0.6 : undefined }}
+                    >
                       <input
                         type="text"
                         value={a.name}
@@ -556,13 +579,31 @@ export function TabCashAccounts({
                         />
                         Include in savings total
                       </label>
-                      <button
-                        type="button"
-                        className="btn del sm"
-                        onClick={() => setCloudDraft(cloudDraft.filter((_, j) => j !== i))}
-                      >
-                        del
-                      </button>
+                      {a.hidden ? (
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          onClick={() => {
+                            const next = [...cloudDraft];
+                            next[i] = { ...a, hidden: false };
+                            setCloudDraft(next);
+                          }}
+                        >
+                          Unhide
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn del sm"
+                          onClick={() => {
+                            const next = [...cloudDraft];
+                            next[i] = { ...a, hidden: true };
+                            setCloudDraft(next);
+                          }}
+                        >
+                          Hide
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -580,6 +621,7 @@ export function TabCashAccounts({
                         notes: "",
                         sortOrder: cloudDraft.length,
                         includeInSavings: true,
+                        hidden: false,
                       },
                     ])
                   }
@@ -587,7 +629,7 @@ export function TabCashAccounts({
                   + Add account
                 </button>
               </>
-            ) : accountsApi.accounts.length === 0 ? (
+            ) : visibleAccounts.length === 0 ? (
               <p className="note">No cash accounts yet. Click Edit to add one.</p>
             ) : (
               <>
@@ -602,7 +644,7 @@ export function TabCashAccounts({
                       </tr>
                     </thead>
                     <tbody>
-                      {accountsApi.accounts.map((a) => (
+                      {visibleAccounts.map((a) => (
                         <tr
                           key={a.id}
                           className="ledger-row"

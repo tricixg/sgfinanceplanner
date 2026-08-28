@@ -20,6 +20,7 @@ export function mapAccount(row: Record<string, unknown>): UserSavingsAccount {
     notes: String(row.notes ?? ""),
     sortOrder: Number(row.sort_order ?? 0),
     includeInSavings: row.include_in_savings !== false,
+    hidden: row.hidden === true,
   };
 }
 

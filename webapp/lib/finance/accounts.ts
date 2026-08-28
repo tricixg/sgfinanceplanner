@@ -39,6 +39,7 @@ export function localAccountsAsUserSavings(S: DashboardState): UserSavingsAccoun
     notes: a.notes ?? "",
     sortOrder: i,
     includeInSavings: a.includeInSavings !== false,
+    hidden: false,
   }));
 }
 

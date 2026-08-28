@@ -17,6 +17,7 @@ export type DbCreditCard = {
   rewardRules: CreditCardRewardRule[];
   sortOrder: number;
   financialAccountId: string | null;
+  hidden: boolean;
 };
 
 export function mapCreditCard(row: Record<string, unknown>): DbCreditCard {
@@ -45,6 +46,7 @@ export function mapCreditCard(row: Record<string, unknown>): DbCreditCard {
     financialAccountId: row.financial_account_id
       ? String(row.financial_account_id)
       : null,
+    hidden: row.hidden === true,
   };
 }
 
@@ -62,6 +64,7 @@ export function toCreditCard(row: DbCreditCard): CreditCard {
     rewardType: row.rewardType as CreditCard["rewardType"],
     rewardHeadline: row.rewardHeadline ?? undefined,
     rewardRules: row.rewardRules.length ? row.rewardRules : undefined,
+    hidden: row.hidden || undefined,
   };
 }
 

@@ -17,6 +17,7 @@ describe("savings-totals", () => {
           notes: "",
           sortOrder: 0,
           includeInSavings: true,
+          hidden: false,
         },
         {
           id: "2",
@@ -26,6 +27,7 @@ describe("savings-totals", () => {
           notes: "",
           sortOrder: 1,
           includeInSavings: false,
+          hidden: false,
         },
       ],
       [

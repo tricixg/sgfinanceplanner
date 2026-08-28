@@ -154,12 +154,11 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     console.info("[TabCards] added card to draft");
   };
 
-  const removeCard = (i: number) => {
-    patchEditDraft((prev) => prev.filter((_, j) => j !== i));
-    console.info("[TabCards] removed card from draft", { index: i });
-  };
-
   const cardsInEdit = editDraft ?? creditCards;
+  const visibleCreditCards = useMemo(
+    () => creditCards.filter((c) => !c.hidden),
+    [creditCards]
+  );
 
   useEffect(() => {
     setDraftActual((prev) => {
@@ -396,11 +395,10 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
           saving={savingConfig}
           onUpdate={updateCard}
           onApplyCatalog={applyCatalog}
-          onRemove={removeCard}
           onAdd={addCard}
         />
       ) : (
-        <CardListSection cards={creditCards} />
+        <CardListSection cards={visibleCreditCards} />
       )}
 
       {statementsEnabled && (

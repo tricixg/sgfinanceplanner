@@ -264,6 +264,7 @@ export async function syncCreditCardFinancialAccounts(
     rewardRules: c.rewardRules ?? [],
     sortOrder: i,
     financialAccountId: null,
+    hidden: Boolean(c.hidden),
   }));
   await syncCreditCardFinancialAccountsFromRows(supabase, userId, rows);
 }

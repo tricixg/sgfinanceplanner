@@ -75,6 +75,7 @@ export async function PUT(req: NextRequest) {
           name: f.name ?? "",
           notes: f.notes ?? "",
           sort_order: f.sortOrder ?? i,
+          hidden: f.hidden === true,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)

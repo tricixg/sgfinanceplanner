@@ -71,6 +71,7 @@ export async function saveCreditCards(
       reward_headline: c.rewardHeadline ?? null,
       reward_rules: c.rewardRules ?? [],
       sort_order: i,
+      hidden: Boolean(c.hidden),
       updated_at: new Date().toISOString(),
     };
 

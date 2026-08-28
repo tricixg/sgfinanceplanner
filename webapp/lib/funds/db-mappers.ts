@@ -9,6 +9,7 @@ export function mapFund(row: Record<string, unknown>): Fund {
     notes: String(row.notes ?? ""),
     sortOrder: Number(row.sort_order ?? 0),
     lifetimePayouts: 0,
+    hidden: row.hidden === true,
   };
 }
 

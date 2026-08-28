@@ -8,6 +8,8 @@ export type Fund = {
   sortOrder: number;
   /** Lifetime sum of payout-kind transactions for this fund — shown as P&L. */
   lifetimePayouts: number;
+  /** Hidden from the funds list but still saved and still counts toward totals. */
+  hidden: boolean;
 };
 
 export type FundTransactionKind = "deposit" | "withdrawal" | "payout";

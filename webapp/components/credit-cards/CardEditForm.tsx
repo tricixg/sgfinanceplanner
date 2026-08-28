@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { CreditCard } from "@/lib/types";
 import { BANKS, CARDS_BY_BANK, getCatalogEntry } from "@/lib/cards/sg-card-catalog";
 import { DecimalInput } from "@/components/DecimalInput";
@@ -9,7 +10,6 @@ type Props = {
   saving: boolean;
   onUpdate: (index: number, patch: Partial<CreditCard>) => void;
   onApplyCatalog: (index: number, catalogId: string) => void;
-  onRemove: (index: number) => void;
   onAdd: () => void;
 };
 
@@ -18,19 +18,36 @@ export function CardEditForm({
   saving,
   onUpdate,
   onApplyCatalog,
-  onRemove,
   onAdd,
 }: Props) {
+  const [showHidden, setShowHidden] = useState(false);
+  const hiddenCount = cards.filter((c) => c.hidden).length;
+
   return (
     <div className="card">
       <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
-        {cards.length === 0 ? (
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            className="disclosure-toggle"
+            onClick={() => setShowHidden((v) => !v)}
+            aria-expanded={showHidden}
+            style={{ marginBottom: 8 }}
+          >
+            <span className="caret">{showHidden ? "▾" : "▸"}</span>
+            {showHidden ? "Hide" : "Show"} {hiddenCount} hidden card
+            {hiddenCount === 1 ? "" : "s"}
+          </button>
+        )}
+        {cards.filter((c) => showHidden || !c.hidden).length === 0 ? (
           <p style={{ color: "var(--muted)", fontStyle: "italic", marginBottom: 12 }}>
             No cards yet. Add one below.
           </p>
         ) : (
-          cards.map((c, i) => (
-            <div key={i} className="card-edit-block">
+          cards.map((c, i) => {
+            if (c.hidden && !showHidden) return null;
+            return (
+            <div key={i} className="card-edit-block" style={c.hidden ? { opacity: 0.6 } : undefined}>
               <div className="catalog-select-row">
                 <label>
                   Bank
@@ -112,9 +129,23 @@ export function CardEditForm({
                     onChange={(v) => onUpdate(i, { interestRateApr: v })}
                   />
                 </label>
-                <button type="button" className="btn del sm" onClick={() => onRemove(i)}>
-                  del
-                </button>
+                {c.hidden ? (
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    onClick={() => onUpdate(i, { hidden: false })}
+                  >
+                    Unhide
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn del sm"
+                    onClick={() => onUpdate(i, { hidden: true })}
+                  >
+                    Hide
+                  </button>
+                )}
               </div>
               <label className="note card-edit-reward">
                 Rewards note
@@ -145,7 +176,8 @@ export function CardEditForm({
                 />
               </label>
             </div>
-          ))
+            );
+          })
         )}
         <div className="toolbar">
           <button type="button" className="btn ghost sm" onClick={onAdd} disabled={saving}>

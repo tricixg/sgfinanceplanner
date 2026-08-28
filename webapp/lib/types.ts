@@ -42,6 +42,8 @@ export type CreditCard = {
   rewardType?: import("./cards/sg-card-catalog").CardRewardType;
   rewardHeadline?: string;
   rewardRules?: CreditCardRewardRule[];
+  /** Hidden from the card list/statements views but still saved and still counts toward totals. */
+  hidden?: boolean;
 };
 
 export type HoldingMarket = "SGX" | "US";
