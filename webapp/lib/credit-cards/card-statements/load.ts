@@ -90,7 +90,7 @@ export async function ensureStatementRows(
   let priorCarry = 0;
 
   for (const close of sortedCloses) {
-    const { cycleStart, cycleEnd } = cycleBoundsFromClose(close);
+    const { cycleStart, cycleEnd } = cycleBoundsFromClose(close, card.statementDay);
     const due = paymentDueDate(close, card.paymentDueDay);
     const row = byClose.get(close);
 

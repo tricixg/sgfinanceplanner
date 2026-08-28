@@ -35,15 +35,35 @@ export function addMonthsYmd(ymd: string, months: number): string {
 }
 
 /**
+ * Statement close one cycle before `closeDate`, re-clamping the card's canonical
+ * `statementDay` into the previous month — NOT shifting `closeDate` by its own
+ * day-of-month. `closeDate` may already be clamped (e.g. Feb 28 for statementDay
+ * 31), and shifting from a clamped day would silently degrade the day forever
+ * (Feb 28 - 1 month → Jan 28, instead of the correct Jan 31), producing
+ * overlapping cycle ranges for statement days 29–31.
+ */
+function previousStatementClose(closeDate: string, statementDay: number): string {
+  const d = parseYmd(closeDate);
+  let monthIndex = d.getUTCMonth() - 1;
+  let year = d.getUTCFullYear();
+  if (monthIndex < 0) {
+    monthIndex = 11;
+    year -= 1;
+  }
+  return clampDayInMonth(year, monthIndex, statementDay);
+}
+
+/**
  * Billing cycle for a statement that closes on `statementCloseDate` (statement day).
  * Spend counts from the day after the previous close through the close date inclusive
  * (e.g. statement day 21 → Apr 22 … May 21).
  */
 export function cycleBoundsFromClose(
-  statementCloseDate: string
+  statementCloseDate: string,
+  statementDay: number
 ): { cycleStart: string; cycleEnd: string } {
   const cycleEnd = statementCloseDate;
-  const previousClose = addMonthsYmd(statementCloseDate, -1);
+  const previousClose = previousStatementClose(statementCloseDate, statementDay);
   const cycleStart = addDaysYmd(previousClose, 1);
   return { cycleStart, cycleEnd };
 }
@@ -66,7 +86,7 @@ export function openCycleBounds(
   asOfDate: string
 ): { cycleStart: string; cycleEnd: string; statementClose: string } {
   const statementClose = statementCloseForSpend(asOfDate, statementDay);
-  const { cycleStart, cycleEnd } = cycleBoundsFromClose(statementClose);
+  const { cycleStart, cycleEnd } = cycleBoundsFromClose(statementClose, statementDay);
   return { cycleStart, cycleEnd, statementClose };
 }
 
@@ -106,12 +126,12 @@ export function recentStatementCloseDates(
   const d = parseYmd(asOfDate);
   const closeD = parseYmd(close);
   if (closeD > d) {
-    close = addMonthsYmd(close, -1);
+    close = previousStatementClose(close, statementDay);
   }
 
   for (let i = 0; i < count; i++) {
     out.push(close);
-    close = addMonthsYmd(close, -1);
+    close = previousStatementClose(close, statementDay);
   }
   return out;
 }
