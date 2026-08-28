@@ -114,7 +114,9 @@ export function liabilityBreakdown(
 ): LiabilityLine[] {
   const btByCard = btOutstandingByCard(S);
   const cardBalances = openCycles.reduce((sum, cycle) => {
-    const btForCard = btByCard.get(cycle.creditCardId) ?? 0;
+    // otherLoans.sourceCreditCardId holds the card's card_key, not credit_cards.id —
+    // match on creditCardKey here, not creditCardId (see btOutstandingByCard).
+    const btForCard = btByCard.get(cycle.creditCardKey) ?? 0;
     const nonBt = Math.max(
       0,
       cycle.estimatedTotal - btCoveredAmount(btForCard, cycle.estimatedTotal)

@@ -70,7 +70,12 @@ export function activeBtLoansOutstanding(S: DashboardState): number {
     .reduce((s, l) => s + l.outstanding, 0);
 }
 
-/** Balance-transfer outstanding grouped by linked card id, for netting against that card's statement balance. */
+/**
+ * Balance-transfer outstanding grouped by linked card, for netting against
+ * that card's statement balance. Keyed by `sourceCreditCardId`, which despite
+ * its name holds the card's `card_key` (not `credit_cards.id`) — match this
+ * map against `OpenCycleEstimate.creditCardKey`, never `.creditCardId`.
+ */
 export function btOutstandingByCard(S: DashboardState): Map<string, number> {
   const map = new Map<string, number>();
   for (const l of S.otherLoans ?? []) {

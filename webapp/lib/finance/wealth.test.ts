@@ -12,12 +12,20 @@ import {
 import type { OtherLoan } from "@/lib/other-loans/types";
 import type { OpenCycleEstimate } from "@/lib/cards/types";
 
+/**
+ * `creditCardId` (a UUID in real data) and `creditCardKey` (the human `card_key`)
+ * are deliberately DIFFERENT strings here — sourceCreditCardId on a BT loan is
+ * actually a card_key, and a prior bug matched it against creditCardId instead,
+ * which test fixtures using the same value for both would never have caught.
+ */
 function openCycle(
-  overrides: Partial<OpenCycleEstimate> & { creditCardId: string; estimatedTotal: number }
+  overrides: Partial<OpenCycleEstimate> & { cardKey: string; estimatedTotal: number }
 ): OpenCycleEstimate {
+  const { cardKey, ...rest } = overrides;
   return {
-    creditCardKey: overrides.creditCardId,
-    cardName: overrides.creditCardId,
+    creditCardId: `uuid-${cardKey}`,
+    creditCardKey: cardKey,
+    cardName: cardKey,
     statementCloseDate: "2026-08-01",
     cycleStartDate: "2026-07-02",
     cycleEndDate: "2026-08-01",
@@ -25,7 +33,7 @@ function openCycle(
     newSpend: 0,
     interestEstimate: 0,
     daysLeftInCycle: 0,
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -138,7 +146,7 @@ describe("liabilityBreakdown", () => {
   it("counts a card with no linked BT loan in full", () => {
     const lines = liabilityBreakdown(
       { ...DEFAULTS, margin: 0, loans: [], otherLoans: [] },
-      [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })]
+      [openCycle({ cardKey: "card-a", estimatedTotal: 1000 })]
     );
     expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(1000);
     expect(lines.find((l) => l.key === "btLoans")?.amount).toBe(0);
@@ -151,7 +159,7 @@ describe("liabilityBreakdown", () => {
     };
     const lines = liabilityBreakdown(
       { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
-      [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })]
+      [openCycle({ cardKey: "card-a", estimatedTotal: 1000 })]
     );
     const cardBalances = lines.find((l) => l.key === "cardBalances")?.amount ?? 0;
     const btLoans = lines.find((l) => l.key === "btLoans")?.amount ?? 0;
@@ -167,7 +175,7 @@ describe("liabilityBreakdown", () => {
     };
     const lines = liabilityBreakdown(
       { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
-      [openCycle({ creditCardId: "card-a", estimatedTotal: 300 })]
+      [openCycle({ cardKey: "card-a", estimatedTotal: 300 })]
     );
     expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(0);
     expect(lines.find((l) => l.key === "btLoans")?.amount).toBe(500);
@@ -181,8 +189,8 @@ describe("liabilityBreakdown", () => {
     const lines = liabilityBreakdown(
       { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
       [
-        openCycle({ creditCardId: "card-a", estimatedTotal: 1000 }),
-        openCycle({ creditCardId: "card-b", estimatedTotal: 500 }),
+        openCycle({ cardKey: "card-a", estimatedTotal: 1000 }),
+        openCycle({ cardKey: "card-b", estimatedTotal: 500 }),
       ]
     );
     expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(1100);
@@ -195,7 +203,7 @@ describe("liabilityBreakdown", () => {
     };
     const lines = liabilityBreakdown(
       { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
-      [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })]
+      [openCycle({ cardKey: "card-a", estimatedTotal: 1000 })]
     );
     expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(1000);
     expect(lines.find((l) => l.key === "btLoans")?.amount).toBe(200);
@@ -207,7 +215,7 @@ describe("liabilityBreakdown", () => {
   });
 
   it("wealthSummary.liab always equals the sum of liabilityBreakdown's lines", () => {
-    const openCycles = [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })];
+    const openCycles = [openCycle({ cardKey: "card-a", estimatedTotal: 1000 })];
     const { liab, liabLines } = wealthSummary({ ...DEFAULTS, margin: 500 }, null, openCycles);
     expect(liab).toBe(liabLines.reduce((s, l) => s + l.amount, 0));
   });
