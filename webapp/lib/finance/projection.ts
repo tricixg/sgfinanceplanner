@@ -29,6 +29,7 @@ export type ProjectionParams = {
 export function simulate5y(
   S: DashboardState,
   params: ProjectionParams,
+  todayYmd: string,
   savings?: SavingsSnapshot | null
 ): ProjectionRow[] {
   const growth = params.growth / 100;
@@ -44,7 +45,7 @@ export function simulate5y(
   let sal = S.monthlySal;
   const loanState = S.loans.map((l) => ({ ...l, bal: l.out }));
 
-  const startYM = "2026-08";
+  const startYM = todayYmd.slice(0, 7);
   const curIdx = monIdx(startYM);
   const series: ProjectionRow[] = [];
 
@@ -62,7 +63,11 @@ export function simulate5y(
 
   snapshot("Now");
 
-  const endIdx = monIdx("2031-12");
+  // Project through December of the 5th calendar year after today, so the
+  // yearly snapshots below (`i % 12 === 11`) land on year boundaries instead
+  // of a rolling 60-month window.
+  const startYear = Number(startYM.slice(0, 4));
+  const endIdx = monIdx(`${startYear + 5}-12`);
   for (let i = curIdx; i <= endIdx; i++) {
     const tot = cpfTotal(sal);
     oa += tot * ALLOC_OA;
@@ -133,7 +138,8 @@ export function simulateCPFFromContribution(
 
 export function simulateCPF(
   S: DashboardState,
-  growthPct: number
+  growthPct: number,
+  todayYmd: string
 ): { label: string; oa: number; sa: number; ma: number }[] {
   const growth = growthPct / 100;
   let oa = S.oa;
@@ -141,8 +147,11 @@ export function simulateCPF(
   let ma = S.ma;
   let sal = S.monthlySal;
   const series = [{ label: "Now", oa, sa, ma }];
-  const curIdx = monIdx("2026-08");
-  const endIdx = monIdx("2031-12");
+  // Same "through December of year+5" window as simulate5y — see its comment.
+  const startYM = todayYmd.slice(0, 7);
+  const curIdx = monIdx(startYM);
+  const startYear = Number(startYM.slice(0, 4));
+  const endIdx = monIdx(`${startYear + 5}-12`);
 
   for (let i = curIdx; i <= endIdx; i++) {
     const tot = cpfTotal(sal);

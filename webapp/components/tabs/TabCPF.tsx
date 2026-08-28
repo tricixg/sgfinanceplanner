@@ -29,7 +29,7 @@ export function TabCPF({ state: S, setState }: Props) {
         sa: latestContribution.sa,
         ma: latestContribution.ma,
       })
-    : simulateCPF(S, growth);
+    : simulateCPF(S, growth, sgtTodayYmd());
   const cpfNow = S.oa + S.sa + S.ma;
 
   const [contribMonth, setContribMonth] = useState(() => sgtTodayYmd().slice(0, 7));

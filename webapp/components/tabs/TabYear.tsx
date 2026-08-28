@@ -5,6 +5,7 @@ import type { DashboardState } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import { monthlyInvestContribution, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import type { ChartOptions } from "chart.js";
@@ -35,6 +36,7 @@ export function TabYear({ state: S, savings }: Props) {
   const series = simulate5y(
     S,
     { growth, invAdd: invAmt, invRet, useMargin: showMargin },
+    sgtTodayYmd(),
     savings
   );
   const last = series[series.length - 1];
