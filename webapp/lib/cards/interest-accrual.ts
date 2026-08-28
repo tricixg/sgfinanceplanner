@@ -76,6 +76,16 @@ export function outstandingBalance(params: {
   return Math.max(0, roundMoney(raw));
 }
 
+/**
+ * Portion of `total` covered by a linked balance-transfer loan (capped at
+ * `total`, floored at 0) — same clamp `splitCardPaymentAmount` uses to split
+ * a card payment between BT and non-BT, applied here to net BT loans out of
+ * a card's outstanding balance so net-worth math never double-counts them.
+ */
+export function btCoveredAmount(btOutstanding: number, total: number): number {
+  return Math.min(Math.max(0, btOutstanding), Math.max(0, total));
+}
+
 export function interestStartAfterDue(paymentDueDate: string): string {
   return addDaysYmd(paymentDueDate, 1);
 }

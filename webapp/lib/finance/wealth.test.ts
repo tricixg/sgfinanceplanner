@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULTS } from "./defaults";
 import {
+  liabilityBreakdown,
   migrateHoldings,
   netWorthSlices,
   netWorthTotal,
@@ -8,6 +9,25 @@ import {
   portfolioValue,
   wealthSummary,
 } from "./wealth";
+import type { OtherLoan } from "@/lib/other-loans/types";
+import type { OpenCycleEstimate } from "@/lib/cards/types";
+
+function openCycle(
+  overrides: Partial<OpenCycleEstimate> & { creditCardId: string; estimatedTotal: number }
+): OpenCycleEstimate {
+  return {
+    creditCardKey: overrides.creditCardId,
+    cardName: overrides.creditCardId,
+    statementCloseDate: "2026-08-01",
+    cycleStartDate: "2026-07-02",
+    cycleEndDate: "2026-08-01",
+    carriedForward: 0,
+    newSpend: 0,
+    interestEstimate: 0,
+    daysLeftInCycle: 0,
+    ...overrides,
+  };
+}
 
 describe("portfolioInvestmentValue", () => {
   it("uses sum of holdings when lines exist", () => {
@@ -48,7 +68,7 @@ describe("portfolioInvestmentValue", () => {
     const withLoan = {
       ...DEFAULTS,
       margin: 0,
-      ccDebt: 0,
+      loans: [],
       otherLoans: [
         {
           name: "Personal",
@@ -65,7 +85,7 @@ describe("portfolioInvestmentValue", () => {
     };
     const { lnw, liab } = wealthSummary(withLoan);
     expect(liab).toBe(0);
-    const baseline = wealthSummary({ ...DEFAULTS, margin: 0, ccDebt: 0, otherLoans: [] });
+    const baseline = wealthSummary({ ...DEFAULTS, margin: 0, loans: [], otherLoans: [] });
     expect(lnw).toBeCloseTo(baseline.lnw, 2);
   });
 
@@ -111,5 +131,90 @@ describe("portfolioInvestmentValue", () => {
       (s) => s.label === "Funds"
     );
     expect(slice?.value).toBe(1500);
+  });
+});
+
+describe("liabilityBreakdown", () => {
+  it("counts a card with no linked BT loan in full", () => {
+    const lines = liabilityBreakdown(
+      { ...DEFAULTS, margin: 0, loans: [], otherLoans: [] },
+      [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })]
+    );
+    expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(1000);
+    expect(lines.find((l) => l.key === "btLoans")?.amount).toBe(0);
+  });
+
+  it("nets a linked BT loan out of its card's balance with no overlap and no gap", () => {
+    const bt: OtherLoan = {
+      name: "BT", loanType: "balance_transfer", principal: 400, outstanding: 400,
+      interestRateApr: 0, feesPaid: 0, monthly: 0, amountPaid: 0, sourceCreditCardId: "card-a",
+    };
+    const lines = liabilityBreakdown(
+      { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
+      [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })]
+    );
+    const cardBalances = lines.find((l) => l.key === "cardBalances")?.amount ?? 0;
+    const btLoans = lines.find((l) => l.key === "btLoans")?.amount ?? 0;
+    expect(cardBalances).toBe(600);
+    expect(btLoans).toBe(400);
+    expect(cardBalances + btLoans).toBe(1000);
+  });
+
+  it("clamps card balance to 0 when BT outstanding exceeds the card's current total", () => {
+    const bt: OtherLoan = {
+      name: "BT", loanType: "balance_transfer", principal: 500, outstanding: 500,
+      interestRateApr: 0, feesPaid: 0, monthly: 0, amountPaid: 0, sourceCreditCardId: "card-a",
+    };
+    const lines = liabilityBreakdown(
+      { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
+      [openCycle({ creditCardId: "card-a", estimatedTotal: 300 })]
+    );
+    expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(0);
+    expect(lines.find((l) => l.key === "btLoans")?.amount).toBe(500);
+  });
+
+  it("keeps two cards independent — BT on one card doesn't net the other", () => {
+    const bt: OtherLoan = {
+      name: "BT", loanType: "balance_transfer", principal: 400, outstanding: 400,
+      interestRateApr: 0, feesPaid: 0, monthly: 0, amountPaid: 0, sourceCreditCardId: "card-a",
+    };
+    const lines = liabilityBreakdown(
+      { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
+      [
+        openCycle({ creditCardId: "card-a", estimatedTotal: 1000 }),
+        openCycle({ creditCardId: "card-b", estimatedTotal: 500 }),
+      ]
+    );
+    expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(1100);
+  });
+
+  it("counts an unlinked BT loan fully but nets no card", () => {
+    const bt: OtherLoan = {
+      name: "BT", loanType: "balance_transfer", principal: 200, outstanding: 200,
+      interestRateApr: 0, feesPaid: 0, monthly: 0, amountPaid: 0,
+    };
+    const lines = liabilityBreakdown(
+      { ...DEFAULTS, margin: 0, loans: [], otherLoans: [bt] },
+      [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })]
+    );
+    expect(lines.find((l) => l.key === "cardBalances")?.amount).toBe(1000);
+    expect(lines.find((l) => l.key === "btLoans")?.amount).toBe(200);
+  });
+
+  it("counts instalment loans now, unlike before this fix", () => {
+    const lines = liabilityBreakdown({ ...DEFAULTS, margin: 0, otherLoans: [] }, []);
+    expect(lines.find((l) => l.key === "instalmentLoans")?.amount ?? 0).toBeGreaterThan(0);
+  });
+
+  it("wealthSummary.liab always equals the sum of liabilityBreakdown's lines", () => {
+    const openCycles = [openCycle({ creditCardId: "card-a", estimatedTotal: 1000 })];
+    const { liab, liabLines } = wealthSummary({ ...DEFAULTS, margin: 500 }, null, openCycles);
+    expect(liab).toBe(liabLines.reduce((s, l) => s + l.amount, 0));
+  });
+
+  it("wealthSummary works without an openCycles argument (backward compatible)", () => {
+    expect(() => wealthSummary(DEFAULTS)).not.toThrow();
+    const { liabLines } = wealthSummary(DEFAULTS);
+    expect(liabLines.find((l) => l.key === "cardBalances")?.amount).toBe(0);
   });
 });

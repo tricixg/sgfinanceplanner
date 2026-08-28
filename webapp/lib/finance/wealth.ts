@@ -1,10 +1,17 @@
 import type { DashboardState, Holding } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
+import type { OpenCycleEstimate } from "@/lib/cards/types";
+import { btCoveredAmount, roundMoney } from "@/lib/cards/interest-accrual";
 import { cashAccountsTotal } from "./accounts";
 import { effectiveCash, netWorthPersonalCash } from "./savings-totals";
 import { holdingMarketValue, normalizeHolding, type LegacyHolding } from "./holdings";
 import { ilpValueByLock } from "./ilp";
-import { activeOtherLoansOutstanding } from "./debt";
+import {
+  activeLoanOutstanding,
+  activePersonalLoansOutstanding,
+  activeBtLoansOutstanding,
+  btOutstandingByCard,
+} from "./debt";
 
 export { normalizeHolding, portfolioTotals, holdingGain } from "./holdings";
 
@@ -84,17 +91,74 @@ export function resolveDashboardCash(
   return { personal, joint: 0, cash: personal };
 }
 
+export type LiabilityKey =
+  | "margin"
+  | "instalmentLoans"
+  | "personalLoans"
+  | "btLoans"
+  | "cardBalances";
+
+export type LiabilityLine = { key: LiabilityKey; label: string; amount: number };
+
+/**
+ * Every liability category, always in this fixed order (even at $0 — this
+ * feeds a checkbox breakdown, not a filtered chart). `cardBalances` nets each
+ * card's currently-owed total against any balance-transfer loan linked to
+ * that card, since a BT loan's `outstanding` is already counted inside its
+ * card's own statement balance (see btCoveredAmount) — without this, BT debt
+ * would be double-counted against the separate `btLoans` line below.
+ */
+export function liabilityBreakdown(
+  S: DashboardState,
+  openCycles: OpenCycleEstimate[] = []
+): LiabilityLine[] {
+  const btByCard = btOutstandingByCard(S);
+  const cardBalances = openCycles.reduce((sum, cycle) => {
+    const btForCard = btByCard.get(cycle.creditCardId) ?? 0;
+    const nonBt = Math.max(
+      0,
+      cycle.estimatedTotal - btCoveredAmount(btForCard, cycle.estimatedTotal)
+    );
+    return sum + nonBt;
+  }, 0);
+
+  return [
+    { key: "margin", label: "Margin loan", amount: S.margin },
+    {
+      key: "instalmentLoans",
+      label: "Instalment / card-linked loans",
+      amount: activeLoanOutstanding(S),
+    },
+    {
+      key: "personalLoans",
+      label: "Personal loans",
+      amount: activePersonalLoansOutstanding(S),
+    },
+    {
+      key: "btLoans",
+      label: "Balance-transfer loans",
+      amount: activeBtLoansOutstanding(S),
+    },
+    {
+      key: "cardBalances",
+      label: "Credit card balances",
+      amount: roundMoney(cardBalances),
+    },
+  ];
+}
+
 export function wealthSummary(
   S: DashboardState,
-  savings?: SavingsSnapshot | null
+  savings?: SavingsSnapshot | null,
+  openCycles?: OpenCycleEstimate[]
 ) {
   const port = portfolioInvestmentValue(S);
   const { total: ilpVal, spendable: ilpSpendable, locked: ilpLocked } =
     ilpValueByLock(S);
   const fundsVal = savings?.personalFundsValue ?? 0;
   const invTotal = port + ilpVal + fundsVal;
-  const otherDebt = activeOtherLoansOutstanding(S);
-  const liab = S.margin + otherDebt + (otherDebt > 0 ? 0 : S.ccDebt);
+  const liabLines = liabilityBreakdown(S, openCycles ?? []);
+  const liab = liabLines.reduce((s, l) => s + l.amount, 0);
   const { cash, personal, joint } = resolveDashboardCash(S, savings);
   const lnw = invTotal + cash - liab;
   const cpf = S.oa + S.sa + S.ma;
@@ -106,6 +170,7 @@ export function wealthSummary(
     ilpLocked,
     fundsVal,
     liab,
+    liabLines,
     lnw,
     cpf,
     cash,
@@ -117,9 +182,10 @@ export function wealthSummary(
 export function netWorthTotal(
   S: DashboardState,
   includeCpf: boolean,
-  savings?: SavingsSnapshot | null
+  savings?: SavingsSnapshot | null,
+  openCycles?: OpenCycleEstimate[]
 ): number {
-  const { lnw, cpf } = wealthSummary(S, savings);
+  const { lnw, cpf } = wealthSummary(S, savings, openCycles);
   return lnw + (includeCpf ? cpf : 0);
 }
 

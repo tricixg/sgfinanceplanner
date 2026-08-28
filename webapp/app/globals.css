@@ -1202,7 +1202,7 @@ tr.computed-row td {
 .cashflow-table-scroll .cashflow-sep-outnet {
   border-left: 2px solid var(--line);
 }
-.this-month-cashflow-toggle {
+.disclosure-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1213,7 +1213,7 @@ tr.computed-row td {
   color: inherit;
   cursor: pointer;
 }
-.this-month-cashflow-toggle .caret {
+.disclosure-toggle .caret {
   display: inline-block;
   width: 10px;
   font-size: 10px;
@@ -1232,14 +1232,14 @@ tr.computed-row td {
 .this-month-cashflow-row-excluded input[type="checkbox"] {
   opacity: 1;
 }
-.this-month-cashflow-table th:first-child,
-.this-month-cashflow-table td:first-child {
+.include-checkbox-table th:first-child,
+.include-checkbox-table td:first-child {
   width: 26px;
   text-align: center;
   padding-left: 4px;
   padding-right: 4px;
 }
-.this-month-cashflow-table input[type="checkbox"] {
+.include-checkbox-table input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 14px;
@@ -1253,7 +1253,7 @@ tr.computed-row td {
   place-content: center;
   transition: border-color 0.15s ease;
 }
-.this-month-cashflow-table input[type="checkbox"]::before {
+.include-checkbox-table input[type="checkbox"]::before {
   content: "";
   width: 8px;
   height: 8px;
@@ -1262,17 +1262,17 @@ tr.computed-row td {
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
   transition: transform 0.12s ease;
 }
-.this-month-cashflow-table input[type="checkbox"]:checked {
+.include-checkbox-table input[type="checkbox"]:checked {
   border-color: var(--moss);
 }
-.this-month-cashflow-table input[type="checkbox"]:checked::before {
+.include-checkbox-table input[type="checkbox"]:checked::before {
   transform: scale(1);
 }
-.this-month-cashflow-table input[type="checkbox"]:focus-visible {
+.include-checkbox-table input[type="checkbox"]:focus-visible {
   outline: 1.5px solid var(--moss);
   outline-offset: 1px;
 }
-.this-month-cashflow-table input[type="checkbox"]:disabled {
+.include-checkbox-table input[type="checkbox"]:disabled {
   cursor: not-allowed;
   border-color: var(--line);
   background: var(--paper);

@@ -3,17 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DashboardState, NetWorthSnapshot, SavingsAccount } from "@/lib/types";
 import type { AccountsBundle, SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
+import type { OpenCycleEstimate } from "@/lib/cards/types";
 import {
   cashAccountsTotal,
   defaultSavingsAccount,
   localAccountTotals,
   netWorthSlices,
-  netWorthTotal,
   wealthSummary,
+  type LiabilityKey,
 } from "@/lib/finance";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
+import { IncludeCheckbox } from "@/components/IncludeCheckbox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
 import { NetWorthHistoryChart } from "@/components/savings/NetWorthHistoryChart";
 import { sgtNowInputDateTime, sgtTodayYmd } from "@/lib/time/sgt";
@@ -46,6 +48,15 @@ type Props = {
     history: NetWorthSnapshot[];
     appendSnapshot: (snap: NetWorthSnapshot) => Promise<void>;
   };
+  openCycles?: OpenCycleEstimate[];
+};
+
+const ALL_LIABILITIES_INCLUDED: Record<LiabilityKey, boolean> = {
+  margin: true,
+  instalmentLoans: true,
+  personalLoans: true,
+  btLoans: true,
+  cardBalances: true,
 };
 
 export function TabCashAccounts({
@@ -55,8 +66,15 @@ export function TabCashAccounts({
   accountsApi,
   savingsGoals = [],
   netWorthApi,
+  openCycles,
 }: Props) {
   const [includeCpf, setIncludeCpf] = useState(false);
+  const [liabIncluded, setLiabIncluded] = useState<Record<LiabilityKey, boolean>>(
+    ALL_LIABILITIES_INCLUDED
+  );
+  const [liabilitiesOpen, setLiabilitiesOpen] = useState(false);
+  const toggleLiabIncluded = (key: LiabilityKey) =>
+    setLiabIncluded((p) => ({ ...p, [key]: !p[key] }));
   const [editingAccounts, setEditingAccounts] = useState(false);
   const [cloudDraft, setCloudDraft] = useState<UserSavingsAccount[]>([]);
   const [accountsSaving, setAccountsSaving] = useState(false);
@@ -82,16 +100,25 @@ export function TabCashAccounts({
         jointMonthlySave: 0,
       }
     : null;
-  const { liab, lnw, cpf } = wealthSummary(S, personalOnlySavings);
-  const totalNw = netWorthTotal(S, includeCpf, personalOnlySavings);
+  const { invTotal, cash, liabLines, cpf, lnw: baselineLnw } = wealthSummary(
+    S,
+    personalOnlySavings,
+    openCycles
+  );
+  const checkedLiab = liabLines.reduce(
+    (sum, l) => sum + (liabIncluded[l.key] ? l.amount : 0),
+    0
+  );
+  const lnw = invTotal + cash - checkedLiab;
+  const totalNw = lnw + (includeCpf ? cpf : 0);
   const nwSlices = netWorthSlices(S, includeCpf, personalOnlySavings);
 
   const appendNwSnapshot = netWorthApi?.appendSnapshot;
   useEffect(() => {
     if (!appendNwSnapshot) return;
     const month = `${sgtTodayYmd().slice(0, 7)}-01`;
-    void appendNwSnapshot({ month, lnw, cpf });
-  }, [appendNwSnapshot, lnw, cpf]);
+    void appendNwSnapshot({ month, lnw: baselineLnw, cpf });
+  }, [appendNwSnapshot, baselineLnw, cpf]);
 
   const cashTotal = useCloudAccounts
     ? (accountsApi?.totals?.personalNetWorthCash ?? 0)
@@ -220,12 +247,55 @@ export function TabCashAccounts({
           />
           Include CPF in total net worth
         </label>
-        <div className="net-worth-total">
+        <button
+          type="button"
+          className="disclosure-toggle"
+          onClick={() => setLiabilitiesOpen((v) => !v)}
+          aria-expanded={liabilitiesOpen}
+          style={{ marginTop: 8 }}
+        >
+          <span className="caret">{liabilitiesOpen ? "▾" : "▸"}</span>
+          Liabilities · {fmt(checkedLiab)} deducted
+        </button>
+        {liabilitiesOpen ? (
+          <div className="net-worth-liabilities" style={{ marginTop: 8, marginBottom: 4 }}>
+            <table className="include-checkbox-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Liability</th>
+                  <th className="num">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liabLines.map((line) => (
+                  <tr
+                    key={line.key}
+                    className={
+                      liabIncluded[line.key] ? undefined : "this-month-cashflow-row-excluded"
+                    }
+                  >
+                    <td>
+                      <IncludeCheckbox
+                        checked={liabIncluded[line.key]}
+                        onChange={() => toggleLiabIncluded(line.key)}
+                        ariaLabel={`Include ${line.label} in net worth total`}
+                      />
+                    </td>
+                    <td>{line.label}</td>
+                    <td className="num">{fmt(line.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        <div className="net-worth-total" style={{ marginTop: 12 }}>
           <div className="lbl">Total net worth</div>
           <div className="val">{fmt(totalNw)}</div>
           <div className="note">
             {includeCpf ? "Includes CPF" : "Excludes CPF"} · liquid {fmt(lnw)} · debt deducted (
-            {fmt(liab)})
+            {fmt(checkedLiab)})
           </div>
         </div>
         {nwSlices.length > 0 ? (

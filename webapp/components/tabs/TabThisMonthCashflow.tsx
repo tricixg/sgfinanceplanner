@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DashboardState, RecurringSubscription } from "@/lib/types";
 import { useCardStatements } from "@/hooks/useCardStatements";
 import { DecimalInput } from "@/components/DecimalInput";
+import { IncludeCheckbox } from "@/components/IncludeCheckbox";
 import {
   budgetSpendTotal,
   computedIlpMonthly,
@@ -44,28 +45,6 @@ function toggleSetMember(set: Set<string>, value: string): Set<string> {
   if (next.has(value)) next.delete(value);
   else next.add(value);
   return next;
-}
-
-function IncludeCheckbox({
-  checked,
-  onChange,
-  label,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      disabled={disabled}
-      aria-label={`Include ${label} in this month's totals`}
-    />
-  );
 }
 
 export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
@@ -199,7 +178,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
       </div>
 
       <div className="card table-scroll">
-        <table className="this-month-cashflow-table">
+        <table className="this-month-cashflow-table include-checkbox-table">
           <thead>
             <tr>
               <th></th>
@@ -214,7 +193,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.baseline}
                   onChange={() => toggleIncluded("baseline")}
-                  label="Baseline income"
+                  ariaLabel="Include Baseline income in this month's totals"
                 />
               </td>
               <td>In</td>
@@ -226,7 +205,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.additive}
                   onChange={() => toggleIncluded("additive")}
-                  label="Extra deposits"
+                  ariaLabel="Include Extra deposits in this month's totals"
                 />
               </td>
               <td>In</td>
@@ -238,7 +217,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.loans}
                   onChange={() => toggleIncluded("loans")}
-                  label="Loans & debt"
+                  ariaLabel="Include Loans & debt in this month's totals"
                 />
               </td>
               <td>Out</td>
@@ -246,7 +225,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 {loanItems.length > 0 ? (
                   <button
                     type="button"
-                    className="this-month-cashflow-toggle"
+                    className="disclosure-toggle"
                     onClick={() => setLoansOpen((v) => !v)}
                     aria-expanded={loansOpen}
                   >
@@ -270,7 +249,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                         onChange={() =>
                           setExcludedLoanItems((prev) => toggleSetMember(prev, item.key))
                         }
-                        label={item.label}
+                        ariaLabel={`Include ${item.label} in this month's totals`}
                         disabled={!included.loans}
                       />
                     </td>
@@ -285,7 +264,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.variableSpend}
                   onChange={() => toggleIncluded("variableSpend")}
-                  label="Variable spend"
+                  ariaLabel="Include Variable spend in this month's totals"
                 />
               </td>
               <td>Out</td>
@@ -305,7 +284,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.insurance}
                   onChange={() => toggleIncluded("insurance")}
-                  label="Insurance premiums"
+                  ariaLabel="Include Insurance premiums in this month's totals"
                 />
               </td>
               <td>Out</td>
@@ -317,7 +296,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.ilp}
                   onChange={() => toggleIncluded("ilp")}
-                  label="ILP premiums"
+                  ariaLabel="Include ILP premiums in this month's totals"
                 />
               </td>
               <td>Out</td>
@@ -329,7 +308,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.recurring}
                   onChange={() => toggleIncluded("recurring")}
-                  label="Recurring"
+                  ariaLabel="Include Recurring in this month's totals"
                 />
               </td>
               <td>Out</td>
@@ -337,7 +316,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 {recurringItems.length > 0 ? (
                   <button
                     type="button"
-                    className="this-month-cashflow-toggle"
+                    className="disclosure-toggle"
                     onClick={() => setRecurringOpen((v) => !v)}
                     aria-expanded={recurringOpen}
                   >
@@ -362,7 +341,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                         onChange={() =>
                           setExcludedRecurringItems((prev) => toggleSetMember(prev, key))
                         }
-                        label={item.name}
+                        ariaLabel={`Include ${item.name} in this month's totals`}
                         disabled={!included.recurring}
                       />
                     </td>
@@ -377,7 +356,7 @@ export function TabThisMonthCashflow({ state: S, authEnabled = false }: Props) {
                 <IncludeCheckbox
                   checked={included.cardBillsDue}
                   onChange={() => toggleIncluded("cardBillsDue")}
-                  label="Credit card statements due next month"
+                  ariaLabel="Include Credit card statements due next month in this month's totals"
                 />
               </td>
               <td>Out</td>

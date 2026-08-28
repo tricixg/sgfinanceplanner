@@ -55,12 +55,35 @@ export function activeLoanOutstanding(S: DashboardState, nowYm?: string): number
     .reduce((s, l) => s + l.out, 0);
 }
 
+/** Outstanding on personal loans not yet marked paid, respecting excludeFromNetWorth. */
+export function activePersonalLoansOutstanding(S: DashboardState): number {
+  return (S.otherLoans ?? [])
+    .filter((l) => l.loanType === "personal" && !l.paidAt && l.outstanding > 0)
+    .filter((l) => !l.excludeFromNetWorth)
+    .reduce((s, l) => s + l.outstanding, 0);
+}
+
+/** Outstanding on balance-transfer loans not yet marked paid (no exclude option). */
+export function activeBtLoansOutstanding(S: DashboardState): number {
+  return (S.otherLoans ?? [])
+    .filter((l) => l.loanType === "balance_transfer" && !l.paidAt && l.outstanding > 0)
+    .reduce((s, l) => s + l.outstanding, 0);
+}
+
+/** Balance-transfer outstanding grouped by linked card id, for netting against that card's statement balance. */
+export function btOutstandingByCard(S: DashboardState): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const l of S.otherLoans ?? []) {
+    if (l.loanType !== "balance_transfer" || l.paidAt || l.outstanding <= 0) continue;
+    if (!l.sourceCreditCardId) continue;
+    map.set(l.sourceCreditCardId, (map.get(l.sourceCreditCardId) ?? 0) + l.outstanding);
+  }
+  return map;
+}
+
 /** Outstanding on other loans (personal, balance transfer) not yet marked paid. */
 export function activeOtherLoansOutstanding(S: DashboardState): number {
-  return (S.otherLoans ?? [])
-    .filter((l) => !l.paidAt && l.outstanding > 0)
-    .filter((l) => !(l.loanType === "personal" && l.excludeFromNetWorth))
-    .reduce((s, l) => s + l.outstanding, 0);
+  return activePersonalLoansOutstanding(S) + activeBtLoansOutstanding(S);
 }
 
 export function debtBurnDown(S: DashboardState) {

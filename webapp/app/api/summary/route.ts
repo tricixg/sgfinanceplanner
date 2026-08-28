@@ -3,11 +3,14 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { totalStatementAmount } from "@/lib/finance/calendar";
 import { netWorthTotal } from "@/lib/finance";
 import { loadCreditCards } from "@/lib/credit-cards/load";
+import { loadCardStatementsBundle } from "@/lib/credit-cards/card-statements/load";
 import { loadFinanceProfile } from "@/lib/profile/load";
 import { loadHoldings } from "@/lib/holdings/load";
 import { loadSavingsBundle, mergeSavingsSnapshots } from "@/lib/savings/load-bundle";
 import { loadAccountsBundle } from "@/lib/savings/load-accounts";
 import { loadFundsBundle } from "@/lib/funds/load";
+import { loadLoans } from "@/lib/loans/load";
+import { loadOtherLoans } from "@/lib/other-loans/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { mergeWithDefaults, createEmptyState } from "@/lib/finance/defaults";
@@ -29,7 +32,7 @@ export async function GET() {
     const userId = auth.user.id;
 
     const started = Date.now();
-    const [profile, cards, holdings, accountsBundle, savingsBundle, fundsBundle] =
+    const [profile, cards, holdings, accountsBundle, savingsBundle, fundsBundle, loans, otherLoans] =
       await Promise.all([
         loadFinanceProfile(supabase, userId),
         loadCreditCards(supabase, userId),
@@ -37,6 +40,8 @@ export async function GET() {
         loadAccountsBundle(supabase, userId),
         loadSavingsBundle(supabase, userId, []),
         loadFundsBundle(supabase, userId),
+        loadLoans(supabase, userId),
+        loadOtherLoans(supabase, userId),
       ]);
     const savingsTotals = mergeSavingsSnapshots(
       accountsBundle.totals,
@@ -49,11 +54,16 @@ export async function GET() {
       ...profile,
       creditCards: cards,
       holdings,
+      loans,
+      otherLoans,
     } as Partial<DashboardState>);
 
+    // Card statements need `cards` resolved first (mirrors app/api/credit-cards/statements/route.ts).
+    const cardBundle = await loadCardStatementsBundle(supabase, userId, cards);
+
     const stmtTotal = totalStatementAmount(state);
-    const netWorth = netWorthTotal(state, false, savingsTotals);
-    const netWorthWithCpf = netWorthTotal(state, true, savingsTotals);
+    const netWorth = netWorthTotal(state, false, savingsTotals, cardBundle.openCycles);
+    const netWorthWithCpf = netWorthTotal(state, true, savingsTotals, cardBundle.openCycles);
 
     console.info("[api/summary] GET ok", {
       userId,
