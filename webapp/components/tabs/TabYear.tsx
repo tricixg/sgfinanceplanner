@@ -33,11 +33,15 @@ export function TabYear({ state: S, savings }: Props) {
 
   const invDiffersFromBudget = invAmt !== fromBudget;
 
-  const series = simulate5y(
-    S,
-    { growth, invAdd: invAmt, invRet, useMargin: showMargin },
-    sgtTodayYmd(),
-    savings
+  const series = useMemo(
+    () =>
+      simulate5y(
+        S,
+        { growth, invAdd: invAmt, invRet, useMargin: showMargin },
+        sgtTodayYmd(),
+        savings
+      ),
+    [S, growth, invAmt, invRet, showMargin, savings]
   );
   const last = series[series.length - 1];
 
