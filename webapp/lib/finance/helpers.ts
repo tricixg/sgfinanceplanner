@@ -1,3 +1,5 @@
+import { sgtTodayYmd } from "@/lib/time/sgt";
+
 export const fmt = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
 
 export const fmt2 = (n: number) =>
@@ -45,9 +47,9 @@ export function formatSnapshotDate(recordedAt: string): string {
   });
 }
 
+/** Current year-month in Singapore time — server local time can be a day behind SGT near midnight. */
 export function currentYm(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return sgtTodayYmd().slice(0, 7);
 }
 
 /** Month key for budget / expense views — never use cashflow window picker values. */

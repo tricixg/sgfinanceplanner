@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { effectiveCalendarDay, fmtSigned2 } from "@/lib/finance/helpers";
+import { currentYm, effectiveCalendarDay, fmtSigned2 } from "@/lib/finance/helpers";
+import { sgtTodayYmd } from "@/lib/time/sgt";
+
+describe("currentYm", () => {
+  it("matches the SGT wall-clock month, not server local time", () => {
+    expect(currentYm()).toBe(sgtTodayYmd().slice(0, 7));
+  });
+});
 
 describe("effectiveCalendarDay", () => {
   it("clamps day 31 to the last day of shorter months", () => {
