@@ -42,6 +42,26 @@ export async function applyFundTransaction(
     throw new Error("Insufficient balance");
   }
 
+  // Validate the goal (if any) *before* mutating anything — a validation
+  // failure here must not leave the fund balance decremented with no
+  // matching transaction row.
+  let goal: { id: string; saved_amount: number; name: string | null } | null = null;
+  if (input.goalId) {
+    const { data: goalRow, error: goalErr } = await supabase
+      .from("savings_goals")
+      .select("id, saved_amount, scope, owner_user_id, name")
+      .eq("id", input.goalId)
+      .maybeSingle();
+
+    if (goalErr || !goalRow) {
+      throw new Error(goalErr?.message ?? "Goal not found");
+    }
+    if (goalRow.scope !== "individual" || goalRow.owner_user_id !== input.userId) {
+      throw new Error("Choose a personal savings goal");
+    }
+    goal = { id: goalRow.id, saved_amount: Number(goalRow.saved_amount), name: goalRow.name };
+  }
+
   const { error: updErr } = await supabase
     .from("investment_funds")
     .update({ balance: balanceAfter, updated_at: new Date().toISOString() })
@@ -49,28 +69,33 @@ export async function applyFundTransaction(
 
   if (updErr) throw new Error(updErr.message);
 
-  if (input.goalId) {
-    const { data: goal, error: goalErr } = await supabase
-      .from("savings_goals")
-      .select("id, saved_amount, scope, owner_user_id")
-      .eq("id", input.goalId)
-      .maybeSingle();
+  const revertFundBalance = async () => {
+    await supabase
+      .from("investment_funds")
+      .update({ balance: fund.balance, updated_at: new Date().toISOString() })
+      .eq("id", input.fundId);
+  };
 
-    if (goalErr || !goal) {
-      throw new Error(goalErr?.message ?? "Goal not found");
-    }
-    if (goal.scope !== "individual" || goal.owner_user_id !== input.userId) {
-      throw new Error("Choose a personal savings goal");
-    }
-
-    const newSaved = Math.max(0, Number(goal.saved_amount) + amount);
+  if (goal) {
+    const newSaved = Math.max(0, goal.saved_amount + amount);
     const { error: goalUpdErr } = await supabase
       .from("savings_goals")
       .update({ saved_amount: newSaved, updated_at: new Date().toISOString() })
-      .eq("id", input.goalId);
+      .eq("id", goal.id);
 
-    if (goalUpdErr) throw new Error(goalUpdErr.message);
+    if (goalUpdErr) {
+      await revertFundBalance();
+      throw new Error(goalUpdErr.message);
+    }
   }
+
+  const revertGoalSaved = async () => {
+    if (!goal) return;
+    await supabase
+      .from("savings_goals")
+      .update({ saved_amount: goal.saved_amount, updated_at: new Date().toISOString() })
+      .eq("id", goal.id);
+  };
 
   const { data: row, error: insErr } = await supabase
     .from("fund_transactions")
@@ -88,6 +113,8 @@ export async function applyFundTransaction(
     .single();
 
   if (insErr || !row) {
+    await revertGoalSaved();
+    await revertFundBalance();
     throw new Error(insErr?.message ?? "Failed to record transaction");
   }
 
@@ -101,15 +128,7 @@ export async function applyFundTransaction(
   });
 
   const mapped = mapFundTransaction(row);
-  if (input.goalId) {
-    const { data: goalRow } = await supabase
-      .from("savings_goals")
-      .select("name")
-      .eq("id", input.goalId)
-      .maybeSingle();
-    return { ...mapped, goalName: goalRow?.name ? String(goalRow.name) : null };
-  }
-  return mapped;
+  return { ...mapped, goalName: goal?.name ? String(goal.name) : null };
 }
 
 export async function deleteFundTransaction(
