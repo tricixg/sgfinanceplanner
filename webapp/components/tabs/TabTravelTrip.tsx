@@ -30,6 +30,19 @@ import type {
   TravelTripBudget,
 } from "@/lib/travel/types";
 
+const PIE_PALETTE = [
+  "#5b8def",
+  "#5dbb84",
+  "#f0b35a",
+  "#e67a7a",
+  "#8a7be2",
+  "#64c2d1",
+  "#b9a27a",
+  "#7fc17f",
+  "#f28fb2",
+  "#9aa6b2",
+];
+
 type Props = { tripId: string; enabled: boolean };
 
 type BudgetDraft = {
@@ -350,21 +363,18 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     if (rows.length === 0) return null;
     const labels = rows.map((row) => row.subCategory.trim());
     const values = rows.map((row) => Number(row.budgetAmount ?? 0));
-    const palette = [
-      "#5b8def",
-      "#5dbb84",
-      "#f0b35a",
-      "#e67a7a",
-      "#8a7be2",
-      "#64c2d1",
-      "#b9a27a",
-      "#7fc17f",
-      "#f28fb2",
-      "#9aa6b2",
-    ];
-    const colors = rows.map((_, i) => palette[i % palette.length]);
+    const colors = rows.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]);
     return { labels, values, colors };
   }, [editingBudget, draft, budgets]);
+
+  const spentPie = useMemo(() => {
+    const rows = [...spentBySub.entries()].filter(([, spent]) => spent > 0);
+    if (rows.length === 0) return null;
+    const labels = rows.map(([sub]) => sub);
+    const values = rows.map(([, spent]) => spent);
+    const colors = rows.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]);
+    return { labels, values, colors };
+  }, [spentBySub]);
 
   const onDeleteTrip = async () => {
     if (!trip) return;
@@ -545,37 +555,72 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
         </div>
       ) : null}
 
-      <div className="card">
-        <div className="section-head">
-          <h3>Budget breakdown</h3>
-          <span className="note">By subcategory</span>
-        </div>
-        {budgetPie ? (
-          <ChartBox
-            type="pie"
-            height={280}
-            data={{
-              labels: budgetPie.labels,
-              datasets: [
-                {
-                  data: budgetPie.values,
-                  backgroundColor: budgetPie.colors,
-                  borderWidth: 2,
-                  borderColor: "#faf7ef",
+      <div className="holdings-charts">
+        <div className="card" style={{ margin: 0 }}>
+          <div className="section-head">
+            <h3>Budget breakdown</h3>
+            <span className="note">By subcategory</span>
+          </div>
+          {budgetPie ? (
+            <ChartBox
+              type="pie"
+              height={280}
+              data={{
+                labels: budgetPie.labels,
+                datasets: [
+                  {
+                    data: budgetPie.values,
+                    backgroundColor: budgetPie.colors,
+                    borderWidth: 2,
+                    borderColor: "#faf7ef",
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: true, position: "bottom" },
                 },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: true, position: "bottom" },
-              },
-            }}
-          />
-        ) : (
-          <p className="note">Add budget amounts to see chart.</p>
-        )}
+              }}
+            />
+          ) : (
+            <p className="note">Add budget amounts to see chart.</p>
+          )}
+        </div>
+
+        <div className="card" style={{ margin: 0 }}>
+          <div className="section-head">
+            <h3>Spending breakdown</h3>
+            <span className="note">By subcategory</span>
+          </div>
+          {spentPie ? (
+            <ChartBox
+              type="pie"
+              height={280}
+              data={{
+                labels: spentPie.labels,
+                datasets: [
+                  {
+                    data: spentPie.values,
+                    backgroundColor: spentPie.colors,
+                    borderWidth: 2,
+                    borderColor: "#faf7ef",
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: true, position: "bottom" },
+                },
+              }}
+            />
+          ) : (
+            <p className="note">Add expenses to see chart.</p>
+          )}
+        </div>
       </div>
 
       <div className="card table-scroll">
