@@ -19,6 +19,7 @@ import { useSnackbar } from "@/hooks/useSnackbar";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
 import { formatTravelSpentAtTable } from "@/lib/travel/expense-input";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import type {
@@ -825,7 +826,25 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
                         </span>
                       ) : null}
                     </td>
-                    <td>{row.extraNote || "—"}</td>
+                    <td>
+                      {row.extraNote || "—"}
+                      {row.reimbursedAmount > 0 ? (
+                        <>
+                          {" "}
+                          <span
+                            className={`tag ${
+                              reimbursementStatus(row.amount, row.reimbursedAmount) === "full"
+                                ? "t-ok"
+                                : "t-soon"
+                            }`}
+                          >
+                            {reimbursementStatus(row.amount, row.reimbursedAmount) === "full"
+                              ? "Reimbursed"
+                              : `Partial · ${fmt2(row.reimbursedAmount)} of ${fmt2(row.amount)}`}
+                          </span>
+                        </>
+                      ) : null}
+                    </td>
                     <td className="num">{fmt2(row.amount)}</td>
                     <td className="num">{fmt2(row.budgetAmount)}</td>
                   </tr>

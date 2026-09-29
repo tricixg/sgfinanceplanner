@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import type { Expense } from "@/lib/savings/types";
+import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { DEFAULT_TRAVEL_SUBCATEGORIES } from "@/lib/travel/defaults";
 import { parseTravelExpenseParts, TRAVEL_CATEGORY } from "@/lib/travel/notes";
 import { mapSplitFromDb, myShareFromSplit } from "@/lib/travel/split";
@@ -444,11 +445,14 @@ export async function listTripExpenses(
     matched.push({ exp, parts });
   }
 
-  const splitMap = await loadSplitsForExpenses(
-    supabase,
-    userId,
-    matched.map((m) => m.exp.id)
-  );
+  const [splitMap, reimbursements] = await Promise.all([
+    loadSplitsForExpenses(
+      supabase,
+      userId,
+      matched.map((m) => m.exp.id)
+    ),
+    loadReimbursementTotals(supabase, userId),
+  ]);
 
   return matched.map(({ exp, parts }) => {
     const split = splitMap.get(exp.id) ?? null;
@@ -464,6 +468,7 @@ export async function listTripExpenses(
       subCategory: parts.subCategory,
       financialAccountId: exp.financialAccountId,
       split,
+      reimbursedAmount: reimbursements.expense.get(exp.id) ?? 0,
     };
   });
 }

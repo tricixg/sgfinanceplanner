@@ -82,6 +82,7 @@ export type TravelExpenseRow = {
   subCategory: string;
   financialAccountId: string | null;
   split: TravelExpenseSplit | null;
+  reimbursedAmount: number;
 };
 
 export type TravelSplitInput = {
