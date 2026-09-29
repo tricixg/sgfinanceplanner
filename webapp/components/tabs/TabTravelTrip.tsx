@@ -312,22 +312,36 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     return out;
   }, [expenses]);
 
+  const reimbursedBySub = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const e of expenses) {
+      if (!(e.reimbursedAmount > 0)) continue;
+      const reimbursedShare = e.amount > 0 ? (e.reimbursedAmount * e.budgetAmount) / e.amount : 0;
+      out.set(e.subCategory, (out.get(e.subCategory) ?? 0) + reimbursedShare);
+    }
+    return out;
+  }, [expenses]);
+
   const totals = useMemo(() => {
     const rows = editingBudget ? draft : budgets;
     let budgetTotal = 0;
     let spentTotal = 0;
+    let reimbursedTotal = 0;
     for (const row of rows) {
       const budgetAmount = Number(row.budgetAmount ?? 0);
       const spent = Number(spentBySub.get(row.subCategory) ?? 0);
+      const reimbursed = Number(reimbursedBySub.get(row.subCategory) ?? 0);
       budgetTotal += budgetAmount;
       spentTotal += spent;
+      reimbursedTotal += reimbursed;
     }
     return {
       budget: budgetTotal,
       spent: spentTotal,
-      remaining: budgetTotal - spentTotal,
+      reimbursed: reimbursedTotal,
+      remaining: budgetTotal - spentTotal + reimbursedTotal,
     };
-  }, [editingBudget, draft, budgets, spentBySub]);
+  }, [editingBudget, draft, budgets, spentBySub, reimbursedBySub]);
 
   const budgetPie = useMemo(() => {
     const rows = (editingBudget ? draft : budgets).filter(
@@ -607,6 +621,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
               <th>Subcategory</th>
               <th className="num">Budget</th>
               <th className="num">Spent</th>
+              <th className="num">Reimbursed</th>
               <th className="num">Remaining</th>
               {editingBudget ? <th style={{ width: 72 }}>Action</th> : null}
             </tr>
@@ -614,7 +629,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
           <tbody>
             {(editingBudget ? draft : budgets).length === 0 ? (
               <tr>
-                <td colSpan={editingBudget ? 5 : 4} className="note">
+                <td colSpan={editingBudget ? 6 : 5} className="note">
                   Add budget categories first.
                 </td>
               </tr>
@@ -623,7 +638,8 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
                 const sub = row.subCategory;
                 const budgetAmount = row.budgetAmount;
                 const spent = spentBySub.get(sub) ?? 0;
-                const remaining = budgetAmount - spent;
+                const reimbursed = reimbursedBySub.get(sub) ?? 0;
+                const remaining = budgetAmount - spent + reimbursed;
                 const key = row.id ?? `draft-${i}`;
                 return (
                   <tr key={key}>
@@ -664,6 +680,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
                       )}
                     </td>
                     <td className="num">{fmt2(spent)}</td>
+                    <td className="num">{fmt2(reimbursed)}</td>
                     <td className={`num ${remaining < 0 ? "neg" : ""}`}>{fmt2(remaining)}</td>
                     {editingBudget ? (
                       <td>
@@ -688,6 +705,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
               <th>Total</th>
               <th className="num">{fmt2(totals.budget)}</th>
               <th className="num">{fmt2(totals.spent)}</th>
+              <th className="num">{fmt2(totals.reimbursed)}</th>
               <th className={`num ${totals.remaining < 0 ? "neg" : ""}`}>
                 {fmt2(totals.remaining)}
               </th>
