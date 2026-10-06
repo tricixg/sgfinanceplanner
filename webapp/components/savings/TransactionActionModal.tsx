@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
-import { fmtSigned2 } from "@/lib/finance/helpers";
+import { useBenefits } from "@/hooks/useBenefits";
+import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
@@ -47,6 +48,7 @@ function eventsForTransactionChange(
 export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const { accounts } = useFinancialAccounts();
   const { categories: incomeCategories } = useIncomeCategories(true);
+  const { benefits } = useBenefits(true);
   const [note, setNote] = useState(tx.note ?? "");
   const [category, setCategory] = useState(tx.category ?? "");
   const [date, setDate] = useState(toDateInput(tx));
@@ -59,6 +61,8 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
     tx.financialAccountId ?? ""
   );
   const [reimburseCategoryId, setReimburseCategoryId] = useState("");
+  const [benefitId, setBenefitId] = useState("");
+  const [benefitClaimDate, setBenefitClaimDate] = useState(toDateInput(tx));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const reimburseLock = useRef(false);
@@ -74,6 +78,13 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
     () => incomeCategories.filter((c) => REIMBURSE_CATEGORY_SLUGS.includes(c.slug)),
     [incomeCategories]
   );
+  const benefitOptions = useMemo(
+    () =>
+      benefits.filter(
+        (b) => !b.hidden && (!b.incomeCategoryId || b.incomeCategoryId === reimburseCategoryId)
+      ),
+    [benefits, reimburseCategoryId]
+  );
 
   useEffect(() => {
     if (!reimburseCategoryId && reimburseCategoryOptions.length) {
@@ -83,6 +94,12 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
       setReimburseCategoryId(def.id);
     }
   }, [reimburseCategoryOptions, reimburseCategoryId]);
+
+  useEffect(() => {
+    if (benefitId && !benefitOptions.some((b) => b.id === benefitId)) {
+      setBenefitId("");
+    }
+  }, [benefitId, benefitOptions]);
 
   const saveEdit = async () => {
     setBusy(true);
@@ -139,6 +156,8 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
             amount: Number(reimburseAmount || 0),
             financialAccountId: financialAccountId || undefined,
             incomeCategoryId: reimburseCategoryId || undefined,
+            benefitId: benefitId || undefined,
+            benefitClaimDate: benefitId ? benefitClaimDate || undefined : undefined,
           }),
         }
       );
@@ -146,6 +165,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
       console.info("[TransactionActionModal] reimburse ok", { id: tx.id });
       onClose();
       dispatchDomainEvent(eventsForTransactionChange(tx.recordType));
+      if (benefitId) dispatchDomainEvent("benefits:changed");
       onSaved("Reimbursement recorded");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Reimburse failed";
@@ -249,6 +269,32 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
                       </option>
                     ))}
                   </select>
+                </label>
+              ) : null}
+              {benefitOptions.length ? (
+                <label>
+                  Apply to benefit
+                  <select
+                    value={benefitId}
+                    onChange={(e) => setBenefitId(e.target.value)}
+                  >
+                    <option value="">— None —</option>
+                    {benefitOptions.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.remaining == null ? "no limit" : `${fmt2(b.remaining)} left`})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {benefitId ? (
+                <label>
+                  Claim date (counts toward the benefit&apos;s cycle)
+                  <input
+                    type="date"
+                    value={benefitClaimDate}
+                    onChange={(e) => setBenefitClaimDate(e.target.value)}
+                  />
                 </label>
               ) : null}
             </>

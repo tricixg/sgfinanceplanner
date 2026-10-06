@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_INCOME_CATEGORIES } from "@/lib/income/defaults";
 
 describe("DEFAULT_INCOME_CATEGORIES", () => {
-  it("marks salary and comms as non-additive", () => {
+  it("marks salary as non-additive baseline", () => {
     const salary = DEFAULT_INCOME_CATEGORIES.find((c) => c.slug === "salary");
-    const comms = DEFAULT_INCOME_CATEGORIES.find((c) => c.slug === "comms");
     expect(salary?.countsAsAdditive).toBe(false);
-    expect(comms?.countsAsAdditive).toBe(false);
+    expect(salary?.countsInBaseline).toBe(true);
+  });
+
+  it("marks comms as additive, not baseline (tracked as a benefit instead)", () => {
+    const comms = DEFAULT_INCOME_CATEGORIES.find((c) => c.slug === "comms");
+    expect(comms?.countsAsAdditive).toBe(true);
+    expect(comms?.countsInBaseline).toBe(false);
   });
 
   it("marks poker and others as additive", () => {

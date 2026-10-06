@@ -69,9 +69,9 @@ export function buildMonths(
       incomeAdditive: additive,
       incomeIsActual: baselineIsActual,
       note: baselineIsActual
-        ? "Actual salary/comms deposits"
+        ? "Actual salary deposits"
         : additive > 0
-          ? "Salary/comms + extra deposits"
+          ? "Salary + extra deposits"
           : "Stable income",
       fixed,
       spend,

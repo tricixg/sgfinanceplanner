@@ -18,6 +18,7 @@ export type AppRouteId =
   | "year"
   | "bto"
   | "miles"
+  | "benefits"
   | "me";
 
 export type NavTab = {
@@ -132,6 +133,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         label: "Poker tracker",
         href: "/poker",
         summary: "Log buy-ins, cash-outs, and session P/L — private to you.",
+      },
+      {
+        id: "benefits",
+        label: "Benefits",
+        href: "/benefits",
+        summary:
+          "Work/insurance benefit limits — dental, specialist medical, WFH allowance — with per-cycle or one-time utilization tracking.",
       },
     ],
   },

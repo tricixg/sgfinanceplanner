@@ -94,7 +94,7 @@ export function simulate5y(
       margin -= marginPay;
     }
 
-    const cashIncome = sal - cpfEmp(sal) + S.comms;
+    const cashIncome = sal - cpfEmp(sal);
     const fixed = budgetFixedTotal(S);
     const spend = budgetSpendTotal(S);
     const surplus =

@@ -69,13 +69,14 @@ export async function saveIncomeCategories(
       name: (item.name ?? "").trim() || prev?.name || "Category",
       slug,
       sort_order: i,
-      counts_in_baseline: system ? slug === "salary" || slug === "comms" : false,
+      counts_in_baseline: system ? slug === "salary" : false,
       counts_as_additive: system
         ? slug === "poker" ||
           slug === "others" ||
           slug === "reimbursement" ||
           slug === "transport-claims" ||
-          slug === "medical-claims"
+          slug === "medical-claims" ||
+          slug === "comms"
         : true,
       updated_at: new Date().toISOString(),
     };

@@ -11,10 +11,10 @@ type Props = {
 };
 
 /**
- * Income source categories editor. Salary and Communication feed the baseline
- * (from the ME salary inputs); Poker, Others, Reimbursement, Transport Claims,
- * Medical Claims, and custom categories add to cashflow when deposited to a
- * cash account. Rendered on the ME tab.
+ * Income source categories editor. Salary feeds the baseline (from the ME
+ * salary inputs); Communication, Poker, Others, Reimbursement, Transport
+ * Claims, Medical Claims, and custom categories add to cashflow when
+ * deposited to a cash account. Rendered on the ME tab.
  */
 export function IncomeSourcesCard({ authEnabled }: Props) {
   const { categories, configured, save, loading: catsLoading } =
@@ -77,7 +77,7 @@ export function IncomeSourcesCard({ authEnabled }: Props) {
         )}
       </div>
       <p className="note" style={{ marginTop: 0 }}>
-        Salary and Communication are included in baseline from ME. Poker, Others,
+        Salary is included in baseline from ME. Communication, Poker, Others,
         Reimbursement, Transport Claims, Medical Claims, and custom categories add
         to cashflow when you deposit to a cash account.
       </p>
@@ -101,11 +101,7 @@ export function IncomeSourcesCard({ authEnabled }: Props) {
                   }}
                 />
                 <span className="note" style={{ alignSelf: "center" }}>
-                  {c.slug === "salary" || c.slug === "comms"
-                    ? "Baseline"
-                    : c.slug === "poker" || c.slug === "others"
-                      ? "+ cashflow"
-                      : "+ cashflow"}
+                  {c.slug === "salary" ? "Baseline" : "+ cashflow"}
                 </span>
                 {!locked ? (
                   <button

@@ -27,6 +27,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     financialAccountId?: string;
     note?: string;
     incomeCategoryId?: string;
+    benefitId?: string;
+    benefitClaimDate?: string;
   };
   try {
     body = await req.json();
@@ -47,12 +49,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       financialAccountId: body.financialAccountId,
       note: body.note,
       incomeCategoryId: body.incomeCategoryId,
+      benefitId: body.benefitId,
+      benefitClaimDate: body.benefitClaimDate,
     });
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Reimburse failed";
     const status =
-      msg === "Not found" ? 404 : msg === "Invalid income category" ? 400 : 500;
+      msg === "Not found" ? 404 : msg === "Invalid income category" || msg === "Invalid benefit" ? 400 : 500;
     console.error("[transactions-action] reimburse failed", {
       recordType,
       id,

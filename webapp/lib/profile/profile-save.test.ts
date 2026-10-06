@@ -4,7 +4,6 @@ import { mergeFinanceProfile } from "./load";
 describe("mergeFinanceProfile", () => {
   const current = {
     monthlySal: 6500,
-    comms: 165,
     salaryCreditDay: 25,
     oa: 50000,
     sa: 10000,
@@ -16,16 +15,15 @@ describe("mergeFinanceProfile", () => {
     cashflowStartYm: "2026-05",
   };
 
-  it("updates only salary without zeroing comms or CPF", () => {
+  it("updates only salary without zeroing CPF", () => {
     const merged = mergeFinanceProfile(current, { monthlySal: 7000 });
     expect(merged.monthlySal).toBe(7000);
-    expect(merged.comms).toBe(165);
     expect(merged.oa).toBe(50000);
   });
 
-  it("updates only comms without zeroing salary", () => {
-    const merged = mergeFinanceProfile(current, { comms: 200 });
-    expect(merged.comms).toBe(200);
+  it("updates only oa without zeroing salary", () => {
+    const merged = mergeFinanceProfile(current, { oa: 60000 });
+    expect(merged.oa).toBe(60000);
     expect(merged.monthlySal).toBe(6500);
   });
 });

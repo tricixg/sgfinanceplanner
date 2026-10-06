@@ -12,7 +12,8 @@ export type DomainEventName =
   | "budget:changed"
   | "cards:changed"
   | "holdings:changed"
-  | "profile:changed";
+  | "profile:changed"
+  | "benefits:changed";
 
 export function dispatchDomainEvent(name: DomainEventName | DomainEventName[]): void {
   if (typeof window === "undefined") return;

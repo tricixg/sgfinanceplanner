@@ -218,7 +218,6 @@ export type DashboardPrefs = Record<string, never>;
 export type DashboardState = {
   prefs?: DashboardPrefs;
   monthlySal: number;
-  comms: number;
   salaryCreditDay: number;
   insurancePolicies: InsurancePolicy[];
   accounts: SavingsAccount[];

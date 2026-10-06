@@ -3,9 +3,9 @@ import { DEFAULTS } from "./defaults";
 import { buildMonths, loanLoadForMonth, stableTakeHome } from "./cashflow";
 
 describe("cashflow", () => {
-  it("stable take-home matches base minus CPF plus comms", () => {
+  it("stable take-home matches base minus CPF (comms no longer counted as baseline)", () => {
     const th = stableTakeHome(DEFAULTS);
-    expect(th).toBeCloseTo(5365, -1);
+    expect(th).toBeCloseTo(5200, -1);
   });
 
   it("loan load drops when loans end before month", () => {

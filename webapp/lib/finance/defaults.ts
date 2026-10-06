@@ -15,7 +15,6 @@ import { currentYm } from "./helpers";
 export const EMPTY_STATE: DashboardState = {
   prefs: {},
   monthlySal: 0,
-  comms: 0,
   salaryCreditDay: 0,
   insurancePolicies: [],
   accounts: [],
@@ -72,7 +71,6 @@ export function createDummyState(): DashboardState {
 /** Sample data for unit tests only — not used for reset or initial load. */
 export const DEFAULTS: DashboardState = {
   monthlySal: 6500,
-  comms: 165,
   salaryCreditDay: 25,
   insurancePolicies: [
     { name: "ECI", insurer: "", monthlyPremium: 84.13, notes: "" },

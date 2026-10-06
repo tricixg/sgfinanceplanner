@@ -11,6 +11,7 @@ import { applyReimbursementBudgetImpact } from "@/lib/transactions/reimburse-bud
 import { formatReimbursementNote } from "@/lib/transactions/reimbursement-note";
 import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
 import { findIncomeCategoryBySlug, verifyIncomeCategory } from "@/lib/income/load";
+import { deleteBenefitClaimByLedgerRecord, recordBenefitClaim, verifyBenefit } from "@/lib/benefits/load";
 
 export type TransactionRecordType = "expense" | "savings" | "budget";
 
@@ -43,9 +44,11 @@ async function deleteLinkedReimbursements(
   if (budgetLinks.error) throw new Error(budgetLinks.error.message);
 
   for (const row of savingsLinks.data ?? []) {
+    await deleteBenefitClaimByLedgerRecord(supabase, userId, "savings", String(row.id));
     await deleteSavingsTransaction(supabase, userId, String(row.id));
   }
   for (const row of budgetLinks.data ?? []) {
+    await deleteBenefitClaimByLedgerRecord(supabase, userId, "budget", String(row.id));
     await deleteBudgetTransaction(supabase, userId, String(row.id));
   }
 }
@@ -122,6 +125,7 @@ export async function deleteTransactionWithLedger(
       .eq("id", id)
       .maybeSingle();
 
+    await deleteBenefitClaimByLedgerRecord(supabase, userId, "savings", id);
     await deleteSavingsTransaction(supabase, userId, id);
     await syncStatementAfterPaymentTransactionDelete(supabase, userId, id, existing.amount);
 
@@ -148,6 +152,7 @@ export async function deleteTransactionWithLedger(
 
   const existing = await getBudgetTransactionById(supabase, userId, id);
   if (!existing) throw new Error("Not found");
+  await deleteBenefitClaimByLedgerRecord(supabase, userId, "budget", id);
   await deleteBudgetTransaction(supabase, userId, id);
 }
 
@@ -161,6 +166,9 @@ export async function reimburseTransactionWithLedger(
     financialAccountId?: string;
     note?: string;
     incomeCategoryId?: string;
+    benefitId?: string;
+    /** Date the claim counts toward a benefit's cycle (YYYY-MM-DD). Defaults to the source's own date — often not the day the reimbursement is actually processed. */
+    benefitClaimDate?: string;
   }
 ): Promise<{ recordType: "savings" | "budget"; item: unknown }> {
   const { recordType, id, amount } = input;
@@ -174,6 +182,11 @@ export async function reimburseTransactionWithLedger(
   }
   const category = incomeCategory?.name ?? "Reimbursement";
   const incomeCategoryId = incomeCategory?.id ?? null;
+
+  const benefit = input.benefitId ? await verifyBenefit(supabase, userId, input.benefitId) : null;
+  if (input.benefitId && !benefit) {
+    throw new Error("Invalid benefit");
+  }
 
   let defaultFinancialAccountId: string | null = null;
   let sourceMeta: {
@@ -281,6 +294,19 @@ export async function reimburseTransactionWithLedger(
       sourceRecordId: id,
     });
     result = { recordType: "budget", item: row };
+  }
+
+  if (benefit) {
+    const ledgerId = (result.item as { id: string }).id;
+    const defaultClaimDate = sourceMeta ? sourceMeta.whenIso.slice(0, 10) : sgtTodayYmd();
+    await recordBenefitClaim(supabase, userId, {
+      benefitId: benefit.id,
+      amount,
+      claimedAt: input.benefitClaimDate || defaultClaimDate,
+      note,
+      sourceRecordType: result.recordType,
+      sourceRecordId: ledgerId,
+    });
   }
 
   console.info("[tx-actions] reimbursement complete", {

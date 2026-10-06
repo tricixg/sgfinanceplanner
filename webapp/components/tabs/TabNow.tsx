@@ -89,7 +89,7 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
       labels: rows.map((r) => r.m),
       datasets: [
         {
-          label: "Baseline (salary/comms)",
+          label: "Baseline (salary)",
           data: rows.map((r) => r.incomeBaseline),
           backgroundColor: "#2f5d3a",
           stack: "inflows",
@@ -238,7 +238,7 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
         <div className="stat accent">
           <div className="lbl">Monthly baseline</div>
           <div className="val">{fmt(newCash)}</div>
-          <div className="note">Gross − CPF + comms (ME tab)</div>
+          <div className="note">Gross − CPF (ME tab)</div>
         </div>
         <div className="stat">
           <div className="lbl">Budget outflows / mo</div>

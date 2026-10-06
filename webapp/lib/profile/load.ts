@@ -12,7 +12,6 @@ import { normalizeBtoPlannerPrefs } from "@/lib/finance/bto";
 export type FinanceProfile = Pick<
   DashboardState,
   | "monthlySal"
-  | "comms"
   | "salaryCreditDay"
   | "oa"
   | "sa"
@@ -42,7 +41,6 @@ export async function loadFinanceProfile(
 
   return {
     monthlySal: Number(data.monthly_sal ?? 0),
-    comms: Number(data.comms ?? 0),
     salaryCreditDay: Number(data.salary_credit_day ?? 25),
     oa: Number(data.oa ?? 0),
     sa: Number(data.sa ?? 0),
@@ -80,7 +78,6 @@ function normalizeMilesPlannerPrefs(
 export function profileFromState(state: DashboardState): FinanceProfile {
   return {
     monthlySal: state.monthlySal,
-    comms: state.comms,
     salaryCreditDay: state.salaryCreditDay,
     oa: state.oa,
     sa: state.sa,
@@ -124,7 +121,6 @@ export async function saveFinanceProfile(
   const payload = {
     user_id: userId,
     monthly_sal: merged.monthlySal,
-    comms: merged.comms,
     salary_credit_day: merged.salaryCreditDay,
     oa: merged.oa,
     sa: merged.sa,
@@ -145,7 +141,6 @@ export async function saveFinanceProfile(
     userId,
     keys: Object.keys(patch),
     monthlySal: merged.monthlySal,
-    comms: merged.comms,
   });
   return loadFinanceProfile(supabase, userId);
 }

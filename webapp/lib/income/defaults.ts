@@ -12,8 +12,8 @@ export const DEFAULT_INCOME_CATEGORIES: IncomeCategoryInput[] = [
     name: "Communication",
     slug: "comms",
     sortOrder: 1,
-    countsInBaseline: true,
-    countsAsAdditive: false,
+    countsInBaseline: false,
+    countsAsAdditive: true,
   },
   {
     name: "Poker",

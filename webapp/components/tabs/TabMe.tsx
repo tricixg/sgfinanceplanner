@@ -61,7 +61,6 @@ export function TabMe({
   const [savingSalary, setSavingSalary] = useState(false);
   const [salaryDraft, setSalaryDraft] = useState({
     monthlySal: S.monthlySal,
-    comms: S.comms,
     salaryCreditDay: S.salaryCreditDay,
   });
   const insurancePolicies = editingInsurance ? insuranceDraft : S.insurancePolicies;
@@ -74,16 +73,14 @@ export function TabMe({
     if (!editingSalary) {
       setSalaryDraft({
         monthlySal: S.monthlySal,
-        comms: S.comms,
         salaryCreditDay: S.salaryCreditDay,
       });
     }
-  }, [S.monthlySal, S.comms, S.salaryCreditDay, editingSalary]);
+  }, [S.monthlySal, S.salaryCreditDay, editingSalary]);
 
   const startSalaryEdit = () => {
     setSalaryDraft({
       monthlySal: S.monthlySal,
-      comms: S.comms,
       salaryCreditDay: S.salaryCreditDay,
     });
     setEditingSalary(true);
@@ -93,7 +90,6 @@ export function TabMe({
   const cancelSalaryEdit = () => {
     setSalaryDraft({
       monthlySal: S.monthlySal,
-      comms: S.comms,
       salaryCreditDay: S.salaryCreditDay,
     });
     setEditingSalary(false);
@@ -125,7 +121,6 @@ export function TabMe({
       if (appData?.configured) {
         await appData.saveProfile({
         monthlySal: salaryDraft.monthlySal,
-        comms: salaryDraft.comms,
         salaryCreditDay: salaryDraft.salaryCreditDay,
         });
         console.info("[TabMe] salary saved to profile", salaryDraft);
@@ -318,16 +313,6 @@ export function TabMe({
               <span></span>
             </div>
             <div className="editrow">
-              <span>Communication allowance / mo (non-CPF)</span>
-              <DecimalInput
-                value={salaryDraft.comms}
-                onChange={(v) => setSalaryDraft((d) => ({ ...d, comms: v }))}
-              />
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <div className="editrow">
               <span>Salary credit day (1–31)</span>
               <DecimalInput
                 value={salaryDraft.salaryCreditDay}
@@ -350,10 +335,6 @@ export function TabMe({
             <div className="minirow">
               <span className="k">Monthly gross salary</span>
               <span className="v">{fmt2(S.monthlySal)}</span>
-            </div>
-            <div className="minirow">
-              <span className="k">Communication allowance / mo (non-CPF)</span>
-              <span className="v">{fmt2(S.comms)}</span>
             </div>
             <div className="minirow">
               <span className="k">Salary credit day</span>

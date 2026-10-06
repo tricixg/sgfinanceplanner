@@ -17,7 +17,6 @@ export const CPF_CONTRIBUTIONS_LIMIT = 60;
 /** Profile scalar fields synced by setState — extend when FinanceProfile grows. */
 export const PROFILE_STATE_KEYS: (keyof FinanceProfile)[] = [
   "monthlySal",
-  "comms",
   "salaryCreditDay",
   "oa",
   "sa",
