@@ -5,12 +5,16 @@ import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { useBenefits } from "@/hooks/useBenefits";
+import { isSystemIncomeSlug } from "@/lib/income/types";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import type { DomainEventName } from "@/lib/events/domain-events";
 
+/** System categories curated as reimbursement-worthy; any custom category the
+ * user adds themselves (via Income Sources) also qualifies automatically —
+ * see reimburseCategoryOptions below. */
 const REIMBURSE_CATEGORY_SLUGS = [
   "reimbursement",
   "comms",
@@ -75,7 +79,12 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
 
   const accountOptions = useMemo(() => accounts, [accounts]);
   const reimburseCategoryOptions = useMemo(
-    () => incomeCategories.filter((c) => REIMBURSE_CATEGORY_SLUGS.includes(c.slug)),
+    () =>
+      incomeCategories.filter(
+        (c) =>
+          REIMBURSE_CATEGORY_SLUGS.includes(c.slug) ||
+          (!isSystemIncomeSlug(c.slug) && c.countsAsAdditive)
+      ),
     [incomeCategories]
   );
   const benefitOptions = useMemo(

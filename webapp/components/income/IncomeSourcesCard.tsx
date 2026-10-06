@@ -79,7 +79,9 @@ export function IncomeSourcesCard({ authEnabled }: Props) {
       <p className="note" style={{ marginTop: 0 }}>
         Salary is included in baseline from ME. Communication, Poker, Others,
         Reimbursement, Transport Claims, Medical Claims, and custom categories add
-        to cashflow when you deposit to a cash account.
+        to cashflow when you deposit to a cash account. Custom categories you add here
+        also appear automatically in the &quot;Reimburse category&quot; picker when you
+        reimburse a transaction.
       </p>
       {catMsg ? <p className="note">{catMsg}</p> : null}
       {catsLoading && !categories.length ? (
