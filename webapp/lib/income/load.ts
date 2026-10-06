@@ -71,7 +71,11 @@ export async function saveIncomeCategories(
       sort_order: i,
       counts_in_baseline: system ? slug === "salary" || slug === "comms" : false,
       counts_as_additive: system
-        ? slug === "poker" || slug === "others" || slug === "reimbursement"
+        ? slug === "poker" ||
+          slug === "others" ||
+          slug === "reimbursement" ||
+          slug === "transport-claims" ||
+          slug === "medical-claims"
         : true,
       updated_at: new Date().toISOString(),
     };

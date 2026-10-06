@@ -36,4 +36,18 @@ export const DEFAULT_INCOME_CATEGORIES: IncomeCategoryInput[] = [
     countsInBaseline: false,
     countsAsAdditive: true,
   },
+  {
+    name: "Transport Claims",
+    slug: "transport-claims",
+    sortOrder: 5,
+    countsInBaseline: false,
+    countsAsAdditive: true,
+  },
+  {
+    name: "Medical Claims",
+    slug: "medical-claims",
+    sortOrder: 6,
+    countsInBaseline: false,
+    countsAsAdditive: true,
+  },
 ];

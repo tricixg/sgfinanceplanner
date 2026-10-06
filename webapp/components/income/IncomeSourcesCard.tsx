@@ -12,9 +12,9 @@ type Props = {
 
 /**
  * Income source categories editor. Salary and Communication feed the baseline
- * (from the ME salary inputs); Poker, Others, Reimbursement, and custom
- * categories add to cashflow when deposited to a cash account. Rendered on
- * the ME tab.
+ * (from the ME salary inputs); Poker, Others, Reimbursement, Transport Claims,
+ * Medical Claims, and custom categories add to cashflow when deposited to a
+ * cash account. Rendered on the ME tab.
  */
 export function IncomeSourcesCard({ authEnabled }: Props) {
   const { categories, configured, save, loading: catsLoading } =
@@ -78,8 +78,8 @@ export function IncomeSourcesCard({ authEnabled }: Props) {
       </div>
       <p className="note" style={{ marginTop: 0 }}>
         Salary and Communication are included in baseline from ME. Poker, Others,
-        Reimbursement, and custom categories add to cashflow when you deposit to a
-        cash account.
+        Reimbursement, Transport Claims, Medical Claims, and custom categories add
+        to cashflow when you deposit to a cash account.
       </p>
       {catMsg ? <p className="note">{catMsg}</p> : null}
       {catsLoading && !categories.length ? (

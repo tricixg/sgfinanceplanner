@@ -23,6 +23,8 @@ export const SYSTEM_INCOME_SLUGS = [
   "comms",
   "others",
   "reimbursement",
+  "transport-claims",
+  "medical-claims",
 ] as const;
 export type SystemIncomeSlug = (typeof SYSTEM_INCOME_SLUGS)[number];
 

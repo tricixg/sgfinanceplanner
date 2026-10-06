@@ -10,7 +10,12 @@ import { DecimalTextInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import type { DomainEventName } from "@/lib/events/domain-events";
 
-const REIMBURSE_CATEGORY_SLUGS = ["reimbursement", "comms"];
+const REIMBURSE_CATEGORY_SLUGS = [
+  "reimbursement",
+  "comms",
+  "transport-claims",
+  "medical-claims",
+];
 
 type Props = {
   tx: UnifiedTransaction;
