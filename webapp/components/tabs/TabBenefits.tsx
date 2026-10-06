@@ -559,14 +559,56 @@ export function TabBenefits({ enabled }: Props) {
                     <details className="debt-archive" style={{ marginTop: 12 }}>
                       <summary>Past cycles — {b.pastCycles.length}</summary>
                       <div style={{ marginTop: 10 }}>
-                        {b.pastCycles.map((p) => (
-                          <div key={p.cycleStart} style={{ marginBottom: 14 }}>
-                            <p className="note" style={{ fontSize: 12, fontWeight: 600 }}>
-                              {p.cycleStart} → {p.cycleEnd} · Used {fmt2(p.usedInCycle)}
-                            </p>
-                            {renderClaimsTable(p.claims, b.id)}
-                          </div>
-                        ))}
+                        {b.pastCycles.map((p) => {
+                          const pPct = progressPct(p.usedInCycle, b.limitAmount);
+                          const pOver =
+                            b.limitAmount != null &&
+                            b.limitAmount > 0 &&
+                            p.usedInCycle > b.limitAmount;
+                          const pRemaining = b.limitAmount != null ? b.limitAmount - p.usedInCycle : null;
+                          const pFullyUsed = pRemaining != null && pRemaining <= 0.01;
+                          return (
+                            <div key={p.cycleStart} style={{ marginBottom: 14 }}>
+                              <div className="category-budget-head">
+                                <p className="note" style={{ fontSize: 12, fontWeight: 600, margin: 0 }}>
+                                  {p.cycleStart} → {p.cycleEnd}
+                                  {pFullyUsed ? (
+                                    <span className="tag t-live" style={{ marginLeft: 6 }}>
+                                      fully used
+                                    </span>
+                                  ) : null}
+                                </p>
+                                <div className="category-budget-stats">
+                                  <span>
+                                    <span className="lbl">Used</span> {fmt2(p.usedInCycle)}
+                                  </span>
+                                  {b.limitAmount != null ? (
+                                    <>
+                                      <span>
+                                        <span className="lbl">Limit</span> {fmt2(b.limitAmount)}
+                                      </span>
+                                      <span className={pRemaining != null && pRemaining < 0 ? "neg" : ""}>
+                                        <span className="lbl">
+                                          {pOver ? "Over by" : "Remaining"}
+                                        </span>{" "}
+                                        {fmt2(Math.abs(pRemaining ?? 0))}
+                                      </span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                              {b.limitAmount != null && b.limitAmount > 0 ? (
+                                <div className="category-budget-progress-wrap">
+                                  <div
+                                    className={`category-budget-progress ${pOver ? "category-budget-progress--over" : ""}`}
+                                    style={{ width: `${pPct}%` }}
+                                  />
+                                </div>
+                              ) : null}
+                              {renderClaimsTable(p.claims, b.id)}
+                            </div>
+                          );
+                        })}
                       </div>
                     </details>
                   ) : null}
