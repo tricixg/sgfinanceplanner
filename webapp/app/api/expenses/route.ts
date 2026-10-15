@@ -9,6 +9,7 @@ import {
   verifyFinancialAccount,
   type AutoPaymentPayload,
 } from "@/lib/expenses/auto-payment";
+import { adjustBnplMonthsPaid } from "@/lib/recurring/load";
 import {
   isExpenseBudgetType,
   mapDbBudgetLine,
@@ -118,6 +119,7 @@ export async function POST(req: NextRequest) {
     ilpPolicyId?: string;
     subscriptionId?: string;
     investmentId?: string;
+    bnplId?: string;
     financialAccountId?: string;
     spentAt?: string;
     spentTime?: string;
@@ -167,6 +169,7 @@ export async function POST(req: NextRequest) {
       ilpPolicyId: body.ilpPolicyId,
       subscriptionId: body.subscriptionId,
       investmentId: body.investmentId,
+      bnplId: body.bnplId,
       amount,
       spentAt,
       spentTime,
@@ -246,6 +249,14 @@ export async function POST(req: NextRequest) {
 
     if (validated.autoCategory === "debt" && body.loanId) {
       const adj = await adjustLoanOutstanding(supabase, user.id, body.loanId, -amount);
+      if (!adj.ok) {
+        await supabase.from("expenses").delete().eq("id", row.id);
+        return NextResponse.json({ error: adj.error }, { status: 500 });
+      }
+    }
+
+    if (validated.autoCategory === "bnpl" && body.bnplId) {
+      const adj = await adjustBnplMonthsPaid(supabase, user.id, body.bnplId, 1);
       if (!adj.ok) {
         await supabase.from("expenses").delete().eq("id", row.id);
         return NextResponse.json({ error: adj.error }, { status: 500 });

@@ -147,6 +147,21 @@ export type RecurringInvestment = {
   fundId: string;
 };
 
+/** Buy Now Pay Later — a fixed-tenure instalment purchase. Unlike
+ *  RecurringSubscription, it has a known total and ends once monthsPaid
+ *  reaches tenureMonths. */
+export type BnplPlan = {
+  id?: string;
+  name: string;
+  totalAmount: number;
+  tenureMonths: number;
+  /** Monthly instalment amount. */
+  amount: number;
+  monthsPaid: number;
+  deductionDay?: number;
+  defaultFinancialAccountId?: string;
+};
+
 export type BudgetItem = {
   id?: string;
   cat: string;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
+import { adjustBnplMonthsPaid } from "@/lib/recurring/load";
 import { restoreOtherLoanPayment } from "@/lib/other-loans/pay";
 import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { applyFundTransaction } from "@/lib/funds/ledger";
@@ -123,6 +124,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     );
     if (!adj.ok) {
       console.error("[api/expenses] DELETE other-loan restore failed", adj.error);
+    }
+  }
+
+  if (existing.auto_category === "bnpl" && existing.bnpl_id) {
+    const adj = await adjustBnplMonthsPaid(supabase, user.id, String(existing.bnpl_id), -1);
+    if (!adj.ok) {
+      console.error("[api/expenses] DELETE bnpl restore failed", adj.error);
     }
   }
 

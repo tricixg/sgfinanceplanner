@@ -7,6 +7,7 @@ import {
   type RecurringPaymentInfo,
 } from "@/lib/recurring/status";
 import type {
+  BnplPlan,
   IlpPolicy,
   InsurancePolicy,
   Loan,
@@ -70,7 +71,8 @@ export function buildRecurringRows(
   investments: RecurringInvestment[],
   expenses: Expense[],
   accountNames: Map<string, string>,
-  fundNames: Map<string, string> = new Map()
+  fundNames: Map<string, string> = new Map(),
+  bnplPlans: BnplPlan[] = []
 ): RecurringRow[] {
   const rows: RecurringRow[] = [];
 
@@ -158,6 +160,23 @@ export function buildRecurringRows(
         accountNames,
         inv.fundId,
         fundNames
+      )
+    );
+  }
+
+  for (const plan of bnplPlans) {
+    if (!plan.id || plan.amount <= 0 || plan.monthsPaid >= plan.tenureMonths) continue;
+    rows.push(
+      rowFromSource(
+        "bnpl",
+        plan.id,
+        plan.name || "Buy Now Pay Later",
+        plan.amount,
+        plan.deductionDay,
+        plan.defaultFinancialAccountId,
+        ym,
+        expenses,
+        accountNames
       )
     );
   }

@@ -89,7 +89,8 @@ export function mapExpense(row: Record<string, unknown>): Expense {
     auto === "insurance" ||
     auto === "ilp" ||
     auto === "subscription" ||
-    auto === "invest"
+    auto === "invest" ||
+    auto === "bnpl"
       ? auto
       : null;
   return {
@@ -107,6 +108,7 @@ export function mapExpense(row: Record<string, unknown>): Expense {
     ilpPolicyId: row.ilp_policy_id ? String(row.ilp_policy_id) : null,
     subscriptionId: row.subscription_id ? String(row.subscription_id) : null,
     investmentId: row.investment_id ? String(row.investment_id) : null,
+    bnplId: row.bnpl_id ? String(row.bnpl_id) : null,
     fundId: row.fund_id ? String(row.fund_id) : null,
     financialAccountId: row.financial_account_id
       ? String(row.financial_account_id)

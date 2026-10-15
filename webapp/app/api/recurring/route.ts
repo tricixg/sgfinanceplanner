@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { buildRecurringRows } from "@/lib/recurring/build-rows";
-import { loadRecurringInvestments, loadRecurringSubscriptions } from "@/lib/recurring/load";
+import {
+  loadBnplPlans,
+  loadRecurringInvestments,
+  loadRecurringSubscriptions,
+} from "@/lib/recurring/load";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { loadLoans } from "@/lib/loans/load";
 import { mapExpense } from "@/lib/savings/db-mappers";
@@ -31,30 +35,40 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createAuthedSupabaseClient();
 
-  const [loans, insurance, ilp, subscriptions, investments, expensesRes, accountsRes, fundsRes] =
-    await Promise.all([
-      loadLoans(supabase, user.id),
-      loadInsurancePolicies(supabase, user.id),
-      loadIlpPolicies(supabase, user.id),
-      loadRecurringSubscriptions(supabase, user.id),
-      loadRecurringInvestments(supabase, user.id),
-      supabase
-        .from("expenses")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("spent_at", from)
-        .lte("spent_at", to)
-        .not("auto_category", "is", null),
-      supabase
-        .from("financial_accounts")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("investment_funds")
-        .select("id, name")
-        .eq("user_id", user.id),
-    ]);
+  const [
+    loans,
+    insurance,
+    ilp,
+    subscriptions,
+    investments,
+    bnplPlans,
+    expensesRes,
+    accountsRes,
+    fundsRes,
+  ] = await Promise.all([
+    loadLoans(supabase, user.id),
+    loadInsurancePolicies(supabase, user.id),
+    loadIlpPolicies(supabase, user.id),
+    loadRecurringSubscriptions(supabase, user.id),
+    loadRecurringInvestments(supabase, user.id),
+    loadBnplPlans(supabase, user.id),
+    supabase
+      .from("expenses")
+      .select("*")
+      .eq("user_id", user.id)
+      .gte("spent_at", from)
+      .lte("spent_at", to)
+      .not("auto_category", "is", null),
+    supabase
+      .from("financial_accounts")
+      .select("id, name")
+      .eq("user_id", user.id)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("investment_funds")
+      .select("id, name")
+      .eq("user_id", user.id),
+  ]);
 
   if (expensesRes.error) {
     console.error("[api/recurring] expenses load failed", expensesRes.error.message);
@@ -88,7 +102,8 @@ export async function GET(req: NextRequest) {
     investments,
     expenses,
     accountNames,
-    fundNames
+    fundNames,
+    bnplPlans
   );
 
   console.info("[api/recurring] GET", {
@@ -98,5 +113,12 @@ export async function GET(req: NextRequest) {
     paid: rows.filter((r) => r.paid).length,
   });
 
-  return NextResponse.json({ configured: true, ym, rows, subscriptions, investments });
+  return NextResponse.json({
+    configured: true,
+    ym,
+    rows,
+    subscriptions,
+    investments,
+    bnplPlans,
+  });
 }

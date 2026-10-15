@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   RecordRecurringPaymentForm,
   type RecurringPaymentSuccessPayload,
@@ -9,8 +9,12 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { formatDeductionDayLabel } from "@/lib/recurring/prefill";
-import type { RecurringInvestment, RecurringSubscription } from "@/lib/types";
-import { defaultRecurringInvestment, defaultRecurringSubscription } from "@/lib/finance/budget";
+import type { BnplPlan, RecurringInvestment, RecurringSubscription } from "@/lib/types";
+import {
+  defaultBnplPlan,
+  defaultRecurringInvestment,
+  defaultRecurringSubscription,
+} from "@/lib/finance/budget";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
@@ -25,6 +29,7 @@ const KIND_LABEL: Record<RecurringRow["kind"], string> = {
   ilp: "ILP",
   subscription: "Other Recurring",
   invest: "Recurring Invest",
+  bnpl: "Buy Now Pay Later",
 };
 
 type Props = {
@@ -48,6 +53,10 @@ export function TabRecurring({ enabled, onReload }: Props) {
   const [investDraft, setInvestDraft] = useState<RecurringInvestment[]>([]);
   const [savingInvest, setSavingInvest] = useState(false);
   const [investError, setInvestError] = useState("");
+  const [bnplPlans, setBnplPlans] = useState<BnplPlan[]>([]);
+  const [editingBnpl, setEditingBnpl] = useState(false);
+  const [bnplDraft, setBnplDraft] = useState<BnplPlan[]>([]);
+  const [savingBnpl, setSavingBnpl] = useState(false);
   // Both already live in the shared session cache — no need to fetch our own
   // copy. state.budget stays current via the same AppDataProvider instance
   // every save goes through; useFunds() lazy-loads + auto-refreshes on
@@ -72,11 +81,13 @@ export function TabRecurring({ enabled, onReload }: Props) {
         rows?: RecurringRow[];
         subscriptions?: RecurringSubscription[];
         investments?: RecurringInvestment[];
+        bnplPlans?: BnplPlan[];
       }>(`/api/recurring?ym=${viewYm}`, { credentials: "include" });
       if (!res.ok) throw new Error(data.error ?? "Failed to load recurring");
       setRows(data.rows ?? []);
       setSubscriptions(data.subscriptions ?? []);
       setInvestments(data.investments ?? []);
+      setBnplPlans(data.bnplPlans ?? []);
       console.info("[TabRecurring] loaded", { ym: viewYm, rows: data.rows?.length ?? 0 });
     } catch (e) {
       console.error("[TabRecurring] load failed", e);
@@ -211,6 +222,37 @@ export function TabRecurring({ enabled, onReload }: Props) {
     }
   };
 
+  const startEditBnpl = () => {
+    setBnplDraft(bnplPlans.length ? bnplPlans.map((s) => ({ ...s })) : []);
+    setEditingBnpl(true);
+  };
+
+  const saveBnpl = async () => {
+    setSavingBnpl(true);
+    try {
+      const { res, data } = await fetchJson<{ error?: string; items?: BnplPlan[] }>(
+        "/api/bnpl-plans",
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: bnplDraft }),
+        }
+      );
+      if (!res.ok) throw new Error(data.error ?? "Failed to save BNPL plans");
+      setBnplPlans(data.items ?? []);
+      setEditingBnpl(false);
+      console.info("[TabRecurring] bnpl plans saved");
+      dispatchDomainEvent("recurring:changed");
+      await load();
+    } catch (e) {
+      console.error("[TabRecurring] save bnpl plans failed", e);
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSavingBnpl(false);
+    }
+  };
+
   if (!enabled) {
     return (
       <section className="panel on">
@@ -221,13 +263,15 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
   const todayYm = currentYm();
   const recurringPaymentRows = rows.filter(
-    (r) => r.kind !== "subscription" && r.kind !== "invest"
+    (r) => r.kind !== "subscription" && r.kind !== "invest" && r.kind !== "bnpl"
   );
   const subscriptionPaymentRows = rows.filter((r) => r.kind === "subscription");
   const investPaymentRows = rows.filter((r) => r.kind === "invest");
+  const bnplPaymentRows = rows.filter((r) => r.kind === "bnpl");
   const paidCount = recurringPaymentRows.filter((r) => r.paid).length;
   const subPaidCount = subscriptionPaymentRows.filter((r) => r.paid).length;
   const investPaidCount = investPaymentRows.filter((r) => r.paid).length;
+  const bnplPaidCount = bnplPaymentRows.filter((r) => r.paid).length;
 
   const activeSubscriptions = subscriptions.filter(
     (s) => !s.endMonth || s.endMonth >= viewYm
@@ -263,6 +307,18 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
   const investDraftTotal = activeInvestDraft.reduce((s, { sub }) => s + sub.amount, 0);
 
+  const activeBnplPlans = bnplPlans.filter((p) => p.monthsPaid < p.tenureMonths);
+  const completedBnplPlans = bnplPlans.filter((p) => p.monthsPaid >= p.tenureMonths);
+
+  const indexedBnplDraft = bnplDraft.map((s, idx) => ({ sub: s, idx }));
+  const activeBnplDraft = indexedBnplDraft.filter(({ sub }) => sub.monthsPaid < sub.tenureMonths);
+  const completedBnplDraft = indexedBnplDraft.filter(
+    ({ sub }) => sub.monthsPaid >= sub.tenureMonths
+  );
+
+  const bnplActiveTotal = activeBnplPlans.reduce((s, x) => s + x.amount, 0);
+  const bnplDraftTotal = activeBnplDraft.reduce((s, { sub }) => s + sub.amount, 0);
+
   const renderRecurringRows = (
     list: RecurringRow[],
     emptyMessage: string,
@@ -270,6 +326,8 @@ export function TabRecurring({ enabled, onReload }: Props) {
       showType?: boolean;
       showCategory?: boolean;
       showFund?: boolean;
+      extraCells?: (row: RecurringRow) => ReactNode;
+      extraColCount?: number;
       colSpan?: number;
     } = {}
   ) => {
@@ -277,7 +335,12 @@ export function TabRecurring({ enabled, onReload }: Props) {
     const showCategory = opts.showCategory === true;
     const showFund = opts.showFund === true;
     const colSpan =
-      opts.colSpan ?? 6 + (showType ? 1 : 0) + (showCategory ? 1 : 0) + (showFund ? 1 : 0);
+      opts.colSpan ??
+      6 +
+        (showType ? 1 : 0) +
+        (showCategory ? 1 : 0) +
+        (showFund ? 1 : 0) +
+        (opts.extraColCount ?? 0);
     if (list.length === 0) {
       return (
         <tr>
@@ -308,6 +371,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
             <td className="num">{fmt2(row.amount)}</td>
             {showCategory ? <td>{categoryName(linkedBudgetLineId) ?? "—"}</td> : null}
             {showFund ? <td>{row.fundName ?? fundName(row.fundId ?? undefined) ?? "—"}</td> : null}
+            {opts.extraCells ? opts.extraCells(row) : null}
             <td>{formatDeductionDayLabel(row.deductionDay)}</td>
             <td>{row.defaultAccountName ?? "—"}</td>
             <td>
@@ -405,20 +469,26 @@ export function TabRecurring({ enabled, onReload }: Props) {
         <div className="stat accent">
           <div className="lbl">Items</div>
           <div className="val">
-            {recurringPaymentRows.length + subscriptionPaymentRows.length + investPaymentRows.length}
+            {recurringPaymentRows.length +
+              subscriptionPaymentRows.length +
+              investPaymentRows.length +
+              bnplPaymentRows.length}
           </div>
         </div>
         <div className="stat">
           <div className="lbl">Paid this month</div>
           <div className="val">
-            {paidCount + subPaidCount + investPaidCount}/
-            {recurringPaymentRows.length + subscriptionPaymentRows.length + investPaymentRows.length}
+            {paidCount + subPaidCount + investPaidCount + bnplPaidCount}/
+            {recurringPaymentRows.length +
+              subscriptionPaymentRows.length +
+              investPaymentRows.length +
+              bnplPaymentRows.length}
           </div>
         </div>
         <div className="stat">
-          <div className="lbl">Other Recurring · Recurring Invest</div>
+          <div className="lbl">Other Recurring · Invest · BNPL</div>
           <div className="val">
-            {activeSubscriptions.length} · {activeInvestments.length}
+            {activeSubscriptions.length} · {activeInvestments.length} · {activeBnplPlans.length}
           </div>
         </div>
       </div>
@@ -1065,6 +1135,325 @@ export function TabRecurring({ enabled, onReload }: Props) {
                         <td className="num">{fmt2(inv.amount)}</td>
                         <td>{fundName(inv.fundId) ?? "—"}</td>
                         <td>{inv.endMonth}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+        </>
+      )}
+
+      <div className="section-head" style={{ marginTop: 24 }}>
+        <h2>Buy Now Pay Later</h2>
+        {editingBnpl ? (
+          <button type="button" className="btn sm" onClick={() => void saveBnpl()} disabled={savingBnpl}>
+            {savingBnpl ? "Saving…" : "Done"}
+          </button>
+        ) : (
+          <button type="button" className="btn ghost sm" onClick={startEditBnpl}>
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editingBnpl ? (
+        <div className="card">
+          <div className="editrow head recurring-bnpl">
+            <span>Name</span>
+            <span>Total amount</span>
+            <span>Tenure (mo)</span>
+            <span>Monthly payment</span>
+            <span>Months paid</span>
+            <span>Due day</span>
+            <span>Pay from</span>
+            <span></span>
+          </div>
+          {activeBnplDraft.map(({ sub: s, idx: i }) => (
+            <div className="editrow recurring-bnpl" key={i}>
+              <input
+                type="text"
+                placeholder="Name"
+                value={s.name}
+                onChange={(e) => {
+                  const next = [...bnplDraft];
+                  next[i] = { ...s, name: e.target.value };
+                  setBnplDraft(next);
+                }}
+              />
+              <DecimalInput
+                placeholder="Total"
+                value={s.totalAmount}
+                onChange={(v) => {
+                  const next = [...bnplDraft];
+                  next[i] = { ...s, totalAmount: v };
+                  setBnplDraft(next);
+                }}
+              />
+              <input
+                type="number"
+                min={1}
+                step={1}
+                placeholder="Months"
+                value={s.tenureMonths}
+                onChange={(e) => {
+                  const next = [...bnplDraft];
+                  next[i] = { ...s, tenureMonths: Math.max(1, Number(e.target.value) || 1) };
+                  setBnplDraft(next);
+                }}
+              />
+              <DecimalInput
+                placeholder="Monthly"
+                value={s.amount}
+                onChange={(v) => {
+                  const next = [...bnplDraft];
+                  next[i] = { ...s, amount: v };
+                  setBnplDraft(next);
+                }}
+              />
+              <input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="Paid"
+                value={s.monthsPaid}
+                onChange={(e) => {
+                  const next = [...bnplDraft];
+                  next[i] = { ...s, monthsPaid: Math.max(0, Number(e.target.value) || 0) };
+                  setBnplDraft(next);
+                }}
+              />
+              <RecurringScheduleFields
+                inline
+                deductionDay={s.deductionDay}
+                defaultFinancialAccountId={s.defaultFinancialAccountId}
+                onDeductionDayChange={(day) => {
+                  const next = [...bnplDraft];
+                  next[i] = { ...s, deductionDay: day };
+                  setBnplDraft(next);
+                }}
+                onAccountChange={(id) => {
+                  const next = [...bnplDraft];
+                  next[i] = { ...s, defaultFinancialAccountId: id };
+                  setBnplDraft(next);
+                }}
+              />
+              <button
+                type="button"
+                className="btn del sm"
+                onClick={() => setBnplDraft(bnplDraft.filter((_, j) => j !== i))}
+              >
+                del
+              </button>
+            </div>
+          ))}
+          {completedBnplDraft.length > 0 && (
+            <details className="debt-archive" style={{ marginTop: 12 }}>
+              <summary>Paid off — {completedBnplDraft.length}</summary>
+              <div style={{ marginTop: 10 }}>
+                {completedBnplDraft.map(({ sub: s, idx: i }) => (
+                  <div className="editrow recurring-bnpl" key={i}>
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={s.name}
+                      onChange={(e) => {
+                        const next = [...bnplDraft];
+                        next[i] = { ...s, name: e.target.value };
+                        setBnplDraft(next);
+                      }}
+                    />
+                    <DecimalInput
+                      placeholder="Total"
+                      value={s.totalAmount}
+                      onChange={(v) => {
+                        const next = [...bnplDraft];
+                        next[i] = { ...s, totalAmount: v };
+                        setBnplDraft(next);
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      placeholder="Months"
+                      value={s.tenureMonths}
+                      onChange={(e) => {
+                        const next = [...bnplDraft];
+                        next[i] = { ...s, tenureMonths: Math.max(1, Number(e.target.value) || 1) };
+                        setBnplDraft(next);
+                      }}
+                    />
+                    <DecimalInput
+                      placeholder="Monthly"
+                      value={s.amount}
+                      onChange={(v) => {
+                        const next = [...bnplDraft];
+                        next[i] = { ...s, amount: v };
+                        setBnplDraft(next);
+                      }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="Paid"
+                      value={s.monthsPaid}
+                      onChange={(e) => {
+                        const next = [...bnplDraft];
+                        next[i] = { ...s, monthsPaid: Math.max(0, Number(e.target.value) || 0) };
+                        setBnplDraft(next);
+                      }}
+                    />
+                    <RecurringScheduleFields
+                      inline
+                      deductionDay={s.deductionDay}
+                      defaultFinancialAccountId={s.defaultFinancialAccountId}
+                      onDeductionDayChange={(day) => {
+                        const next = [...bnplDraft];
+                        next[i] = { ...s, deductionDay: day };
+                        setBnplDraft(next);
+                      }}
+                      onAccountChange={(id) => {
+                        const next = [...bnplDraft];
+                        next[i] = { ...s, defaultFinancialAccountId: id };
+                        setBnplDraft(next);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn del sm"
+                      onClick={() => setBnplDraft(bnplDraft.filter((_, j) => j !== i))}
+                    >
+                      del
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+          <div className="toolbar">
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setBnplDraft([...bnplDraft, defaultBnplPlan()])}
+            >
+              + Add BNPL plan
+            </button>
+            <span className="note">Total / mo: {fmt2(bnplDraftTotal)}</span>
+          </div>
+        </div>
+      ) : activeBnplPlans.length === 0 && completedBnplPlans.length === 0 ? (
+        <p className="note">No Buy Now Pay Later plans yet. Click Edit to add one.</p>
+      ) : (
+        <>
+          {activeBnplPlans.length > 0 ? (
+            <div className="card table-scroll">
+              <table className="recurring-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Monthly</th>
+                    <th>Total</th>
+                    <th>Tenure</th>
+                    <th>Months paid</th>
+                    <th>Due</th>
+                    <th>Pay from</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeBnplPlans.flatMap((plan) => {
+                    const payRow = plan.id
+                      ? bnplPaymentRows.find((r) => r.sourceId === plan.id)
+                      : undefined;
+                    if (payRow) {
+                      return renderRecurringRows([payRow], "", {
+                        showType: false,
+                        extraColCount: 3,
+                        extraCells: (r) => {
+                          const p = bnplPlans.find((x) => x.id === r.sourceId);
+                          return (
+                            <>
+                              <td className="num">{fmt2(p?.totalAmount ?? 0)}</td>
+                              <td>{p?.tenureMonths ?? 0} mo</td>
+                              <td>
+                                {p?.monthsPaid ?? 0} / {p?.tenureMonths ?? 0}
+                              </td>
+                            </>
+                          );
+                        },
+                      });
+                    }
+                    const day =
+                      plan.deductionDay && plan.deductionDay >= 1 && plan.deductionDay <= 31
+                        ? plan.deductionDay
+                        : null;
+                    return (
+                      <tr key={plan.id ?? plan.name}>
+                        <td>{plan.name || "—"}</td>
+                        <td className="num">{fmt2(plan.amount)}</td>
+                        <td className="num">{fmt2(plan.totalAmount)}</td>
+                        <td>{plan.tenureMonths} mo</td>
+                        <td>
+                          {plan.monthsPaid} / {plan.tenureMonths}
+                        </td>
+                        <td>{formatDeductionDayLabel(day)}</td>
+                        <td>—</td>
+                        <td>
+                          {plan.amount > 0 ? (
+                            <span className="tag t-warn">Unpaid</span>
+                          ) : (
+                            <span className="note">Set amount in Edit</span>
+                          )}
+                        </td>
+                        <td />
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total / mo</td>
+                    <td className="num">{fmt2(bnplActiveTotal)}</td>
+                    <td colSpan={7}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <p className="note" style={{ fontStyle: "italic" }}>
+              No active BNPL plans. See paid off plans below.
+            </p>
+          )}
+
+          {completedBnplPlans.length > 0 && (
+            <details className="debt-archive">
+              <summary>
+                Paid off — {completedBnplPlans.length} plan
+                {completedBnplPlans.length === 1 ? "" : "s"}
+              </summary>
+              <div className="card table-scroll" style={{ marginTop: 0, borderTop: "none" }}>
+                <table className="recurring-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Monthly</th>
+                      <th>Total</th>
+                      <th>Tenure</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completedBnplPlans.map((plan) => (
+                      <tr key={plan.id ?? plan.name}>
+                        <td>{plan.name || "—"}</td>
+                        <td className="num">{fmt2(plan.amount)}</td>
+                        <td className="num">{fmt2(plan.totalAmount)}</td>
+                        <td>
+                          {plan.monthsPaid} / {plan.tenureMonths} mo
+                        </td>
                       </tr>
                     ))}
                   </tbody>

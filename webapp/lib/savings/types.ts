@@ -130,13 +130,14 @@ export type Expense = {
   category: string;
   budgetLineId: string | null;
   entrySource: ExpenseEntrySource;
-  autoCategory: "debt" | "insurance" | "ilp" | "subscription" | "invest" | null;
+  autoCategory: "debt" | "insurance" | "ilp" | "subscription" | "invest" | "bnpl" | null;
   loanId: string | null;
   otherLoanId: string | null;
   insurancePolicyId: string | null;
   ilpPolicyId: string | null;
   subscriptionId: string | null;
   investmentId: string | null;
+  bnplId: string | null;
   fundId: string | null;
   financialAccountId: string | null;
   spentAt: string;

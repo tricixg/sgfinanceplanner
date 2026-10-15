@@ -21,6 +21,9 @@ export function expenseSourceKey(exp: Expense): string | null {
   if (exp.autoCategory === "invest" && exp.investmentId) {
     return `invest:${exp.investmentId}`;
   }
+  if (exp.autoCategory === "bnpl" && exp.bnplId) {
+    return `bnpl:${exp.bnplId}`;
+  }
   return null;
 }
 

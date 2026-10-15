@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { RecurringInvestment, RecurringSubscription } from "@/lib/types";
+import type { BnplPlan, RecurringInvestment, RecurringSubscription } from "@/lib/types";
 
 function mapSubscription(row: Record<string, unknown>): RecurringSubscription {
   const day = row.deduction_day;
@@ -153,10 +153,110 @@ export async function saveRecurringInvestments(
   return loadRecurringInvestments(supabase, userId);
 }
 
+function mapBnplPlan(row: Record<string, unknown>): BnplPlan {
+  const day = row.deduction_day;
+  return {
+    id: String(row.id),
+    name: String(row.name ?? ""),
+    totalAmount: Number(row.total_amount ?? 0),
+    tenureMonths: Number(row.tenure_months ?? 1),
+    amount: Number(row.amount ?? 0),
+    monthsPaid: Number(row.months_paid ?? 0),
+    deductionDay:
+      typeof day === "number" && day >= 1 && day <= 31 ? day : undefined,
+    defaultFinancialAccountId: row.default_financial_account_id
+      ? String(row.default_financial_account_id)
+      : undefined,
+  };
+}
+
+export async function loadBnplPlans(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<BnplPlan[]> {
+  const { data, error } = await supabase
+    .from("bnpl_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => mapBnplPlan(row));
+}
+
+export async function saveBnplPlans(
+  supabase: SupabaseClient,
+  userId: string,
+  incoming: BnplPlan[]
+): Promise<BnplPlan[]> {
+  const { data: existing } = await supabase
+    .from("bnpl_plans")
+    .select("id")
+    .eq("user_id", userId);
+  const existingIds = new Set((existing ?? []).map((r) => String(r.id)));
+  const incomingIds = new Set(incoming.filter((s) => s.id).map((s) => s.id!));
+
+  const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+  if (toDelete.length) {
+    await supabase.from("bnpl_plans").delete().in("id", toDelete);
+  }
+
+  for (let i = 0; i < incoming.length; i++) {
+    const s = incoming[i];
+    const row = {
+      user_id: userId,
+      name: s.name ?? "",
+      total_amount: s.totalAmount ?? 0,
+      tenure_months: Math.max(1, s.tenureMonths ?? 1),
+      amount: s.amount ?? 0,
+      months_paid: Math.max(0, s.monthsPaid ?? 0),
+      deduction_day: s.deductionDay ?? null,
+      default_financial_account_id: s.defaultFinancialAccountId ?? null,
+      sort_order: i,
+      updated_at: new Date().toISOString(),
+    };
+    if (s.id && existingIds.has(s.id)) {
+      await supabase.from("bnpl_plans").update(row).eq("id", s.id).eq("user_id", userId);
+    } else {
+      await supabase.from("bnpl_plans").insert(row);
+    }
+  }
+  console.info("[recurring] saved bnpl plans", { userId, count: incoming.length });
+  return loadBnplPlans(supabase, userId);
+}
+
+export async function adjustBnplMonthsPaid(
+  supabase: SupabaseClient,
+  userId: string,
+  bnplId: string,
+  delta: number
+): Promise<{ ok: true; monthsPaid: number } | { ok: false; error: string }> {
+  const { data: plan, error } = await supabase
+    .from("bnpl_plans")
+    .select("id, months_paid, tenure_months")
+    .eq("id", bnplId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!plan) return { ok: false, error: "BNPL plan not found" };
+
+  const tenure = Number(plan.tenure_months ?? 0);
+  const next = Math.max(0, Math.min(tenure, Number(plan.months_paid ?? 0) + delta));
+  const { error: updErr } = await supabase
+    .from("bnpl_plans")
+    .update({ months_paid: next, updated_at: new Date().toISOString() })
+    .eq("id", bnplId)
+    .eq("user_id", userId);
+
+  if (updErr) return { ok: false, error: updErr.message };
+  console.info("[recurring] bnpl months_paid adjusted", { userId, bnplId, delta, monthsPaid: next });
+  return { ok: true, monthsPaid: next };
+}
+
 export async function updateRecurringDeductionDay(
   supabase: SupabaseClient,
   userId: string,
-  kind: "debt" | "insurance" | "ilp" | "subscription" | "invest",
+  kind: "debt" | "insurance" | "ilp" | "subscription" | "invest" | "bnpl",
   sourceId: string,
   deductionDay: number | null
 ): Promise<void> {
@@ -169,7 +269,9 @@ export async function updateRecurringDeductionDay(
           ? "ilp_policies"
           : kind === "invest"
             ? "recurring_investments"
-            : "recurring_subscriptions";
+            : kind === "bnpl"
+              ? "bnpl_plans"
+              : "recurring_subscriptions";
 
   const { error } = await supabase
     .from(table)

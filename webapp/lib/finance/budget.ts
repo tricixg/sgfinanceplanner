@@ -22,6 +22,7 @@ export {
   defaultRecurringInvestment,
   recurringFloorsByBudgetLine,
 } from "./subscriptions";
+export { COMPUTED_BNPL_LABEL, defaultBnplPlan } from "./bnpl";
 
 /** Budget lines that duplicate Debts & Loans instalments — excluded from fixed totals. */
 export function isDebtBudgetCategory(cat: string): boolean {

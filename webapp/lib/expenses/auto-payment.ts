@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  COMPUTED_BNPL_LABEL,
   COMPUTED_DEBT_LABEL,
   COMPUTED_ILP_LABEL,
   COMPUTED_INSURANCE_LABEL,
@@ -15,6 +16,7 @@ export type AutoPaymentPayload = {
   ilpPolicyId?: string;
   subscriptionId?: string;
   investmentId?: string;
+  bnplId?: string;
   amount: number;
   spentAt: string;
   spentTime?: string;
@@ -27,6 +29,7 @@ export function autoPaymentCategoryLabel(autoCategory: AutoCategory): string {
   if (autoCategory === "insurance") return COMPUTED_INSURANCE_LABEL;
   if (autoCategory === "ilp") return COMPUTED_ILP_LABEL;
   if (autoCategory === "invest") return "Invest";
+  if (autoCategory === "bnpl") return COMPUTED_BNPL_LABEL;
   return COMPUTED_SUBSCRIPTION_LABEL;
 }
 
@@ -37,6 +40,7 @@ export function validateAutoPaymentPayload(body: {
   ilpPolicyId?: string;
   subscriptionId?: string;
   investmentId?: string;
+  bnplId?: string;
 }): { ok: true; autoCategory: AutoCategory } | { ok: false; error: string } {
   const autoCategory = body.autoCategory;
   if (
@@ -44,11 +48,12 @@ export function validateAutoPaymentPayload(body: {
     autoCategory !== "insurance" &&
     autoCategory !== "ilp" &&
     autoCategory !== "subscription" &&
-    autoCategory !== "invest"
+    autoCategory !== "invest" &&
+    autoCategory !== "bnpl"
   ) {
     return {
       ok: false,
-      error: "autoCategory must be debt, insurance, ilp, subscription, or invest",
+      error: "autoCategory must be debt, insurance, ilp, subscription, invest, or bnpl",
     };
   }
   if (autoCategory === "debt" && !body.loanId) {
@@ -65,6 +70,9 @@ export function validateAutoPaymentPayload(body: {
   }
   if (autoCategory === "invest" && !body.investmentId) {
     return { ok: false, error: "investmentId required for invest payments" };
+  }
+  if (autoCategory === "bnpl" && !body.bnplId) {
+    return { ok: false, error: "bnplId required for bnpl payments" };
   }
   return { ok: true, autoCategory };
 }
@@ -194,6 +202,15 @@ export async function verifyAutoPaymentSource(
       .maybeSingle();
     return Boolean(data);
   }
+  if (autoCategory === "bnpl") {
+    const { data } = await supabase
+      .from("bnpl_plans")
+      .select("id")
+      .eq("id", sourceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return Boolean(data);
+  }
   const { data } = await supabase
     .from("recurring_subscriptions")
     .select("id")
@@ -228,6 +245,7 @@ export function autoPaymentInsertRow(
     ilp_policy_id: null,
     subscription_id: null,
     investment_id: null,
+    bnpl_id: null,
     fund_id: null,
     financial_account_id: payload.financialAccountId ?? null,
     entry_source: "recurring",
@@ -240,6 +258,7 @@ export function autoPaymentInsertRow(
     row.investment_id = payload.investmentId;
     row.fund_id = fundId ?? null;
   }
+  if (payload.autoCategory === "bnpl") row.bnpl_id = payload.bnplId;
   return row;
 }
 
@@ -248,5 +267,6 @@ export function sourceIdFromPayload(payload: AutoPaymentPayload): string {
   if (payload.autoCategory === "insurance") return payload.insurancePolicyId!;
   if (payload.autoCategory === "ilp") return payload.ilpPolicyId!;
   if (payload.autoCategory === "invest") return payload.investmentId!;
+  if (payload.autoCategory === "bnpl") return payload.bnplId!;
   return payload.subscriptionId!;
 }

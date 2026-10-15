@@ -28,6 +28,7 @@ function expense(partial: Partial<Expense> & Pick<Expense, "id" | "amount">): Ex
     ilpPolicyId: partial.ilpPolicyId ?? null,
     subscriptionId: partial.subscriptionId ?? null,
     investmentId: partial.investmentId ?? null,
+    bnplId: partial.bnplId ?? null,
     fundId: partial.fundId ?? null,
     financialAccountId: partial.financialAccountId ?? null,
     spentAt: partial.spentAt ?? "2025-05-10",
