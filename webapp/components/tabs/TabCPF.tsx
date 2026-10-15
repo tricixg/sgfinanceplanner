@@ -3,7 +3,7 @@
 import { useContext, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import { simulateCPF, simulateCPFFromContribution } from "@/lib/finance";
-import { fmt, formatMonthLabel } from "@/lib/finance/helpers";
+import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
@@ -205,19 +205,19 @@ export function TabCPF({ state: S, setState }: Props) {
         <div className="grid g4">
           <div className="stat">
             <div className="lbl">Ordinary Account · now</div>
-            <div className="val">{fmt(S.oa)}</div>
+            <div className="val">{fmt2(S.oa)}</div>
           </div>
           <div className="stat">
             <div className="lbl">Special Account · now</div>
-            <div className="val">{fmt(S.sa)}</div>
+            <div className="val">{fmt2(S.sa)}</div>
           </div>
           <div className="stat">
             <div className="lbl">MediSave · now</div>
-            <div className="val">{fmt(S.ma)}</div>
+            <div className="val">{fmt2(S.ma)}</div>
           </div>
           <div className="stat accent">
             <div className="lbl">Total CPF · now</div>
-            <div className="val">{fmt(cpfNow)}</div>
+            <div className="val">{fmt2(cpfNow)}</div>
             <div className="note">Click Edit to update balances</div>
           </div>
         </div>
@@ -285,11 +285,11 @@ export function TabCPF({ state: S, setState }: Props) {
                   {contributions.map((c) => (
                     <tr key={c.id}>
                       <td>{formatMonthLabel(c.month.slice(0, 7))}</td>
-                      <td className="num">{fmt(c.oa)}</td>
-                      <td className="num">{fmt(c.sa)}</td>
-                      <td className="num">{fmt(c.ma)}</td>
+                      <td className="num">{fmt2(c.oa)}</td>
+                      <td className="num">{fmt2(c.sa)}</td>
+                      <td className="num">{fmt2(c.ma)}</td>
                       <td className="num">
-                        <b>{fmt(c.oa + c.sa + c.ma)}</b>
+                        <b>{fmt2(c.oa + c.sa + c.ma)}</b>
                       </td>
                       <td>
                         <button
@@ -314,8 +314,8 @@ export function TabCPF({ state: S, setState }: Props) {
       {latestContribution ? (
         <p className="ui-hint">
           Projected from your last logged contribution ({formatMonthLabel(latestContribution.month.slice(0, 7))}
-          ): OA {fmt(latestContribution.oa)} · SA {fmt(latestContribution.sa)} · MediSave{" "}
-          {fmt(latestContribution.ma)} per month.
+          ): OA {fmt2(latestContribution.oa)} · SA {fmt2(latestContribution.sa)} · MediSave{" "}
+          {fmt2(latestContribution.ma)} per month.
         </p>
       ) : (
         <div className="ctrl">
@@ -363,11 +363,11 @@ export function TabCPF({ state: S, setState }: Props) {
             {series.map((r) => (
               <tr key={r.label}>
                 <td>{r.label}</td>
-                <td className="num">{fmt(r.oa)}</td>
-                <td className="num">{fmt(r.sa)}</td>
-                <td className="num">{fmt(r.ma)}</td>
+                <td className="num">{fmt2(r.oa)}</td>
+                <td className="num">{fmt2(r.sa)}</td>
+                <td className="num">{fmt2(r.ma)}</td>
                 <td className="num pos">
-                  <b>{fmt(r.oa + r.sa + r.ma)}</b>
+                  <b>{fmt2(r.oa + r.sa + r.ma)}</b>
                 </td>
               </tr>
             ))}
