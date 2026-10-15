@@ -31,7 +31,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
   );
   const [note, setNote] = useState(
     row.kind === "bnpl" && row.bnplMonthsPaid != null && row.bnplTenureMonths != null
-      ? `${Math.min(row.bnplTenureMonths, row.bnplMonthsPaid + 1)}/${row.bnplTenureMonths}`
+      ? `${row.name} ${Math.min(row.bnplTenureMonths, row.bnplMonthsPaid + 1)}/${row.bnplTenureMonths}`
       : ""
   );
   const [saving, setSaving] = useState(false);
