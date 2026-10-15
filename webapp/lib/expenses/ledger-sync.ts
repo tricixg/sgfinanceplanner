@@ -3,6 +3,7 @@ import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { applyTransaction } from "@/lib/savings/ledger";
 import type { Expense } from "@/lib/savings/types";
 import { sgtSpentAtToIso } from "@/lib/time/sgt";
+import { roundMoney } from "@/lib/cards/interest-accrual";
 
 export function expenseLedgerNote(expense: Expense): string {
   if (expense.note.trim()) return expense.note.trim();
@@ -126,7 +127,7 @@ export async function reverseExpenseLedger(
       if (acctErr || !acct) {
         throw new Error(acctErr?.message ?? "Account not found");
       }
-      const nextBalance = Number(acct.balance ?? 0) + restoreAmount;
+      const nextBalance = roundMoney(Number(acct.balance ?? 0) + restoreAmount);
       if (nextBalance < 0) {
         throw new Error("Insufficient balance for reversal");
       }

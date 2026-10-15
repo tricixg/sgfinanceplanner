@@ -6,6 +6,7 @@ import {
   COMPUTED_SUBSCRIPTION_LABEL,
 } from "@/lib/finance/budget";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
+import { roundMoney } from "@/lib/cards/interest-accrual";
 
 export type AutoPaymentPayload = {
   autoCategory: AutoCategory;
@@ -130,7 +131,7 @@ export async function adjustLoanOutstanding(
     return { ok: false, error: "Loan not found" };
   }
 
-  const next = Math.max(0, Number(loan.outstanding ?? 0) + delta);
+  const next = Math.max(0, roundMoney(Number(loan.outstanding ?? 0) + delta));
   const { error: updErr } = await supabase
     .from("loans")
     .update({ outstanding: next, updated_at: new Date().toISOString() })

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FundTransaction, FundTransactionKind } from "@/lib/funds/types";
 import { mapFundTransaction } from "@/lib/funds/db-mappers";
+import { roundMoney } from "@/lib/cards/interest-accrual";
 
 export type ApplyFundTransactionInput = {
   userId: string;
@@ -16,7 +17,9 @@ export async function applyFundTransaction(
   supabase: SupabaseClient,
   input: ApplyFundTransactionInput
 ): Promise<FundTransaction> {
-  const amount = input.amount;
+  // Round here so float drift doesn't accumulate into the balanceAfter < 0
+  // check below and cause spurious "Insufficient balance" errors.
+  const amount = roundMoney(input.amount);
   if (!Number.isFinite(amount) || amount === 0) {
     throw new Error("Transaction amount must be non-zero");
   }
@@ -37,7 +40,7 @@ export async function applyFundTransaction(
     throw new Error("Forbidden");
   }
 
-  const balanceAfter = Number(fund.balance) + amount;
+  const balanceAfter = roundMoney(Number(fund.balance) + amount);
   if (balanceAfter < 0) {
     throw new Error("Insufficient balance");
   }
@@ -77,7 +80,7 @@ export async function applyFundTransaction(
   };
 
   if (goal) {
-    const newSaved = Math.max(0, goal.saved_amount + amount);
+    const newSaved = Math.max(0, roundMoney(goal.saved_amount + amount));
     const { error: goalUpdErr } = await supabase
       .from("savings_goals")
       .update({ saved_amount: newSaved, updated_at: new Date().toISOString() })
@@ -157,7 +160,7 @@ export async function deleteFundTransaction(
     .maybeSingle();
   if (fundErr || !fund) throw new Error(fundErr?.message ?? "Fund not found");
 
-  const nextBalance = Number(fund.balance) + reverse;
+  const nextBalance = roundMoney(Number(fund.balance) + reverse);
   if (nextBalance < 0) throw new Error("Insufficient balance");
 
   const { error: updErr } = await supabase
@@ -173,7 +176,7 @@ export async function deleteFundTransaction(
       .eq("id", tx.goal_id)
       .maybeSingle();
     if (goalErr || !goal) throw new Error(goalErr?.message ?? "Goal not found");
-    const nextSaved = Math.max(0, Number(goal.saved_amount) + reverse);
+    const nextSaved = Math.max(0, roundMoney(Number(goal.saved_amount) + reverse));
     const { error: goalUpdErr } = await supabase
       .from("savings_goals")
       .update({ saved_amount: nextSaved, updated_at: new Date().toISOString() })

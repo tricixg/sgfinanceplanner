@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SavingsTransaction, SavingsTransactionKind } from "@/lib/savings/types";
 import { mapTransaction } from "@/lib/savings/db-mappers";
+import { roundMoney } from "@/lib/cards/interest-accrual";
 import {
   accountIdInSavingsScope,
   loadSavingsVisibilityScope,
@@ -34,7 +35,9 @@ export async function applyTransaction(
   supabase: SupabaseClient,
   input: ApplyTransactionInput
 ): Promise<SavingsTransaction> {
-  const amount = input.amount;
+  // Round here so float drift (e.g. 0.1 + 0.2) doesn't accumulate into the
+  // balanceAfter < 0 check below and cause spurious "Insufficient balance" errors.
+  const amount = roundMoney(input.amount);
   if (!Number.isFinite(amount) || amount === 0) {
     throw new Error("Transaction amount must be non-zero");
   }
@@ -65,7 +68,7 @@ export async function applyTransaction(
       throw new Error("Forbidden");
     }
 
-    balanceAfter = Number(acct.balance) + amount;
+    balanceAfter = roundMoney(Number(acct.balance) + amount);
     if (balanceAfter < 0) {
       throw new Error("Insufficient balance");
     }
@@ -97,7 +100,7 @@ export async function applyTransaction(
       throw new Error("Pool not in household");
     }
 
-    balanceAfter = Number(pool.balance) + amount;
+    balanceAfter = roundMoney(Number(pool.balance) + amount);
     if (balanceAfter < 0) {
       throw new Error("Insufficient balance");
     }
@@ -137,7 +140,7 @@ export async function applyTransaction(
       }
     }
 
-    const newSaved = Math.max(0, Number(goal.saved_amount) + amount);
+    const newSaved = Math.max(0, roundMoney(Number(goal.saved_amount) + amount));
     const { error: goalUpdErr } = await supabase
       .from("savings_goals")
       .update({
@@ -611,7 +614,7 @@ export async function deleteSavingsTransaction(
       .eq("id", tx.accountId)
       .maybeSingle();
     if (readErr || !acct) throw new Error(readErr?.message ?? "Account not found");
-    const nextBalance = Number(acct.balance ?? 0) + reverse;
+    const nextBalance = roundMoney(Number(acct.balance ?? 0) + reverse);
     if (nextBalance < 0) throw new Error("Insufficient balance");
     const { error: updErr } = await supabase
       .from("user_savings_accounts")
@@ -625,7 +628,7 @@ export async function deleteSavingsTransaction(
       .eq("id", tx.poolId)
       .maybeSingle();
     if (readErr || !pool) throw new Error(readErr?.message ?? "Pool not found");
-    const nextBalance = Number(pool.balance ?? 0) + reverse;
+    const nextBalance = roundMoney(Number(pool.balance ?? 0) + reverse);
     if (nextBalance < 0) throw new Error("Insufficient balance");
     const { error: updErr } = await supabase
       .from("savings_pools")
@@ -641,7 +644,7 @@ export async function deleteSavingsTransaction(
       .eq("id", tx.goalId)
       .maybeSingle();
     if (gErr || !goal) throw new Error(gErr?.message ?? "Goal not found");
-    const nextSaved = Math.max(0, Number(goal.saved_amount ?? 0) + reverse);
+    const nextSaved = Math.max(0, roundMoney(Number(goal.saved_amount ?? 0) + reverse));
     const { error: upGoalErr } = await supabase
       .from("savings_goals")
       .update({ saved_amount: nextSaved, updated_at: new Date().toISOString() })
