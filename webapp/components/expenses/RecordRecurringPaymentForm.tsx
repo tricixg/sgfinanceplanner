@@ -29,7 +29,11 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
   const [financialAccountId, setFinancialAccountId] = useState(
     row.defaultFinancialAccountId ?? ""
   );
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(
+    row.kind === "bnpl" && row.bnplMonthsPaid != null && row.bnplTenureMonths != null
+      ? `${Math.min(row.bnplTenureMonths, row.bnplMonthsPaid + 1)}/${row.bnplTenureMonths}`
+      : ""
+  );
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 

@@ -26,6 +26,9 @@ export type RecurringRow = {
   defaultAccountName: string | null;
   fundId: string | null;
   fundName: string | null;
+  /** Set only for kind "bnpl" — months paid before this payment, and total tenure. */
+  bnplMonthsPaid: number | null;
+  bnplTenureMonths: number | null;
   paid: boolean;
   payment: RecurringPaymentInfo | null;
 };
@@ -41,7 +44,9 @@ function rowFromSource(
   expenses: Expense[],
   accountNames: Map<string, string>,
   fundId: string | null = null,
-  fundNames: Map<string, string> = new Map()
+  fundNames: Map<string, string> = new Map(),
+  bnplMonthsPaid: number | null = null,
+  bnplTenureMonths: number | null = null
 ): RecurringRow {
   const day = deductionDay && deductionDay >= 1 && deductionDay <= 31 ? deductionDay : null;
   const payment = findPaymentForSource(expenses, kind, sourceId, accountNames);
@@ -57,6 +62,8 @@ function rowFromSource(
     defaultAccountName: accountId ? accountNames.get(accountId) ?? null : null,
     fundId,
     fundName: fundId ? fundNames.get(fundId) ?? null : null,
+    bnplMonthsPaid,
+    bnplTenureMonths,
     paid: Boolean(payment),
     payment,
   };
@@ -176,7 +183,11 @@ export function buildRecurringRows(
         plan.defaultFinancialAccountId,
         ym,
         expenses,
-        accountNames
+        accountNames,
+        null,
+        fundNames,
+        plan.monthsPaid,
+        plan.tenureMonths
       )
     );
   }
