@@ -88,6 +88,19 @@ describe("statement-cycle", () => {
     expect(statementClose).toBe("2026-06-21");
   });
 
+  it("open cycle on statement day rolls to the next cycle", () => {
+    const { cycleStart, cycleEnd, statementClose } = openCycleBounds(21, "2026-10-21");
+    expect(cycleStart).toBe("2026-10-22");
+    expect(cycleEnd).toBe("2026-11-21");
+    expect(statementClose).toBe("2026-11-21");
+  });
+
+  it("open cycle on clamped month-end statement day rolls forward", () => {
+    const { cycleStart, statementClose } = openCycleBounds(31, "2026-02-28");
+    expect(cycleStart).toBe("2026-03-01");
+    expect(statementClose).toBe("2026-03-31");
+  });
+
   it("statement is closed on its statement close date", () => {
     expect(isStatementClosed("2026-06-12", "2026-06-12")).toBe(true);
     expect(isStatementClosed("2026-06-12", "2026-06-11")).toBe(false);
