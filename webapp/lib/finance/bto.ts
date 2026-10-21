@@ -38,6 +38,7 @@ export const SHARED_BTO_FIELD_KEYS = [
   "bookingDateActual",
   "aflDateActual",
   "keysDateActual",
+  "keysDateLatest",
   "schemes",
 ] as const satisfies readonly (keyof BtoPlannerPrefs)[];
 
@@ -74,6 +75,8 @@ export type BTOInputs = {
   bookingOffsetMonths: number;
   aflOffsetMonths: number;
   kcOffsetMonths: number;
+  /** Months from today to HDB's latest key collection date — omit to skip the latest-date check. */
+  latestKcOffsetMonths?: number;
 };
 
 export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
@@ -154,6 +157,8 @@ export function normalizeBtoPlannerPrefs(
       typeof raw.aflDateActual === "string" ? raw.aflDateActual : base.aflDateActual,
     keysDateActual:
       typeof raw.keysDateActual === "string" ? raw.keysDateActual : base.keysDateActual,
+    keysDateLatest:
+      typeof raw.keysDateLatest === "string" ? raw.keysDateLatest : base.keysDateLatest,
     schemes: normalizeBTOSchemes(raw.schemes),
   };
 }
@@ -199,6 +204,8 @@ export function defaultBtoPlannerPrefs(opts: {
     bookingDateActual: "2026-11-01",
     aflDateActual: "",
     keysDateActual: "2031-09-01",
+    // Latest possible key collection date per HDB.
+    keysDateLatest: "2033-03-31",
     schemes: {
       ...defaultBTOSchemes(),
       ehg: { enabled: true, amountOverride: null },
@@ -277,9 +284,15 @@ function resolveBTOMilestoneDates(prefs: BTOMilestonePrefs) {
  * chronological order even if actual dates were entered inconsistently.
  */
 export function resolveBTOMonthOffsets(
-  prefs: BTOMilestonePrefs,
+  prefs: BTOMilestonePrefs & { keysDateLatest?: string },
   todayYmd: string
-): { bookingOffsetMonths: number; aflOffsetMonths: number; kcOffsetMonths: number } {
+): {
+  bookingOffsetMonths: number;
+  aflOffsetMonths: number;
+  kcOffsetMonths: number;
+  /** Months to HDB's latest key collection date; equals kcOffsetMonths when unset or earlier. */
+  latestKcOffsetMonths: number;
+} {
   const { bookingYmd, aflYmd, keysYmd } = resolveBTOMilestoneDates(prefs);
   const aflOffsetMonths = Math.max(0, Math.round(daysBetweenYmd(todayYmd, aflYmd) / 30.44));
   const kcOffsetMonthsRaw = Math.max(0, Math.round(daysBetweenYmd(todayYmd, keysYmd) / 30.44));
@@ -287,10 +300,18 @@ export function resolveBTOMonthOffsets(
     0,
     Math.round(daysBetweenYmd(todayYmd, bookingYmd) / 30.44)
   );
+  const kcOffsetMonths = Math.max(aflOffsetMonths, kcOffsetMonthsRaw);
+  const latestKcOffsetMonths = prefs.keysDateLatest
+    ? Math.max(
+        kcOffsetMonths,
+        Math.round(daysBetweenYmd(todayYmd, prefs.keysDateLatest) / 30.44)
+      )
+    : kcOffsetMonths;
   return {
     bookingOffsetMonths: Math.min(bookingOffsetMonthsRaw, aflOffsetMonths),
     aflOffsetMonths,
-    kcOffsetMonths: Math.max(aflOffsetMonths, kcOffsetMonthsRaw),
+    kcOffsetMonths,
+    latestKcOffsetMonths,
   };
 }
 
@@ -551,6 +572,20 @@ export function computeBTO(inputs: BTOInputs) {
     }
   }
 
+  // Latest key collection: if keys come as late as HDB allows, the KC bill is
+  // paid later and the (post-AFL) pooled OA keeps compounding until then. Also
+  // finds the first month the pooled OA catches up with the KC bill, if it
+  // does by the latest date.
+  const latestKcOffset = Math.max(kcOffset, inputs.latestKcOffsetMonths ?? kcOffset);
+  let cpfAvailLatestKC = cpfAvailKC;
+  let kcCoveredOffset: number | null = cpfAvailLatestKC >= neededKC ? kcOffset : null;
+  for (let m = kcOffset + 1; m <= latestKcOffset; m++) {
+    cpfAvailLatestKC = (cpfAvailLatestKC + tOAMonthly + pOAMonthly) * (1 + 0.025 / 12);
+    if (kcCoveredOffset == null && cpfAvailLatestKC >= neededKC) kcCoveredOffset = m;
+  }
+  const cashLatestKC = Math.max(0, neededKC - cpfAvailLatestKC);
+  const latestKcOK = cashLatestKC <= 0;
+
   const totalCash = optionFee + cashAFL + cashKC;
   const totalCpf = cpfUsedAFL + cpfUsedKC;
   const oaInflow = tOAMonthly + pOAMonthly;
@@ -601,6 +636,11 @@ export function computeBTO(inputs: BTOInputs) {
     cpfUsedKC,
     cashKC,
     balAfterKC,
+    latestKcOffset,
+    cpfAvailLatestKC,
+    cashLatestKC,
+    latestKcOK,
+    kcCoveredOffset,
     totalCash,
     totalCpf,
     oaInflow,

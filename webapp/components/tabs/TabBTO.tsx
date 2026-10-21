@@ -4,6 +4,7 @@ import { useContext, useMemo, useState } from "react";
 import type { BtoOAGrowthMode, BtoPlannerPrefs, DashboardState } from "@/lib/types";
 import {
   BTO_SCHEME_DEFS,
+  addMonthsYm,
   calcEhgFamilyGrant,
   buildBTOStages,
   computeBTO,
@@ -71,18 +72,21 @@ const STAGE_DATE_FIELD: Partial<
   keys: "keysDateActual",
 };
 
+/** "YYYY-MM-DD" → "31 Mar 2033". */
+function formatYmdLabel(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function stageDateLabel(stage: BTOStage): string {
   if (stage.id === "application") return formatMonthLabel(stage.estimatedYm);
   if (stage.id === "mortgage") return "After keys";
-  if (stage.isActual) {
-    const [y, m, d] = stage.dateYmd.split("-").map(Number);
-    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "UTC",
-    });
-  }
+  if (stage.isActual) return formatYmdLabel(stage.dateYmd);
   return `~${formatMonthLabel(stage.estimatedYm)}`;
 }
 
@@ -240,10 +244,8 @@ export function TabBTO({ state: S, setState }: Props) {
   // in sync with whatever the timeline is actually showing, instead of
   // re-deriving a separate schedule from monthsToAFL/yrsToKeys off the
   // application month.
-  const { bookingOffsetMonths, aflOffsetMonths, kcOffsetMonths } = useMemo(
-    () => resolveBTOMonthOffsets(p, todayYmd),
-    [p, todayYmd]
-  );
+  const { bookingOffsetMonths, aflOffsetMonths, kcOffsetMonths, latestKcOffsetMonths } =
+    useMemo(() => resolveBTOMonthOffsets(p, todayYmd), [p, todayYmd]);
 
   const b = useMemo(
     () =>
@@ -265,6 +267,7 @@ export function TabBTO({ state: S, setState }: Props) {
         bookingOffsetMonths,
         aflOffsetMonths,
         kcOffsetMonths,
+        latestKcOffsetMonths,
       }),
     [
       p,
@@ -275,6 +278,7 @@ export function TabBTO({ state: S, setState }: Props) {
       bookingOffsetMonths,
       aflOffsetMonths,
       kcOffsetMonths,
+      latestKcOffsetMonths,
     ]
   );
 
@@ -346,6 +350,15 @@ export function TabBTO({ state: S, setState }: Props) {
         : "Agreement for Lease signed — waiting for key collection";
 
   const currentCombinedOA = S.oa + effectivePOA;
+
+  // Latest key collection check — only meaningful when the latest date is set
+  // and actually later than the resolved key collection date.
+  const latestKcLabel = p.keysDateLatest ? formatYmdLabel(p.keysDateLatest) : "";
+  const showLatestKc = Boolean(p.keysDateLatest) && b.latestKcOffset > kcOffsetMonths;
+  const kcCoveredLabel =
+    b.kcCoveredOffset != null
+      ? formatMonthLabel(addMonthsYm(todayYmd.slice(0, 7), b.kcCoveredOffset))
+      : "";
 
   const stageAmount: Record<BTOStageId, string> = {
     application: "—",
@@ -518,6 +531,13 @@ export function TabBTO({ state: S, setState }: Props) {
           <div className={`val ${b.dpOK ? "pos" : "neg"}`}>
             {b.dpOK ? `Covered (+${fmt(b.balAfterKC)})` : `Shortfall ${fmt(b.cashKC)}`}
           </div>
+          {!b.dpOK && showLatestKc && (
+            <div className="note">
+              {b.latestKcOK
+                ? `Covered by latest keys (${latestKcLabel}) from ~${kcCoveredLabel}`
+                : `Still ${fmt(b.cashLatestKC)} short by latest keys (${latestKcLabel})`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -637,7 +657,7 @@ export function TabBTO({ state: S, setState }: Props) {
             </label>
           </div>
 
-          <div className="grid g3" style={{ marginTop: 16 }}>
+          <div className="grid g4" style={{ marginTop: 16 }}>
             <label className="bto-field">
               Actual booking date
               <input
@@ -664,6 +684,17 @@ export function TabBTO({ state: S, setState }: Props) {
                 onChange={(e) => updatePrefs({ keysDateActual: e.target.value })}
               />
               <span className="note">Leave blank to use the estimate</span>
+            </label>
+            <label className="bto-field">
+              Latest key collection date
+              <input
+                type="date"
+                value={p.keysDateLatest}
+                onChange={(e) => updatePrefs({ keysDateLatest: e.target.value })}
+              />
+              <span className="note">
+                HDB&apos;s latest possible date — checks if CPF OA catches up by then
+              </span>
             </label>
           </div>
 
@@ -802,6 +833,7 @@ export function TabBTO({ state: S, setState }: Props) {
           <div className="stat">
             <div className="lbl">Est. key collection</div>
             <div className="val">{stageDateLabel(keysStage)}</div>
+            {latestKcLabel && <div className="note">Latest: {latestKcLabel}</div>}
           </div>
           <div className="stat">
             <div className="lbl">List price</div>
@@ -956,6 +988,29 @@ export function TabBTO({ state: S, setState }: Props) {
               {fmt(b.cashKC > 0 ? b.cashKC : b.balAfterKC)}
             </span>
           </div>
+          {showLatestKc && (
+            <>
+              <div className="minirow" style={{ marginTop: 10 }}>
+                <span className="k">Pooled CPF OA by latest keys ({latestKcLabel})</span>
+                <span className="v">{fmt(b.cpfAvailLatestKC)}</span>
+              </div>
+              <div className="minirow tot">
+                <span className="k">
+                  {b.latestKcOK ? "Surplus at latest keys" : "Shortfall at latest keys"}
+                </span>
+                <span className={`v ${b.latestKcOK ? "pos" : "neg"}`}>
+                  {fmt(b.latestKcOK ? b.cpfAvailLatestKC - b.neededKC : b.cashLatestKC)}
+                </span>
+              </div>
+              <p className="note" style={{ marginTop: 6 }}>
+                {b.dpOK
+                  ? "Already covered at the estimated date."
+                  : b.latestKcOK
+                    ? `The ${fmt(b.cashKC)} shortfall is covered by CPF OA from ~${kcCoveredLabel} — before the latest key collection date.`
+                    : `Even at the latest key collection date, ${fmt(b.cashLatestKC)} would still need to come from cash.`}
+              </p>
+            </>
+          )}
         </div>
       </div>
 
@@ -982,6 +1037,14 @@ export function TabBTO({ state: S, setState }: Props) {
           Verdict
         </span>
         {b.verdict}
+        {!b.dpOK && showLatestKc && (
+          <>
+            {" "}
+            {b.latestKcOK
+              ? `If keys come at the latest date (${latestKcLabel}), CPF OA catches up by ~${kcCoveredLabel} and covers it.`
+              : `Even at the latest key collection date (${latestKcLabel}), ${fmt(b.cashLatestKC)} would still be short.`}
+          </>
+        )}
       </div>
 
       <div className="card">
@@ -1019,6 +1082,9 @@ export function TabBTO({ state: S, setState }: Props) {
                   : ""}
               </div>
               <div className="bto-stage-countdown">{stageCountdownLabel(stage)}</div>
+              {stage.id === "keys" && latestKcLabel && (
+                <div className="bto-stage-queue">Latest: {latestKcLabel}</div>
+              )}
               <div className="bto-stage-due">{STAGE_DUE[stage.id]}</div>
               <div className="bto-stage-amt">{stageAmount[stage.id]}</div>
               <div className="bto-stage-paid">{stagePaidFrom[stage.id]}</div>

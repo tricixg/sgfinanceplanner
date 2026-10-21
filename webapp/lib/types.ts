@@ -225,6 +225,8 @@ export type BtoPlannerPrefs = {
   bookingDateActual: string;
   aflDateActual: string;
   keysDateActual: string;
+  /** HDB's latest possible key collection date ("YYYY-MM-DD") — "" = not set. Used to check whether CPF OA catches up with the key-collection bill if keys come as late as possible. */
+  keysDateLatest: string;
   schemes: BTOSchemeSelection;
 };
 

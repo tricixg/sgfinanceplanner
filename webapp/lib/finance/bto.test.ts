@@ -222,6 +222,25 @@ describe("resolveBTOMonthOffsets", () => {
     expect(kcOffsetMonths).toBeCloseTo(2, 0);
   });
 
+  it("resolves the latest key collection offset, never earlier than the KC offset", () => {
+    const withLatest = { ...prefs, keysDateActual: "2026-08-01", keysDateLatest: "2027-06-01" };
+    const { kcOffsetMonths, latestKcOffsetMonths } = resolveBTOMonthOffsets(
+      withLatest,
+      "2026-06-01"
+    );
+    expect(latestKcOffsetMonths).toBeCloseTo(12, 0);
+
+    const earlier = resolveBTOMonthOffsets(
+      { ...withLatest, keysDateLatest: "2026-07-01" },
+      "2026-06-01"
+    );
+    expect(earlier.latestKcOffsetMonths).toBe(earlier.kcOffsetMonths);
+
+    const unset = resolveBTOMonthOffsets(prefs, "2026-06-01");
+    expect(unset.latestKcOffsetMonths).toBe(unset.kcOffsetMonths);
+    expect(kcOffsetMonths).toBeLessThan(latestKcOffsetMonths);
+  });
+
   it("never lets the key-collection offset land before the AFL offset, or booking before AFL", () => {
     // Data-entry inconsistency: an actual KC date earlier than the AFL estimate,
     // and a booking date later than the AFL estimate.
@@ -381,5 +400,55 @@ describe("computeBTO payment waterfall", () => {
     );
     expect(b.neededSeries[aflPaidIdx]).toBeCloseTo(b.dpKC, 5);
     expect(b.neededSeries[kcPaidIdx]).toBe(0);
+  });
+});
+
+describe("computeBTO latest key collection check", () => {
+  const base = {
+    price: 500000,
+    rate: 2.6,
+    tenure: 25,
+    bookingOffsetMonths: 4,
+    aflOffsetMonths: 9,
+    kcOffsetMonths: 48,
+    optionFee: 2000,
+    legalFee: 650,
+    staggered: false,
+    maxLoanEligible: 0,
+    schemes: noGrantSchemes,
+    tSal: 6000,
+    pSal: 4000,
+    pOA: 0,
+    tOA: 60000,
+    tOAMonthly: 600,
+    pOAMonthly: 400,
+  };
+
+  it("matches the estimated key collection when no latest date is given", () => {
+    const b = computeBTO(base);
+    expect(b.latestKcOffset).toBe(48);
+    expect(b.cpfAvailLatestKC).toBeCloseTo(b.cpfAvailKC, 5);
+    expect(b.cashLatestKC).toBeCloseTo(b.cashKC, 5);
+  });
+
+  it("keeps compounding OA until the latest date and reports when the shortfall is covered", () => {
+    const b = computeBTO({ ...base, latestKcOffsetMonths: 78 });
+    expect(b.dpOK).toBe(false);
+    expect(b.cpfAvailLatestKC).toBeGreaterThan(b.cpfAvailKC);
+    expect(b.latestKcOK).toBe(true);
+    expect(b.cashLatestKC).toBe(0);
+    expect(b.kcCoveredOffset).not.toBeNull();
+    expect(b.kcCoveredOffset!).toBeGreaterThan(48);
+    expect(b.kcCoveredOffset!).toBeLessThanOrEqual(78);
+    // The estimated-date figures are unchanged.
+    expect(b.cashKC).toBeCloseTo(computeBTO(base).cashKC, 5);
+  });
+
+  it("reports the remaining shortfall when OA still can't catch up by the latest date", () => {
+    const b = computeBTO({ ...base, tOA: 0, tOAMonthly: 100, pOAMonthly: 0, latestKcOffsetMonths: 60 });
+    expect(b.latestKcOK).toBe(false);
+    expect(b.kcCoveredOffset).toBeNull();
+    expect(b.cashLatestKC).toBeCloseTo(b.neededKC - b.cpfAvailLatestKC, 5);
+    expect(b.cashLatestKC).toBeLessThan(b.cashKC);
   });
 });
