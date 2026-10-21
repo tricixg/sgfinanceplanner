@@ -112,3 +112,14 @@ describe("resolveBtoOAMonthly / resolveBtoPlannerPrefs", () => {
     expect(prefs.keysDateLatest).toBe("2033-03-31");
   });
 });
+
+describe("grant fixed from the HFE letter", () => {
+  it("keeps the letter's grant even when today's income is above the EHG ceiling", () => {
+    const schemes = { ehg: { enabled: true, amountOverride: 10000 } };
+    const b = computeBTO({ ...base, price: 580000, schemes });
+    expect(base.tSal + base.pSal).toBeGreaterThan(9000);
+    expect(b.totalGrants).toBe(10000);
+    const noGrant = computeBTO({ ...base, price: 580000 });
+    expect(b.cpfAvailAFL - noGrant.cpfAvailAFL).toBeGreaterThan(10000);
+  });
+});

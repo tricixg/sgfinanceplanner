@@ -13,6 +13,7 @@ import {
   resolveBTOMilestoneDates,
   resolveBTOMonthOffsets,
   resolveBtoOAMonthly,
+  schemeComputedAmount,
   totalLoanLoadForMonth,
   type BTOInputs,
   type BtoAffordabilityZone,
@@ -240,6 +241,13 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
       ? Math.floor(loanTerms.maxLoanEligible / 0.75 / PRICE_STEP) * PRICE_STEP
       : null;
   const bankCashMin = p.price * BANK_LOAN_RULES.minCashPct;
+
+  // EHG as fixed on the HFE letter (an override), else auto from current salaries.
+  const ehg = p.schemes.ehg ?? { enabled: false, amountOverride: null };
+  const ehgFromIncome = schemeComputedAmount("ehg", { tSal: p.tSal, pSal: p.pSal });
+  const ehgAmount = ehg.enabled ? (ehg.amountOverride ?? ehgFromIncome) : 0;
+  const setHfeGrant = (amount: number) =>
+    update({ schemes: { ...p.schemes, ehg: { enabled: amount > 0, amountOverride: amount } } });
 
   let verdict: string;
   if (zone === "cpf" && b.mandatoryCashKC > 0) {
@@ -529,7 +537,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
                   <tr>
                     <td>Max loan</td>
                     <td className="num">
-                      {p.maxLoanEligible > 0 ? fmt(p.maxLoanEligible) : "75% of price"}
+                      {p.maxLoanEligible > 0 ? `${fmt(p.maxLoanEligible)} (HFE)` : "75% of price"}
                     </td>
                     <td className="num">{fmt(bank.maxLoan)}</td>
                   </tr>
@@ -715,8 +723,34 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
               </label>
             </div>
             <p className="note">
-              Household {fmt(p.tSal + p.pSal)}/mo · OA inflow {fmt(b.oaInflow)}/mo · grants{" "}
-              {fmt(b.totalGrants)}
+              Household {fmt(p.tSal + p.pSal)}/mo · OA inflow {fmt(b.oaInflow)}/mo. Today&apos;s
+              salaries drive CPF growth and the bank loan limit.
+            </p>
+          </div>
+
+          <div className="bto-pf-group">
+            <div className="glbl">From your HFE letter</div>
+            <div className="bto-pf-pair">
+              <label className="bto-field">
+                HDB max loan
+                <DecimalInput
+                  value={p.maxLoanEligible}
+                  onChange={(v) => update({ maxLoanEligible: v })}
+                />
+              </label>
+              <label className="bto-field">
+                Housing grant (EHG)
+                <DecimalInput value={ehgAmount} onChange={setHfeGrant} />
+              </label>
+            </div>
+            <p className="note">
+              Fixed on the income HDB assessed when your letter was issued, so a pay change
+              doesn&apos;t move them.
+              {ehg.amountOverride == null
+                ? ` The grant is still estimated from today's salaries (${fmt(ehgFromIncome)}); type your letter's amount to fix it.`
+                : ""}{" "}
+              The grant goes into CPF OA with either loan. The max loan applies to the HDB loan
+              (0 = 75% of price).
             </p>
           </div>
 
@@ -804,13 +838,6 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
             </div>
             {p.loanAtKeys === "hdb" ? (
               <>
-                <label className="bto-field">
-                  Max loan (from your HLE letter, 0 = 75% of price)
-                  <DecimalInput
-                    value={p.maxLoanEligible}
-                    onChange={(v) => update({ maxLoanEligible: v })}
-                  />
-                </label>
                 <div className="bto-pf-pair">
                   <label className="bto-field">
                     Interest % p.a.

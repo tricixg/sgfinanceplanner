@@ -469,8 +469,9 @@ export function TabBTO({ state: S, setState }: Props) {
                       <span className="k">Grant in scenario</span>
                       <span className="v">{fmt(amount)}</span>
                       <span className="note">
-                        From household income {fmt(householdIncome)}/mo → auto{" "}
-                        {fmt(calcEhgFamilyGrant(householdIncome))}
+                        {sel.amountOverride != null
+                          ? `Fixed at your HFE letter's amount — today's income (${fmt(householdIncome)}/mo) would give ${fmt(calcEhgFamilyGrant(householdIncome))}`
+                          : `From household income ${fmt(householdIncome)}/mo → auto ${fmt(calcEhgFamilyGrant(householdIncome))}`}
                       </span>
                     </>
                   )}
