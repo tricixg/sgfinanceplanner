@@ -1,6 +1,7 @@
 "use client";
 
-import { useContext, useMemo, useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import type { BtoOAGrowthMode, BtoPlannerPrefs, DashboardState } from "@/lib/types";
 import {
   BTO_SCHEME_DEFS,
@@ -8,26 +9,20 @@ import {
   calcEhgFamilyGrant,
   buildBTOStages,
   computeBTO,
-  cpfOAmonthly,
   enabledSchemeRows,
   formatCountdown,
-  normalizeBtoPlannerPrefs,
   resolveBTOMonthOffsets,
+  resolveBtoOAMonthly,
   schemeComputedAmount,
-  splitSharedBtoFields,
   type BTOSchemeId,
   type BTOStage,
   type BTOStageId,
   type BTOStageStatus,
-  type SharedBtoPlannerFields,
 } from "@/lib/finance";
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
-import { AppDataContext } from "@/contexts/app-data-contexts";
-import { useHousehold } from "@/hooks/useHousehold";
-import { useHouseholdBtoPlanner } from "@/hooks/useHouseholdBtoPlanner";
-import { usePartnerCpf } from "@/hooks/usePartnerCpf";
+import { useBtoPlannerData } from "@/hooks/useBtoPlannerData";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 
 type Props = {
@@ -96,45 +91,32 @@ function stageCountdownLabel(stage: BTOStage): string {
   return formatCountdown(stage.daysUntil);
 }
 
-/**
- * Merges the household's shared BTO fields (project name, price, grants,
- * loan terms, timeline) over the user's own personal fields (salary, OA
- * growth mode) before normalizing — shared data wins when it's loaded, so
- * both linked partners see and edit the same scenario.
- */
-function resolveBtoPrefs(
-  S: DashboardState,
-  sharedRaw: Partial<SharedBtoPlannerFields> | null
-): BtoPlannerPrefs {
-  const combinedRaw = { ...(S.btoPlanner ?? {}), ...(sharedRaw ?? {}) };
-  return normalizeBtoPlannerPrefs(combinedRaw, {
-    monthlySal: S.monthlySal,
-    oa: S.oa,
-  });
-}
-
 export function TabBTO({ state: S, setState }: Props) {
-  const appData = useContext(AppDataContext);
-  const household = useHousehold();
-  const { partnerCpf, loading: partnerCpfLoading } = usePartnerCpf();
-  const { sharedBto, saveSharedBto } = useHouseholdBtoPlanner();
+  const {
+    household,
+    partnerCpf,
+    partnerCpfLoading,
+    savedPrefs,
+    savePrefs,
+    partnerOALive,
+    selfMonthlyFromContrib,
+    partnerMonthlyFromContrib,
+  } = useBtoPlannerData(S, setState);
   const [editingSchemes, setEditingSchemes] = useState(false);
   const [editingCalc, setEditingCalc] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [prefsDraft, setPrefsDraft] = useState<BtoPlannerPrefs>(() =>
-    resolveBtoPrefs(S, sharedBto)
-  );
+  const [prefsDraft, setPrefsDraft] = useState<BtoPlannerPrefs>(savedPrefs);
   const editing = editingSchemes || editingCalc;
-  const p = editing ? prefsDraft : resolveBtoPrefs(S, sharedBto);
+  const p = editing ? prefsDraft : savedPrefs;
 
   const startSchemesEdit = () => {
-    setPrefsDraft(resolveBtoPrefs(S, sharedBto));
+    setPrefsDraft(savedPrefs);
     setEditingSchemes(true);
     console.info("[TabBTO] schemes edit on");
   };
 
   const startCalcEdit = () => {
-    setPrefsDraft(resolveBtoPrefs(S, sharedBto));
+    setPrefsDraft(savedPrefs);
     setEditingCalc(true);
     console.info("[TabBTO] calc edit on");
   };
@@ -142,13 +124,7 @@ export function TabBTO({ state: S, setState }: Props) {
   const saveBtoPrefs = async () => {
     setSaving(true);
     try {
-      const saves: Promise<unknown>[] = [saveSharedBto(splitSharedBtoFields(prefsDraft))];
-      if (appData?.configured) {
-        saves.push(appData.saveProfile({ btoPlanner: prefsDraft }));
-      } else {
-        setState((prev) => ({ ...prev, btoPlanner: prefsDraft }));
-      }
-      await Promise.all(saves);
+      await savePrefs(prefsDraft);
       setEditingSchemes(false);
       setEditingCalc(false);
       console.info("[TabBTO] planner prefs saved");
@@ -167,14 +143,7 @@ export function TabBTO({ state: S, setState }: Props) {
     });
   };
 
-  // Partner OA: live balance from a linked household account wins when available;
-  // the manual pOA field is the fallback (unpaired, or partner hasn't set a profile).
-  const partnerOALive = partnerCpf?.paired ? partnerCpf.oa : null;
   const effectivePOA = partnerOALive ?? p.pOA;
-
-  // OA growth projection: self and partner each pick their own mode independently.
-  const selfMonthlyFromContrib = appData?.cpfContributions?.[0]?.oa ?? null;
-  const partnerMonthlyFromContrib = partnerCpf?.paired ? partnerCpf.latestMonthlyOA : null;
 
   // Status of the live partner-CPF pipeline, surfaced next to the growth-mode picker
   // so it's visible whether real data is actually coming in or it's falling back to manual.
@@ -224,18 +193,11 @@ export function TabBTO({ state: S, setState }: Props) {
     };
   }, [household.configured, household.loading, household.paired, partnerCpfLoading, partnerCpf]);
 
-  const tOAMonthlyResolved =
-    p.tOaGrowthMode === "manual"
-      ? p.tOAMonthly
-      : p.tOaGrowthMode === "contributions"
-        ? (selfMonthlyFromContrib ?? p.tOAMonthly)
-        : cpfOAmonthly(p.tSal);
-  const pOAMonthlyResolved =
-    p.pOaGrowthMode === "manual"
-      ? p.pOAMonthly
-      : p.pOaGrowthMode === "contributions"
-        ? (partnerMonthlyFromContrib ?? p.pOAMonthly)
-        : cpfOAmonthly(p.pSal);
+  // OA growth projection: self and partner each pick their own mode independently.
+  const { tOAMonthly: tOAMonthlyResolved, pOAMonthly: pOAMonthlyResolved } = resolveBtoOAMonthly(
+    p,
+    { self: selfMonthlyFromContrib, partner: partnerMonthlyFromContrib }
+  );
 
   const todayYmd = useMemo(() => sgtTodayYmd(), []);
 
@@ -291,7 +253,7 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const toggleScheme = (id: BTOSchemeId, enabled: boolean) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : resolveBtoPrefs(S, sharedBto);
+      const base = editingSchemes ? prev : savedPrefs;
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -307,7 +269,7 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const setSchemeOverride = (id: BTOSchemeId, amount: number | null) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : resolveBtoPrefs(S, sharedBto);
+      const base = editingSchemes ? prev : savedPrefs;
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -323,7 +285,7 @@ export function TabBTO({ state: S, setState }: Props) {
 
   const resetSchemeAmount = (id: BTOSchemeId) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : resolveBtoPrefs(S, sharedBto);
+      const base = editingSchemes ? prev : savedPrefs;
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -391,8 +353,13 @@ export function TabBTO({ state: S, setState }: Props) {
 
   return (
     <section className="panel on">
-      <div className="kicker" style={{ marginBottom: 6 }}>
-        {p.projectName} · {formatMonthLabel(p.applicationYm)} launch
+      <div className="bto-page-head">
+        <div className="kicker">
+          {p.projectName} · {formatMonthLabel(p.applicationYm)} launch
+        </div>
+        <Link href="/bto/price-finder" className="btn ghost sm">
+          Price finder
+        </Link>
       </div>
 
       <div className="callout tip">

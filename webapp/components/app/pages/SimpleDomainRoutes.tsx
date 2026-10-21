@@ -6,6 +6,7 @@ import { TabDebt } from "@/components/tabs/TabDebt";
 import { TabCPF } from "@/components/tabs/TabCPF";
 import { TabBTO } from "@/components/tabs/TabBTO";
 import { TabMiles } from "@/components/tabs/TabMiles";
+import { BtoPriceFinder } from "@/components/bto/BtoPriceFinder";
 
 const LOADING = <p className="loading">Loading your financial data…</p>;
 
@@ -46,6 +47,16 @@ export function BtoRoute() {
     <DomainPage>
       {({ state, setState, loading }) =>
         loading ? LOADING : <TabBTO state={state} setState={setState} />
+      }
+    </DomainPage>
+  );
+}
+
+export function BtoPriceFinderRoute() {
+  return (
+    <DomainPage>
+      {({ state, setState, loading }) =>
+        loading ? LOADING : <BtoPriceFinder state={state} setState={setState} />
       }
     </DomainPage>
   );

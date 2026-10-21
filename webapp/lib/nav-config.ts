@@ -207,6 +207,13 @@ export function navTabForPath(pathname: string): NavTab | undefined {
   const tab = ALL_NAV_TABS.find(
     (t) => pathname === t.href || pathname.startsWith(`${t.href}/`)
   );
+  if (tab?.id === "bto" && pathname.startsWith("/bto/price-finder")) {
+    return {
+      ...tab,
+      label: "BTO price finder",
+      summary: "Which flat prices your CPF OA, salaries, and savings can cover.",
+    };
+  }
   if (tab?.id === "poker" && pathname.startsWith("/poker/stats")) {
     return {
       ...tab,

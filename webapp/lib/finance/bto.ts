@@ -1,4 +1,4 @@
-import type { BtoOAGrowthMode, BtoPlannerPrefs } from "@/lib/types";
+import type { BtoOAGrowthMode, BtoPlannerPrefs, DashboardState } from "@/lib/types";
 import { addMonthsYm, daysBetweenYmd } from "./calendar";
 import { cpfOAmonthly } from "./cpf";
 import {
@@ -163,6 +163,48 @@ export function normalizeBtoPlannerPrefs(
   };
 }
 
+/**
+ * Merges the household's shared BTO fields (project name, price, grants,
+ * loan terms, timeline) over the user's own personal fields (salary, OA
+ * growth mode) before normalizing — shared data wins when it's loaded, so
+ * both linked partners see and edit the same scenario.
+ */
+export function resolveBtoPlannerPrefs(
+  S: Pick<DashboardState, "btoPlanner" | "monthlySal" | "oa">,
+  sharedRaw: Partial<SharedBtoPlannerFields> | null
+): BtoPlannerPrefs {
+  const combinedRaw = { ...(S.btoPlanner ?? {}), ...(sharedRaw ?? {}) };
+  return normalizeBtoPlannerPrefs(combinedRaw, {
+    monthlySal: S.monthlySal,
+    oa: S.oa,
+  });
+}
+
+/**
+ * Monthly OA contribution for self and partner per each person's chosen
+ * growth mode — salary estimate, manual figure, or the latest logged
+ * contribution (falling back to the manual figure when none is logged).
+ */
+export function resolveBtoOAMonthly(
+  p: Pick<
+    BtoPlannerPrefs,
+    "tOaGrowthMode" | "pOaGrowthMode" | "tOAMonthly" | "pOAMonthly" | "tSal" | "pSal"
+  >,
+  fromContrib: { self: number | null; partner: number | null }
+): { tOAMonthly: number; pOAMonthly: number } {
+  const resolve = (
+    mode: BtoOAGrowthMode,
+    manual: number,
+    contrib: number | null,
+    sal: number
+  ) =>
+    mode === "manual" ? manual : mode === "contributions" ? (contrib ?? manual) : cpfOAmonthly(sal);
+  return {
+    tOAMonthly: resolve(p.tOaGrowthMode, p.tOAMonthly, fromContrib.self, p.tSal),
+    pOAMonthly: resolve(p.pOaGrowthMode, p.pOAMonthly, fromContrib.partner, p.pSal),
+  };
+}
+
 export function defaultBtoPlannerPrefs(opts: {
   monthlySal: number;
   oa: number;
@@ -261,7 +303,7 @@ type BTOMilestonePrefs = Pick<
  * resolveBTOMonthOffsets (the CPF projection engine) so both agree on the
  * same dates.
  */
-function resolveBTOMilestoneDates(prefs: BTOMilestonePrefs) {
+export function resolveBTOMilestoneDates(prefs: BTOMilestonePrefs) {
   const bookingEstYm = addMonthsYm(prefs.applicationYm, BOOKING_OFFSET_MONTHS);
   const bookingYmd = prefs.bookingDateActual || `${bookingEstYm}-15`;
   const aflEstYm = addMonthsYm(bookingYmd.slice(0, 7), prefs.monthsToAFL);
@@ -485,6 +527,12 @@ export function computeBTO(inputs: BTOInputs) {
   // at each plotted point — starts at the AFL bill, steps down to the KC
   // bill right after AFL is paid, and to 0 once KC is paid too.
   const neededSeries = [neededAFL];
+  // Month-by-month pooled OA (AFL drawn, KC *not* drawn) out to the latest
+  // key collection date, with the bill due next — lets the price finder
+  // show when OA catches up with the key-collection payment.
+  const pooledSeries: { month: number; balance: number; due: number }[] = [
+    { month: 0, balance: pooled, due: aflOffset > 0 ? neededAFL : neededKC },
+  ];
 
   let cpfAvailAFL = pooled;
   let cpfUsedAFL = Math.min(neededAFL, cpfAvailAFL);
@@ -564,6 +612,12 @@ export function computeBTO(inputs: BTOInputs) {
       milestoneHit = true;
     }
 
+    pooledSeries.push({
+      month: m,
+      balance: m === kcOffset ? cpfAvailKC : pooled,
+      due: m < aflOffset ? neededAFL : neededKC,
+    });
+
     if (!milestoneHit && m % 6 === 0) {
       labels.push("M" + m);
       tSeries.push(to);
@@ -581,6 +635,7 @@ export function computeBTO(inputs: BTOInputs) {
   let kcCoveredOffset: number | null = cpfAvailLatestKC >= neededKC ? kcOffset : null;
   for (let m = kcOffset + 1; m <= latestKcOffset; m++) {
     cpfAvailLatestKC = (cpfAvailLatestKC + tOAMonthly + pOAMonthly) * (1 + 0.025 / 12);
+    pooledSeries.push({ month: m, balance: cpfAvailLatestKC, due: neededKC });
     if (kcCoveredOffset == null && cpfAvailLatestKC >= neededKC) kcCoveredOffset = m;
   }
   const cashLatestKC = Math.max(0, neededKC - cpfAvailLatestKC);
@@ -626,6 +681,7 @@ export function computeBTO(inputs: BTOInputs) {
     tSeries,
     pSeries,
     neededSeries,
+    pooledSeries,
     to,
     po,
     cpfAvailAFL,
