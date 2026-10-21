@@ -201,8 +201,11 @@ function OtherLoanPayModal({
   const { accounts } = useFinancialAccounts();
   const cashAccounts = accounts.filter((a) => a.accountType === "cash");
   const [amount, setAmount] = useState(String(loan.outstanding));
+  // A BT's default account is the card it's billed to, which can't fund a cash payment.
   const [financialAccountId, setFinancialAccountId] = useState(
-    loan.defaultFinancialAccountId ?? cashAccounts[0]?.id ?? ""
+    cashAccounts.find((a) => a.id === loan.defaultFinancialAccountId)?.id ??
+      cashAccounts[0]?.id ??
+      ""
   );
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -488,6 +491,43 @@ function PayFromSelect({
   );
 }
 
+/** Card a BT (and its one-time charge) is billed to; defaults to the source card. */
+function BilledToCardSelect({
+  value,
+  accounts,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  accounts: { id: string; name: string; accountType: string }[];
+  disabled?: boolean;
+  onChange: (id: string | undefined) => void;
+}) {
+  const cards = accounts.filter((a) => a.accountType === "credit_card");
+  // Keep an older non-card choice visible so it isn't silently replaced.
+  const legacy = value && !cards.some((a) => a.id === value)
+    ? accounts.find((a) => a.id === value)
+    : undefined;
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value || undefined)}
+      aria-label="Card the balance transfer is billed to"
+    >
+      <option value="">Same as source card</option>
+      {cards.map((a) => (
+        <option key={a.id} value={a.id}>
+          {a.name}
+        </option>
+      ))}
+      {legacy ? (
+        <option value={legacy.id}>{legacy.name} (not a card)</option>
+      ) : null}
+    </select>
+  );
+}
+
 export function OtherLoansPanel({
   state,
   setState,
@@ -684,7 +724,7 @@ export function OtherLoansPanel({
           disabled={saving}
           onChange={(v) => patchLoan(i, { tenureMonths: v || undefined })}
         />
-        <PayFromSelect
+        <BilledToCardSelect
           value={l.defaultFinancialAccountId ?? ""}
           accounts={accounts}
           disabled={saving}
@@ -819,7 +859,7 @@ export function OtherLoansPanel({
                   <span>BT start</span>
                   <span>BT charge</span>
                   <span>Tenure (mo)</span>
-                  <span>Pay from</span>
+                  <span>Billed to card</span>
                   <span>Deposit into</span>
                   <span></span>
                 </div>
