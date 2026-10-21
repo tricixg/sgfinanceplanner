@@ -6,7 +6,7 @@ import {
   principalAtDue,
   roundMoney,
 } from "@/lib/cards/interest-accrual";
-import { estimateInterestAfterDue, recomputeInterestForStatement } from "./interest";
+import { recomputeInterestForStatement } from "./interest";
 import {
   canViewOlderStatementBatch,
   findStatementForBatchOffset,
@@ -323,27 +323,15 @@ export async function loadCardStatementsBundle(
           priorClosed,
           spendIndex
         );
+        // Post-due interest is reported separately so it isn't counted twice
+        // (once inside carried forward and again as the interest estimate).
         carriedForward = outstandingBalance({
           carriedForwardIn: priorClosed.carriedForwardIn,
           actualAmount: priorClosed.actualAmount,
-          interestAccrued: priorInterest,
+          interestAccrued: 0,
           amountPaid: priorClosed.amountPaid,
         });
-        if (
-          card.interestRateApr > 0 &&
-          spendIndex &&
-          today > priorClosed.paymentDueDate &&
-          carriedForward > 0
-        ) {
-          interestEstimate = await estimateInterestAfterDue(
-            supabase,
-            userId,
-            card,
-            priorClosed,
-            spendIndex,
-            today
-          );
-        }
+        interestEstimate = priorInterest;
       }
 
       const newSpend = cycleSpendTotal(spendIndex, cycleStart, cycleEnd);
