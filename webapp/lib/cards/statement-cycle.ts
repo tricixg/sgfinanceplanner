@@ -80,12 +80,17 @@ export function paymentDueDate(statementCloseDate: string, paymentDueDay: number
   return clampDayInMonth(year, monthIndex, paymentDueDay);
 }
 
-/** Open cycle containing `asOfDate`. */
+/**
+ * Cycle still open as of `asOfDate`. On the statement close date itself the
+ * statement already counts as closed (see `isStatementClosed`), so the open
+ * cycle is the next one — otherwise the just-closed statement would be counted
+ * both as carried forward and as open-cycle spend.
+ */
 export function openCycleBounds(
   statementDay: number,
   asOfDate: string
 ): { cycleStart: string; cycleEnd: string; statementClose: string } {
-  const statementClose = statementCloseForSpend(asOfDate, statementDay);
+  const statementClose = statementCloseForSpend(addDaysYmd(asOfDate, 1), statementDay);
   const { cycleStart, cycleEnd } = cycleBoundsFromClose(statementClose, statementDay);
   return { cycleStart, cycleEnd, statementClose };
 }
