@@ -9,12 +9,18 @@ type BtRow = {
   bt_start_date: unknown;
   tenure_months: unknown;
   finance_charge: unknown;
+  principal?: unknown;
+  bt_principal_expense_id?: unknown;
 };
 
 export type BalanceTransferInterestExclusion = {
   /** BT principal + one-time finance charge to omit from interest-bearing balance. */
   principalExclusion: number;
-  /** Finance charges to strip from daily spend (avoids double-counting after principal exclusion). */
+  /**
+   * BT amounts posted as card spend (finance charges, and the principal for BTs added
+   * with the deposit flow) to strip from daily spend — they're already covered by
+   * the principal exclusion and must not accrue card interest.
+   */
   financeChargeByDay: DailySpendMap;
 };
 
@@ -41,6 +47,7 @@ function mapBtRow(row: BtRow) {
     tenureMonths:
       row.tenure_months == null ? undefined : Number(row.tenure_months),
     financeCharge: Number(row.finance_charge ?? 0),
+    principalOnCard: row.bt_principal_expense_id ? Number(row.principal ?? 0) : 0,
   };
 }
 
@@ -53,7 +60,9 @@ export async function loadBalanceTransferInterestExclusion(
 ): Promise<BalanceTransferInterestExclusion> {
   const { data, error } = await supabase
     .from("other_loans")
-    .select("outstanding, due_date, bt_start_date, tenure_months, finance_charge")
+    .select(
+      "outstanding, due_date, bt_start_date, tenure_months, finance_charge, principal, bt_principal_expense_id"
+    )
     .eq("user_id", userId)
     .eq("loan_type", "balance_transfer")
     .eq("source_credit_card_id", creditCardUuid)
@@ -80,6 +89,11 @@ export async function loadBalanceTransferInterestExclusion(
           (financeChargeByDay[row.btStartDate] ?? 0) + row.financeCharge
         );
       }
+    }
+    if (row.principalOnCard > 0 && row.btStartDate) {
+      financeChargeByDay[row.btStartDate] = roundMoney(
+        (financeChargeByDay[row.btStartDate] ?? 0) + row.principalOnCard
+      );
     }
   }
 

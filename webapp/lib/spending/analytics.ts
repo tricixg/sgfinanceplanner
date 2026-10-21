@@ -1,4 +1,5 @@
 import { addMonthsYm } from "@/lib/finance/calendar";
+import { isBtPrincipalExpense } from "@/lib/other-loans/types";
 import {
   expenseBudgetLines,
   type BudgetLineRow,
@@ -156,7 +157,8 @@ export function buildSpendingAnalytics(input: {
   const { byYmCategory, byYmCard, byYmCardCategory } = bucketSpendRows({
     scope: input.scope,
     budgetLines: input.budgetLines,
-    expenses: input.expenses,
+    // BT principal moves debt onto a card; it isn't spending.
+    expenses: input.expenses.filter((e) => !isBtPrincipalExpense(e)),
     imports: input.imports,
     reimbursements: input.reimbursements,
     cardLabels,

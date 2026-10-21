@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DashboardState } from "@/lib/types";
-import type { OtherLoan, OtherLoanType } from "@/lib/other-loans/types";
+import {
+  NO_BT_DEPOSIT,
+  type OtherLoan,
+  type OtherLoanType,
+} from "@/lib/other-loans/types";
 import type { OtherLoanPaymentRow } from "@/lib/other-loans/payment-history";
 import { creditCardLabel, ensureCreditCardIds } from "@/lib/finance/card-linking";
 import { fmt2 } from "@/lib/finance/helpers";
@@ -197,8 +201,11 @@ function OtherLoanPayModal({
   const { accounts } = useFinancialAccounts();
   const cashAccounts = accounts.filter((a) => a.accountType === "cash");
   const [amount, setAmount] = useState(String(loan.outstanding));
+  // A BT's default account is the card it's billed to, which can't fund a cash payment.
   const [financialAccountId, setFinancialAccountId] = useState(
-    loan.defaultFinancialAccountId ?? cashAccounts[0]?.id ?? ""
+    cashAccounts.find((a) => a.id === loan.defaultFinancialAccountId)?.id ??
+      cashAccounts[0]?.id ??
+      ""
   );
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -410,6 +417,52 @@ function OtherLoanAddModal({
   );
 }
 
+function isUnsavedBtMissingDeposit(loan: OtherLoan): boolean {
+  return (
+    loan.loanType === "balance_transfer" &&
+    !loan.id &&
+    loan.principal > 0 &&
+    !loan.depositFinancialAccountId
+  );
+}
+
+function BtDepositCell({
+  loan,
+  accounts,
+  disabled,
+  onChange,
+}: {
+  loan: OtherLoan;
+  accounts: { id: string; name: string; accountType: string }[];
+  disabled?: boolean;
+  onChange: (id: string | undefined) => void;
+}) {
+  if (loan.id) {
+    return (
+      <span className="note">{loan.principalTrackedOnCard ? "Posted to card" : "—"}</span>
+    );
+  }
+  return (
+    <select
+      value={loan.depositFinancialAccountId ?? ""}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value || undefined)}
+      aria-label="Deposit BT funds into"
+      title="Cash account the balance transfer funds are paid into. The BT amount is also recorded as spend on the source card."
+    >
+      <option value="">Deposit into…</option>
+      {accounts
+        .filter((a) => a.accountType === "cash")
+        .map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}
+          </option>
+        ))}
+      <option value={NO_BT_DEPOSIT}>No deposit (not paid to cash)</option>
+    </select>
+  );
+}
+
 function PayFromSelect({
   value,
   accounts,
@@ -434,6 +487,43 @@ function PayFromSelect({
           {a.name}
         </option>
       ))}
+    </select>
+  );
+}
+
+/** Card a BT (and its one-time charge) is billed to; defaults to the source card. */
+function BilledToCardSelect({
+  value,
+  accounts,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  accounts: { id: string; name: string; accountType: string }[];
+  disabled?: boolean;
+  onChange: (id: string | undefined) => void;
+}) {
+  const cards = accounts.filter((a) => a.accountType === "credit_card");
+  // Keep an older non-card choice visible so it isn't silently replaced.
+  const legacy = value && !cards.some((a) => a.id === value)
+    ? accounts.find((a) => a.id === value)
+    : undefined;
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value || undefined)}
+      aria-label="Card the balance transfer is billed to"
+    >
+      <option value="">Same as source card</option>
+      {cards.map((a) => (
+        <option key={a.id} value={a.id}>
+          {a.name}
+        </option>
+      ))}
+      {legacy ? (
+        <option value={legacy.id}>{legacy.name} (not a card)</option>
+      ) : null}
     </select>
   );
 }
@@ -492,6 +582,11 @@ export function OtherLoansPanel({
   };
 
   const saveOtherLoans = async () => {
+    const missingDeposit = loans.find(isUnsavedBtMissingDeposit);
+    if (missingDeposit) {
+      onError(`Choose where the funds for "${missingDeposit.name}" are deposited`);
+      return;
+    }
     setSaving(true);
     try {
       const { res, data } = await fetchJson<{ otherLoans?: OtherLoan[]; error?: string }>(
@@ -505,6 +600,7 @@ export function OtherLoansPanel({
       );
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
       setState((prev) => ({ ...prev, otherLoans: data.otherLoans ?? loans }));
+      dispatchDomainEvent(["otherLoans:changed", "expense:changed", "cards:changed"]);
       onSaved("Other loans saved");
     } catch (e) {
       onError(e instanceof Error ? e.message : "Failed to save");
@@ -628,11 +724,17 @@ export function OtherLoansPanel({
           disabled={saving}
           onChange={(v) => patchLoan(i, { tenureMonths: v || undefined })}
         />
-        <PayFromSelect
+        <BilledToCardSelect
           value={l.defaultFinancialAccountId ?? ""}
           accounts={accounts}
           disabled={saving}
           onChange={(id) => patchLoan(i, { defaultFinancialAccountId: id })}
+        />
+        <BtDepositCell
+          loan={l}
+          accounts={accounts}
+          disabled={saving}
+          onChange={(id) => patchLoan(i, { depositFinancialAccountId: id })}
         />
         <button
           type="button"
@@ -757,7 +859,8 @@ export function OtherLoansPanel({
                   <span>BT start</span>
                   <span>BT charge</span>
                   <span>Tenure (mo)</span>
-                  <span>Pay from</span>
+                  <span>Billed to card</span>
+                  <span>Deposit into</span>
                   <span></span>
                 </div>
                 {renderBalanceTransferEditRows()}
