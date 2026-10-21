@@ -187,6 +187,9 @@ export type Goal = {
   where: string;
 };
 
+/** Loan taken at BTO key collection. */
+export type BtoLoanType = "hdb" | "bank";
+
 /** OA growth projection source for the BTO planner's payment waterfall. */
 export type BtoOAGrowthMode = "salary" | "manual" | "contributions";
 
@@ -227,6 +230,11 @@ export type BtoPlannerPrefs = {
   keysDateActual: string;
   /** HDB's latest possible key collection date ("YYYY-MM-DD") — "" = not set. Used to check whether CPF OA catches up with the key-collection bill if keys come as late as possible. */
   keysDateLatest: string;
+  /** Loan taken at key collection: HDB concessionary loan or a bank loan. */
+  loanAtKeys: BtoLoanType;
+  /** Bank loan interest % p.a. and tenure (years) — used when loanAtKeys === "bank". */
+  bankRate: number;
+  bankTenure: number;
   schemes: BTOSchemeSelection;
 };
 

@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import type { BtoPlannerPrefs, DashboardState } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import type { BtoLoanType, BtoPlannerPrefs, DashboardState } from "@/lib/types";
 import {
+  BANK_LOAN_RULES,
   addMonthsYm,
   btoAffordabilityZone,
+  btoLoanTerms,
   btoPriceBands,
   computeBTO,
   resolveBTOMilestoneDates,
   resolveBTOMonthOffsets,
   resolveBtoOAMonthly,
+  totalLoanLoadForMonth,
   type BTOInputs,
   type BtoAffordabilityZone,
 } from "@/lib/finance";
@@ -29,15 +32,25 @@ type Props = {
 };
 
 const PRICE_MIN = 300000;
-const PRICE_MAX = 900000;
+/** Most expensive HDB flat price considered. */
+const PRICE_MAX = 810000;
 const PRICE_STEP = 5000;
+const INPUTS_OPEN_KEY = "bto-price-finder:inputs-open";
 
-const ZONE_META: Record<BtoAffordabilityZone, { name: string }> = {
-  cpf: { name: "Fully on CPF" },
-  "cpf-late": { name: "CPF if keys come late" },
-  cash: { name: "Needs some cash" },
-  stretch: { name: "Stretch" },
-};
+const LOAN_LABEL: Record<BtoLoanType, string> = { hdb: "HDB loan", bank: "Bank loan" };
+
+function zoneName(zone: BtoAffordabilityZone, loan: BtoLoanType): string {
+  switch (zone) {
+    case "cpf":
+      return loan === "bank" ? "CPF + 5% cash" : "Fully on CPF";
+    case "cpf-late":
+      return "CPF if keys come late";
+    case "cash":
+      return "Needs some cash";
+    default:
+      return "Stretch";
+  }
+}
 
 /** "YYYY-MM-DD" → "31 Mar 2033". */
 function formatYmdLabel(ymd: string): string {
@@ -74,6 +87,26 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
   const [pOAOverride, setPOAOverride] = useState<number | null>(null);
   const [cashOverride, setCashOverride] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [inputsOpen, setInputsOpen] = useState(true);
+
+  // Remember whether "Your numbers" is collapsed — a per-browser convenience.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(INPUTS_OPEN_KEY) === "0") setInputsOpen(false);
+    } catch {
+      /* storage unavailable — keep the panel open */
+    }
+  }, []);
+  const toggleInputs = () => {
+    setInputsOpen((open) => {
+      try {
+        localStorage.setItem(INPUTS_OPEN_KEY, open ? "0" : "1");
+      } catch {
+        /* storage unavailable — state still toggles for this visit */
+      }
+      return !open;
+    });
+  };
 
   const p = draft ?? savedPrefs;
   const update = (patch: Partial<BtoPlannerPrefs>) => {
@@ -120,14 +153,23 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
     partner: partnerMonthlyFromContrib,
   });
 
-  const base = useMemo<Omit<BTOInputs, "price">>(
+  // Debt repayments still running at key collection (card instalments,
+  // personal loans) count against a bank loan's 55% total-debt limit.
+  const otherDebtAtKeys = totalLoanLoadForMonth(
+    S.loans,
+    S.otherLoans ?? [],
+    milestones.keysYmd.slice(0, 7)
+  );
+  const hdbTerms = btoLoanTerms({ ...p, loanAtKeys: "hdb" }, { otherDebtMonthly: otherDebtAtKeys });
+  const bankTerms = btoLoanTerms({ ...p, loanAtKeys: "bank" }, { otherDebtMonthly: otherDebtAtKeys });
+  const loanTerms = p.loanAtKeys === "bank" ? bankTerms : hdbTerms;
+  const bank = bankTerms.bank;
+
+  const shared = useMemo<Omit<BTOInputs, "price" | "rate" | "tenure" | "maxLoanEligible">>(
     () => ({
-      rate: p.rate,
-      tenure: p.tenure,
       optionFee: p.optionFee,
       legalFee: p.legalFee,
       staggered: p.staggered,
-      maxLoanEligible: p.maxLoanEligible,
       schemes: p.schemes,
       tSal: p.tSal,
       pSal: p.pSal,
@@ -139,6 +181,18 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
     }),
     [p, tOA, pOA, tOAMonthly, pOAMonthly, offsets]
   );
+  const withTerms = (t: typeof loanTerms): Omit<BTOInputs, "price"> => ({
+    ...shared,
+    rate: t.rate,
+    tenure: t.tenure,
+    maxLoanEligible: t.maxLoanEligible,
+    minCashPct: t.minCashPct,
+  });
+  const base = useMemo(
+    () => withTerms(loanTerms),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loanTerms is rebuilt each render; key on its values
+    [shared, loanTerms.rate, loanTerms.tenure, loanTerms.maxLoanEligible, loanTerms.minCashPct]
+  );
 
   const priceMin = Math.min(PRICE_MIN, Math.floor(p.price / PRICE_STEP) * PRICE_STEP);
   const priceMax = Math.max(PRICE_MAX, Math.ceil(p.price / PRICE_STEP) * PRICE_STEP);
@@ -148,6 +202,9 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
   );
   const b = useMemo(() => computeBTO({ ...base, price: p.price }), [base, p.price]);
   const zone = btoAffordabilityZone(b, cash);
+  // Both loans at this price, for the side-by-side comparison.
+  const bHdb = p.loanAtKeys === "hdb" ? b : computeBTO({ ...withTerms(hdbTerms), price: p.price });
+  const bBank = p.loanAtKeys === "bank" ? b : computeBTO({ ...withTerms(bankTerms), price: p.price });
 
   // Contiguous zone runs → ruler segments, each spanning half a step either
   // side of its grid points so the segments line up with the slider thumb.
@@ -166,8 +223,12 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
     return out;
   }, [bands]);
 
+  // Round $100k ticks, plus the range's top end (e.g. the $810k HDB max).
   const ticks: number[] = [];
-  for (let t = Math.ceil(priceMin / 100000) * 100000; t <= priceMax; t += 100000) ticks.push(t);
+  for (let t = Math.ceil(priceMin / 100000) * 100000; t <= priceMax - 50000; t += 100000) {
+    ticks.push(t);
+  }
+  ticks.push(priceMax);
 
   const setPrice = (price: number) =>
     update({ price: Math.min(priceMax, Math.max(priceMin, price)) });
@@ -175,12 +236,15 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
   const latestLabel = p.keysDateLatest ? formatYmdLabel(p.keysDateLatest) : "";
   const coveredLabel = b.kcCoveredOffset != null ? monthLabel(b.kcCoveredOffset) : "";
   const loanFullPrice =
-    p.maxLoanEligible > 0
-      ? Math.floor(p.maxLoanEligible / 0.75 / PRICE_STEP) * PRICE_STEP
+    loanTerms.maxLoanEligible > 1
+      ? Math.floor(loanTerms.maxLoanEligible / 0.75 / PRICE_STEP) * PRICE_STEP
       : null;
+  const bankCashMin = p.price * BANK_LOAN_RULES.minCashPct;
 
   let verdict: string;
-  if (zone === "cpf") {
+  if (zone === "cpf" && b.mandatoryCashKC > 0) {
+    verdict = `At ${fmt(p.price)} with a bank loan, CPF OA pays everything except the ${fmt(bankCashMin)} (5% of the price) that must be cash, and your OA inflow covers the ${fmt(b.mortgage)} monthly instalment.`;
+  } else if (zone === "cpf") {
     verdict = `At ${fmt(p.price)}, CPF OA pays the downpayment at both AFL and key collection, and your OA inflow covers the ${fmt(b.mortgage)} monthly instalment. Only the ${fmt(p.optionFee)} option fee is cash.`;
   } else if (zone === "cpf-late") {
     verdict = `At ${fmt(p.price)}, CPF is ${fmt(b.cashKC)} short at the estimated key date, but catches up by ${coveredLabel}, before the latest key date (${latestLabel}).`;
@@ -223,6 +287,17 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
           ← BTO planner
         </Link>
         <div className="bto-pf-actions">
+          {!inputsOpen && (
+            <button
+              type="button"
+              className="btn ghost sm"
+              aria-expanded={false}
+              aria-controls="bto-pf-inputs"
+              onClick={toggleInputs}
+            >
+              Show your numbers
+            </button>
+          )}
           {dirty && (
             <button type="button" className="btn ghost sm" onClick={resetAll}>
               Reset to saved
@@ -242,7 +317,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
       <div className="kicker">{p.projectName} · price finder</div>
       <h1 className="bto-pf-title">What flat price can we afford?</h1>
 
-      <div className="bto-pf-layout">
+      <div className={`bto-pf-layout ${inputsOpen ? "" : "collapsed"}`}>
         <div className="bto-pf-main">
           <div className="card bto-pf-price">
             <div className="bto-pf-price-head">
@@ -251,7 +326,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
                 <div className="bto-pf-price-val">{fmt(p.price)}</div>
                 <div className="note">
                   Loan {fmt(b.loan)}
-                  {b.loanCapped ? " (your max)" : ""} · {fmt(b.mortgage)}/mo over {p.tenure} yrs
+                  {b.loanCapped ? " (your max)" : ""} · {fmt(b.mortgage)}/mo over {loanTerms.tenure} yrs
                 </div>
               </div>
               <div className="bto-pf-stepper">
@@ -288,7 +363,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
                 step={PRICE_STEP}
                 value={p.price}
                 aria-label="Flat price"
-                aria-valuetext={`${fmt(p.price)}, ${ZONE_META[zone].name}`}
+                aria-valuetext={`${fmt(p.price)}, ${zoneName(zone, p.loanAtKeys)}`}
                 onChange={(e) => setPrice(+e.target.value)}
               />
             </div>
@@ -303,7 +378,9 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
             <div className="bto-pf-legend">
               {(["cpf", "cpf-late", "cash"] as const).map((z) => {
                 const max = bands.maxPrice[z];
-                const sameAsCpf = z === "cpf-late" && max != null && max === bands.maxPrice.cpf;
+                // Waiting for the latest key date only helps if it lifts the ceiling.
+                const sameAsCpf =
+                  z === "cpf-late" && max != null && max === bands.maxPrice.cpf && max < priceMax;
                 return (
                   <button
                     key={z}
@@ -312,27 +389,34 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
                     onClick={() => max != null && setPrice(max)}
                   >
                     <span className={`sw z-${z}`} />
-                    <span className="t">{ZONE_META[z].name}</span>
+                    <span className="t">{zoneName(z, p.loanAtKeys)}</span>
                     <span className="v">{max != null ? `up to ${fmt(max)}` : "none in range"}</span>
                     {sameAsCpf && (
-                      <span className="sub">Same as above: the AFL payment is the limit, not keys</span>
+                      <span className="sub">Same as above: later keys don&apos;t raise it</span>
                     )}
                   </button>
                 );
               })}
               {loanFullPrice != null && (
-                <button type="button" onClick={() => setPrice(loanFullPrice)}>
+                <button type="button" onClick={() => setPrice(Math.min(loanFullPrice, priceMax))}>
                   <span className="sw z-loan" />
-                  <span className="t">Your {fmt(p.maxLoanEligible)} loan covers 75% up to</span>
+                  <span className="t">
+                    {p.loanAtKeys === "bank" ? "Max bank loan" : "Your HDB loan"} (
+                    {fmt(loanTerms.maxLoanEligible)}) covers 75% up to
+                  </span>
                   <span className="v">{fmt(loanFullPrice)}</span>
-                  <span className="sub">Above this, the extra is due at keys</span>
+                  <span className="sub">
+                    {loanFullPrice >= priceMax
+                      ? `Covers the full 75% at every price up to ${fmt(priceMax)}`
+                      : "Above this, the extra is due at keys"}
+                  </span>
                 </button>
               )}
             </div>
           </div>
 
           <div className="card bto-pf-verdict" aria-live="polite">
-            <span className={`bto-pf-pill z-${zone}`}>{ZONE_META[zone].name}</span>
+            <span className={`bto-pf-pill z-${zone}`}>{zoneName(zone, p.loanAtKeys)}</span>
             <p>{verdict}</p>
           </div>
 
@@ -355,7 +439,11 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
             <div className="bto-pf-check">
               <div className="top">
                 <span className="stat-lbl">Keys · estimated</span>
-                {chip(b.cashKC <= 0, "CPF covers", `Short ${fmt(b.cashKC)}`)}
+                {chip(
+                  b.dpOK,
+                  b.mandatoryCashKC > 0 ? "CPF + 5% cash" : "CPF covers",
+                  `Short ${fmt(b.cashKC - b.mandatoryCashKC)}`
+                )}
               </div>
               <div className="when">{formatYmdLabel(milestones.keysYmd)}</div>
               <div className="big">{fmt(b.neededKC)}</div>
@@ -368,6 +456,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
                   {b.loanShortfall > 0
                     ? `Incl. ${fmt(b.loanShortfall)} loan top-up`
                     : "Remaining downpayment"}
+                  {b.mandatoryCashKC > 0 ? ` · ${fmt(b.mandatoryCashKC)} must be cash` : ""}
                 </span>
               </div>
             </div>
@@ -377,7 +466,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
                 {latestLabel
                   ? chip(
                       b.latestKcOK,
-                      b.cashKC > 0 ? "Catches up" : "CPF covers",
+                      b.dpOK ? "CPF covers" : "Catches up",
                       `Short ${fmt(b.cashLatestKC)}`
                     )
                   : null}
@@ -414,6 +503,95 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
                 </span>
               </div>
             </div>
+          </div>
+
+          <div className="card">
+            <div className="bto-pf-chart-head">
+              <span className="stat-lbl">HDB loan vs bank loan at key collection</span>
+              <span className="note">
+                Bank loan sized on today&apos;s salaries ({fmt(p.tSal + p.pSal)}/mo)
+              </span>
+            </div>
+            <div className="bto-timeline-table-scroll">
+              <table className="bto-pf-table bto-pf-compare">
+                <thead>
+                  <tr>
+                    <th>At {fmt(p.price)}</th>
+                    {(["hdb", "bank"] as const).map((t) => (
+                      <th key={t} className={`num ${p.loanAtKeys === t ? "on" : ""}`}>
+                        {LOAN_LABEL[t]}
+                        {p.loanAtKeys === t ? " · in use" : ""}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Max loan</td>
+                    <td className="num">
+                      {p.maxLoanEligible > 0 ? fmt(p.maxLoanEligible) : "75% of price"}
+                    </td>
+                    <td className="num">{fmt(bank.maxLoan)}</td>
+                  </tr>
+                  <tr>
+                    <td>Loan at this price</td>
+                    <td className="num">{fmt(bHdb.loan)}</td>
+                    <td className="num">{fmt(bBank.loan)}</td>
+                  </tr>
+                  <tr>
+                    <td>Interest · tenure</td>
+                    <td className="num">
+                      {p.rate}% · {p.tenure} yrs
+                    </td>
+                    <td className="num">
+                      {p.bankRate}% · {bank.tenureYears} yrs
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Monthly instalment</td>
+                    <td className={`num ${bHdb.mortOK ? "" : "neg"}`}>{fmt(bHdb.mortgage)}</td>
+                    <td className={`num ${bBank.mortOK ? "" : "neg"}`}>{fmt(bBank.mortgage)}</td>
+                  </tr>
+                  <tr>
+                    <td>Due at key collection</td>
+                    <td className="num">{fmt(bHdb.neededKC)}</td>
+                    <td className="num">{fmt(bBank.neededKC)}</td>
+                  </tr>
+                  <tr>
+                    <td>Cash needed in total</td>
+                    <td className={`num ${bHdb.totalCash > cash ? "neg" : ""}`}>
+                      {fmt(bHdb.totalCash)}
+                    </td>
+                    <td className={`num ${bBank.totalCash > cash ? "neg" : ""}`}>
+                      {fmt(bBank.totalCash)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Affordability</td>
+                    <td className="num">{zoneName(btoAffordabilityZone(bHdb, cash), "hdb")}</td>
+                    <td className="num">{zoneName(btoAffordabilityZone(bBank, cash), "bank")}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="note" style={{ marginTop: 10 }}>
+              Bank max loan: {Math.round(BANK_LOAN_RULES.msr * 100)}% of income ={" "}
+              {fmt(bank.msrPayment)}/mo
+              {otherDebtAtKeys > 0
+                ? `; the ${Math.round(BANK_LOAN_RULES.tdsr * 100)}% total-debt limit leaves ${fmt(bank.tdsrPayment)}/mo after ${fmt(otherDebtAtKeys)}/mo of loans still running then`
+                : ""}
+              . Banks test this at {BANK_LOAN_RULES.stressRatePct}% over {bank.tenureYears} yrs,
+              not the actual rate, so the max is {fmt(bank.maxLoan)}. Bank loans also need 5% of
+              the price in cash and must end by age 65 for the full 75%.
+            </p>
+            <button
+              type="button"
+              className="btn ghost sm"
+              style={{ marginTop: 10 }}
+              onClick={() => update({ loanAtKeys: p.loanAtKeys === "bank" ? "hdb" : "bank" })}
+            >
+              Use {p.loanAtKeys === "bank" ? "HDB loan" : "bank loan"} for this plan
+            </button>
           </div>
 
           <div className="card">
@@ -505,8 +683,24 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
           </div>
         </div>
 
-        <aside className="card bto-pf-inputs" aria-label="Your numbers">
-          <div className="stat-lbl">Your numbers</div>
+        <aside
+          id="bto-pf-inputs"
+          className="card bto-pf-inputs"
+          aria-label="Your numbers"
+          hidden={!inputsOpen}
+        >
+          <div className="bto-pf-inputs-head">
+            <span className="stat-lbl">Your numbers</span>
+            <button
+              type="button"
+              className="btn ghost sm"
+              aria-expanded={true}
+              aria-controls="bto-pf-inputs"
+              onClick={toggleInputs}
+            >
+              Hide
+            </button>
+          </div>
 
           <div className="bto-pf-group">
             <div className="glbl">Income</div>
@@ -594,24 +788,61 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
           </div>
 
           <div className="bto-pf-group">
-            <div className="glbl">Loan</div>
-            <label className="bto-field">
-              Max loan (from your HLE letter, 0 = 75% of price)
-              <DecimalInput
-                value={p.maxLoanEligible}
-                onChange={(v) => update({ maxLoanEligible: v })}
-              />
-            </label>
-            <div className="bto-pf-pair">
-              <label className="bto-field">
-                Interest % p.a.
-                <DecimalInput value={p.rate} onChange={(v) => update({ rate: v })} />
-              </label>
-              <label className="bto-field">
-                Tenure (yrs)
-                <DecimalInput value={p.tenure} onChange={(v) => update({ tenure: v })} />
-              </label>
+            <div className="glbl">Loan at key collection</div>
+            <div className="bto-mode-segment" role="group" aria-label="Loan at key collection">
+              {(["hdb", "bank"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={p.loanAtKeys === t ? "active" : ""}
+                  aria-pressed={p.loanAtKeys === t}
+                  onClick={() => update({ loanAtKeys: t })}
+                >
+                  {LOAN_LABEL[t]}
+                </button>
+              ))}
             </div>
+            {p.loanAtKeys === "hdb" ? (
+              <>
+                <label className="bto-field">
+                  Max loan (from your HLE letter, 0 = 75% of price)
+                  <DecimalInput
+                    value={p.maxLoanEligible}
+                    onChange={(v) => update({ maxLoanEligible: v })}
+                  />
+                </label>
+                <div className="bto-pf-pair">
+                  <label className="bto-field">
+                    Interest % p.a.
+                    <DecimalInput value={p.rate} onChange={(v) => update({ rate: v })} />
+                  </label>
+                  <label className="bto-field">
+                    Tenure (yrs)
+                    <DecimalInput value={p.tenure} onChange={(v) => update({ tenure: v })} />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bto-pf-pair">
+                  <label className="bto-field">
+                    Bank rate % p.a.
+                    <DecimalInput value={p.bankRate} onChange={(v) => update({ bankRate: v })} />
+                  </label>
+                  <label className="bto-field">
+                    Tenure (max 30)
+                    <DecimalInput
+                      value={p.bankTenure}
+                      max={BANK_LOAN_RULES.maxTenureYears}
+                      onChange={(v) => update({ bankTenure: v })}
+                    />
+                  </label>
+                </div>
+                <p className="note">
+                  Max bank loan on today&apos;s salaries: {fmt(bank.maxLoan)}
+                </p>
+              </>
+            )}
             <label className="bto-field">
               Option fee
               <select

@@ -8,10 +8,13 @@ import {
   addMonthsYm,
   calcEhgFamilyGrant,
   buildBTOStages,
+  btoLoanTerms,
   computeBTO,
   enabledSchemeRows,
   formatCountdown,
+  resolveBTOMilestoneDates,
   resolveBTOMonthOffsets,
+  totalLoanLoadForMonth,
   resolveBtoOAMonthly,
   schemeComputedAmount,
   type BTOSchemeId,
@@ -209,16 +212,26 @@ export function TabBTO({ state: S, setState }: Props) {
   const { bookingOffsetMonths, aflOffsetMonths, kcOffsetMonths, latestKcOffsetMonths } =
     useMemo(() => resolveBTOMonthOffsets(p, todayYmd), [p, todayYmd]);
 
+  // HDB or bank loan at key collection (chosen in the price finder); a bank
+  // loan's cap depends on debt repayments still running at that point.
+  const loanTerms = useMemo(() => {
+    const keysYm = resolveBTOMilestoneDates(p).keysYmd.slice(0, 7);
+    return btoLoanTerms(p, {
+      otherDebtMonthly: totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], keysYm),
+    });
+  }, [p, S.loans, S.otherLoans]);
+
   const b = useMemo(
     () =>
       computeBTO({
         price: p.price,
-        rate: p.rate,
-        tenure: p.tenure,
+        rate: loanTerms.rate,
+        tenure: loanTerms.tenure,
         optionFee: p.optionFee,
         legalFee: p.legalFee,
         staggered: p.staggered,
-        maxLoanEligible: p.maxLoanEligible,
+        maxLoanEligible: loanTerms.maxLoanEligible,
+        minCashPct: loanTerms.minCashPct,
         schemes: p.schemes,
         tSal: p.tSal,
         pSal: p.pSal,
@@ -233,6 +246,7 @@ export function TabBTO({ state: S, setState }: Props) {
       }),
     [
       p,
+      loanTerms,
       S.oa,
       effectivePOA,
       tOAMonthlyResolved,
@@ -817,12 +831,19 @@ export function TabBTO({ state: S, setState }: Props) {
       {!editingCalc && (
         <div className="grid g2" style={{ marginTop: 8 }}>
           <div className="stat">
-            <div className="lbl">HDB loan</div>
+            <div className="lbl">{p.loanAtKeys === "bank" ? "Bank loan" : "HDB loan"}</div>
             <div className="val">{fmt(b.loan)}</div>
             {b.loanCapped && (
               <div className="note">
-                Capped to your assessed max eligible — the shortfall is topped up at key
-                collection
+                {p.loanAtKeys === "bank"
+                  ? "Capped by what your income allows at key collection — the shortfall is topped up then"
+                  : "Capped to your assessed max eligible — the shortfall is topped up at key collection"}
+              </div>
+            )}
+            {p.loanAtKeys === "bank" && (
+              <div className="note">
+                At {p.bankRate}% over {loanTerms.tenure} yrs, with at least 5% of the price in
+                cash. Change in the price finder.
               </div>
             )}
           </div>

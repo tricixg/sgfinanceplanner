@@ -3944,3 +3944,25 @@ footer {
 .bto-pf-pair .bto-field input {
   min-width: 0;
 }
+.bto-pf-layout.collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bto-pf-inputs[hidden] {
+  display: none;
+}
+.bto-pf-inputs-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.bto-pf-compare th.on {
+  color: var(--moss);
+}
+.bto-pf-compare td.num {
+  white-space: nowrap;
+}
+.bto-pf-checkbox input {
+  width: auto;
+  flex: none;
+}

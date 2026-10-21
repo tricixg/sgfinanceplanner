@@ -1,4 +1,4 @@
-import type { BtoOAGrowthMode, BtoPlannerPrefs, DashboardState } from "@/lib/types";
+import type { BtoLoanType, BtoOAGrowthMode, BtoPlannerPrefs, DashboardState } from "@/lib/types";
 import { addMonthsYm, daysBetweenYmd } from "./calendar";
 import { cpfOAmonthly } from "./cpf";
 import {
@@ -8,6 +8,7 @@ import {
   type BTOSchemeSelection,
 } from "./bto-schemes";
 import { fmt } from "./helpers";
+import { BANK_LOAN_RULES, bankLoanCapacity, type BankLoanCapacity } from "./bto-bank-loan";
 
 /** Months from BTO application to the booking (1st) appointment. */
 const BOOKING_OFFSET_MONTHS = 4;
@@ -39,6 +40,9 @@ export const SHARED_BTO_FIELD_KEYS = [
   "aflDateActual",
   "keysDateActual",
   "keysDateLatest",
+  "loanAtKeys",
+  "bankRate",
+  "bankTenure",
   "schemes",
 ] as const satisfies readonly (keyof BtoPlannerPrefs)[];
 
@@ -77,6 +81,12 @@ export type BTOInputs = {
   kcOffsetMonths: number;
   /** Months from today to HDB's latest key collection date — omit to skip the latest-date check. */
   latestKcOffsetMonths?: number;
+  /**
+   * Minimum share of the price that must be paid in cash (bank loans: 0.05).
+   * Counts the option fee and any AFL cash already paid; the rest is forced
+   * into the key-collection payment. Omit / 0 for HDB loans.
+   */
+  minCashPct?: number;
 };
 
 export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
@@ -159,6 +169,12 @@ export function normalizeBtoPlannerPrefs(
       typeof raw.keysDateActual === "string" ? raw.keysDateActual : base.keysDateActual,
     keysDateLatest:
       typeof raw.keysDateLatest === "string" ? raw.keysDateLatest : base.keysDateLatest,
+    loanAtKeys:
+      raw.loanAtKeys === "hdb" || raw.loanAtKeys === "bank"
+        ? (raw.loanAtKeys as BtoLoanType)
+        : base.loanAtKeys,
+    bankRate: typeof raw.bankRate === "number" ? raw.bankRate : base.bankRate,
+    bankTenure: typeof raw.bankTenure === "number" ? raw.bankTenure : base.bankTenure,
     schemes: normalizeBTOSchemes(raw.schemes),
   };
 }
@@ -205,6 +221,49 @@ export function resolveBtoOAMonthly(
   };
 }
 
+/**
+ * Loan terms for computeBTO() from the loan chosen at key collection — the
+ * HDB loan (planner rate/tenure, capped at the HLE amount) or a bank loan
+ * (bank rate/tenure, capped at what current income allows under MAS rules,
+ * with 5% of the price in cash).
+ */
+export function btoLoanTerms(
+  p: Pick<
+    BtoPlannerPrefs,
+    "loanAtKeys" | "rate" | "tenure" | "maxLoanEligible" | "bankRate" | "bankTenure" | "tSal" | "pSal"
+  >,
+  opts: { otherDebtMonthly: number }
+): {
+  rate: number;
+  tenure: number;
+  maxLoanEligible: number;
+  minCashPct: number;
+  bank: BankLoanCapacity;
+} {
+  const bank = bankLoanCapacity({
+    monthlyIncome: p.tSal + p.pSal,
+    otherDebtMonthly: opts.otherDebtMonthly,
+    tenureYears: p.bankTenure,
+  });
+  if (p.loanAtKeys === "bank") {
+    return {
+      rate: p.bankRate,
+      tenure: bank.tenureYears,
+      // computeBTO treats 0 as "no cap"; a household with no loan capacity still gets a $1 cap.
+      maxLoanEligible: Math.max(1, bank.maxLoan),
+      minCashPct: BANK_LOAN_RULES.minCashPct,
+      bank,
+    };
+  }
+  return {
+    rate: p.rate,
+    tenure: p.tenure,
+    maxLoanEligible: p.maxLoanEligible,
+    minCashPct: 0,
+    bank,
+  };
+}
+
 export function defaultBtoPlannerPrefs(opts: {
   monthlySal: number;
   oa: number;
@@ -248,6 +307,9 @@ export function defaultBtoPlannerPrefs(opts: {
     keysDateActual: "2031-09-01",
     // Latest possible key collection date per HDB.
     keysDateLatest: "2033-03-31",
+    loanAtKeys: "hdb",
+    bankRate: 2.8,
+    bankTenure: 30,
     schemes: {
       ...defaultBTOSchemes(),
       ehg: { enabled: true, amountOverride: null },
@@ -538,6 +600,10 @@ export function computeBTO(inputs: BTOInputs) {
   let cpfUsedAFL = Math.min(neededAFL, cpfAvailAFL);
   let cashAFL = neededAFL - cpfUsedAFL;
   let balAfterAFL = cpfAvailAFL - cpfUsedAFL;
+  // Cash the key-collection payment must include to meet minCashDownpayment —
+  // depends on the AFL cash, so only final once AFL is paid.
+  const mandatoryCashAtKC = () =>
+    Math.max(0, Math.min(neededKC, price * (inputs.minCashPct ?? 0) - optionFee - cashAFL));
   let cpfAvailKC = pooled;
   let cpfUsedKC = 0;
   let cashKC = neededKC;
@@ -590,7 +656,7 @@ export function computeBTO(inputs: BTOInputs) {
 
     if (m === kcOffset) {
       cpfAvailKC = pooled;
-      cpfUsedKC = Math.min(neededKC, cpfAvailKC);
+      cpfUsedKC = Math.min(neededKC - mandatoryCashAtKC(), cpfAvailKC);
       cashKC = neededKC - cpfUsedKC;
 
       labels.push("Key collection");
@@ -630,23 +696,26 @@ export function computeBTO(inputs: BTOInputs) {
   // paid later and the (post-AFL) pooled OA keeps compounding until then. Also
   // finds the first month the pooled OA catches up with the KC bill, if it
   // does by the latest date.
+  const mandatoryCashKC = mandatoryCashAtKC();
+  const cpfAllowedKC = neededKC - mandatoryCashKC;
   const latestKcOffset = Math.max(kcOffset, inputs.latestKcOffsetMonths ?? kcOffset);
   let cpfAvailLatestKC = cpfAvailKC;
-  let kcCoveredOffset: number | null = cpfAvailLatestKC >= neededKC ? kcOffset : null;
+  let kcCoveredOffset: number | null = cpfAvailLatestKC >= cpfAllowedKC ? kcOffset : null;
   for (let m = kcOffset + 1; m <= latestKcOffset; m++) {
     cpfAvailLatestKC = (cpfAvailLatestKC + tOAMonthly + pOAMonthly) * (1 + 0.025 / 12);
     pooledSeries.push({ month: m, balance: cpfAvailLatestKC, due: neededKC });
-    if (kcCoveredOffset == null && cpfAvailLatestKC >= neededKC) kcCoveredOffset = m;
+    if (kcCoveredOffset == null && cpfAvailLatestKC >= cpfAllowedKC) kcCoveredOffset = m;
   }
-  const cashLatestKC = Math.max(0, neededKC - cpfAvailLatestKC);
-  const latestKcOK = cashLatestKC <= 0;
+  // "OK" = CPF covers everything it's allowed to; any mandatory cash is expected.
+  const cashLatestKC = neededKC - Math.min(cpfAllowedKC, cpfAvailLatestKC);
+  const latestKcOK = cpfAvailLatestKC >= cpfAllowedKC;
 
   const totalCash = optionFee + cashAFL + cashKC;
   const totalCpf = cpfUsedAFL + cpfUsedKC;
   const oaInflow = tOAMonthly + pOAMonthly;
   const mortSurplus = oaInflow - mortgage;
   const mortOK = mortSurplus >= 0;
-  const dpOK = cashKC <= 0;
+  const dpOK = cashKC <= mandatoryCashKC;
 
   let verdict = "";
   if (dpOK && mortOK) {
@@ -692,6 +761,7 @@ export function computeBTO(inputs: BTOInputs) {
     cpfUsedKC,
     cashKC,
     balAfterKC,
+    mandatoryCashKC,
     latestKcOffset,
     cpfAvailLatestKC,
     cashLatestKC,

@@ -3,6 +3,7 @@ import { computeBTO, type BTOInputs } from "./bto";
 /**
  * How a flat price sits against the household's CPF and cash, strictest first:
  * - "cpf": CPF OA covers AFL and key collection on the estimated dates
+ *   (apart from any cash a bank loan requires)
  * - "cpf-late": AFL covered, and OA catches up with the KC bill by the latest key date
  * - "cash": the cash top-ups (option fee + AFL + KC gaps) fit within cash savings
  * - "stretch": none of the above
@@ -16,8 +17,11 @@ type BTOResult = ReturnType<typeof computeBTO>;
 
 export function btoAffordabilityZone(b: BTOResult, cashSavings: number): BtoAffordabilityZone {
   if (!b.mortOK) return "stretch";
-  if (b.cashAFL <= 0 && b.cashKC <= 0) return "cpf";
-  if (b.cashAFL <= 0 && b.latestKcOK) return "cpf-late";
+  // Bank loans force part of the downpayment into cash; the CPF zones then
+  // mean "CPF covers everything else" and need that cash to be on hand.
+  const mandatoryCashOK = b.optionFee + b.mandatoryCashKC <= Math.max(cashSavings, b.optionFee);
+  if (mandatoryCashOK && b.cashAFL <= 0 && b.dpOK) return "cpf";
+  if (mandatoryCashOK && b.cashAFL <= 0 && b.latestKcOK) return "cpf-late";
   if (b.totalCash <= cashSavings) return "cash";
   return "stretch";
 }
