@@ -46,6 +46,15 @@ gantt
 
 **Spend assignment:** `statementCloseForSpend(spentAt, statementDay)` maps a transaction date to which statement it belongs (spend on close day counts toward that statement).
 
+**Open cycle on statement day:** the statement closes on its close date, so on that day the open cycle is already the next one (the just-closed statement shows as carried forward, not new spend).
+
+**Statement amount meaning** (`amount_includes_prior_balance`, migration 058):
+
+- `true` ("Bank total", default for new entries): `actual_amount` is the bank's full balance, including the previous unpaid balance and any balance transfer. `carried_forward_in` is not added on top (`statementCarryIn`).
+- `false` (rows saved before 058): `actual_amount` is new charges only; balance = `carried_forward_in` + `actual_amount`.
+
+Interest-free BT inside a statement (`balanceTransferWithinStatement`) is the active BT outstanding, capped at the outstanding balance (bank total) or at the carried-forward balance (legacy). Only the non-BT remainder makes a statement overdue.
+
 Stored on each `card_statements` row: `cycle_start_date`, `cycle_end_date`, `statement_close_date`, `payment_due_date`. Stale dates are corrected in `ensureStatementRows` when loading.
 
 ---

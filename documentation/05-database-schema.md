@@ -126,7 +126,7 @@ Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboar
 |-------|-------------|---------|
 | `financial_accounts` | `account_type` cash\|credit_card, `savings_account_id`, `card_key` | Pay-from targets |
 | `credit_cards` | `card_key`, `statement_day`, `payment_due_day`, `financial_account_id`, rewards json | Card config |
-| `card_statements` | cycle dates, `actual_amount`, `tracked_amount`, `amount_paid`, `payment_savings_transaction_id` | Billing cycles |
+| `card_statements` | cycle dates, `actual_amount`, `amount_includes_prior_balance`, `tracked_amount`, `amount_paid`, `payment_savings_transaction_id` | Billing cycles |
 
 ### Debt
 

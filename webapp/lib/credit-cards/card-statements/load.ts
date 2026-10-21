@@ -4,9 +4,12 @@ import { loadCreditCards } from "@/lib/credit-cards/load";
 import {
   outstandingBalance,
   principalAtDue,
+  balanceTransferWithinStatement,
   roundMoney,
+  statementCarryIn,
 } from "@/lib/cards/interest-accrual";
-import { estimateInterestAfterDue, recomputeInterestForStatement } from "./interest";
+import { interestFreeBalanceTransferPrincipal } from "@/lib/other-loans/interest-free";
+import { recomputeInterestForStatement } from "./interest";
 import {
   canViewOlderStatementBatch,
   findStatementForBatchOffset,
@@ -52,7 +55,7 @@ function cycleSpendTotal(
 function closingUnpaidForCarry(stmt: DbCardStatement): number {
   if (stmt.paidAt) return 0;
   const principal = principalAtDue({
-    carriedForwardIn: stmt.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(stmt),
     actualAmount: stmt.actualAmount,
     amountPaid: stmt.amountPaid,
   });
@@ -193,31 +196,36 @@ function enrichStatement(
   row: DbCardStatement,
   meta: { creditCardKey: string; cardName: string },
   interest: number,
-  tracked: number
+  tracked: number,
+  btInterestFree: number
 ): CardStatementComputed {
   const base = toCardStatementRow(
     { ...row, interestAccrued: interest, trackedAmount: tracked },
     meta
   );
   const today = sgtTodayYmd();
+  // A bank-total amount also contains the previous balance, which isn't tracked spend.
+  const priorInAmount = base.amountIncludesPriorBalance ? base.carriedForwardIn : 0;
   const untracked =
     base.actualAmount != null
-      ? roundMoney(base.actualAmount - base.trackedAmount)
+      ? roundMoney(base.actualAmount - priorInAmount - base.trackedAmount)
       : null;
   const outstanding = outstandingBalance({
-    carriedForwardIn: base.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(base),
     actualAmount: base.actualAmount,
     interestAccrued: interest,
     amountPaid: base.amountPaid,
   });
   const isClosed = isStatementClosed(base.statementCloseDate, today);
+  const btPortion = balanceTransferWithinStatement(base, outstanding, btInterestFree);
   const isOverdue =
-    today > base.paymentDueDate && outstanding > 0 && !base.paidAt;
+    today > base.paymentDueDate && outstanding - btPortion > 0.01 && !base.paidAt;
 
   return {
     ...base,
     untrackedAmount: untracked,
     outstandingBalance: outstanding,
+    balanceTransferPortion: btPortion,
     isOverdue,
     isClosed,
   };
@@ -302,12 +310,19 @@ export async function loadCardStatementsBundle(
           viewedClosed,
           spendIndex
         );
+        const btInterestFree = await interestFreeBalanceTransferPrincipal(
+          supabase,
+          userId,
+          card.id,
+          today
+        );
         statements.push(
           enrichStatement(
             viewedClosed,
             { creditCardKey: card.cardKey, cardName: card.name },
             interest,
-            tracked
+            tracked,
+            btInterestFree
           )
         );
       }
@@ -323,27 +338,15 @@ export async function loadCardStatementsBundle(
           priorClosed,
           spendIndex
         );
+        // Post-due interest is reported separately so it isn't counted twice
+        // (once inside carried forward and again as the interest estimate).
         carriedForward = outstandingBalance({
-          carriedForwardIn: priorClosed.carriedForwardIn,
+          carriedForwardIn: statementCarryIn(priorClosed),
           actualAmount: priorClosed.actualAmount,
-          interestAccrued: priorInterest,
+          interestAccrued: 0,
           amountPaid: priorClosed.amountPaid,
         });
-        if (
-          card.interestRateApr > 0 &&
-          spendIndex &&
-          today > priorClosed.paymentDueDate &&
-          carriedForward > 0
-        ) {
-          interestEstimate = await estimateInterestAfterDue(
-            supabase,
-            userId,
-            card,
-            priorClosed,
-            spendIndex,
-            today
-          );
-        }
+        interestEstimate = priorInterest;
       }
 
       const newSpend = cycleSpendTotal(spendIndex, cycleStart, cycleEnd);
@@ -411,7 +414,11 @@ export async function updateStatementFields(
   supabase: SupabaseClient,
   userId: string,
   statementId: string,
-  fields: { actualAmount?: number; minimumDue?: number | null },
+  fields: {
+    actualAmount?: number;
+    minimumDue?: number | null;
+    amountIncludesPriorBalance?: boolean;
+  },
   card: DbCreditCard
 ): Promise<CardStatementComputed> {
   const { data: row, error } = await supabase
@@ -446,6 +453,10 @@ export async function updateStatementFields(
     patch.minimum_due = fields.minimumDue;
   }
 
+  if (fields.amountIncludesPriorBalance !== undefined) {
+    patch.amount_includes_prior_balance = fields.amountIncludesPriorBalance;
+  }
+
   let tracked = db.trackedAmount ?? 0;
   if (fields.actualAmount != null && card.financialAccountId) {
     const spendIndex = await buildCardSpendIndex(
@@ -475,11 +486,18 @@ export async function updateStatementFields(
     mapped
   );
 
+  const btInterestFree = await interestFreeBalanceTransferPrincipal(
+    supabase,
+    userId,
+    card.id
+  );
+
   return enrichStatement(
     mapped,
     { creditCardKey: card.cardKey, cardName: card.name },
     interest,
-    mapped.trackedAmount ?? tracked
+    mapped.trackedAmount ?? tracked,
+    btInterestFree
   );
 }
 

@@ -10,6 +10,8 @@ export type DbCardStatement = {
   paymentDueDate: string;
   carriedForwardIn: number;
   actualAmount: number | null;
+  /** Actual amount is the bank's full balance (includes previous balance / BT). */
+  amountIncludesPriorBalance: boolean;
   minimumDue: number | null;
   trackedAmount: number | null;
   amountPaid: number;
@@ -31,6 +33,7 @@ export function mapCardStatement(row: Record<string, unknown>): DbCardStatement 
     carriedForwardIn: Number(row.carried_forward_in ?? 0),
     actualAmount:
       row.actual_amount == null ? null : Number(row.actual_amount),
+    amountIncludesPriorBalance: Boolean(row.amount_includes_prior_balance),
     minimumDue:
       row.minimum_due == null ? null : Number(row.minimum_due),
     trackedAmount:
@@ -62,6 +65,7 @@ export function toCardStatementRow(
     paymentDueDate: db.paymentDueDate,
     carriedForwardIn: db.carriedForwardIn,
     actualAmount: db.actualAmount,
+    amountIncludesPriorBalance: db.amountIncludesPriorBalance,
     minimumDue: db.minimumDue,
     trackedAmount: db.trackedAmount ?? 0,
     amountPaid: db.amountPaid,

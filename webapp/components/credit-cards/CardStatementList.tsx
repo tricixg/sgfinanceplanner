@@ -7,6 +7,18 @@ import { DecimalTextInput } from "@/components/DecimalInput";
 import { InlineConfirm } from "@/components/InlineConfirm";
 import { fmtCardDate } from "@/components/credit-cards/card-ui";
 
+/**
+ * Whether the statement amount is the bank's full balance (incl. previous balance
+ * and balance transfers). New entries default to the bank total; amounts saved
+ * before this option keep their stored meaning (new charges only).
+ */
+export function statementIncludesPriorDraft(
+  stmt: CardStatementComputed,
+  drafts: Record<string, boolean>
+): boolean {
+  return drafts[stmt.id] ?? (stmt.actualAmount == null ? true : stmt.amountIncludesPriorBalance);
+}
+
 type Props = {
   cards: CreditCard[];
   statementByCardKey: Map<string, CardStatementComputed>;
@@ -14,6 +26,8 @@ type Props = {
   onDraftActualChange: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   draftMinDue: Record<string, string>;
   onDraftMinDueChange: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  draftIncludesPrior: Record<string, boolean>;
+  onDraftIncludesPriorChange: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   savingRow: string | null;
   undoingRow: string | null;
   savingConfig: boolean;
@@ -32,6 +46,8 @@ export function CardStatementList({
   onDraftActualChange,
   draftMinDue,
   onDraftMinDueChange,
+  draftIncludesPrior,
+  onDraftIncludesPriorChange,
   savingRow,
   undoingRow,
   savingConfig,
@@ -82,7 +98,9 @@ export function CardStatementList({
                     <div className="note">
                       {fmtCardDate(stmt.cycleStartDate)} – {fmtCardDate(stmt.cycleEndDate)}
                       {stmt.carriedForwardIn > 0
-                        ? ` · carried ${fmt2(stmt.carriedForwardIn)}`
+                        ? stmt.amountIncludesPriorBalance && stmt.actualAmount != null
+                          ? ` · prev balance ${fmt2(stmt.carriedForwardIn)} (in total)`
+                          : ` · carried ${fmt2(stmt.carriedForwardIn)}`
                         : ""}
                     </div>
                   ) : (
@@ -93,23 +111,44 @@ export function CardStatementList({
                 <td>{stmt ? fmtCardDate(stmt.paymentDueDate) : `Day ${c.paymentDueDay}`}</td>
                 <td className="num">
                   {stmt && !stmt.paidAt ? (
-                    <DecimalTextInput
-                      style={{ width: 88 }}
-                      disabled={rowSaving}
-                      value={
-                        draftActual[stmt.id] ??
-                        (stmt.actualAmount != null ? String(stmt.actualAmount) : "")
-                      }
-                      placeholder="Add"
-                      onChange={(v) =>
-                        onDraftActualChange((prev) => ({ ...prev, [stmt.id]: v }))
-                      }
-                    />
+                    <>
+                      <DecimalTextInput
+                        style={{ width: 88 }}
+                        disabled={rowSaving}
+                        value={
+                          draftActual[stmt.id] ??
+                          (stmt.actualAmount != null ? String(stmt.actualAmount) : "")
+                        }
+                        placeholder="Add"
+                        onChange={(v) =>
+                          onDraftActualChange((prev) => ({ ...prev, [stmt.id]: v }))
+                        }
+                      />
+                      <label
+                        className="note"
+                        style={{ display: "flex", gap: 4, alignItems: "center", whiteSpace: "nowrap" }}
+                        title="Tick if this is the bank's total statement balance, including any balance transfer and previous unpaid balance. Untick if it is new charges only."
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={rowSaving}
+                          checked={statementIncludesPriorDraft(stmt, draftIncludesPrior)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            onDraftIncludesPriorChange((prev) => ({ ...prev, [stmt.id]: checked }));
+                          }}
+                        />
+                        Bank total
+                      </label>
+                    </>
                   ) : stmt ? (
                     fmt2(stmt.actualAmount ?? 0)
                   ) : (
                     "—"
                   )}
+                  {stmt && stmt.balanceTransferPortion > 0 ? (
+                    <div className="note">incl. BT {fmt2(stmt.balanceTransferPortion)} at 0%</div>
+                  ) : null}
                 </td>
                 <td className="num">
                   {stmt && !stmt.paidAt ? (

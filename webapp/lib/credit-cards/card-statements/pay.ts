@@ -2,7 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import type { DbCreditCard } from "@/lib/credit-cards/mappers";
-import { outstandingBalance, roundMoney } from "@/lib/cards/interest-accrual";
+import {
+  outstandingBalance,
+  roundMoney,
+  statementCarryIn,
+} from "@/lib/cards/interest-accrual";
 import { applyTransaction } from "@/lib/savings/ledger";
 import {
   deleteSavingsTransaction,
@@ -226,7 +230,7 @@ export async function recordCardStatementPayment(
   const stmt = mapCardStatement(row);
   const interest = await recomputeInterestForStatement(supabase, userId, card, stmt);
   const outstanding = outstandingBalance({
-    carriedForwardIn: stmt.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(stmt),
     actualAmount: stmt.actualAmount,
     interestAccrued: interest,
     amountPaid: stmt.amountPaid,
@@ -274,7 +278,7 @@ export async function recordCardStatementPayment(
   const payToStatement = amount;
   const newPaid = roundMoney(stmt.amountPaid + payToStatement);
   const newOutstanding = outstandingBalance({
-    carriedForwardIn: stmt.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(stmt),
     actualAmount: stmt.actualAmount,
     interestAccrued: interest,
     amountPaid: newPaid,
@@ -360,7 +364,7 @@ export async function undoCardStatementPayment(
   );
   const paidBefore = roundMoney(stmt.amountPaid - paymentAmount);
   const outstandingBefore = outstandingBalance({
-    carriedForwardIn: stmt.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(stmt),
     actualAmount: stmt.actualAmount,
     interestAccrued: interestBeforeUndo,
     amountPaid: paidBefore,
@@ -388,7 +392,7 @@ export async function undoCardStatementPayment(
   const newPaid = roundMoney(Math.max(0, stmt.amountPaid - paymentAmount));
   const interest = await recomputeInterestForStatement(supabase, userId, card, stmt);
   const newOutstanding = outstandingBalance({
-    carriedForwardIn: stmt.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(stmt),
     actualAmount: stmt.actualAmount,
     interestAccrued: interest,
     amountPaid: newPaid,
@@ -448,7 +452,7 @@ export async function syncStatementAfterPaymentTransactionDelete(
   const newPaid = roundMoney(Math.max(0, stmt.amountPaid - deletedPayment));
   const interest = await recomputeInterestForStatement(supabase, userId, card, stmt);
   const newOutstanding = outstandingBalance({
-    carriedForwardIn: stmt.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(stmt),
     actualAmount: stmt.actualAmount,
     interestAccrued: interest,
     amountPaid: newPaid,

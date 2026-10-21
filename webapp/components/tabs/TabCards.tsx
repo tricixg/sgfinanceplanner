@@ -28,7 +28,10 @@ import { CardPaymentModal } from "@/components/credit-cards/CardPaymentModal";
 import { CardEditForm } from "@/components/credit-cards/CardEditForm";
 import { CardListSection } from "@/components/credit-cards/CardListSection";
 import { CardOpenCycleSection } from "@/components/credit-cards/CardOpenCycleSection";
-import { CardStatementList } from "@/components/credit-cards/CardStatementList";
+import {
+  CardStatementList,
+  statementIncludesPriorDraft,
+} from "@/components/credit-cards/CardStatementList";
 import { CardRewardsAdvisor } from "@/components/credit-cards/CardRewardsAdvisor";
 type CardsApi = {
   cards: CreditCard[];
@@ -78,6 +81,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
   const [payStatement, setPayStatement] = useState<CardStatementComputed | null>(null);
   const [draftActual, setDraftActual] = useState<Record<string, string>>({});
   const [draftMinDue, setDraftMinDue] = useState<Record<string, string>>({});
+  const [draftIncludesPrior, setDraftIncludesPrior] = useState<Record<string, boolean>>({});
   const [savingRow, setSavingRow] = useState<string | null>(null);
   const [undoingRow, setUndoingRow] = useState<string | null>(null);
   const [confirmUndoStatementId, setConfirmUndoStatementId] = useState<string | null>(null);
@@ -197,13 +201,22 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     if (minimumDue != null && (!Number.isFinite(minimumDue) || minimumDue < 0)) {
       return;
     }
-    if (actualAmount === undefined && minRaw === "") return;
+    const includesPrior = statementIncludesPriorDraft(stmt, draftIncludesPrior);
+    const includesPriorChanged = includesPrior !== stmt.amountIncludesPriorBalance;
+    if (actualAmount === undefined && minRaw === "" && !includesPriorChanged) return;
 
     setSavingRow(stmt.id);
     try {
-      const body: { actualAmount?: number; minimumDue?: number | null } = {};
+      const body: {
+        actualAmount?: number;
+        minimumDue?: number | null;
+        amountIncludesPriorBalance?: boolean;
+      } = {};
       if (actualAmount !== undefined) body.actualAmount = actualAmount;
       if (minRaw !== "" || stmt.minimumDue != null) body.minimumDue = minimumDue;
+      if (actualAmount !== undefined || includesPriorChanged) {
+        body.amountIncludesPriorBalance = includesPrior;
+      }
 
       const { res, data } = await fetchJson<{ error?: string }>(
         `/api/credit-cards/statements/${stmt.id}`,
@@ -456,6 +469,8 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
             onDraftActualChange={setDraftActual}
             draftMinDue={draftMinDue}
             onDraftMinDueChange={setDraftMinDue}
+            draftIncludesPrior={draftIncludesPrior}
+            onDraftIncludesPriorChange={setDraftIncludesPrior}
             savingRow={savingRow}
             undoingRow={undoingRow}
             savingConfig={savingConfig}
