@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
+import { applyTransaction, deleteSavingsTransaction } from "@/lib/savings/ledger";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 import type { Loan } from "@/lib/types";
-import type { OtherLoan, OtherLoanType } from "./types";
+import {
+  BT_PRINCIPAL_EXPENSE_CATEGORY,
+  NO_BT_DEPOSIT,
+  type OtherLoan,
+  type OtherLoanType,
+} from "./types";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
@@ -26,6 +34,7 @@ function mapRow(row: Record<string, unknown>, cardKey?: string): OtherLoan {
     amountPaid: Number(row.amount_paid ?? 0),
     paidAt: row.paid_at ? String(row.paid_at) : null,
     excludeFromNetWorth: Boolean(row.exclude_from_net_worth),
+    principalTrackedOnCard: Boolean(row.bt_principal_expense_id),
   };
 }
 
@@ -190,6 +199,149 @@ async function syncBtFinanceChargeExpense(
   return inserted?.id ? String(inserted.id) : null;
 }
 
+function btPrincipalNote(loanName: string): string {
+  return `Balance transfer: ${loanName}`;
+}
+
+function btPrincipalDate(btStartDate?: string): string {
+  const d = btStartDate ? String(btStartDate).slice(0, 10) : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : sgtTodayYmd();
+}
+
+/**
+ * New BT: post the principal as spend on the source card (so it shows in the
+ * card's tracked statement spend) and deposit the funds into a cash account.
+ */
+async function createBtPrincipalAndDeposit(
+  supabase: SupabaseClient,
+  userId: string,
+  loanId: string,
+  opts: {
+    loanName: string;
+    principal: number;
+    btStartDate?: string;
+    cardFinancialAccountId: string | null;
+    depositFinancialAccountId?: string;
+  }
+): Promise<{ expenseId: string | null; depositTransactionId: string | null }> {
+  const principal = Number(opts.principal ?? 0);
+  // No deposit choice means the BT didn't come from the add flow (e.g. a migrated
+  // legacy BT), so leave card spend and cash untouched.
+  if (!(principal > 0) || !opts.depositFinancialAccountId) {
+    return { expenseId: null, depositTransactionId: null };
+  }
+  const depositAccountId =
+    opts.depositFinancialAccountId === NO_BT_DEPOSIT ? null : opts.depositFinancialAccountId;
+
+  const spentAt = btPrincipalDate(opts.btStartDate);
+  const note = btPrincipalNote(opts.loanName);
+
+  let depositSavingsAccountId: string | null = null;
+  if (depositAccountId) {
+    // Validate before writing anything so a bad account can't leave a half-posted BT.
+    const account = await loadFinancialAccount(supabase, userId, depositAccountId);
+    if (!account?.savingsAccountId || account.accountType !== "cash") {
+      throw new Error("Balance transfer deposit account must be a cash account");
+    }
+    depositSavingsAccountId = account.savingsAccountId;
+  }
+
+  let expenseId: string | null = null;
+  if (opts.cardFinancialAccountId) {
+    const { data: inserted, error: insErr } = await supabase
+      .from("expenses")
+      .insert({
+        user_id: userId,
+        amount: principal,
+        category: BT_PRINCIPAL_EXPENSE_CATEGORY,
+        spent_at: spentAt,
+        note,
+        financial_account_id: opts.cardFinancialAccountId,
+      })
+      .select("id")
+      .single();
+    if (insErr) throw new Error(insErr.message);
+    expenseId = inserted?.id ? String(inserted.id) : null;
+  } else {
+    console.info("[other-loans] skip BT principal expense: card has no account", { loanId });
+  }
+
+  let depositTransactionId: string | null = null;
+  if (depositSavingsAccountId) {
+    const tx = await applyTransaction(supabase, {
+      userId,
+      accountId: depositSavingsAccountId,
+      amount: principal,
+      kind: "deposit",
+      occurredAt: `${spentAt}T12:00:00+08:00`,
+      note,
+    });
+    depositTransactionId = tx.id;
+  }
+
+  console.info("[other-loans] BT principal posted", {
+    loanId,
+    principal,
+    spentAt,
+    expenseId,
+    depositTransactionId,
+  });
+  return { expenseId, depositTransactionId };
+}
+
+/** Keep a BT's principal expense in line with edits to principal, date, card or name. */
+async function syncBtPrincipalExpense(
+  supabase: SupabaseClient,
+  userId: string,
+  expenseId: string,
+  opts: {
+    loanName: string;
+    principal: number;
+    btStartDate?: string;
+    cardFinancialAccountId: string | null;
+  }
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    amount: Math.max(0, Number(opts.principal ?? 0)),
+    spent_at: btPrincipalDate(opts.btStartDate),
+    note: btPrincipalNote(opts.loanName),
+    updated_at: new Date().toISOString(),
+  };
+  if (opts.cardFinancialAccountId) patch.financial_account_id = opts.cardFinancialAccountId;
+  const { error } = await supabase
+    .from("expenses")
+    .update(patch)
+    .eq("id", expenseId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
+/** Deleting a BT also removes the card expense and cash deposit it created. */
+async function deleteBtPrincipalLinks(
+  supabase: SupabaseClient,
+  userId: string,
+  row: { id: string; bt_principal_expense_id?: unknown; bt_deposit_transaction_id?: unknown }
+): Promise<void> {
+  if (row.bt_principal_expense_id) {
+    await supabase
+      .from("expenses")
+      .delete()
+      .eq("id", String(row.bt_principal_expense_id))
+      .eq("user_id", userId);
+  }
+  if (row.bt_deposit_transaction_id) {
+    try {
+      await deleteSavingsTransaction(supabase, userId, String(row.bt_deposit_transaction_id));
+    } catch (e) {
+      // e.g. the deposit was already spent — keep the cash history rather than block the save.
+      console.error("[other-loans] could not remove BT deposit", {
+        loanId: row.id,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+}
+
 /** Move legacy zero-monthly loans (e.g. balance transfer) into other_loans once. */
 async function migrateLegacyNonInstalmentLoans(
   supabase: SupabaseClient,
@@ -298,7 +450,7 @@ export async function saveOtherLoans(
 
   const { data: existing } = await supabase
     .from("other_loans")
-    .select("id, finance_charge_expense_id")
+    .select("id, finance_charge_expense_id, bt_principal_expense_id, bt_deposit_transaction_id")
     .eq("user_id", userId);
 
   const keepIds = new Set<string>();
@@ -369,6 +521,21 @@ export async function saveOtherLoans(
           })
           .eq("id", match.id)
           .eq("user_id", userId);
+        if (match.bt_principal_expense_id) {
+          await syncBtPrincipalExpense(
+            supabase,
+            userId,
+            String(match.bt_principal_expense_id),
+            {
+              loanName: o.name ?? "Balance transfer",
+              principal: o.principal ?? 0,
+              btStartDate: o.btStartDate,
+              cardFinancialAccountId: sourceCreditCardId
+                ? cardToFinancialAccount.get(sourceCreditCardId) ?? null
+                : null,
+            }
+          );
+        }
       } else if (match.finance_charge_expense_id) {
         await supabase
           .from("expenses")
@@ -406,10 +573,25 @@ export async function saveOtherLoans(
           },
           cardToFinancialAccount
         );
+        const principalLinks = await createBtPrincipalAndDeposit(supabase, userId, loanId, {
+          loanName: o.name ?? "Balance transfer",
+          principal: o.principal ?? 0,
+          btStartDate: o.btStartDate,
+          cardFinancialAccountId: sourceCreditCardId
+            ? cardToFinancialAccount.get(sourceCreditCardId) ?? null
+            : null,
+          depositFinancialAccountId: o.depositFinancialAccountId,
+        });
         await supabase
           .from("other_loans")
           .update({
             finance_charge_expense_id: expenseId,
+            bt_principal_expense_id: principalLinks.expenseId,
+            bt_deposit_transaction_id: principalLinks.depositTransactionId,
+            // Interest exclusion keys the principal spend by BT start date.
+            ...(principalLinks.expenseId
+              ? { bt_start_date: btPrincipalDate(o.btStartDate) }
+              : {}),
             updated_at: new Date().toISOString(),
           })
           .eq("id", loanId)
@@ -427,6 +609,7 @@ export async function saveOtherLoans(
           .eq("id", String(row.finance_charge_expense_id))
           .eq("user_id", userId);
       }
+      await deleteBtPrincipalLinks(supabase, userId, row);
       await supabase.from("other_loans").delete().eq("id", row.id);
     }
   }

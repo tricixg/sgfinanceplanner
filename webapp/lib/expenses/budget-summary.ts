@@ -1,3 +1,4 @@
+import { isBtPrincipalExpense } from "@/lib/other-loans/types";
 import type { Expense } from "@/lib/savings/types";
 import {
   expenseBudgetLines,
@@ -110,7 +111,9 @@ export function buildBudgetExpenseSummary(
     imports: [],
   };
 
-  for (const exp of expenses) {
+  // BT principal moves debt onto a card; it isn't spending against the budget.
+  const spendExpenses = expenses.filter((e) => !isBtPrincipalExpense(e));
+  for (const exp of spendExpenses) {
     if (
       exp.autoCategory &&
       exp.autoCategory !== "subscription" &&
@@ -171,7 +174,7 @@ export function buildBudgetExpenseSummary(
 
   const computedCategories =
     computedAlloc != null
-      ? buildComputedCategories(expenses, computedAlloc)
+      ? buildComputedCategories(spendExpenses, computedAlloc)
       : [];
 
   return {

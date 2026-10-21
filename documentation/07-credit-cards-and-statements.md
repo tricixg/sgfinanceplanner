@@ -124,6 +124,15 @@ Body: `{ amount, financialAccountId }` (cash financial account)
 
 ---
 
+## Adding a balance transfer
+
+New BTs (Debt → Other loans → Edit → Add balance transfer) must choose **Deposit into**: a cash account, or "No deposit". On first save (`createBtPrincipalAndDeposit` in `lib/other-loans/load.ts`, migration 059):
+
+- The principal is posted as an expense on the source card (category `Balance transfer`, dated BT start, defaulting to today), so it shows in the card's tracked statement spend. Linked via `other_loans.bt_principal_expense_id` and kept in sync when the BT is edited.
+- The principal is deposited into the chosen cash account (`bt_deposit_transaction_id`).
+- The expense is excluded from budget and spending analytics (`isBtPrincipalExpense`) and from card interest while the BT promo is active (`loadBalanceTransferInterestExclusion`).
+- Deleting the BT removes both. BTs saved before 059 have neither link and are unchanged.
+
 ## Card advisor (rewards)
 
 [webapp/lib/finance/card-rewards.ts](../webapp/lib/finance/card-rewards.ts) + [webapp/lib/cards/sg-card-catalog.ts](../webapp/lib/cards/sg-card-catalog.ts) — recommends card for spend category; does not write to DB.

@@ -51,6 +51,23 @@ describe("budget-match", () => {
 });
 
 describe("buildBudgetExpenseSummary", () => {
+  it("leaves balance transfer principal out of budget spend", () => {
+    const summary = buildBudgetExpenseSummary(
+      "2025-05",
+      lines,
+      [
+        expense({ id: "e1", amount: 120, budgetLineId: "a1" }),
+        expense({ id: "bt", amount: 5000, category: "Balance transfer" }),
+        expense({ id: "fee", amount: 75, category: "Balance transfer finance charge" }),
+      ],
+      []
+    );
+
+    expect(summary.uncategorized.expenses.map((e) => e.id)).toEqual(["fee"]);
+    expect(summary.uncategorized.spent).toBe(75);
+    expect(summary.totals.spent).toBe(195);
+  });
+
   it("sums manual and import spend for fixed/spend categories", () => {
     const summary = buildBudgetExpenseSummary(
       "2025-05",

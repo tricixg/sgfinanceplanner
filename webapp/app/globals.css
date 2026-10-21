@@ -620,8 +620,9 @@ tfoot td {
     minmax(88px, 0.62fr)
     minmax(110px, 0.82fr)
     minmax(94px, 0.68fr)
+    minmax(120px, 0.85fr)
     auto;
-  min-width: 1180px;
+  min-width: 1300px;
 }
 .editrow.other-loans-personal {
   grid-template-columns:
