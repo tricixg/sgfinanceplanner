@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   accrueDailyInterest,
+  balanceTransferWithinStatement,
   outstandingBalance,
   principalAtDue,
+  statementCarryIn,
 } from "./interest-accrual";
 
 describe("interest-accrual", () => {
@@ -49,5 +51,65 @@ describe("interest-accrual", () => {
         throughDate: "2026-06-15",
       })
     ).toBe(0);
+  });
+
+  it("adds carried forward to legacy new-charges-only statements", () => {
+    expect(
+      statementCarryIn({ carriedForwardIn: 5000, actualAmount: 800 })
+    ).toBe(5000);
+  });
+
+  it("does not add carried forward to a bank-total statement", () => {
+    const stmt = {
+      carriedForwardIn: 5000,
+      actualAmount: 5800,
+      amountIncludesPriorBalance: true,
+    };
+    expect(statementCarryIn(stmt)).toBe(0);
+    expect(
+      outstandingBalance({
+        carriedForwardIn: statementCarryIn(stmt),
+        actualAmount: stmt.actualAmount,
+        interestAccrued: 0,
+        amountPaid: 0,
+      })
+    ).toBe(5800);
+  });
+
+  it("keeps carried forward on a bank-total statement until an amount is entered", () => {
+    expect(
+      statementCarryIn({
+        carriedForwardIn: 5000,
+        actualAmount: null,
+        amountIncludesPriorBalance: true,
+      })
+    ).toBe(5000);
+  });
+
+  it("finds BT inside a bank-total statement", () => {
+    const stmt = {
+      carriedForwardIn: 0,
+      actualAmount: 5800,
+      amountIncludesPriorBalance: true,
+    };
+    expect(balanceTransferWithinStatement(stmt, 5800, 5000)).toBe(5000);
+    expect(balanceTransferWithinStatement(stmt, 3000, 5000)).toBe(3000);
+  });
+
+  it("finds BT in a legacy statement only via the carried balance", () => {
+    expect(
+      balanceTransferWithinStatement(
+        { carriedForwardIn: 0, actualAmount: 800 },
+        800,
+        5000
+      )
+    ).toBe(0);
+    expect(
+      balanceTransferWithinStatement(
+        { carriedForwardIn: 5000, actualAmount: 800 },
+        5800,
+        5000
+      )
+    ).toBe(5000);
   });
 });

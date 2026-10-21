@@ -49,6 +49,40 @@ export function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Previous balance to add on top of a statement's amount. A statement entered as
+ * the bank's full balance already includes it (and any balance transfer), so
+ * nothing is added; legacy new-charges-only statements add `carriedForwardIn`.
+ */
+export function statementCarryIn(stmt: {
+  carriedForwardIn: number;
+  actualAmount: number | null;
+  amountIncludesPriorBalance?: boolean;
+}): number {
+  if (stmt.amountIncludesPriorBalance && stmt.actualAmount != null) return 0;
+  return stmt.carriedForwardIn;
+}
+
+/**
+ * Interest-free balance transfer inside a statement's outstanding balance. BT is
+ * paid off over its own tenure, so only the remainder can make a statement overdue.
+ * A bank-total amount contains the BT; a legacy new-charges-only amount can only
+ * hold it via the carried-forward balance.
+ */
+export function balanceTransferWithinStatement(
+  stmt: {
+    carriedForwardIn: number;
+    actualAmount: number | null;
+    amountIncludesPriorBalance?: boolean;
+  },
+  outstanding: number,
+  btInterestFree: number
+): number {
+  const includesBt = stmt.amountIncludesPriorBalance && stmt.actualAmount != null;
+  const cap = includesBt ? outstanding : Math.min(outstanding, stmt.carriedForwardIn);
+  return roundMoney(Math.max(0, Math.min(btInterestFree, cap)));
+}
+
 /** Principal still owed at end of due date (before post-due interest). */
 export function principalAtDue(params: {
   carriedForwardIn: number;

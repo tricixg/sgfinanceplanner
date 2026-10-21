@@ -9,6 +9,7 @@ export type CardStatementRow = {
   paymentDueDate: string;
   carriedForwardIn: number;
   actualAmount: number | null;
+  amountIncludesPriorBalance: boolean;
   minimumDue: number | null;
   trackedAmount: number;
   amountPaid: number;
@@ -21,6 +22,8 @@ export type CardStatementRow = {
 export type CardStatementComputed = CardStatementRow & {
   untrackedAmount: number | null;
   outstandingBalance: number;
+  /** Interest-free balance transfer within the outstanding balance. */
+  balanceTransferPortion: number;
   isOverdue: boolean;
   isClosed: boolean;
 };

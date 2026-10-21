@@ -16,7 +16,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ("response" in auth) return auth.response;
   const { id } = await params;
 
-  let body: { actualAmount?: number; minimumDue?: number | null };
+  let body: {
+    actualAmount?: number;
+    minimumDue?: number | null;
+    amountIncludesPriorBalance?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -25,9 +29,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const hasActual = body.actualAmount != null;
   const hasMinDue = body.minimumDue !== undefined;
-  if (!hasActual && !hasMinDue) {
+  const hasIncludesPrior = typeof body.amountIncludesPriorBalance === "boolean";
+  if (!hasActual && !hasMinDue && !hasIncludesPrior) {
     return NextResponse.json(
-      { error: "actualAmount and/or minimumDue required" },
+      { error: "actualAmount, minimumDue and/or amountIncludesPriorBalance required" },
       { status: 400 }
     );
   }
@@ -62,12 +67,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const statement = await updateStatementFields(supabase, auth.user.id, id, {
       ...(hasActual ? { actualAmount: body.actualAmount } : {}),
       ...(hasMinDue ? { minimumDue: body.minimumDue ?? null } : {}),
+      ...(hasIncludesPrior
+        ? { amountIncludesPriorBalance: body.amountIncludesPriorBalance }
+        : {}),
     }, card);
 
     console.info("[api/credit-cards/statements] PATCH", {
       id,
       actualAmount: body.actualAmount,
       minimumDue: body.minimumDue,
+      amountIncludesPriorBalance: body.amountIncludesPriorBalance,
     });
     return NextResponse.json({ statement });
   } catch (e) {

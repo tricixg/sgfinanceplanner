@@ -13,6 +13,7 @@ function stmt(close: string): DbCardStatement {
     paymentDueDate: "2026-02-01",
     carriedForwardIn: 0,
     actualAmount: null,
+    amountIncludesPriorBalance: false,
     minimumDue: null,
     trackedAmount: 0,
     amountPaid: 0,

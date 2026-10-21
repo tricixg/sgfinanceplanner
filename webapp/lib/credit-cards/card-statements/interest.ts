@@ -4,6 +4,7 @@ import {
   accrueDailyInterest,
   interestStartAfterDue,
   principalAtDue,
+  statementCarryIn,
 } from "@/lib/cards/interest-accrual";
 import type { CardSpendIndex } from "@/lib/cards/statement-spend-index";
 import { sumCardSpendByDay } from "@/lib/cards/statement-spend";
@@ -28,7 +29,7 @@ export async function estimateInterestAfterDue(
   if (throughDate <= stmt.paymentDueDate) return 0;
 
   let principal = principalAtDue({
-    carriedForwardIn: stmt.carriedForwardIn,
+    carriedForwardIn: statementCarryIn(stmt),
     actualAmount: stmt.actualAmount,
     amountPaid: stmt.amountPaid,
   });
