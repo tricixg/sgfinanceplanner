@@ -16,6 +16,7 @@ export * from "./bto";
 export * from "./bto-schemes";
 export * from "./bto-price-finder";
 export * from "./bto-bank-loan";
+export * from "./bto-income-goal";
 export * from "./debt";
 export * from "./calendar";
 export * from "./card-linking";

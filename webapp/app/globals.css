@@ -3966,3 +3966,42 @@ footer {
   width: auto;
   flex: none;
 }
+.bto-pf-goal-sum {
+  margin: 8px 0 0;
+  font-size: 15px;
+  max-width: 72ch;
+}
+.bto-pf-goal-sum b {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.bto-pf-goal-table td.num {
+  white-space: nowrap;
+}
+.bto-pf-goal-table tr.keys td {
+  background: #e3ecdf;
+}
+.bto-pf-goal-table tr.keys td:first-child {
+  font-weight: 600;
+}
+.bto-pf-bar {
+  height: 6px;
+  min-width: 70px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.bto-pf-bar i {
+  display: block;
+  height: 100%;
+  background: var(--moss);
+}
+.bto-pf-goal-warn {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  background: #f4e8cf;
+  font-size: 13.5px;
+}
+.bto-pf-goal-table td:first-child {
+  white-space: nowrap;
+}

@@ -7,6 +7,7 @@ import {
   BANK_LOAN_RULES,
   addMonthsYm,
   btoAffordabilityZone,
+  btoIncomeGoal,
   btoLoanTerms,
   btoPriceBands,
   computeBTO,
@@ -21,6 +22,7 @@ import {
 import { fmt, formatMonthLabel } from "@/lib/finance/helpers";
 import { effectiveCash } from "@/lib/finance/savings-totals";
 import { DecimalInput } from "@/components/DecimalInput";
+import { BtoIncomeGoalCard } from "@/components/bto/BtoIncomeGoalCard";
 import { BtoOATimelineChart } from "@/components/bto/BtoOATimelineChart";
 import { useAppSession } from "@/contexts/AppSessionContext";
 import { useBtoPlannerData } from "@/hooks/useBtoPlannerData";
@@ -203,6 +205,13 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
   );
   const b = useMemo(() => computeBTO({ ...base, price: p.price }), [base, p.price]);
   const zone = btoAffordabilityZone(b, cash);
+  // Income goal — only when CPF can't fully pay AFL and keys on today's income.
+  const fullyCpfByKeys = b.cashAFL <= 0 && b.dpOK;
+  const incomeGoal = useMemo(
+    () =>
+      fullyCpfByKeys ? null : btoIncomeGoal({ ...base, price: p.price }, todayYmd.slice(0, 7)),
+    [fullyCpfByKeys, base, p.price, todayYmd]
+  );
   // Both loans at this price, for the side-by-side comparison.
   const bHdb = p.loanAtKeys === "hdb" ? b : computeBTO({ ...withTerms(hdbTerms), price: p.price });
   const bBank = p.loanAtKeys === "bank" ? b : computeBTO({ ...withTerms(bankTerms), price: p.price });
@@ -512,6 +521,18 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
               </div>
             </div>
           </div>
+
+          {incomeGoal && (
+            <BtoIncomeGoalCard
+              goal={incomeGoal}
+              incomeNow={p.tSal + p.pSal}
+              neededKC={b.neededKC}
+              shortfallKC={b.cashKC - b.mandatoryCashKC}
+              cashAFL={b.cashAFL}
+              keysLabel={formatYmdLabel(milestones.keysYmd)}
+              aflLabel={formatYmdLabel(milestones.aflYmd)}
+            />
+          )}
 
           <div className="card">
             <div className="bto-pf-chart-head">

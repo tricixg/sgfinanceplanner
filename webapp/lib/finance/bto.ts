@@ -87,6 +87,12 @@ export type BTOInputs = {
    * into the key-collection payment. Omit / 0 for HDB loans.
    */
   minCashPct?: number;
+  /**
+   * Monthly OA contribution for self/partner in month `m` from today, for
+   * projections where pay changes over time (the income goal). Defaults to
+   * the flat tOAMonthly / pOAMonthly.
+   */
+  oaMonthlyAt?: (m: number) => { t: number; p: number };
 };
 
 export { defaultBTOSchemes, BTO_SCHEME_DEFS } from "./bto-schemes";
@@ -524,6 +530,7 @@ export function computeBTO(inputs: BTOInputs) {
     pOAMonthly,
   } = inputs;
   const rateFrac = rate / 100;
+  const oaMonthlyAt = inputs.oaMonthlyAt ?? (() => ({ t: tOAMonthly, p: pOAMonthly }));
   const totalGrants = totalHousingGrants(schemes, { tSal, pSal });
   // Informational only below (shown as "after grants") — grants don't reduce
   // the loan, BSD, or downpayment bills; see the CPF-credit note further down.
@@ -617,9 +624,10 @@ export function computeBTO(inputs: BTOInputs) {
   // cash, no OA drawdown), AFL, and Key Collection instead of showing an
   // uninterrupted accumulation curve that never reflects money leaving.
   for (let m = 1; m <= kcOffset; m++) {
-    to = (to + tOAMonthly) * (1 + 0.025 / 12);
-    po = (po + pOAMonthly) * (1 + 0.025 / 12);
-    pooled = (pooled + tOAMonthly + pOAMonthly) * (1 + 0.025 / 12);
+    const inflowAt = oaMonthlyAt(m);
+    to = (to + inflowAt.t) * (1 + 0.025 / 12);
+    po = (po + inflowAt.p) * (1 + 0.025 / 12);
+    pooled = (pooled + inflowAt.t + inflowAt.p) * (1 + 0.025 / 12);
     let milestoneHit = false;
 
     if (bookingOffset > 0 && m === bookingOffset) {
@@ -702,7 +710,8 @@ export function computeBTO(inputs: BTOInputs) {
   let cpfAvailLatestKC = cpfAvailKC;
   let kcCoveredOffset: number | null = cpfAvailLatestKC >= cpfAllowedKC ? kcOffset : null;
   for (let m = kcOffset + 1; m <= latestKcOffset; m++) {
-    cpfAvailLatestKC = (cpfAvailLatestKC + tOAMonthly + pOAMonthly) * (1 + 0.025 / 12);
+    const inflowAt = oaMonthlyAt(m);
+    cpfAvailLatestKC = (cpfAvailLatestKC + inflowAt.t + inflowAt.p) * (1 + 0.025 / 12);
     pooledSeries.push({ month: m, balance: cpfAvailLatestKC, due: neededKC });
     if (kcCoveredOffset == null && cpfAvailLatestKC >= cpfAllowedKC) kcCoveredOffset = m;
   }
