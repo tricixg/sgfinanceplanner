@@ -36,6 +36,16 @@ type Props = {
       goalId?: string;
     }
   ) => Promise<void>;
+  /** When provided, pool deposits can be funded from a personal cash account. */
+  recordAccountTransaction?: (
+    accountId: string,
+    payload: {
+      amount: number;
+      occurredAt?: string;
+      kind?: "deposit" | "withdrawal" | "adjustment";
+      note?: string;
+    }
+  ) => Promise<void>;
 };
 
 export function TabSavings({
@@ -47,6 +57,7 @@ export function TabSavings({
   savePools,
   saveGoals,
   recordPoolTransaction,
+  recordAccountTransaction,
 }: Props) {
   const [pools, setPools] = useState(savings.pools);
   const [goals, setGoals] = useState(savings.goals);
@@ -367,11 +378,35 @@ export function TabSavings({
             target={{ variant: "pool", pool }}
             txRefresh={txRefresh}
             goalOptions={sharedGoals.map((g) => ({ id: g.id, name: g.name }))}
+            fromAccountOptions={
+              recordAccountTransaction
+                ? personalAccounts.map((a) => ({ id: a.id, name: a.name }))
+                : []
+            }
             onClose={() => setLedgerPoolId(null)}
             onRecord={async (payload) => {
               // Pool variant never offers "payout" in its Type select.
               if (payload.kind === "payout") return;
-              await recordPoolTransaction(pool.id, { ...payload, kind: payload.kind });
+              if (payload.fromAccountId && recordAccountTransaction) {
+                // Same transfer pattern as fund deposits: debit the account as an
+                // adjustment so it isn't counted as spending, then credit the pool.
+                const fromName =
+                  personalAccounts.find((a) => a.id === payload.fromAccountId)?.name ??
+                  "Account";
+                await recordAccountTransaction(payload.fromAccountId, {
+                  amount: -payload.amount,
+                  kind: "adjustment",
+                  occurredAt: payload.occurredAt,
+                  note: `Transfer to ${pool.name || "Shared pool"}`,
+                });
+                await recordPoolTransaction(pool.id, {
+                  ...payload,
+                  kind: payload.kind,
+                  note: payload.note || `Transfer from ${fromName}`,
+                });
+              } else {
+                await recordPoolTransaction(pool.id, { ...payload, kind: payload.kind });
+              }
               setTxRefresh((k) => k + 1);
             }}
           />

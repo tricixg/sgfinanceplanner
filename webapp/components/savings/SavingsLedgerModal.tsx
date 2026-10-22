@@ -30,7 +30,7 @@ type Props = {
   goalOptions?: GoalOption[];
   /** Lifetime payout total for a fund target — shown as P&L in the header. */
   fundPnl?: number;
-  /** Cash accounts offered as a funding source when depositing into a fund. */
+  /** Cash accounts offered as a funding source when depositing into a fund or pool. */
   fromAccountOptions?: GoalOption[];
   /** When provided, shows a delete control on each history row. */
   onDeleteTransaction?: (transactionId: string) => Promise<void>;
@@ -181,7 +181,7 @@ export function SavingsLedgerModal({
   const showGoalPicker = goalOptions.length > 0 && kind !== "adjustment";
 
   const showFromAccount =
-    target.variant === "fund" && kind === "deposit" && fromAccountOptions.length > 0;
+    target.variant !== "account" && kind === "deposit" && fromAccountOptions.length > 0;
 
   const showToAccount =
     target.variant === "fund" && kind === "withdrawal" && fromAccountOptions.length > 0;

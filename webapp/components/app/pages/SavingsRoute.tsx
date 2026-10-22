@@ -23,6 +23,9 @@ export function SavingsRoute() {
       savePools={savingsApi.savePools}
       saveGoals={savingsApi.saveGoals}
       recordPoolTransaction={savingsApi.recordPoolTransaction}
+      recordAccountTransaction={
+        accountsApi.configured ? accountsApi.recordAccountTransaction : undefined
+      }
     />
   );
 }
