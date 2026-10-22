@@ -260,23 +260,25 @@ export function TabBenefits({ enabled }: Props) {
                   <td className="note" style={{ fontSize: 12 }}>
                     {c.sourceRecordType ? "Reimbursement" : "Manual"}
                   </td>
-                  <td style={{ display: "flex", gap: 4 }}>
-                    <button
-                      type="button"
-                      className="btn ghost sm"
-                      disabled={claimBusyId === c.id}
-                      onClick={cancelEditClaim}
-                    >
-                      cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="btn sm"
-                      disabled={claimBusyId === c.id}
-                      onClick={() => void saveEditClaim(benefitId, c.id)}
-                    >
-                      save
-                    </button>
+                  <td>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button
+                        type="button"
+                        className="btn ghost sm"
+                        disabled={claimBusyId === c.id}
+                        onClick={cancelEditClaim}
+                      >
+                        cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        disabled={claimBusyId === c.id}
+                        onClick={() => void saveEditClaim(benefitId, c.id)}
+                      >
+                        save
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -291,23 +293,25 @@ export function TabBenefits({ enabled }: Props) {
                 <td className="note" style={{ fontSize: 12 }}>
                   {c.sourceRecordType ? "Reimbursement" : "Manual"}
                 </td>
-                <td style={{ display: "flex", gap: 4 }}>
-                  <button
-                    type="button"
-                    className="btn ghost sm"
-                    disabled={claimBusyId === c.id}
-                    onClick={() => startEditClaim(c)}
-                  >
-                    edit
-                  </button>
-                  <button
-                    type="button"
-                    className="btn del sm"
-                    disabled={claimBusyId === c.id}
-                    onClick={() => void removeClaim(benefitId, c.id)}
-                  >
-                    del
-                  </button>
+                <td>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      disabled={claimBusyId === c.id}
+                      onClick={() => startEditClaim(c)}
+                    >
+                      edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn del sm"
+                      disabled={claimBusyId === c.id}
+                      onClick={() => void removeClaim(benefitId, c.id)}
+                    >
+                      del
+                    </button>
+                  </div>
                 </td>
               </tr>
             );
