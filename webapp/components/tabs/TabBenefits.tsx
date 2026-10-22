@@ -14,6 +14,9 @@ const CLAIM_VIA_LABEL: Record<BenefitClaimVia, string> = {
   deposit: "Deposit",
 };
 
+/** One-time benefits keep every claim in one list; show only the newest few up front. */
+const NO_CYCLE_VISIBLE_CLAIMS = 2;
+
 function emptyDraft(sortOrder: number): BenefitInput {
   return {
     name: "",
@@ -558,7 +561,29 @@ export function TabBenefits({ enabled }: Props) {
                   {claimMsg[b.id] ? <p className="pin-error">{claimMsg[b.id]}</p> : null}
 
                   {b.currentCycleClaims.length ? (
-                    renderClaimsTable(b.currentCycleClaims, b.id)
+                    b.cycleMonths == null &&
+                    b.currentCycleClaims.length > NO_CYCLE_VISIBLE_CLAIMS ? (
+                      <>
+                        {renderClaimsTable(
+                          b.currentCycleClaims.slice(0, NO_CYCLE_VISIBLE_CLAIMS),
+                          b.id
+                        )}
+                        <details className="debt-archive" style={{ marginTop: 12 }}>
+                          <summary>
+                            View more —{" "}
+                            {b.currentCycleClaims.length - NO_CYCLE_VISIBLE_CLAIMS} older
+                          </summary>
+                          <div style={{ marginTop: 10 }}>
+                            {renderClaimsTable(
+                              b.currentCycleClaims.slice(NO_CYCLE_VISIBLE_CLAIMS),
+                              b.id
+                            )}
+                          </div>
+                        </details>
+                      </>
+                    ) : (
+                      renderClaimsTable(b.currentCycleClaims, b.id)
+                    )
                   ) : (
                     <p className="note" style={{ fontSize: 12 }}>
                       No claims logged yet.
