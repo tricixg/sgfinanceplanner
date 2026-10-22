@@ -18,6 +18,8 @@ type Props = {
     note?: string;
     goalId?: string;
     incomeCategoryId?: string;
+    benefitId?: string;
+    benefitClaimDate?: string;
   }) => Promise<void>;
   txRefresh: number;
 };

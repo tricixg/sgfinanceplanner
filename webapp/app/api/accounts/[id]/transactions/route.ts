@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { applyTransaction, listAccountTransactions } from "@/lib/savings/ledger";
+import { recordBenefitClaim, verifyBenefit } from "@/lib/benefits/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     goalId?: string;
     incomeCategoryId?: string;
     excludeFromBudget?: boolean;
+    benefitId?: string;
+    /** Date the claim counts toward the benefit's cycle (YYYY-MM-DD). Defaults to the deposit date. */
+    benefitClaimDate?: string;
   };
   try {
     body = await req.json();
@@ -112,6 +116,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
   }
 
+  if (body.benefitId && kind !== "deposit") {
+    return NextResponse.json({ error: "Benefits can only be applied to deposits" }, { status: 400 });
+  }
+  const benefit = body.benefitId ? await verifyBenefit(supabase, user.id, body.benefitId) : null;
+  if (body.benefitId && !benefit) {
+    return NextResponse.json({ error: "Invalid benefit" }, { status: 400 });
+  }
+
   try {
     const item = await applyTransaction(supabase, {
       userId: user.id,
@@ -124,6 +136,16 @@ export async function POST(req: NextRequest, { params }: Params) {
       incomeCategoryId: body.incomeCategoryId ?? null,
       excludeFromBudget: body.excludeFromBudget ?? false,
     });
+    if (benefit) {
+      await recordBenefitClaim(supabase, user.id, {
+        benefitId: benefit.id,
+        amount,
+        claimedAt: body.benefitClaimDate || item.occurredAt.slice(0, 10),
+        note: body.note ?? "",
+        sourceRecordType: "savings",
+        sourceRecordId: item.id,
+      });
+    }
     return NextResponse.json({ item });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Transaction failed";

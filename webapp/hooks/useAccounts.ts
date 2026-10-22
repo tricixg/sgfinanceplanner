@@ -106,6 +106,8 @@ export function useAccountsProvider(enabled: boolean) {
       note?: string;
       goalId?: string | null;
       incomeCategoryId?: string;
+      benefitId?: string;
+      benefitClaimDate?: string;
     }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(

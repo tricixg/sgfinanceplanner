@@ -33,6 +33,8 @@ type CloudAccountsApi = {
       note?: string;
       goalId?: string;
       incomeCategoryId?: string;
+      benefitId?: string;
+      benefitClaimDate?: string;
     }
   ) => Promise<void>;
   reload: () => Promise<void>;

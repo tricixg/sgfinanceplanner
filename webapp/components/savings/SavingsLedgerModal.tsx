@@ -6,6 +6,7 @@ import type { Fund } from "@/lib/funds/types";
 import { TransactionList } from "@/components/savings/TransactionList";
 import { fmt2 } from "@/lib/finance/helpers";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
+import { useBenefits } from "@/hooks/useBenefits";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
@@ -40,6 +41,9 @@ type Props = {
     note?: string;
     goalId?: string;
     incomeCategoryId?: string;
+    benefitId?: string;
+    /** Date the claim counts toward the benefit's cycle (YYYY-MM-DD). */
+    benefitClaimDate?: string;
     fromAccountId?: string;
     toAccountId?: string;
   }) => Promise<void>;
@@ -102,12 +106,16 @@ export function SavingsLedgerModal({
   const [date, setDate] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
   const [incomeCategoryId, setIncomeCategoryId] = useState("");
+  const [benefitId, setBenefitId] = useState("");
+  /** Empty = follow the deposit date. */
+  const [benefitClaimDate, setBenefitClaimDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [historyKey, setHistoryKey] = useState(txRefresh);
 
   const { categories: incomeCategories, configured: incomeConfigured } =
     useIncomeCategories(target.variant === "account");
+  const { benefits } = useBenefits(target.variant === "account");
 
   // Stable identity for the target so the reset effect below only fires when the
   // user actually switches account/pool — not on every parent re-render, which
@@ -128,6 +136,8 @@ export function SavingsLedgerModal({
     setGoalId("");
     setAmount("");
     setIncomeCategoryId("");
+    setBenefitId("");
+    setBenefitClaimDate("");
     setFromAccountId("");
     setToAccountId("");
     setError("");
@@ -147,6 +157,26 @@ export function SavingsLedgerModal({
 
   const showIncomeCategory =
     target.variant === "account" && kind === "deposit" && incomeConfigured;
+
+  // Same rule as the reimburse flow: unlinked benefits always qualify, linked
+  // ones only when the deposit's income category matches.
+  const benefitOptions = useMemo(
+    () =>
+      showIncomeCategory
+        ? benefits.filter(
+            (b) => !b.hidden && (!b.incomeCategoryId || b.incomeCategoryId === incomeCategoryId)
+          )
+        : [],
+    [benefits, incomeCategoryId, showIncomeCategory]
+  );
+
+  useEffect(() => {
+    if (benefitId && !benefitOptions.some((b) => b.id === benefitId)) {
+      setBenefitId("");
+    }
+  }, [benefitId, benefitOptions]);
+
+  const effectiveClaimDate = benefitClaimDate || date.slice(0, 10);
 
   const showGoalPicker = goalOptions.length > 0 && kind !== "adjustment";
 
@@ -210,6 +240,8 @@ export function SavingsLedgerModal({
         note: note.trim() || undefined,
         goalId: showGoalPicker && goalId ? goalId : undefined,
         incomeCategoryId: showIncomeCategory ? incomeCategoryId : undefined,
+        benefitId: benefitId || undefined,
+        benefitClaimDate: benefitId ? effectiveClaimDate || undefined : undefined,
         fromAccountId: showFromAccount && fromAccountId ? fromAccountId : undefined,
         toAccountId: showToAccount && toAccountId ? toAccountId : undefined,
       });
@@ -217,15 +249,19 @@ export function SavingsLedgerModal({
       setNote("");
       setGoalId("");
       setIncomeCategoryId("");
+      setBenefitId("");
+      setBenefitClaimDate("");
       setFromAccountId("");
       setToAccountId("");
       setHistoryKey((k) => k + 1);
       dispatchDomainEvent(["savings:changed", "accounts:changed"]);
+      if (benefitId) dispatchDomainEvent("benefits:changed");
       console.info("[SavingsLedgerModal] recorded", {
         variant: target.variant,
         kind,
         amount: resolved,
         goalId: goalId || null,
+        benefitId: benefitId || null,
         fromAccountId: fromAccountId || null,
         toAccountId: toAccountId || null,
       });
@@ -376,6 +412,38 @@ export function SavingsLedgerModal({
                     </option>
                   ))}
                 </select>
+              </label>
+            ) : null}
+            {benefitOptions.length ? (
+              <label className="ctrl" style={{ fontSize: 13, flex: "2 1 200px" }}>
+                <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
+                  Apply to benefit (optional)
+                </span>
+                <select
+                  value={benefitId}
+                  onChange={(e) => setBenefitId(e.target.value)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">— None —</option>
+                  {benefitOptions.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.remaining == null ? "no limit" : `${fmt2(b.remaining)} left`})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {benefitId ? (
+              <label className="ctrl" style={{ fontSize: 13, flex: "1 1 160px" }}>
+                <span style={{ display: "block", marginBottom: 4, color: "var(--muted)" }}>
+                  Claim date (counts toward the benefit&apos;s cycle)
+                </span>
+                <input
+                  type="date"
+                  value={effectiveClaimDate}
+                  onChange={(e) => setBenefitClaimDate(e.target.value)}
+                  style={{ width: "100%" }}
+                />
               </label>
             ) : null}
           </div>
