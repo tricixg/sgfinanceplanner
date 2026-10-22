@@ -25,6 +25,8 @@ export function mapBenefitClaim(row: Record<string, unknown>): BenefitClaim {
     note: String(row.note ?? ""),
     sourceRecordType: sourceType === "savings" || sourceType === "budget" ? sourceType : null,
     sourceRecordId: row.source_record_id ? String(row.source_record_id) : null,
+    // A savings-linked claim may be a plain deposit; loadBenefitClaims refines this.
+    via: sourceType === "savings" || sourceType === "budget" ? "reimbursement" : "manual",
     createdAt: String(row.created_at ?? ""),
   };
 }

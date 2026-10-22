@@ -26,6 +26,7 @@ function claim(overrides: Partial<BenefitClaim> = {}): BenefitClaim {
     claimedAt: "2026-05-01",
     note: "",
     sourceRecordType: null,
+    via: "manual",
     sourceRecordId: null,
     createdAt: "2026-05-01T00:00:00.000Z",
     ...overrides,

@@ -35,7 +35,36 @@ export async function loadBenefitClaims(
   }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapBenefitClaim);
+  const claims = (data ?? []).map(mapBenefitClaim);
+  return markDepositClaims(supabase, userId, claims);
+}
+
+/** Savings rows written by a reimbursement point back at their source expense;
+ * a plain account deposit doesn't, so its claim is labelled a deposit. */
+async function markDepositClaims(
+  supabase: SupabaseClient,
+  userId: string,
+  claims: BenefitClaim[]
+): Promise<BenefitClaim[]> {
+  const savingsIds = claims
+    .filter((c) => c.sourceRecordType === "savings" && c.sourceRecordId)
+    .map((c) => c.sourceRecordId as string);
+  if (!savingsIds.length) return claims;
+
+  const { data, error } = await supabase
+    .from("savings_transactions")
+    .select("id")
+    .eq("user_id", userId)
+    .in("id", savingsIds)
+    .is("source_record_type", null);
+  if (error) throw new Error(error.message);
+
+  const depositIds = new Set((data ?? []).map((r) => String(r.id)));
+  return claims.map((c) =>
+    c.sourceRecordType === "savings" && c.sourceRecordId && depositIds.has(c.sourceRecordId)
+      ? { ...c, via: "deposit" }
+      : c
+  );
 }
 
 /** Benefits merged with computed usage for the cycle containing today. */

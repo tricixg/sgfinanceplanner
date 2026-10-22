@@ -34,8 +34,12 @@ export type BenefitClaim = {
   note: string;
   sourceRecordType: "savings" | "budget" | null;
   sourceRecordId: string | null;
+  /** How the claim was logged — shown in the claims table's Via column. */
+  via: BenefitClaimVia;
   createdAt: string;
 };
+
+export type BenefitClaimVia = "manual" | "reimbursement" | "deposit";
 
 export type PastCyclePeriod = {
   cycleStart: string;

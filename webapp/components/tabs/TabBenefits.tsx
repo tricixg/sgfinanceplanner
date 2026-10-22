@@ -1,12 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { BenefitClaim, BenefitInput, BenefitUsage } from "@/lib/benefits/types";
+import type { BenefitClaim, BenefitClaimVia, BenefitInput, BenefitUsage } from "@/lib/benefits/types";
 import { useBenefits } from "@/hooks/useBenefits";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { fmt2 } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
+
+const CLAIM_VIA_LABEL: Record<BenefitClaimVia, string> = {
+  manual: "Manual",
+  reimbursement: "Reimbursement",
+  deposit: "Deposit",
+};
 
 function emptyDraft(sortOrder: number): BenefitInput {
   return {
@@ -258,7 +264,7 @@ export function TabBenefits({ enabled }: Props) {
                     />
                   </td>
                   <td className="note" style={{ fontSize: 12 }}>
-                    {c.sourceRecordType ? "Reimbursement" : "Manual"}
+                    {CLAIM_VIA_LABEL[c.via]}
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 4 }}>
@@ -291,7 +297,7 @@ export function TabBenefits({ enabled }: Props) {
                   {c.note || "—"}
                 </td>
                 <td className="note" style={{ fontSize: 12 }}>
-                  {c.sourceRecordType ? "Reimbursement" : "Manual"}
+                  {CLAIM_VIA_LABEL[c.via]}
                 </td>
                 <td>
                   <div style={{ display: "flex", gap: 4 }}>
