@@ -25,10 +25,27 @@ export function defaultIlpPolicy(): IlpPolicy {
   };
 }
 
+/** Premiums actually recorded as ILP payments (Recurring tab) for one policy. */
+export type IlpRecordedPremiums = {
+  total: number;
+  /** YYYY-MM of the earliest recorded payment. */
+  firstYm: string;
+};
+
+/**
+ * Months since policy start × premium. With recorded payments, months from the
+ * first recorded payment onward use the actual recorded total instead.
+ */
 export function estimatedPremiumsPaid(
   policy: IlpPolicy,
-  asOfYm?: string
+  asOfYm?: string,
+  recorded?: IlpRecordedPremiums
 ): number {
+  if (recorded && recorded.total > 0) {
+    if (!policy.policyStartYm || policy.monthlyPremium <= 0) return recorded.total;
+    const before = Math.max(0, monIdx(recorded.firstYm) - monIdx(policy.policyStartYm));
+    return before * policy.monthlyPremium + recorded.total;
+  }
   if (!policy.policyStartYm || policy.monthlyPremium <= 0) return 0;
   const endIdx = asOfYm ? monIdx(asOfYm) : monIdx(todayDateStr().slice(0, 7));
   const startIdx = monIdx(policy.policyStartYm);
@@ -39,15 +56,20 @@ export function estimatedPremiumsPaid(
 /** Premiums paid minus one-off start bonus (floor at 0). */
 export function estimatedNetPremiumsPaid(
   policy: IlpPolicy,
-  asOfYm?: string
+  asOfYm?: string,
+  recorded?: IlpRecordedPremiums
 ): number {
-  const gross = estimatedPremiumsPaid(policy, asOfYm);
+  const gross = estimatedPremiumsPaid(policy, asOfYm, recorded);
   const bonus = policy.initialBonus ?? 0;
   return Math.max(0, gross - bonus);
 }
 
-export function ilpProfit(policy: IlpPolicy, asOfYm?: string): number {
-  return policy.accountValue - estimatedNetPremiumsPaid(policy, asOfYm);
+export function ilpProfit(
+  policy: IlpPolicy,
+  asOfYm?: string,
+  recorded?: IlpRecordedPremiums
+): number {
+  return policy.accountValue - estimatedNetPremiumsPaid(policy, asOfYm, recorded);
 }
 
 export function ilpTotalValue(S: DashboardState): number {

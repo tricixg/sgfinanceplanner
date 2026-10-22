@@ -41,6 +41,31 @@ describe("ilp premiums and profit", () => {
     expect(estimatedNetPremiumsPaid(p, "2026-06")).toBe(1000);
     expect(ilpProfit(p, "2026-06")).toBe(4000);
   });
+
+  it("recorded payments replace the estimate from the first recorded month", () => {
+    const p = {
+      ...defaultIlpPolicy(),
+      policyStartYm: "2026-01",
+      monthlyPremium: 300,
+      accountValue: 5000,
+    };
+    // Jan–Mar estimated, then Apr + May recorded.
+    const recorded = { total: 600, firstYm: "2026-04" };
+    expect(estimatedPremiumsPaid(p, "2026-06", recorded)).toBe(300 * 3 + 600);
+    expect(ilpProfit(p, "2026-06", recorded)).toBe(5000 - 1500);
+  });
+
+  it("one more $300 payment adds $300 to premiums paid", () => {
+    const p = { ...defaultIlpPolicy(), policyStartYm: "2026-01", monthlyPremium: 300 };
+    const before = estimatedPremiumsPaid(p, undefined, { total: 300, firstYm: "2026-05" });
+    const after = estimatedPremiumsPaid(p, undefined, { total: 600, firstYm: "2026-05" });
+    expect(after - before).toBe(300);
+  });
+
+  it("no recorded payments keeps the plain estimate", () => {
+    const p = { ...defaultIlpPolicy(), policyStartYm: "2026-01", monthlyPremium: 300 };
+    expect(estimatedPremiumsPaid(p, "2026-06", { total: 0, firstYm: "" })).toBe(1500);
+  });
 });
 
 describe("ilpValueByLock", () => {

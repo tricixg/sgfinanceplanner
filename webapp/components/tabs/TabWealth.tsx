@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type {
   DashboardState,
   Holding,
@@ -22,6 +22,9 @@ import {
   wealthSummary,
 } from "@/lib/finance";
 import { fmt, fmt2, formatSnapshotDate } from "@/lib/finance/helpers";
+import type { IlpRecordedPremiums } from "@/lib/finance/ilp";
+import { fetchJson } from "@/lib/fetch-json";
+import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
@@ -108,6 +111,32 @@ export function TabWealth({
   const [dividendInitialId, setDividendInitialId] = useState<string | null>(null);
   const [dividendsTxRefresh, setDividendsTxRefresh] = useState(0);
   const [showHiddenFunds, setShowHiddenFunds] = useState(false);
+  const [ilpRecorded, setIlpRecorded] = useState<Record<string, IlpRecordedPremiums>>({});
+
+  const loadIlpRecorded = useCallback(async () => {
+    try {
+      const { res, data } = await fetchJson<{ items?: Record<string, IlpRecordedPremiums> }>(
+        "/api/ilp-policies/premiums-paid",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setIlpRecorded(data.items ?? {});
+        console.info("[TabWealth] ILP recorded premiums loaded", {
+          policies: Object.keys(data.items ?? {}).length,
+        });
+      }
+    } catch (e) {
+      console.warn("[TabWealth] ILP recorded premiums load failed", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadIlpRecorded();
+  }, [loadIlpRecorded]);
+
+  useDomainEvent(["expense:changed", "recurring:changed"], () => {
+    void loadIlpRecorded();
+  });
 
   const ilpPolicies = editingIlp ? ilpDraft : S.ilpPolicies;
   const displayHoldings = editingHoldings ? holdingsDraft : S.holdings;
@@ -696,7 +725,9 @@ export function TabWealth({
       <div className="callout tip" style={{ marginBottom: 12 }}>
         Singapore ILPs combine insurance and unit-linked funds. Update <b>account value</b> in
         Edit when you get statements; <b>Est. profit vs premiums</b> uses current value vs net
-        premiums paid (minus start bonus).
+        premiums paid (minus start bonus). <b>Premiums paid to date</b> counts payments recorded
+        under Recurring Invest; months before the first recorded payment are estimated from the
+        policy start.
         MAS guide:{" "}
         <a
           href="https://www.moneysense.gov.sg/investment-linked-policies-guide-to-fees-and-pricing/"
@@ -915,8 +946,9 @@ export function TabWealth({
               <tbody>
                 {S.ilpPolicies.map((p, i) => {
                   const lock = lockInStatus(p);
-                  const profit = ilpProfit(p);
-                  const premiumsPaid = estimatedPremiumsPaid(p);
+                  const recorded = p.id ? ilpRecorded[p.id] : undefined;
+                  const profit = ilpProfit(p, undefined, recorded);
+                  const premiumsPaid = estimatedPremiumsPaid(p, undefined, recorded);
                   return (
                     <tr key={i}>
                       <td>{p.insurer || "—"}</td>

@@ -10,7 +10,7 @@ import type {
 import {
   budgetProjection,
   budgetVerdict,
-  monthlyInvestContribution,
+  monthlyInvestContributionWithIlp,
   stableTakeHome,
 } from "@/lib/finance";
 import type { SavingsSnapshot } from "@/lib/savings/types";
@@ -202,7 +202,8 @@ export function TabBudgetSavings({
   const ilpPrem = computedIlpMonthly(S);
   const savingsPrem = computedSavingsMonthly(savingsGoals, savingsBundle.myUserId);
   const { alloc, left, invPct } = budgetVerdict(budgetState, ym, savingsPrem);
-  const monthlyInv = monthlyInvestContribution(budgetState);
+  // Includes ILP premiums so the allocation projection grows them as investments.
+  const monthlyInv = monthlyInvestContributionWithIlp(budgetState);
   const proj = budgetProjection(
     budgetState,
     monthlyInv,
@@ -295,6 +296,18 @@ export function TabBudgetSavings({
     </tr>
   );
 
+  // ILP premiums are auto (from Investment) but count as investing, like invest lines.
+  const renderAutoTags = (kind: AutoCategory) => (
+    <>
+      <span className="tag t-soon">auto</span>
+      {kind === "ilp" ? (
+        <span className={`tag ${TYPE_TAG.invest}`} style={{ marginLeft: 4 }}>
+          invest
+        </span>
+      ) : null}
+    </>
+  );
+
   const renderComputedViewRow = (
     kind: AutoCategory,
     label: string,
@@ -304,9 +317,7 @@ export function TabBudgetSavings({
     return (
       <tr className="computed-row" key={kind}>
         <td>{label}</td>
-        <td>
-          <span className="tag t-soon">auto</span>
-        </td>
+        <td>{renderAutoTags(kind)}</td>
         <td className="num">{fmt2(allocated)}</td>
         <td className="num">{spend ? fmt2(spend.spent) : "—"}</td>
         <td className={`num ${spend && spend.remaining < 0 ? "neg" : ""}`}>
@@ -438,7 +449,7 @@ export function TabBudgetSavings({
   if (savingsPrem > 0) {
     verdict += ` Savings goals need ${fmt(savingsPrem)}/month (by target dates on Savings tab).`;
   }
-  verdict += ` Directing ${invPct.toFixed(0)}% of take-home to investing via budget lines.`;
+  verdict += ` Directing ${invPct.toFixed(0)}% of take-home to investing via budget lines and ILP premiums.`;
 
   const allocationChartRows = [
     { label: COMPUTED_DEBT_LABEL, amount: debt, color: AUTO_CHART_COLORS.debt },
@@ -542,9 +553,7 @@ export function TabBudgetSavings({
               </tr>
               <tr className="computed-row">
                 <td>{COMPUTED_ILP_LABEL}</td>
-                <td>
-                  <span className="tag t-soon">auto</span>
-                </td>
+                <td>{renderAutoTags("ilp")}</td>
                 <td className="num">{fmt2(ilpPrem)}</td>
               </tr>
               <tr className="computed-row">
@@ -606,7 +615,7 @@ export function TabBudgetSavings({
             </div>
             <div className="editrow budget-line computed-line">
               <span>{COMPUTED_ILP_LABEL}</span>
-              <span className="tag t-soon">auto</span>
+              <span>{renderAutoTags("ilp")}</span>
               <span className="num">{fmt2(ilpPrem)}</span>
               <span></span>
             </div>

@@ -70,6 +70,11 @@ export function monthlyInvestContribution(S: DashboardState): number {
     .reduce((s, b) => s + b.amt, 0);
 }
 
+/** Invest-type budget lines plus ILP premiums (auto from Investment) — what projections invest each month. */
+export function monthlyInvestContributionWithIlp(S: DashboardState): number {
+  return monthlyInvestContribution(S) + computedIlpMonthly(S);
+}
+
 export function monthlySaveContribution(S: DashboardState): number {
   return S.budget
     .filter((b) => b.type === "save")
@@ -196,7 +201,7 @@ export function budgetVerdict(
   const insurance = computedInsuranceMonthly(S);
   const savings = savingsMonthly ?? 0;
   const left = income - alloc - debt - ilp - insurance - savings;
-  const inv = monthlyInvestContribution(S);
+  const inv = monthlyInvestContributionWithIlp(S);
   const sav = monthlySaveContribution(S);
   const invPct = income > 0 ? (inv / income) * 100 : 0;
   const savePct = income > 0 ? (sav / income) * 100 : 0;

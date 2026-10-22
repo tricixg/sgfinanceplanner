@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
-import { monthlyInvestContribution, simulate5y } from "@/lib/finance";
+import { monthlyInvestContributionWithIlp, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import { ChartBox } from "@/components/ChartBox";
@@ -21,7 +21,7 @@ export function TabYear({ state: S, savings }: Props) {
   const [invRet, setInvRet] = useState(6);
   const [showMargin, setShowMargin] = useState(true);
 
-  const fromBudget = useMemo(() => monthlyInvestContribution(S), [S]);
+  const fromBudget = useMemo(() => monthlyInvestContributionWithIlp(S), [S]);
   const [invAmt, setInvAmt] = useState(fromBudget);
   const invAmtUserEdited = useRef(false);
 

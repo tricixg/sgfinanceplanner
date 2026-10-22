@@ -6,8 +6,10 @@ import {
   computedDebtMonthly,
   isDebtBudgetCategory,
   monthlyInvestContribution,
+  monthlyInvestContributionWithIlp,
   monthlySaveContribution,
 } from "./budget";
+import { defaultIlpPolicy } from "./ilp";
 import { loanLoadForMonth } from "./loanLoad";
 import { currentYm } from "./helpers";
 
@@ -15,6 +17,14 @@ describe("monthlyInvestContribution", () => {
   it("sums invest-type budget lines", () => {
     expect(monthlyInvestContribution(DEFAULTS)).toBe(1300);
     expect(monthlySaveContribution(DEFAULTS)).toBe(900);
+  });
+
+  it("WithIlp adds ILP premiums on top of invest lines", () => {
+    const S = {
+      ...DEFAULTS,
+      ilpPolicies: [{ ...defaultIlpPolicy(), monthlyPremium: 300 }],
+    };
+    expect(monthlyInvestContributionWithIlp(S)).toBe(monthlyInvestContribution(S) + 300);
   });
 });
 

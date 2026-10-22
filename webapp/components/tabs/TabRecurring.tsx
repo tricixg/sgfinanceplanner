@@ -17,6 +17,7 @@ import {
 } from "@/lib/finance/budget";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { COMPUTED_ILP_LABEL } from "@/lib/finance/ilp";
 import { DecimalInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
@@ -263,14 +264,18 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
   const todayYm = currentYm();
   const recurringPaymentRows = rows.filter(
-    (r) => r.kind !== "subscription" && r.kind !== "invest" && r.kind !== "bnpl"
+    (r) =>
+      r.kind !== "subscription" && r.kind !== "invest" && r.kind !== "bnpl" && r.kind !== "ilp"
   );
   const subscriptionPaymentRows = rows.filter((r) => r.kind === "subscription");
   const investPaymentRows = rows.filter((r) => r.kind === "invest");
+  // ILP premiums are configured on the Investment tab but listed under Recurring Invest.
+  const ilpPaymentRows = rows.filter((r) => r.kind === "ilp");
   const bnplPaymentRows = rows.filter((r) => r.kind === "bnpl");
   const paidCount = recurringPaymentRows.filter((r) => r.paid).length;
   const subPaidCount = subscriptionPaymentRows.filter((r) => r.paid).length;
-  const investPaidCount = investPaymentRows.filter((r) => r.paid).length;
+  const investPaidCount =
+    investPaymentRows.filter((r) => r.paid).length + ilpPaymentRows.filter((r) => r.paid).length;
   const bnplPaidCount = bnplPaymentRows.filter((r) => r.paid).length;
 
   const activeSubscriptions = subscriptions.filter(
@@ -301,7 +306,9 @@ export function TabRecurring({ enabled, onReload }: Props) {
     ({ sub }) => sub.endMonth && sub.endMonth < viewYm
   );
 
-  const investActiveTotal = activeInvestments.reduce((s, x) => s + x.amount, 0);
+  const ilpActiveTotal = ilpPaymentRows.reduce((s, r) => s + r.amount, 0);
+  const investActiveTotal =
+    activeInvestments.reduce((s, x) => s + x.amount, 0) + ilpActiveTotal;
   const unassignedInvestActive = activeInvestments.filter((s) => !s.budgetLineId);
   const unassignedInvestTotal = unassignedInvestActive.reduce((s, x) => s + x.amount, 0);
 
@@ -369,8 +376,20 @@ export function TabRecurring({ enabled, onReload }: Props) {
             ) : null}
             <td>{row.name}</td>
             <td className="num">{fmt2(row.amount)}</td>
-            {showCategory ? <td>{categoryName(linkedBudgetLineId) ?? "—"}</td> : null}
-            {showFund ? <td>{row.fundName ?? fundName(row.fundId ?? undefined) ?? "—"}</td> : null}
+            {showCategory ? (
+              <td>
+                {row.kind === "ilp"
+                  ? COMPUTED_ILP_LABEL
+                  : categoryName(linkedBudgetLineId) ?? "—"}
+              </td>
+            ) : null}
+            {showFund ? (
+              <td>
+                {row.kind === "ilp"
+                  ? "ILP policy"
+                  : row.fundName ?? fundName(row.fundId ?? undefined) ?? "—"}
+              </td>
+            ) : null}
             {opts.extraCells ? opts.extraCells(row) : null}
             <td>{formatDeductionDayLabel(row.deductionDay)}</td>
             <td>{row.defaultAccountName ?? "—"}</td>
@@ -439,7 +458,8 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
       <div className="callout tip">
         Set <b>Due day</b> and <b>Pay from</b> when editing loans (Debts &amp; Loans), insurance (ME),
-        or ILP (Investment). Add other recurring items in the table below and record those payments there.
+        or ILP (Investment). ILP premiums are listed under <b>Recurring Invest</b>. Add other recurring
+        items in the tables below and record those payments there.
       </div>
 
       <div className="toolbar" style={{ marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
@@ -472,6 +492,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
             {recurringPaymentRows.length +
               subscriptionPaymentRows.length +
               investPaymentRows.length +
+              ilpPaymentRows.length +
               bnplPaymentRows.length}
           </div>
         </div>
@@ -482,13 +503,15 @@ export function TabRecurring({ enabled, onReload }: Props) {
             {recurringPaymentRows.length +
               subscriptionPaymentRows.length +
               investPaymentRows.length +
+              ilpPaymentRows.length +
               bnplPaymentRows.length}
           </div>
         </div>
         <div className="stat">
           <div className="lbl">Other Recurring · Invest · BNPL</div>
           <div className="val">
-            {activeSubscriptions.length} · {activeInvestments.length} · {activeBnplPlans.length}
+            {activeSubscriptions.length} · {activeInvestments.length + ilpPaymentRows.length} ·{" "}
+            {activeBnplPlans.length}
           </div>
         </div>
       </div>
@@ -514,7 +537,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
             <tbody>
               {renderRecurringRows(
                 recurringPaymentRows,
-                "No debt, insurance, or ILP items yet. Configure those on Debts & Loans, ME, or Investment."
+                "No debt or insurance items yet. Configure those on Debts & Loans or ME."
               )}
             </tbody>
           </table>
@@ -832,6 +855,9 @@ export function TabRecurring({ enabled, onReload }: Props) {
             </p>
           ) : null}
           {investError ? <p className="note">{investError}</p> : null}
+          {ilpPaymentRows.length > 0 ? (
+            <p className="note">ILP policies are edited on the Investment tab.</p>
+          ) : null}
           <div className="editrow head recurring-invest">
             <span>Name</span>
             <span>Amount / mo</span>
@@ -1038,11 +1064,13 @@ export function TabRecurring({ enabled, onReload }: Props) {
             <span className="note">Total / mo: {fmt2(investDraftTotal)}</span>
           </div>
         </div>
-      ) : activeInvestments.length === 0 && archivedInvestments.length === 0 ? (
+      ) : activeInvestments.length === 0 &&
+        archivedInvestments.length === 0 &&
+        ilpPaymentRows.length === 0 ? (
         <p className="note">No recurring invest items yet. Click Edit to add one.</p>
       ) : (
         <>
-          {activeInvestments.length > 0 ? (
+          {activeInvestments.length > 0 || ilpPaymentRows.length > 0 ? (
             <div className="card table-scroll">
               <table className="recurring-table">
                 <thead>
@@ -1058,6 +1086,13 @@ export function TabRecurring({ enabled, onReload }: Props) {
                   </tr>
                 </thead>
                 <tbody>
+                  {ilpPaymentRows.length > 0
+                    ? renderRecurringRows(ilpPaymentRows, "", {
+                        showType: false,
+                        showCategory: true,
+                        showFund: true,
+                      })
+                    : null}
                   {activeInvestments.flatMap((inv) => {
                     const payRow = inv.id
                       ? investPaymentRows.find((r) => r.sourceId === inv.id)
