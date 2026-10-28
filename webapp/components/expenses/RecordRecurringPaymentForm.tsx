@@ -7,6 +7,7 @@ import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { defaultRecurringNote } from "@/lib/recurring/prefill";
 
 export type RecurringPaymentSuccessPayload = {
   expenseId: string;
@@ -36,6 +37,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
   );
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const fallbackNote = defaultRecurringNote(row.name, spentAt);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +53,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         autoCategory: row.kind as AutoCategory,
         amount: amt,
         spentAt,
-        note,
+        note: note.trim() || fallbackNote,
       };
       if (row.kind === "debt") body.loanId = row.sourceId;
       if (row.kind === "insurance") body.insurancePolicyId = row.sourceId;
@@ -132,7 +134,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
       </select>
       <input
         type="text"
-        placeholder="Note"
+        placeholder={fallbackNote}
         value={note}
         onChange={(e) => setNote(e.target.value)}
       />

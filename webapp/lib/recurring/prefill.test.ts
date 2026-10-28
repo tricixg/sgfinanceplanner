@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatDeductionDayLabel, prefillSpentAt } from "@/lib/recurring/prefill";
+import {
+  defaultRecurringNote,
+  formatDeductionDayLabel,
+  prefillSpentAt,
+} from "@/lib/recurring/prefill";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 
 describe("prefillSpentAt", () => {
@@ -20,5 +24,15 @@ describe("formatDeductionDayLabel", () => {
   it("formats ordinals", () => {
     expect(formatDeductionDayLabel(1)).toBe("1st");
     expect(formatDeductionDayLabel(15)).toBe("15th");
+  });
+});
+
+describe("defaultRecurringNote", () => {
+  it("uses item name and month paid", () => {
+    expect(defaultRecurringNote("Netflix", "2026-10-05")).toBe("Netflix · Oct 26");
+  });
+
+  it("falls back to the name without a valid date", () => {
+    expect(defaultRecurringNote("Netflix", "")).toBe("Netflix");
   });
 });
