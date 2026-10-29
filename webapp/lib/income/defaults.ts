@@ -50,4 +50,11 @@ export const DEFAULT_INCOME_CATEGORIES: IncomeCategoryInput[] = [
     countsInBaseline: false,
     countsAsAdditive: true,
   },
+  {
+    name: "On-call allowance",
+    slug: "oncall",
+    sortOrder: 7,
+    countsInBaseline: false,
+    countsAsAdditive: true,
+  },
 ];

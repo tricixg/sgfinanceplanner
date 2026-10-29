@@ -152,6 +152,15 @@ Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboar
 | `poker_sessions`, `poker_locations`, `poker_games` | Session tracking |
 | `travel_trips`, `travel_trip_budgets` | Trip planning |
 
+### On-call tracker
+
+| Table | Key columns | Purpose |
+|-------|-------------|---------|
+| `oncall_settings` | `daily_rate`, CPF rates, `cpf_applies`, `default_account_id` | One row per user |
+| `oncall_entries` | `start_date`, `end_date`, `daily_rate` | On-call stretches (both dates count) |
+| `oncall_payments` | `received_on`, `salary_month`, `amount`, `deposited`, `savings_transaction_id` | Payslip payments |
+| `oncall_payment_items` | `payment_id`, `entry_id`, `days` | Days of each stretch a payment covers (partial pay) |
+
 ---
 
 ## Important link columns
@@ -162,6 +171,7 @@ Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboar
 | `source_record_type` + `source_record_id` | ledger tables | Polymorphic link for reimbursements (025) |
 | `payment_savings_transaction_id` | `card_statements` | Payment withdrawal row |
 | `finance_charge_expense_id` | `other_loans` | One-time BT fee expense |
+| `savings_transaction_id` | `oncall_payments` | Income deposit the payment created (null if not deposited or deleted in history) |
 
 ---
 

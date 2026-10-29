@@ -19,6 +19,7 @@ export type AppRouteId =
   | "bto"
   | "miles"
   | "benefits"
+  | "oncall"
   | "me";
 
 export type NavTab = {
@@ -140,6 +141,13 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         href: "/benefits",
         summary:
           "Work/insurance benefit limits — dental, specialist medical, WFH allowance — with per-cycle or one-time utilization tracking.",
+      },
+      {
+        id: "oncall",
+        label: "On-call tracker",
+        href: "/oncall",
+        summary:
+          "On-call days, extra take-home and CPF — record payslip payments into On-call allowance income.",
       },
     ],
   },

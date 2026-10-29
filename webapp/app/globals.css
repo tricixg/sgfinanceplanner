@@ -4005,3 +4005,533 @@ footer {
 .bto-pf-goal-table td:first-child {
   white-space: nowrap;
 }
+
+/* On-call tracker */
+.panel.on.oncall-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.oncall-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.oncall-intro {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 14px;
+}
+.oncall-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.oncall-sec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.oncall-sec-head h2 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.oncall-lbl {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.oncall-hint {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+span.oncall-hint {
+  display: inline;
+}
+.oncall-field .oncall-hint,
+.oncall-check .oncall-hint,
+.oncall-confirm .oncall-hint {
+  display: block;
+}
+.oncall-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.oncall-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.oncall-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 14px;
+}
+.oncall-check input {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 3px;
+  accent-color: var(--moss);
+}
+
+/* Settings popover */
+.oncall-settings {
+  position: relative;
+  flex-shrink: 0;
+}
+.oncall-rate-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.oncall-rate-chip:hover,
+.oncall-rate-chip[aria-expanded="true"] {
+  background: var(--sand);
+}
+.oncall-rate-chip b {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 15px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.oncall-gear {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.oncall-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(330px, calc(100vw - 32px));
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  box-shadow: 0 10px 30px rgba(17, 32, 26, 0.14);
+  padding: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.oncall-pop h3 {
+  margin: 0;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+.oncall-pop hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+}
+.oncall-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Summary */
+.oncall-seg {
+  display: inline-flex;
+  border: 1.5px solid var(--ink);
+}
+.oncall-seg button {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  cursor: pointer;
+}
+.oncall-seg button + button {
+  border-left: 1.5px solid var(--ink);
+}
+.oncall-seg button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.stat.oncall-owed {
+  border-color: var(--gold);
+  border-style: dashed;
+}
+.stat.oncall-owed .val {
+  color: var(--gold);
+}
+.oncall-split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.oncall-bar {
+  display: flex;
+  height: 10px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+}
+.oncall-bar i {
+  display: block;
+  height: 100%;
+}
+.oncall-page .k-take {
+  background: var(--moss);
+}
+.oncall-page .k-ee {
+  background: var(--gold);
+}
+.oncall-page .k-er {
+  background: var(--sky);
+}
+.oncall-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.oncall-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.oncall-legend i {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+}
+
+/* Tables */
+.oncall-table-wrap {
+  border: 1.5px solid var(--line);
+  background: var(--card);
+}
+.oncall-table {
+  font-variant-numeric: tabular-nums;
+}
+.oncall-table.oncall-log {
+  min-width: 1080px;
+}
+.oncall-table.oncall-payments {
+  min-width: 920px;
+}
+.oncall-table.oncall-alloc {
+  min-width: 640px;
+}
+.oncall-table th,
+.oncall-table th.num {
+  background: var(--paper);
+  white-space: nowrap;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+}
+.oncall-table td:first-child {
+  white-space: nowrap;
+}
+.oncall-log td.left {
+  min-width: 160px;
+}
+.oncall-log td.left input {
+  width: 100%;
+}
+.oncall-table th.left,
+.oncall-table td.left {
+  text-align: left;
+}
+.oncall-table td {
+  vertical-align: middle;
+  font-size: 14px;
+}
+.oncall-table td.num {
+  white-space: nowrap;
+}
+.oncall-table input[type="date"] {
+  width: 140px;
+}
+.oncall-table .oncall-rate-in {
+  width: 88px;
+  text-align: right;
+}
+.oncall-table .oncall-days-in {
+  width: 72px;
+  text-align: right;
+}
+.oncall-table tr.oncall-add td {
+  background: var(--paper);
+  border-bottom: 2px solid var(--ink);
+}
+.oncall-table tr.oncall-editing td {
+  background: var(--paper);
+}
+.oncall-table tr.off td {
+  color: var(--muted);
+}
+.oncall-preview {
+  color: var(--muted);
+}
+.oncall-note,
+.oncall-note-line {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 13px;
+}
+.oncall-note-line {
+  display: block;
+}
+.oncall-nowrap {
+  white-space: nowrap;
+}
+.oncall-days {
+  display: inline-block;
+  min-width: 34px;
+  text-align: center;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  border: 1px solid var(--moss);
+  color: var(--moss);
+}
+.oncall-days.empty {
+  border-color: var(--line);
+  color: var(--muted);
+}
+.oncall-yr {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  padding: 1px 5px;
+  margin-left: 6px;
+  text-transform: uppercase;
+}
+.oncall-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.oncall-empty {
+  padding: 26px !important;
+  text-align: center !important;
+  color: var(--muted);
+  font-style: italic;
+}
+.oncall-status-cell {
+  text-align: left !important;
+}
+.oncall-status {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+.oncall-st {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.oncall-st.paid {
+  color: var(--moss);
+  border-color: var(--moss);
+}
+.oncall-st.part {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+.oncall-st.unpaid {
+  color: var(--muted);
+  border-color: var(--line);
+}
+.oncall-months {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  white-space: nowrap;
+}
+.oncall-meter {
+  width: 64px;
+  height: 4px;
+  background: var(--line);
+  display: block;
+}
+.oncall-meter i {
+  display: block;
+  height: 100%;
+  background: var(--moss);
+}
+.oncall-meter.part i {
+  background: var(--gold);
+}
+.oncall-covers {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.oncall-covers span {
+  white-space: nowrap;
+}
+.oncall-covers em {
+  color: var(--muted);
+}
+.oncall-chip {
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--moss);
+  border: 1px solid var(--moss);
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+.oncall-chip.plain {
+  color: var(--muted);
+  border-color: var(--line);
+}
+.oncall-msg {
+  font-size: 13px;
+  margin: 0;
+}
+.oncall-msg.err {
+  color: var(--rust);
+}
+.oncall-msg.warn {
+  color: var(--gold);
+}
+.oncall-foot {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 82ch;
+  margin: 0;
+}
+
+/* Payment form */
+.oncall-pay-card {
+  border: 1.5px solid var(--ink);
+  box-shadow: 0 8px 24px rgba(17, 32, 26, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 0;
+}
+.oncall-pay-card h3 {
+  margin: 0;
+  font-size: 19px;
+}
+.oncall-pay-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.oncall-nodep {
+  border: 1.5px dashed var(--line);
+  padding: 10px 12px;
+  background: var(--paper);
+}
+.oncall-left {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.oncall-pay-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: end;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.oncall-pay-totals > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.oncall-pay-totals b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.oncall-diff {
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--muted);
+}
+.oncall-diff.off {
+  color: var(--gold);
+}
+.oncall-income-preview {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--moss);
+  background: var(--paper);
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.oncall-income-preview svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: var(--moss);
+  stroke-width: 1.8;
+  margin-top: 1px;
+}
+
+@media (max-width: 860px) {
+  .oncall-pay-fields,
+  .oncall-pay-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .oncall-pay-totals .oncall-amt {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 560px) {
+  .oncall-top {
+    flex-direction: column;
+  }
+  .oncall-settings {
+    align-self: flex-end;
+  }
+  .oncall-pay-fields {
+    grid-template-columns: 1fr;
+  }
+}
