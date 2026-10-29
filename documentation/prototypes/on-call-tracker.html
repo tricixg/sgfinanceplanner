@@ -1,0 +1,521 @@
+<title>On-Call Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: single column ledger page — header with settings popover top right, summary tiles, then the log table. Tokens mirror webapp/app/globals.css. */
+:root {
+  --ink: #11201a;
+  --paper: #f4f1e8;
+  --card: #fffdf6;
+  --moss: #2f5d3a;
+  --on-moss: #ffffff;
+  --on-moss-muted: #cde0cf;
+  --sand: #d8cfb4;
+  --rust: #b5482e;
+  --gold: #c08a2e;
+  --sky: #3d6b8e;
+  --line: #dcd4bd;
+  --muted: #7d7560;
+  --input: #ffffff;
+  --shadow: rgba(17, 32, 26, 0.14);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #ece6d6; --paper: #131a15; --card: #1b231d; --moss: #7fb08a;
+    --on-moss: #0f1a12; --on-moss-muted: #24402b; --sand: #333d35; --rust: #e2826a;
+    --gold: #d9a54c; --sky: #7fa7c7; --line: #2e3a31; --muted: #a39b85;
+    --input: #111813; --shadow: rgba(0, 0, 0, 0.5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #ece6d6; --paper: #131a15; --card: #1b231d; --moss: #7fb08a;
+  --on-moss: #0f1a12; --on-moss-muted: #24402b; --sand: #333d35; --rust: #e2826a;
+  --gold: #d9a54c; --sky: #7fa7c7; --line: #2e3a31; --muted: #a39b85;
+  --input: #111813; --shadow: rgba(0, 0, 0, 0.5); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  padding-block: 28px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Header */
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 14px; }
+.eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 30px; line-height: 1.1; margin: 6px 0 4px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); font-style: italic; font-size: 14px; max-width: 60ch; }
+
+/* Settings */
+.settings { position: relative; flex-shrink: 0; }
+.rate-chip { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 12px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+.rate-chip:hover, .rate-chip[aria-expanded="true"] { background: var(--sand); }
+.rate-chip b { font-family: var(--serif); font-size: 15px; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.gear { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.pop { position: absolute; right: 0; top: calc(100% + 8px); width: min(320px, calc(100vw - 32px)); background: var(--card); border: 1.5px solid var(--ink); box-shadow: 0 10px 30px var(--shadow); padding: 16px; z-index: 30; display: flex; flex-direction: column; gap: 14px; }
+.pop h3 { margin: 0; font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--moss); }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label, .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hint { font-size: 12.5px; color: var(--muted); font-style: italic; line-height: 1.4; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.check input { width: auto; flex-shrink: 0; margin-top: 3px; accent-color: var(--moss); }
+
+input, select { font: inherit; font-size: 14px; color: var(--ink); background: var(--input); border: 1.5px solid var(--line); padding: 6px 8px; width: 100%; min-width: 0; border-radius: 0; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--sky); outline-offset: 1px; }
+.prefix { position: relative; }
+.prefix span { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; pointer-events: none; }
+.prefix input { padding-left: 30px; }
+
+.btn { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 8px 14px; border: 1.5px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer; transition: 0.15s; white-space: nowrap; }
+.btn:hover { background: var(--moss); border-color: var(--moss); color: var(--on-moss); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: var(--sand); color: var(--ink); border-color: var(--ink); }
+.btn.sm { padding: 5px 9px; font-size: 10px; }
+.btn.del { border-color: var(--rust); background: transparent; color: var(--rust); }
+.btn.del:hover, .btn.del.armed { background: var(--rust); color: var(--card); border-color: var(--rust); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Section heads */
+.sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+h2 { font-size: 13px; font-family: var(--mono); letter-spacing: 0.15em; text-transform: uppercase; margin: 0; color: var(--moss); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 14px; }
+
+/* Segmented toggle */
+.seg { display: inline-flex; border: 1.5px solid var(--ink); }
+.seg button { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 12px; background: transparent; color: var(--ink); border: 0; cursor: pointer; }
+.seg button + button { border-left: 1.5px solid var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+/* Summary tiles */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1.5px solid var(--line); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.stat .val { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; overflow-wrap: anywhere; }
+.stat .note { font-size: 12.5px; color: var(--muted); font-style: italic; }
+.stat.accent { background: var(--moss); border-color: var(--moss); }
+.stat.accent .lbl, .stat.accent .note { color: var(--on-moss-muted); }
+.stat.accent .val { color: var(--on-moss); }
+.split { display: flex; flex-direction: column; gap: 8px; }
+.bar { display: flex; height: 10px; border: 1.5px solid var(--line); background: var(--card); }
+.bar i { display: block; height: 100%; }
+.k-take { background: var(--moss); }
+.k-ee { background: var(--gold); }
+.k-er { background: var(--sky); }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; display: inline-block; }
+
+/* Banner */
+.banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border: 1.5px dashed var(--gold); padding: 10px 14px; font-size: 14px; background: var(--card); }
+
+/* Table */
+.tbl-wrap { overflow-x: auto; border: 1.5px solid var(--line); background: var(--card); }
+table { width: 100%; border-collapse: collapse; min-width: 920px; }
+th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: 14px; }
+th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--paper); white-space: nowrap; }
+td.r, th.r { text-align: right; }
+td.num, td.r { font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.add td { background: var(--paper); border-bottom: 2px solid var(--ink); }
+tr.add input[type="date"] { width: 140px; }
+tr.add .rate-in, tr.edit .rate-in { width: 92px; }
+tr.edit td { background: var(--paper); }
+td.note-cell { min-width: 170px; }
+td.days-cell { white-space: nowrap; }
+td .note-txt { color: var(--muted); font-style: italic; font-size: 13px; }
+.days-pill { display: inline-block; min-width: 34px; text-align: center; font-family: var(--mono); font-size: 12px; padding: 2px 8px; border: 1px solid var(--moss); color: var(--moss); }
+.days-pill.empty { border-color: var(--line); color: var(--muted); }
+.yr-tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; color: var(--gold); border: 1px solid var(--gold); padding: 1px 5px; margin-left: 6px; text-transform: uppercase; }
+.preview { color: var(--muted); }
+.actions { display: flex; gap: 6px; justify-content: flex-end; }
+tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink); background: var(--paper); }
+.msg { font-size: 13px; padding: 8px 12px; }
+.msg.err { color: var(--rust); }
+.msg.warn { color: var(--gold); }
+.empty-state { padding: 26px; text-align: center; color: var(--muted); font-style: italic; }
+.foot-note { font-size: 12.5px; color: var(--muted); line-height: 1.5; max-width: 80ch; }
+
+@media (max-width: 760px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat .val { font-size: 22px; }
+}
+@media (max-width: 520px) {
+  header { flex-direction: column; }
+  .settings { align-self: flex-end; }
+  h1 { font-size: 25px; }
+  .stat { padding: 12px; }
+  .stat .val { font-size: 19px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Prototype · Tracker only, not linked to income</div>
+      <h1>On-call tracker</h1>
+      <p class="sub">Log each on-call stretch. Days, CPF and take-home are worked out from your daily rate.</p>
+    </div>
+    <div class="settings">
+      <button class="rate-chip" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop">
+        <svg class="gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
+        Daily rate <b class="num" id="chipRate">S$0</b>
+      </button>
+      <div class="pop" id="settingsPop" hidden>
+        <h3>Settings</h3>
+        <div class="field">
+          <label for="setRate">Daily on-call rate</label>
+          <div class="prefix"><span>S$</span><input id="setRate" type="number" min="0" step="0.01" inputmode="decimal"></div>
+          <span class="hint">Used for new entries. Existing entries keep the rate they were logged at.</span>
+        </div>
+        <div class="field">
+          <label for="setAge">CPF age band</label>
+          <select id="setAge">
+            <option value="55">55 and below</option>
+            <option value="60">Above 55 to 60</option>
+            <option value="65">Above 60 to 65</option>
+            <option value="70">Above 65 to 70</option>
+            <option value="99">Above 70</option>
+            <option value="custom">Custom rates</option>
+          </select>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="setEe">Employee %</label><input id="setEe" type="number" min="0" max="100" step="0.5"></div>
+          <div class="field"><label for="setEr">Employer %</label><input id="setEr" type="number" min="0" max="100" step="0.5"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="setCpf"> <span>CPF applies to on-call pay<br><span class="hint">Untick if your salary is already above the $8,000 Ordinary Wage ceiling.</span></span></label>
+        <button class="btn ghost sm" id="applyAll" type="button">Use this rate for all entries</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="banner" id="exampleBanner" hidden>
+    <span>These are <b>example entries</b> so you can see how it works.</span>
+    <button class="btn ghost sm" id="clearExamples" type="button">Clear examples</button>
+  </div>
+
+  <section aria-labelledby="sumHead">
+    <div class="sec-head">
+      <h2 id="sumHead">Summary</h2>
+      <div class="seg" role="group" aria-label="Summary period">
+        <button type="button" data-scope="ytd" aria-pressed="true" id="scopeYtd">YTD</button>
+        <button type="button" data-scope="life" aria-pressed="false" id="scopeLife">Lifetime</button>
+      </div>
+    </div>
+    <div class="tiles">
+      <div class="stat accent"><span class="lbl">Additional take-home</span><span class="val num" id="sTake">–</span><span class="note" id="sTakeNote"></span></div>
+      <div class="stat"><span class="lbl">Gross on-call pay</span><span class="val num" id="sGross">–</span><span class="note" id="sGrossNote"></span></div>
+      <div class="stat"><span class="lbl">Days on call</span><span class="val num" id="sDays">–</span><span class="note" id="sDaysNote"></span></div>
+      <div class="stat"><span class="lbl">Employee CPF</span><span class="val num" id="sEe">–</span><span class="note">Deducted from gross</span></div>
+      <div class="stat"><span class="lbl">Employer CPF</span><span class="val num" id="sEr">–</span><span class="note">Paid on top of gross</span></div>
+      <div class="stat"><span class="lbl">Total into CPF</span><span class="val num" id="sCpf">–</span><span class="note">Employee + employer</span></div>
+    </div>
+    <div class="split">
+      <div class="bar" id="bar" aria-hidden="true"><i class="k-take"></i><i class="k-ee"></i><i class="k-er"></i></div>
+      <div class="legend">
+        <span><i class="k-take"></i>Take-home <b class="num" id="pTake"></b></span>
+        <span><i class="k-ee"></i>Employee CPF <b class="num" id="pEe"></b></span>
+        <span><i class="k-er"></i>Employer CPF <b class="num" id="pEr"></b></span>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="logHead">
+    <div class="sec-head">
+      <h2 id="logHead">On-call log</h2>
+      <span class="hint" id="logCount"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>From</th><th>To</th><th class="r">Days</th><th>Note</th><th class="r">Rate / day</th>
+            <th class="r">Gross</th><th class="r">Employee CPF</th><th class="r">Employer CPF</th><th class="r">Take-home</th><th class="r"><span hidden>Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot id="tfoot"></tfoot>
+      </table>
+    </div>
+    <div class="msg" id="formMsg" role="status" hidden></div>
+    <p class="foot-note">Days count both the start and end date. Take-home is gross minus employee CPF. CPF is worked out per entry at the rates in settings, so it can differ by a few cents from your payslip, where CPF is rounded on the whole month's pay. In YTD, an entry that crosses into this year only counts its days in this year.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "oncall-tracker-v1";
+  var PRESETS = { "55": [20, 17], "60": [18, 16], "65": [12.5, 12.5], "70": [7.5, 9], "99": [5, 7.5] };
+  var DAY = 86400000;
+  var money = new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var moneyShort = new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD", maximumFractionDigits: 0 });
+  var dateFmt = new Intl.DateTimeFormat("en-SG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function parse(d) { if (!d) return NaN; var p = d.split("-"); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
+  function todayIso() { var n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0"); }
+  function daysBetween(from, to) { var a = parse(from), b = parse(to); if (isNaN(a) || isNaN(b) || b < a) return 0; return Math.round((b - a) / DAY) + 1; }
+  function daysInYear(e, year) {
+    var a = Math.max(parse(e.from), Date.UTC(year, 0, 1));
+    var b = Math.min(parse(e.to), Date.UTC(year, 11, 31));
+    return b < a ? 0 : Math.round((b - a) / DAY) + 1;
+  }
+  function fmtDate(d) { return dateFmt.format(new Date(parse(d))); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function calc(days, rate) {
+    var gross = days * rate;
+    var ee = state.settings.cpf ? gross * state.settings.ee / 100 : 0;
+    var er = state.settings.cpf ? gross * state.settings.er / 100 : 0;
+    return { days: days, gross: gross, ee: ee, er: er, take: gross - ee };
+  }
+
+  var EXAMPLES = [
+    ["2025-11-17", "2025-11-23", "Weekly rotation"],
+    ["2025-12-29", "2026-01-04", "Year-end cover"],
+    ["2026-02-09", "2026-02-15", "Weekly rotation"],
+    ["2026-05-04", "2026-05-10", "Weekly rotation"],
+    ["2026-08-24", "2026-08-30", "Release week"],
+    ["2026-10-12", "2026-10-18", "Weekly rotation"]
+  ].map(function (r) { return { id: uid(), from: r[0], to: r[1], note: r[2], rate: 60 }; });
+
+  var state = { settings: { rate: 60, age: "55", ee: 20, er: 17, cpf: true }, entries: EXAMPLES, examples: true, scope: "ytd" };
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) { var saved = JSON.parse(raw); if (saved && Array.isArray(saved.entries)) state = Object.assign(state, saved); }
+  } catch (e) { /* storage unavailable: run with examples */ }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
+
+  var editing = null;
+  var draft = { from: "", to: "", note: "", rate: "" };
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* Settings */
+  var pop = $("settingsPop"), btn = $("settingsBtn");
+  function syncSettingsForm() {
+    $("setRate").value = state.settings.rate;
+    $("setAge").value = state.settings.age;
+    $("setEe").value = state.settings.ee;
+    $("setEr").value = state.settings.er;
+    $("setCpf").checked = state.settings.cpf;
+    $("setEe").disabled = $("setEr").disabled = !state.settings.cpf;
+  }
+  function togglePop(open) { pop.hidden = !open; btn.setAttribute("aria-expanded", String(open)); if (open) $("setRate").focus(); }
+  btn.addEventListener("click", function (e) { e.stopPropagation(); togglePop(pop.hidden); });
+  document.addEventListener("click", function (e) { if (!pop.hidden && !pop.contains(e.target)) togglePop(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !pop.hidden) { togglePop(false); btn.focus(); } });
+  $("setRate").addEventListener("input", function () { var v = parseFloat(this.value); state.settings.rate = isFinite(v) && v >= 0 ? v : 0; draft.rate = ""; save(); render(); });
+  $("setAge").addEventListener("change", function () {
+    state.settings.age = this.value;
+    var p = PRESETS[this.value];
+    if (p) { state.settings.ee = p[0]; state.settings.er = p[1]; }
+    syncSettingsForm(); save(); render();
+  });
+  ["setEe", "setEr"].forEach(function (id) {
+    $(id).addEventListener("input", function () {
+      var v = parseFloat(this.value); v = isFinite(v) ? Math.min(Math.max(v, 0), 100) : 0;
+      state.settings[id === "setEe" ? "ee" : "er"] = v;
+      state.settings.age = "custom"; $("setAge").value = "custom";
+      save(); render();
+    });
+  });
+  $("setCpf").addEventListener("change", function () { state.settings.cpf = this.checked; syncSettingsForm(); save(); render(); });
+  $("applyAll").addEventListener("click", function () {
+    state.entries.forEach(function (e) { e.rate = state.settings.rate; });
+    save(); render(); flash("Updated every entry to " + money.format(state.settings.rate) + " a day.", "");
+  });
+
+  /* Scope toggle */
+  [$("scopeYtd"), $("scopeLife")].forEach(function (b) {
+    b.addEventListener("click", function () { state.scope = b.dataset.scope; save(); render(); });
+  });
+
+  $("clearExamples").addEventListener("click", function () { state.entries = []; state.examples = false; save(); render(); });
+
+  function flash(text, kind) {
+    var m = $("formMsg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); m.hidden = !text;
+  }
+  function overlaps(from, to, skipId) {
+    var a = parse(from), b = parse(to);
+    return state.entries.filter(function (e) { return e.id !== skipId && parse(e.from) <= b && parse(e.to) >= a; });
+  }
+  function validate(from, to, rate) {
+    if (!from || !to) return "Pick both a from and a to date.";
+    if (parse(to) < parse(from)) return "The to date is before the from date. Swap them or pick a later end date.";
+    if (!(rate >= 0)) return "Enter a daily rate of 0 or more.";
+    return "";
+  }
+
+  /* Summary */
+  function render() {
+    var year = new Date().getFullYear();
+    var ytd = state.scope === "ytd";
+    $("scopeYtd").setAttribute("aria-pressed", String(ytd));
+    $("scopeLife").setAttribute("aria-pressed", String(!ytd));
+    $("scopeYtd").textContent = "YTD " + year;
+    $("chipRate").textContent = moneyShort.format(state.settings.rate).replace(/\.00$/, "");
+    $("exampleBanner").hidden = !(state.examples && state.entries.length);
+
+    var tot = { days: 0, gross: 0, ee: 0, er: 0, take: 0 }, count = 0;
+    state.entries.forEach(function (e) {
+      var d = ytd ? daysInYear(e, year) : daysBetween(e.from, e.to);
+      if (!d) return;
+      count++;
+      var c = calc(d, e.rate);
+      Object.keys(tot).forEach(function (k) { tot[k] += c[k]; });
+    });
+    $("sTake").textContent = money.format(tot.take);
+    $("sGross").textContent = money.format(tot.gross);
+    $("sDays").textContent = tot.days;
+    $("sEe").textContent = money.format(tot.ee);
+    $("sEr").textContent = money.format(tot.er);
+    $("sCpf").textContent = money.format(tot.ee + tot.er);
+    var label = ytd ? "Jan to Dec " + year : "All entries";
+    $("sTakeNote").textContent = label;
+    $("sGrossNote").textContent = tot.days ? money.format(tot.gross / tot.days) + " average a day" : "No days logged";
+    $("sDaysNote").textContent = count + (count === 1 ? " stretch" : " stretches") + (tot.days ? " · " + (tot.days / 7).toFixed(1) + " weeks" : "");
+    var all = tot.gross + tot.er, bars = document.querySelectorAll("#bar i");
+    [tot.take, tot.ee, tot.er].forEach(function (v, i) { bars[i].style.width = all ? (v / all * 100) + "%" : "0"; });
+    $("pTake").textContent = all ? Math.round(tot.take / all * 100) + "%" : "–";
+    $("pEe").textContent = all ? Math.round(tot.ee / all * 100) + "%" : "–";
+    $("pEr").textContent = all ? Math.round(tot.er / all * 100) + "%" : "–";
+
+    renderTable(year);
+  }
+
+  function moneyCells(c, cls) {
+    cls = cls || "";
+    return '<td class="r ' + cls + '">' + money.format(c.gross) + '</td><td class="r ' + cls + '">' + money.format(c.ee) +
+      '</td><td class="r ' + cls + '">' + money.format(c.er) + '</td><td class="r ' + cls + '"><b>' + money.format(c.take) + '</b></td>';
+  }
+
+  function renderTable(year) {
+    var tb = $("tbody");
+    var rate = draft.rate === "" ? state.settings.rate : parseFloat(draft.rate);
+    var dd = daysBetween(draft.from, draft.to);
+    var pc = calc(dd, isFinite(rate) ? rate : 0);
+    var html = '<tr class="add">' +
+      '<td><input type="date" id="addFrom" aria-label="From date" value="' + esc(draft.from) + '"></td>' +
+      '<td><input type="date" id="addTo" aria-label="To date" value="' + esc(draft.to) + '"' + (draft.from ? ' min="' + esc(draft.from) + '"' : "") + '></td>' +
+      '<td class="r"><span class="days-pill' + (dd ? "" : " empty") + '">' + (dd || "–") + '</span></td>' +
+      '<td class="note-cell"><input type="text" id="addNote" aria-label="Note" placeholder="Optional note" value="' + esc(draft.note) + '"></td>' +
+      '<td class="r"><div class="prefix"><span>S$</span><input class="rate-in num" type="number" min="0" step="0.01" id="addRate" aria-label="Rate per day" value="' + esc(draft.rate === "" ? state.settings.rate : draft.rate) + '"></div></td>' +
+      moneyCells(pc, "preview") +
+      '<td class="r"><button class="btn sm" id="addBtn" type="button"' + (dd ? "" : " disabled") + '>Log</button></td></tr>';
+
+    var rows = state.entries.slice().sort(function (a, b) { return parse(b.from) - parse(a.from); });
+    if (!rows.length) {
+      html += '<tr><td colspan="10" class="empty-state">No on-call days logged yet. Pick a from and to date above, then press Log.</td></tr>';
+    }
+    rows.forEach(function (e) {
+      if (editing === e.id) {
+        var ed = daysBetween(e._from || e.from, e._to || e.to);
+        html += '<tr class="edit" data-id="' + e.id + '">' +
+          '<td><input type="date" class="eFrom" aria-label="From date" value="' + esc(e.from) + '"></td>' +
+          '<td><input type="date" class="eTo" aria-label="To date" value="' + esc(e.to) + '"></td>' +
+          '<td class="r"><span class="days-pill">' + ed + '</span></td>' +
+          '<td class="note-cell"><input type="text" class="eNote" aria-label="Note" value="' + esc(e.note || "") + '"></td>' +
+          '<td class="r"><div class="prefix"><span>S$</span><input class="rate-in eRate num" type="number" min="0" step="0.01" aria-label="Rate per day" value="' + esc(e.rate) + '"></div></td>' +
+          moneyCells(calc(ed, e.rate), "preview") +
+          '<td><div class="actions"><button class="btn sm" data-act="save" type="button">Save</button><button class="btn ghost sm" data-act="cancel" type="button">Cancel</button></div></td></tr>';
+        return;
+      }
+      var d = daysBetween(e.from, e.to);
+      var inYr = daysInYear(e, year);
+      var tag = inYr && inYr !== d ? '<span class="yr-tag" title="' + inYr + ' of these days fall in ' + year + '">' + inYr + 'd in ' + year + '</span>' : "";
+      html += '<tr data-id="' + e.id + '">' +
+        '<td class="num">' + fmtDate(e.from) + '</td><td class="num">' + fmtDate(e.to) + '</td>' +
+        '<td class="r days-cell"><span class="days-pill">' + d + '</span>' + tag + '</td>' +
+        '<td class="note-cell"><span class="note-txt">' + esc(e.note || "") + '</span></td>' +
+        '<td class="r">' + money.format(e.rate) + '</td>' + moneyCells(calc(d, e.rate)) +
+        '<td><div class="actions"><button class="btn ghost sm" data-act="edit" type="button">Edit</button><button class="btn del sm" data-act="del" type="button">Delete</button></div></td></tr>';
+    });
+    tb.innerHTML = html;
+
+    var tot = { days: 0, gross: 0, ee: 0, er: 0, take: 0 };
+    state.entries.forEach(function (e) { var c = calc(daysBetween(e.from, e.to), e.rate); Object.keys(tot).forEach(function (k) { tot[k] += c[k]; }); });
+    $("tfoot").innerHTML = rows.length ? '<tr><td colspan="2">All entries</td><td class="r num">' + tot.days + '</td><td></td><td></td>' + moneyCells(tot) + '<td></td></tr>' : "";
+    $("logCount").textContent = rows.length + (rows.length === 1 ? " entry" : " entries") + " · newest first";
+    bindTable();
+  }
+
+  function bindTable() {
+    var f = $("addFrom"), t = $("addTo"), n = $("addNote"), r = $("addRate");
+    function refreshAdd(focusId) {
+      draft = { from: f.value, to: t.value, note: n.value, rate: r.value === String(state.settings.rate) ? "" : r.value };
+      if (draft.from && !draft.to) draft.to = draft.from;
+      var hit = draft.from && draft.to && parse(draft.to) >= parse(draft.from) ? overlaps(draft.from, draft.to) : [];
+      flash(hit.length ? "Heads up: this overlaps " + fmtDate(hit[0].from) + " to " + fmtDate(hit[0].to) + ". You can still log it." : "", "warn");
+      render();
+      var el = $(focusId); if (el) { el.focus(); if (el.type === "text") el.setSelectionRange(el.value.length, el.value.length); }
+    }
+    f.addEventListener("change", function () { refreshAdd("addTo"); });
+    t.addEventListener("change", function () { refreshAdd("addNote"); });
+    n.addEventListener("change", function () { draft.note = n.value; });
+    r.addEventListener("change", function () { refreshAdd("addRate"); });
+    $("addBtn").addEventListener("click", function () {
+      draft.note = n.value;
+      var rate = draft.rate === "" ? state.settings.rate : parseFloat(draft.rate);
+      var err = validate(draft.from, draft.to, rate);
+      if (err) { flash(err, "err"); return; }
+      var d = daysBetween(draft.from, draft.to);
+      state.entries.push({ id: uid(), from: draft.from, to: draft.to, note: draft.note.trim(), rate: rate });
+      draft = { from: "", to: "", note: "", rate: "" };
+      save(); render();
+      flash("Logged " + d + (d === 1 ? " day" : " days") + ".", "");
+    });
+    n.addEventListener("keydown", function (e) { if (e.key === "Enter") $("addBtn").click(); });
+
+    $("tbody").querySelectorAll("tr[data-id]").forEach(function (tr) {
+      var id = tr.dataset.id, entry = state.entries.find(function (e) { return e.id === id; });
+      tr.querySelectorAll("button[data-act]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var act = b.dataset.act;
+          if (act === "edit") { editing = id; flash("", ""); render(); }
+          else if (act === "cancel") { editing = null; render(); }
+          else if (act === "save") {
+            var from = tr.querySelector(".eFrom").value, to = tr.querySelector(".eTo").value;
+            var rate = parseFloat(tr.querySelector(".eRate").value);
+            var err = validate(from, to, rate);
+            if (err) { flash(err, "err"); return; }
+            entry.from = from; entry.to = to; entry.rate = rate; entry.note = tr.querySelector(".eNote").value.trim();
+            editing = null; save(); render(); flash("Saved.", "");
+          } else if (act === "del") {
+            if (b.classList.contains("armed")) {
+              state.entries = state.entries.filter(function (e) { return e.id !== id; });
+              save(); render(); flash("Deleted.", "");
+            } else {
+              b.classList.add("armed"); b.textContent = "Confirm";
+              setTimeout(function () { if (b.isConnected) { b.classList.remove("armed"); b.textContent = "Delete"; } }, 3000);
+            }
+          }
+        });
+      });
+      if (editing === id) {
+        tr.querySelectorAll("input").forEach(function (inp) {
+          inp.addEventListener("change", function () {
+            // live preview for the edited row
+            var d = daysBetween(tr.querySelector(".eFrom").value, tr.querySelector(".eTo").value);
+            var rt = parseFloat(tr.querySelector(".eRate").value) || 0;
+            var c = calc(d, rt), cells = tr.querySelectorAll("td");
+            cells[2].innerHTML = '<span class="days-pill' + (d ? "" : " empty") + '">' + (d || "–") + '</span>';
+            [c.gross, c.ee, c.er, c.take].forEach(function (v, i) { cells[5 + i].innerHTML = i === 3 ? "<b>" + money.format(v) + "</b>" : money.format(v); });
+          });
+        });
+      }
+    });
+  }
+
+  syncSettingsForm();
+  render();
+})();
+</script>
