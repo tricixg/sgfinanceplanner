@@ -184,6 +184,9 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
 .covers { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .covers span { white-space: nowrap; }
 .covers em { color: var(--muted); }
+/* no-deposit payments */
+.cat-chip.plain { color: var(--muted); border-color: var(--line); }
+.nodep { border: 1.5px dashed var(--line); padding: 10px 12px; background: var(--paper); }
 .cat-chip { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--moss); border: 1px solid var(--moss); padding: 1px 6px; white-space: nowrap; }
 
 @media (max-width: 860px) {
@@ -325,7 +328,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
         <tbody id="payBody"></tbody>
       </table>
     </div>
-    <p class="foot-note">Days count both the start and end date. Take-home is gross minus employee CPF. CPF is worked out per entry at the rates in settings, so it can differ by a few cents from your payslip. When you record a payment, the amount credited is what goes into income, so type in the payslip figure if it differs. In YTD, earned figures count days on call this year, and received figures count payments tagged to a salary month this year.</p>
+    <p class="foot-note">Days count both the start and end date. Take-home is gross minus employee CPF. CPF is worked out per entry at the rates in settings, so it can differ by a few cents from your payslip. When you record a payment, the amount credited is what goes into income, so type in the payslip figure if it differs. Payments marked as already deposited only mark days as paid and add nothing to your income. In YTD, earned figures count days on call this year, and received figures count payments tagged to a salary month this year.</p>
   </section>
 </div>
 
@@ -395,7 +398,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     return { id: id, received: received, month: month, account: "acc-dbs", category: "cat-oncall", alloc: alloc.map(function (a) { return { entryId: a[0], days: a[1] }; }), amount: amt };
   }
   var EX_PAY = [
-    exPay("p1", "2025-12-26", "2025-12", [["e1", 7]]),
+    Object.assign(exPay("p1", "2025-12-26", "2025-12", [["e1", 7]]), { deposit: false, account: null, category: null }),
     exPay("p2", "2026-01-28", "2026-01", [["e2", 3]]),
     exPay("p3", "2026-02-26", "2026-02", [["e2", 4]]),
     exPay("p4", "2026-03-27", "2026-03", [["e3", 7]]),
@@ -421,6 +424,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
   } catch (e) { /* storage unavailable: run with examples */ }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
 
+  function isDeposit(p) { return p.deposit !== false; }
   function entryById(id) { return state.entries.find(function (e) { return e.id === id; }); }
   function paidDays(id) {
     return state.payments.reduce(function (s, p) {
@@ -521,10 +525,11 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
       count++;
       addInto(tot, calc(d, e.rate));
     });
-    var recv = 0, recvN = 0;
+    var recv = 0, recvN = 0, noDep = 0;
     state.payments.forEach(function (p) {
       if (ytd && p.month.slice(0, 4) !== String(year)) return;
       recv += p.amount; recvN++;
+      if (!isDeposit(p)) noDep += p.amount;
     });
     var owed = zero(), owedN = 0;
     state.entries.forEach(function (e) { var d = owedDays(e); if (d) { owedN++; addInto(owed, calc(d, e.rate)); } });
@@ -532,7 +537,8 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     $("sTake").textContent = money.format(tot.take);
     $("sTakeNote").textContent = money.format(tot.gross) + " gross · " + (ytd ? "on call in " + year : "all entries");
     $("sRecv").textContent = money.format(recv);
-    $("sRecvNote").textContent = recvN + (recvN === 1 ? " payment" : " payments") + (ytd ? " for " + year + " salary months" : " in total");
+    $("sRecvNote").textContent = recvN + (recvN === 1 ? " payment" : " payments") + (ytd ? " for " + year + " salary months" : " in total") +
+      (noDep ? " · " + money.format(noDep) + " was already deposited" : "");
     $("sOwed").textContent = money.format(owed.take);
     $("sOwedNote").textContent = owed.days ? owed.days + (owed.days === 1 ? " day" : " days") + " across " + owedN + (owedN === 1 ? " stretch" : " stretches") + ", all time" : "Everything logged has been paid";
     $("sDays").textContent = tot.days;
@@ -697,7 +703,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     var owing = state.entries.filter(function (e) { return owedDays(e) > 0; }).sort(function (a, b) { return parse(a.from) - parse(b.from); });
     if (!owing.length) return;
     var today = todayIso();
-    pay = { received: today, month: today.slice(0, 7), account: state.settings.account, category: "cat-oncall", amountTouched: false, rows: owing.map(function (e) {
+    pay = { received: today, month: today.slice(0, 7), account: state.settings.account, category: "cat-oncall", noDeposit: false, amountTouched: false, rows: owing.map(function (e) {
       var on = onlyId ? e.id === onlyId : true;
       return { id: e.id, on: on, days: owedDays(e) };
     }) };
@@ -728,6 +734,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
         '<div class="field"><label for="payAccount">Deposit to</label><select id="payAccount">' + opts(ACCOUNTS, pay.account) + '</select></div>' +
         '<div class="field"><label for="payCategory">Income category</label><select id="payCategory">' + opts(CATEGORIES, pay.category) + '</select></div>' +
       '</div>' +
+      '<label class="check nodep"><input type="checkbox" id="payNoDep"' + (pay.noDeposit ? " checked" : "") + '> <span>Already deposited, don\'t add a deposit<br><span class="hint">Use this for pay you already recorded in your income before using this tracker. The days are marked as paid and nothing is added to an account.</span></span></label>' +
       '<div class="field"><span class="lbl">Which days does this payslip cover?</span>' +
         '<span class="hint">Untick a stretch that is not on this payslip. Lower the days if only part of it was paid. The rest stays as awaiting payment.</span></div>' +
       '<div class="tbl-wrap"><table class="alloc-tbl"><thead><tr><th></th><th>Stretch</th><th class="r">Days owed</th><th class="r">Paid now</th><th class="r">Take-home</th><th>Left after this</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
@@ -746,6 +753,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     $("payMonth").addEventListener("change", function () { pay.month = this.value; updatePay(); });
     $("payAccount").addEventListener("change", function () { pay.account = this.value; updatePay(); });
     $("payCategory").addEventListener("change", function () { pay.category = this.value; updatePay(); });
+    $("payNoDep").addEventListener("change", function () { pay.noDeposit = this.checked; updatePay(); });
     $("payAmt").addEventListener("input", function () { pay.amountTouched = this.value !== ""; updatePay(); });
     $("payCancel").addEventListener("click", function () { closePay(); $("openPay").focus(); });
     $("paySave").addEventListener("click", savePay);
@@ -785,10 +793,12 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     $("payDiff").textContent = differs
       ? money.format(Math.abs(diff)) + (diff > 0 ? " more" : " less") + " than the worked-out take-home of " + money.format(t.take) + "."
       : "Worked out from days × rate − employee CPF. Change it to match your payslip.";
-    $("payPreview").innerHTML = t.days
-      ? "Adds a <b>" + money.format(amt) + "</b> deposit to <b>" + esc(nameOf(ACCOUNTS, pay.account)) + "</b> under <b>" + esc(nameOf(CATEGORIES, pay.category)) + "</b> income, dated " +
-        (pay.received ? fmtDate(pay.received) : "–") + ", for salary month <b>" + fmtMonth(pay.month) + "</b>."
-      : "Pick at least one stretch to include.";
+    $("payAccount").disabled = $("payCategory").disabled = pay.noDeposit;
+    $("payPreview").innerHTML = !t.days ? "Pick at least one stretch to include."
+      : pay.noDeposit
+      ? "Marks " + t.days + (t.days === 1 ? " day" : " days") + " as paid for salary month <b>" + fmtMonth(pay.month) + "</b>. <b>No deposit is added.</b> The " + money.format(amt) + " counts in this tracker's received total only."
+      : "Adds a <b>" + money.format(amt) + "</b> deposit to <b>" + esc(nameOf(ACCOUNTS, pay.account)) + "</b> under <b>" + esc(nameOf(CATEGORIES, pay.category)) + "</b> income, dated " +
+        (pay.received ? fmtDate(pay.received) : "–") + ", for salary month <b>" + fmtMonth(pay.month) + "</b>.";
     $("paySave").disabled = !t.days;
   }
 
@@ -802,11 +812,11 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     else if (!(amt >= 0)) err = "Enter the amount credited, 0 or more.";
     if (err) { $("payErr").textContent = err; $("payErr").hidden = false; return; }
     var alloc = pay.rows.filter(function (r) { return r.on && r.days > 0; }).map(function (r) { return { entryId: r.id, days: r.days }; });
-    var p = { id: uid(), received: pay.received, month: pay.month, account: pay.account, category: pay.category, alloc: alloc, amount: Math.round(amt * 100) / 100 };
+    var p = { id: uid(), received: pay.received, month: pay.month, deposit: !pay.noDeposit, account: pay.noDeposit ? null : pay.account, category: pay.noDeposit ? null : pay.category, alloc: alloc, amount: Math.round(amt * 100) / 100 };
     state.payments.push(p);
     closePay(); save(); render();
     var days = alloc.reduce(function (s, a) { return s + a.days; }, 0);
-    flash("Recorded " + money.format(p.amount) + " for " + days + (days === 1 ? " day" : " days") + " in " + fmtMonth(p.month) + ", deposited to " + nameOf(ACCOUNTS, p.account) + ".", "");
+    flash("Recorded " + money.format(p.amount) + " for " + days + (days === 1 ? " day" : " days") + " in " + fmtMonth(p.month) + (isDeposit(p) ? ", deposited to " + nameOf(ACCOUNTS, p.account) + "." : ". No deposit was added."), "");
   }
 
   /* Payments list */
@@ -830,16 +840,19 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
         '<td class="r">' + c.days + '</td>' +
         '<td class="r">' + money.format(c.gross) + '</td><td class="r">' + money.format(c.ee) + '</td><td class="r">' + money.format(c.er) + '</td>' +
         '<td class="r"><b>' + money.format(p.amount) + '</b></td>' +
-        '<td><div class="covers"><span>' + esc(nameOf(ACCOUNTS, p.account)) + '</span><span><span class="cat-chip">' + esc(nameOf(CATEGORIES, p.category)) + '</span></span></div></td>' +
+        (isDeposit(p)
+          ? '<td><div class="covers"><span>' + esc(nameOf(ACCOUNTS, p.account)) + '</span><span><span class="cat-chip">' + esc(nameOf(CATEGORIES, p.category)) + '</span></span></div></td>'
+          : '<td><div class="covers"><span class="note-txt">No deposit added</span><span><span class="cat-chip plain">Already deposited</span></span></div></td>') +
         '<td><div class="actions"><button class="btn del sm" data-act="pdel" type="button">Delete</button></div></td></tr>';
     }).join("");
     $("payBody").querySelectorAll("tr[data-pid]").forEach(function (tr) {
       var b = tr.querySelector("[data-act=pdel]");
       b.addEventListener("click", function () {
         if (b.classList.contains("armed")) {
+          var gone = state.payments.find(function (p) { return p.id === tr.dataset.pid; });
           state.payments = state.payments.filter(function (p) { return p.id !== tr.dataset.pid; });
           if (pay) closePay();
-          save(); render(); flash("Payment deleted. Its income deposit is removed and those days are awaiting payment again.", "");
+          save(); render(); flash(isDeposit(gone) ? "Payment deleted. Its income deposit is removed and those days are awaiting payment again." : "Payment deleted. Those days are awaiting payment again. Your income is unchanged.", "");
         } else {
           b.classList.add("armed"); b.textContent = "Confirm";
           setTimeout(function () { if (b.isConnected) { b.classList.remove("armed"); b.textContent = "Delete"; } }, 3000);
