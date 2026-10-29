@@ -18,6 +18,8 @@ describe("pokerProfitSgd", () => {
       buyIn: 100,
       cashOut: 250,
       amountWon: null,
+      rebuyAmount: 0,
+      bountyAmount: 0,
       fxRateToSgd: 1.35,
     });
     expect(profit).toBe(202.5);
