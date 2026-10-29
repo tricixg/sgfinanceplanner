@@ -1,7 +1,7 @@
 <title>On-Call Tracker</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* Layout: single column ledger page — header with settings popover top right, summary tiles, then the log table. Tokens mirror webapp/app/globals.css. */
+/* Layout: single column ledger page — header with settings popover top right, summary tiles, the on-call log, then payments received. Tokens mirror webapp/app/globals.css. */
 :root {
   --ink: #11201a;
   --paper: #f4f1e8;
@@ -47,14 +47,14 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
 .num { font-variant-numeric: tabular-nums; }
 
 /* Header */
 header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 14px; }
 .eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
 h1 { font-size: 30px; line-height: 1.1; margin: 6px 0 4px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
-.sub { color: var(--muted); font-style: italic; font-size: 14px; max-width: 60ch; }
+.sub { color: var(--muted); font-style: italic; font-size: 14px; max-width: 62ch; margin: 0; }
 
 /* Settings */
 .settings { position: relative; flex-shrink: 0; }
@@ -62,9 +62,10 @@ h1 { font-size: 30px; line-height: 1.1; margin: 6px 0 4px; font-weight: 600; let
 .rate-chip:hover, .rate-chip[aria-expanded="true"] { background: var(--sand); }
 .rate-chip b { font-family: var(--serif); font-size: 15px; letter-spacing: 0; text-transform: none; font-weight: 600; }
 .gear { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
-.pop { position: absolute; right: 0; top: calc(100% + 8px); width: min(320px, calc(100vw - 32px)); background: var(--card); border: 1.5px solid var(--ink); box-shadow: 0 10px 30px var(--shadow); padding: 16px; z-index: 30; display: flex; flex-direction: column; gap: 14px; }
+.pop { position: absolute; right: 0; top: calc(100% + 8px); width: min(330px, calc(100vw - 32px)); background: var(--card); border: 1.5px solid var(--ink); box-shadow: 0 10px 30px var(--shadow); padding: 16px; z-index: 30; display: flex; flex-direction: column; gap: 14px; }
 .pop h3 { margin: 0; font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--moss); }
-.field { display: flex; flex-direction: column; gap: 5px; }
+.pop hr { border: 0; border-top: 1px solid var(--line); margin: 0; width: 100%; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field label, .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .hint { font-size: 12.5px; color: var(--muted); font-style: italic; line-height: 1.4; }
@@ -72,6 +73,8 @@ h1 { font-size: 30px; line-height: 1.1; margin: 6px 0 4px; font-weight: 600; let
 .check input { width: auto; flex-shrink: 0; margin-top: 3px; accent-color: var(--moss); }
 
 input, select { font: inherit; font-size: 14px; color: var(--ink); background: var(--input); border: 1.5px solid var(--line); padding: 6px 8px; width: 100%; min-width: 0; border-radius: 0; }
+input[type="checkbox"] { width: auto; accent-color: var(--moss); }
+input:disabled { opacity: 0.5; }
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--sky); outline-offset: 1px; }
 .prefix { position: relative; }
 .prefix span { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; pointer-events: none; }
@@ -85,9 +88,11 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .btn.del { border-color: var(--rust); background: transparent; color: var(--rust); }
 .btn.del:hover, .btn.del.armed { background: var(--rust); color: var(--card); border-color: var(--rust); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 
 /* Section heads */
 .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.sec-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 h2 { font-size: 13px; font-family: var(--mono); letter-spacing: 0.15em; text-transform: uppercase; margin: 0; color: var(--moss); font-weight: 600; }
 section { display: flex; flex-direction: column; gap: 14px; }
 
@@ -105,6 +110,8 @@ section { display: flex; flex-direction: column; gap: 14px; }
 .stat.accent { background: var(--moss); border-color: var(--moss); }
 .stat.accent .lbl, .stat.accent .note { color: var(--on-moss-muted); }
 .stat.accent .val { color: var(--on-moss); }
+.stat.owed { border-color: var(--gold); border-style: dashed; }
+.stat.owed .val { color: var(--gold); }
 .split { display: flex; flex-direction: column; gap: 8px; }
 .bar { display: flex; height: 10px; border: 1.5px solid var(--line); background: var(--card); }
 .bar i { display: block; height: 100%; }
@@ -118,9 +125,12 @@ section { display: flex; flex-direction: column; gap: 14px; }
 /* Banner */
 .banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border: 1.5px dashed var(--gold); padding: 10px 14px; font-size: 14px; background: var(--card); }
 
-/* Table */
+/* Tables */
 .tbl-wrap { overflow-x: auto; border: 1.5px solid var(--line); background: var(--card); }
-table { width: 100%; border-collapse: collapse; min-width: 920px; }
+table { width: 100%; border-collapse: collapse; }
+.log-tbl { min-width: 1060px; }
+.pay-tbl { min-width: 900px; }
+.alloc-tbl { min-width: 640px; }
 th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: 14px; }
 th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; background: var(--paper); white-space: nowrap; }
 td.r, th.r { text-align: right; }
@@ -129,7 +139,7 @@ tr.add td { background: var(--paper); border-bottom: 2px solid var(--ink); }
 tr.add input[type="date"] { width: 140px; }
 tr.add .rate-in, tr.edit .rate-in { width: 92px; }
 tr.edit td { background: var(--paper); }
-td.note-cell { min-width: 170px; }
+td.note-cell { min-width: 150px; }
 td.days-cell { white-space: nowrap; }
 td .note-txt { color: var(--muted); font-style: italic; font-size: 13px; }
 .days-pill { display: inline-block; min-width: 34px; text-align: center; font-family: var(--mono); font-size: 12px; padding: 2px 8px; border: 1px solid var(--moss); color: var(--moss); }
@@ -138,12 +148,49 @@ td .note-txt { color: var(--muted); font-style: italic; font-size: 13px; }
 .preview { color: var(--muted); }
 .actions { display: flex; gap: 6px; justify-content: flex-end; }
 tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink); background: var(--paper); }
-.msg { font-size: 13px; padding: 8px 12px; }
+.msg { font-size: 13px; padding: 8px 12px; margin: 0; }
 .msg.err { color: var(--rust); }
 .msg.warn { color: var(--gold); }
 .empty-state { padding: 26px; text-align: center; color: var(--muted); font-style: italic; }
-.foot-note { font-size: 12.5px; color: var(--muted); line-height: 1.5; max-width: 80ch; }
+.foot-note { font-size: 12.5px; color: var(--muted); line-height: 1.5; max-width: 82ch; margin: 0; }
 
+/* Paid status */
+.status { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.st { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid; white-space: nowrap; }
+.st.paid { color: var(--moss); border-color: var(--moss); }
+.st.part { color: var(--gold); border-color: var(--gold); }
+.st.unpaid { color: var(--muted); border-color: var(--line); }
+.st-months { font-size: 12px; color: var(--muted); font-style: italic; white-space: nowrap; }
+.meter { width: 64px; height: 4px; background: var(--line); display: block; }
+.meter i { display: block; height: 100%; background: var(--moss); }
+.meter.part i { background: var(--gold); }
+
+/* Payment form */
+.pay-card { background: var(--card); border: 1.5px solid var(--ink); box-shadow: 0 8px 24px var(--shadow); padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+.pay-card h3 { margin: 0; font-size: 19px; font-weight: 600; }
+.pay-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.alloc-tbl input[type="number"] { width: 72px; }
+.alloc-tbl td { background: var(--card); }
+.alloc-tbl tr.off td { color: var(--muted); }
+.left-tag { font-size: 12px; font-style: italic; color: var(--gold); white-space: nowrap; }
+.pay-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.3fr); gap: 12px; align-items: end; border-top: 1px solid var(--line); padding-top: 14px; }
+.pay-totals .t { display: flex; flex-direction: column; gap: 4px; }
+.pay-totals .t b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.income-preview { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--moss); background: var(--paper); padding: 10px 12px; font-size: 14px; line-height: 1.45; }
+.income-preview svg { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: var(--moss); stroke-width: 1.8; margin-top: 1px; }
+.pay-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.diff { font-size: 12.5px; font-style: italic; color: var(--muted); }
+.diff.off { color: var(--gold); }
+.covers { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.covers span { white-space: nowrap; }
+.covers em { color: var(--muted); }
+.cat-chip { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--moss); border: 1px solid var(--moss); padding: 1px 6px; white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .pay-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pay-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pay-totals .amt { grid-column: 1 / -1; }
+}
 @media (max-width: 760px) {
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat .val { font-size: 22px; }
@@ -154,6 +201,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
   h1 { font-size: 25px; }
   .stat { padding: 12px; }
   .stat .val { font-size: 19px; }
+  .pay-fields { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -161,9 +209,9 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
 <div class="wrap">
   <header>
     <div>
-      <div class="eyebrow">Prototype · Tracker only, not linked to income</div>
+      <div class="eyebrow">Prototype · Linked to income</div>
       <h1>On-call tracker</h1>
-      <p class="sub">Log each on-call stretch. Days, CPF and take-home are worked out from your daily rate.</p>
+      <p class="sub">Log each on-call stretch. When your payslip comes in, record the payment. It goes into your income as an On-call allowance deposit.</p>
     </div>
     <div class="settings">
       <button class="rate-chip" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop">
@@ -194,12 +242,18 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
         </div>
         <label class="check"><input type="checkbox" id="setCpf"> <span>CPF applies to on-call pay<br><span class="hint">Untick if your salary is already above the $8,000 Ordinary Wage ceiling.</span></span></label>
         <button class="btn ghost sm" id="applyAll" type="button">Use this rate for all entries</button>
+        <hr>
+        <div class="field">
+          <label for="setAccount">Default deposit account</label>
+          <select id="setAccount"></select>
+          <span class="hint">Pre-selected when you record a payment.</span>
+        </div>
       </div>
     </div>
   </header>
 
   <div class="banner" id="exampleBanner" hidden>
-    <span>These are <b>example entries</b> so you can see how it works.</span>
+    <span>These are <b>example entries and payments</b> so you can see how it works.</span>
     <button class="btn ghost sm" id="clearExamples" type="button">Clear examples</button>
   </div>
 
@@ -212,12 +266,12 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
       </div>
     </div>
     <div class="tiles">
-      <div class="stat accent"><span class="lbl">Additional take-home</span><span class="val num" id="sTake">–</span><span class="note" id="sTakeNote"></span></div>
-      <div class="stat"><span class="lbl">Gross on-call pay</span><span class="val num" id="sGross">–</span><span class="note" id="sGrossNote"></span></div>
+      <div class="stat accent"><span class="lbl">Additional take-home earned</span><span class="val num" id="sTake">–</span><span class="note" id="sTakeNote"></span></div>
+      <div class="stat"><span class="lbl">Received into income</span><span class="val num" id="sRecv">–</span><span class="note" id="sRecvNote"></span></div>
+      <div class="stat owed"><span class="lbl">Awaiting payment</span><span class="val num" id="sOwed">–</span><span class="note" id="sOwedNote"></span></div>
       <div class="stat"><span class="lbl">Days on call</span><span class="val num" id="sDays">–</span><span class="note" id="sDaysNote"></span></div>
       <div class="stat"><span class="lbl">Employee CPF</span><span class="val num" id="sEe">–</span><span class="note">Deducted from gross</span></div>
-      <div class="stat"><span class="lbl">Employer CPF</span><span class="val num" id="sEr">–</span><span class="note">Paid on top of gross</span></div>
-      <div class="stat"><span class="lbl">Total into CPF</span><span class="val num" id="sCpf">–</span><span class="note">Employee + employer</span></div>
+      <div class="stat"><span class="lbl">Employer CPF</span><span class="val num" id="sEr">–</span><span class="note" id="sErNote"></span></div>
     </div>
     <div class="split">
       <div class="bar" id="bar" aria-hidden="true"><i class="k-take"></i><i class="k-ee"></i><i class="k-er"></i></div>
@@ -232,38 +286,78 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
   <section aria-labelledby="logHead">
     <div class="sec-head">
       <h2 id="logHead">On-call log</h2>
-      <span class="hint" id="logCount"></span>
+      <div class="sec-tools">
+        <span class="hint" id="logCount"></span>
+        <button class="btn" type="button" id="openPay">Record payment</button>
+      </div>
     </div>
+
+    <div class="pay-card" id="payCard" hidden></div>
+
     <div class="tbl-wrap">
-      <table>
+      <table class="log-tbl">
         <thead>
           <tr>
             <th>From</th><th>To</th><th class="r">Days</th><th>Note</th><th class="r">Rate / day</th>
-            <th class="r">Gross</th><th class="r">Employee CPF</th><th class="r">Employer CPF</th><th class="r">Take-home</th><th class="r"><span hidden>Actions</span></th>
+            <th class="r">Gross</th><th class="r">Employee CPF</th><th class="r">Employer CPF</th><th class="r">Take-home</th><th>Paid</th><th class="r"><span hidden>Actions</span></th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
         <tfoot id="tfoot"></tfoot>
       </table>
     </div>
-    <div class="msg" id="formMsg" role="status" hidden></div>
-    <p class="foot-note">Days count both the start and end date. Take-home is gross minus employee CPF. CPF is worked out per entry at the rates in settings, so it can differ by a few cents from your payslip, where CPF is rounded on the whole month's pay. In YTD, an entry that crosses into this year only counts its days in this year.</p>
+    <p class="msg" id="formMsg" role="status" hidden></p>
+  </section>
+
+  <section aria-labelledby="payHead">
+    <div class="sec-head">
+      <h2 id="payHead">Payments received</h2>
+      <span class="hint">Each payment is one deposit in your income</span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="pay-tbl">
+        <thead>
+          <tr>
+            <th>Received</th><th>Salary month</th><th>Covers</th><th class="r">Days</th><th class="r">Gross</th>
+            <th class="r">Employee CPF</th><th class="r">Employer CPF</th><th class="r">Credited</th><th>Deposited to</th><th class="r"><span hidden>Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="payBody"></tbody>
+      </table>
+    </div>
+    <p class="foot-note">Days count both the start and end date. Take-home is gross minus employee CPF. CPF is worked out per entry at the rates in settings, so it can differ by a few cents from your payslip. When you record a payment, the amount credited is what goes into income, so type in the payslip figure if it differs. In YTD, earned figures count days on call this year, and received figures count payments tagged to a salary month this year.</p>
   </section>
 </div>
 
 <script>
 (function () {
   "use strict";
-  var KEY = "oncall-tracker-v1";
+  var KEY = "oncall-tracker-v2";
+  var OLD_KEY = "oncall-tracker-v1";
   var PRESETS = { "55": [20, 17], "60": [18, 16], "65": [12.5, 12.5], "70": [7.5, 9], "99": [5, 7.5] };
+  /* Stand-ins for the user's financial accounts and income categories in the real app. */
+  var ACCOUNTS = [
+    { id: "acc-dbs", name: "DBS Multiplier (salary)" },
+    { id: "acc-hysa", name: "High-yield savings account" },
+    { id: "acc-sep", name: "Separate savings account" },
+    { id: "acc-paylah", name: "PayLah / cash float" }
+  ];
+  var CATEGORIES = [
+    { id: "cat-oncall", name: "On-call allowance" },
+    { id: "cat-salary", name: "Salary" },
+    { id: "cat-others", name: "Others" }
+  ];
   var DAY = 86400000;
   var money = new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var moneyShort = new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD", maximumFractionDigits: 0 });
   var dateFmt = new Intl.DateTimeFormat("en-SG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  var shortFmt = new Intl.DateTimeFormat("en-SG", { day: "numeric", month: "short", timeZone: "UTC" });
+  var monthFmt = new Intl.DateTimeFormat("en-SG", { month: "short", year: "numeric", timeZone: "UTC" });
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
-  function parse(d) { if (!d) return NaN; var p = d.split("-"); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
-  function todayIso() { var n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0"); }
+  function parse(d) { if (!d) return NaN; var p = d.split("-"); return Date.UTC(+p[0], +p[1] - 1, +(p[2] || 1)); }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function todayIso() { var n = new Date(); return n.getFullYear() + "-" + pad(n.getMonth() + 1) + "-" + pad(n.getDate()); }
   function daysBetween(from, to) { var a = parse(from), b = parse(to); if (isNaN(a) || isNaN(b) || b < a) return 0; return Math.round((b - a) / DAY) + 1; }
   function daysInYear(e, year) {
     var a = Math.max(parse(e.from), Date.UTC(year, 0, 1));
@@ -271,42 +365,97 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     return b < a ? 0 : Math.round((b - a) / DAY) + 1;
   }
   function fmtDate(d) { return dateFmt.format(new Date(parse(d))); }
+  function fmtRange(e) {
+    var sameYear = e.from.slice(0, 4) === e.to.slice(0, 4);
+    return (sameYear ? shortFmt : dateFmt).format(new Date(parse(e.from))) + " – " + fmtDate(e.to);
+  }
+  function fmtMonth(ym) { return ym ? monthFmt.format(new Date(parse(ym + "-01"))) : "–"; }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function nameOf(list, id) { var x = list.find(function (a) { return a.id === id; }); return x ? x.name : "Unknown"; }
   function calc(days, rate) {
     var gross = days * rate;
     var ee = state.settings.cpf ? gross * state.settings.ee / 100 : 0;
     var er = state.settings.cpf ? gross * state.settings.er / 100 : 0;
     return { days: days, gross: gross, ee: ee, er: er, take: gross - ee };
   }
+  function addInto(t, c) { ["days", "gross", "ee", "er", "take"].forEach(function (k) { t[k] += c[k]; }); }
+  function zero() { return { days: 0, gross: 0, ee: 0, er: 0, take: 0 }; }
 
-  var EXAMPLES = [
-    ["2025-11-17", "2025-11-23", "Weekly rotation"],
-    ["2025-12-29", "2026-01-04", "Year-end cover"],
-    ["2026-02-09", "2026-02-15", "Weekly rotation"],
-    ["2026-05-04", "2026-05-10", "Weekly rotation"],
-    ["2026-08-24", "2026-08-30", "Release week"],
-    ["2026-10-12", "2026-10-18", "Weekly rotation"]
-  ].map(function (r) { return { id: uid(), from: r[0], to: r[1], note: r[2], rate: 60 }; });
+  /* Examples: six stretches, several payslips, including split payments. */
+  var EX = [
+    ["e1", "2025-11-17", "2025-11-23", "Weekly rotation"],
+    ["e2", "2025-12-29", "2026-01-04", "Year-end cover"],
+    ["e3", "2026-02-09", "2026-02-15", "Weekly rotation"],
+    ["e4", "2026-05-04", "2026-05-10", "Weekly rotation"],
+    ["e5", "2026-08-24", "2026-08-30", "Release week"],
+    ["e6", "2026-10-12", "2026-10-18", "Weekly rotation"]
+  ].map(function (r) { return { id: r[0], from: r[1], to: r[2], note: r[3], rate: 60 }; });
+  function exPay(id, received, month, alloc) {
+    var amt = alloc.reduce(function (s, a) { return s + a[1] * 60 * 0.8; }, 0);
+    return { id: id, received: received, month: month, account: "acc-dbs", category: "cat-oncall", alloc: alloc.map(function (a) { return { entryId: a[0], days: a[1] }; }), amount: amt };
+  }
+  var EX_PAY = [
+    exPay("p1", "2025-12-26", "2025-12", [["e1", 7]]),
+    exPay("p2", "2026-01-28", "2026-01", [["e2", 3]]),
+    exPay("p3", "2026-02-26", "2026-02", [["e2", 4]]),
+    exPay("p4", "2026-03-27", "2026-03", [["e3", 7]]),
+    exPay("p5", "2026-05-28", "2026-05", [["e4", 5]]),
+    exPay("p6", "2026-06-26", "2026-06", [["e4", 2]]),
+    exPay("p7", "2026-09-28", "2026-09", [["e5", 5]])
+  ];
 
-  var state = { settings: { rate: 60, age: "55", ee: 20, er: 17, cpf: true }, entries: EXAMPLES, examples: true, scope: "ytd" };
+  var state = {
+    settings: { rate: 60, age: "55", ee: 20, er: 17, cpf: true, account: "acc-dbs" },
+    entries: EX, payments: EX_PAY, examples: true, scope: "ytd"
+  };
   try {
     var raw = localStorage.getItem(KEY);
-    if (raw) { var saved = JSON.parse(raw); if (saved && Array.isArray(saved.entries)) state = Object.assign(state, saved); }
+    var old = raw ? null : localStorage.getItem(OLD_KEY);
+    var saved = JSON.parse(raw || old || "null");
+    if (saved && Array.isArray(saved.entries)) {
+      if (!raw) { saved.payments = saved.examples ? EX_PAY : []; if (saved.examples) saved.entries = EX; }
+      state = Object.assign(state, saved);
+      state.settings = Object.assign({ account: "acc-dbs" }, state.settings);
+      if (!Array.isArray(state.payments)) state.payments = [];
+    }
   } catch (e) { /* storage unavailable: run with examples */ }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
 
+  function entryById(id) { return state.entries.find(function (e) { return e.id === id; }); }
+  function paidDays(id) {
+    return state.payments.reduce(function (s, p) {
+      return s + p.alloc.reduce(function (t, a) { return t + (a.entryId === id ? a.days : 0); }, 0);
+    }, 0);
+  }
+  function paidMonths(id) {
+    var ms = [];
+    state.payments.slice().sort(function (a, b) { return a.month < b.month ? -1 : 1; }).forEach(function (p) {
+      p.alloc.forEach(function (a) { if (a.entryId === id && ms.indexOf(p.month) < 0) ms.push(p.month); });
+    });
+    return ms;
+  }
+  function owedDays(e) { return Math.max(0, daysBetween(e.from, e.to) - paidDays(e.id)); }
+  function paymentCalc(p) {
+    var t = zero();
+    p.alloc.forEach(function (a) { var e = entryById(a.entryId); if (e) addInto(t, calc(a.days, e.rate)); });
+    return t;
+  }
+
   var editing = null;
   var draft = { from: "", to: "", note: "", rate: "" };
+  var pay = null;
   var $ = function (id) { return document.getElementById(id); };
 
   /* Settings */
   var pop = $("settingsPop"), btn = $("settingsBtn");
+  $("setAccount").innerHTML = ACCOUNTS.map(function (a) { return '<option value="' + a.id + '">' + esc(a.name) + "</option>"; }).join("");
   function syncSettingsForm() {
     $("setRate").value = state.settings.rate;
     $("setAge").value = state.settings.age;
     $("setEe").value = state.settings.ee;
     $("setEr").value = state.settings.er;
     $("setCpf").checked = state.settings.cpf;
+    $("setAccount").value = state.settings.account;
     $("setEe").disabled = $("setEr").disabled = !state.settings.cpf;
   }
   function togglePop(open) { pop.hidden = !open; btn.setAttribute("aria-expanded", String(open)); if (open) $("setRate").focus(); }
@@ -329,17 +478,17 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     });
   });
   $("setCpf").addEventListener("change", function () { state.settings.cpf = this.checked; syncSettingsForm(); save(); render(); });
+  $("setAccount").addEventListener("change", function () { state.settings.account = this.value; save(); });
   $("applyAll").addEventListener("click", function () {
     state.entries.forEach(function (e) { e.rate = state.settings.rate; });
     save(); render(); flash("Updated every entry to " + money.format(state.settings.rate) + " a day.", "");
   });
 
-  /* Scope toggle */
   [$("scopeYtd"), $("scopeLife")].forEach(function (b) {
     b.addEventListener("click", function () { state.scope = b.dataset.scope; save(); render(); });
   });
-
-  $("clearExamples").addEventListener("click", function () { state.entries = []; state.examples = false; save(); render(); });
+  $("clearExamples").addEventListener("click", function () { state.entries = []; state.payments = []; state.examples = false; closePay(); save(); render(); });
+  $("openPay").addEventListener("click", function () { openPay(null); });
 
   function flash(text, kind) {
     var m = $("formMsg"); m.textContent = text; m.className = "msg" + (kind ? " " + kind : ""); m.hidden = !text;
@@ -362,40 +511,60 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
     $("scopeYtd").setAttribute("aria-pressed", String(ytd));
     $("scopeLife").setAttribute("aria-pressed", String(!ytd));
     $("scopeYtd").textContent = "YTD " + year;
-    $("chipRate").textContent = moneyShort.format(state.settings.rate).replace(/\.00$/, "");
-    $("exampleBanner").hidden = !(state.examples && state.entries.length);
+    $("chipRate").textContent = moneyShort.format(state.settings.rate);
+    $("exampleBanner").hidden = !(state.examples && (state.entries.length || state.payments.length));
 
-    var tot = { days: 0, gross: 0, ee: 0, er: 0, take: 0 }, count = 0;
+    var tot = zero(), count = 0;
     state.entries.forEach(function (e) {
       var d = ytd ? daysInYear(e, year) : daysBetween(e.from, e.to);
       if (!d) return;
       count++;
-      var c = calc(d, e.rate);
-      Object.keys(tot).forEach(function (k) { tot[k] += c[k]; });
+      addInto(tot, calc(d, e.rate));
     });
+    var recv = 0, recvN = 0;
+    state.payments.forEach(function (p) {
+      if (ytd && p.month.slice(0, 4) !== String(year)) return;
+      recv += p.amount; recvN++;
+    });
+    var owed = zero(), owedN = 0;
+    state.entries.forEach(function (e) { var d = owedDays(e); if (d) { owedN++; addInto(owed, calc(d, e.rate)); } });
+
     $("sTake").textContent = money.format(tot.take);
-    $("sGross").textContent = money.format(tot.gross);
+    $("sTakeNote").textContent = money.format(tot.gross) + " gross · " + (ytd ? "on call in " + year : "all entries");
+    $("sRecv").textContent = money.format(recv);
+    $("sRecvNote").textContent = recvN + (recvN === 1 ? " payment" : " payments") + (ytd ? " for " + year + " salary months" : " in total");
+    $("sOwed").textContent = money.format(owed.take);
+    $("sOwedNote").textContent = owed.days ? owed.days + (owed.days === 1 ? " day" : " days") + " across " + owedN + (owedN === 1 ? " stretch" : " stretches") + ", all time" : "Everything logged has been paid";
     $("sDays").textContent = tot.days;
+    $("sDaysNote").textContent = count + (count === 1 ? " stretch" : " stretches") + (tot.days ? " · " + (tot.days / 7).toFixed(1) + " weeks" : "");
     $("sEe").textContent = money.format(tot.ee);
     $("sEr").textContent = money.format(tot.er);
-    $("sCpf").textContent = money.format(tot.ee + tot.er);
-    var label = ytd ? "Jan to Dec " + year : "All entries";
-    $("sTakeNote").textContent = label;
-    $("sGrossNote").textContent = tot.days ? money.format(tot.gross / tot.days) + " average a day" : "No days logged";
-    $("sDaysNote").textContent = count + (count === 1 ? " stretch" : " stretches") + (tot.days ? " · " + (tot.days / 7).toFixed(1) + " weeks" : "");
+    $("sErNote").textContent = money.format(tot.ee + tot.er) + " total into CPF";
     var all = tot.gross + tot.er, bars = document.querySelectorAll("#bar i");
     [tot.take, tot.ee, tot.er].forEach(function (v, i) { bars[i].style.width = all ? (v / all * 100) + "%" : "0"; });
     $("pTake").textContent = all ? Math.round(tot.take / all * 100) + "%" : "–";
     $("pEe").textContent = all ? Math.round(tot.ee / all * 100) + "%" : "–";
     $("pEr").textContent = all ? Math.round(tot.er / all * 100) + "%" : "–";
+    $("openPay").disabled = !owed.days;
 
     renderTable(year);
+    renderPayments();
   }
 
   function moneyCells(c, cls) {
     cls = cls || "";
     return '<td class="r ' + cls + '">' + money.format(c.gross) + '</td><td class="r ' + cls + '">' + money.format(c.ee) +
       '</td><td class="r ' + cls + '">' + money.format(c.er) + '</td><td class="r ' + cls + '"><b>' + money.format(c.take) + '</b></td>';
+  }
+
+  function statusCell(e) {
+    var d = daysBetween(e.from, e.to), p = paidDays(e.id);
+    var cls = p >= d ? "paid" : p > 0 ? "part" : "unpaid";
+    var label = p >= d ? "Paid" : p > 0 ? p + " of " + d + " paid" : "Unpaid";
+    var months = paidMonths(e.id).map(fmtMonth).join(", ");
+    return '<td><div class="status"><span class="st ' + cls + '">' + label + '</span>' +
+      (p ? '<span class="meter ' + cls + '"><i style="width:' + Math.min(100, p / d * 100) + '%"></i></span>' : "") +
+      (months ? '<span class="st-months">' + esc(months) + "</span>" : "") + "</div></td>";
   }
 
   function renderTable(year) {
@@ -409,41 +578,45 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
       '<td class="r"><span class="days-pill' + (dd ? "" : " empty") + '">' + (dd || "–") + '</span></td>' +
       '<td class="note-cell"><input type="text" id="addNote" aria-label="Note" placeholder="Optional note" value="' + esc(draft.note) + '"></td>' +
       '<td class="r"><div class="prefix"><span>S$</span><input class="rate-in num" type="number" min="0" step="0.01" id="addRate" aria-label="Rate per day" value="' + esc(draft.rate === "" ? state.settings.rate : draft.rate) + '"></div></td>' +
-      moneyCells(pc, "preview") +
+      moneyCells(pc, "preview") + '<td></td>' +
       '<td class="r"><button class="btn sm" id="addBtn" type="button"' + (dd ? "" : " disabled") + '>Log</button></td></tr>';
 
     var rows = state.entries.slice().sort(function (a, b) { return parse(b.from) - parse(a.from); });
     if (!rows.length) {
-      html += '<tr><td colspan="10" class="empty-state">No on-call days logged yet. Pick a from and to date above, then press Log.</td></tr>';
+      html += '<tr><td colspan="11" class="empty-state">No on-call days logged yet. Pick a from and to date above, then press Log.</td></tr>';
     }
     rows.forEach(function (e) {
       if (editing === e.id) {
-        var ed = daysBetween(e._from || e.from, e._to || e.to);
+        var ed = daysBetween(e.from, e.to);
         html += '<tr class="edit" data-id="' + e.id + '">' +
           '<td><input type="date" class="eFrom" aria-label="From date" value="' + esc(e.from) + '"></td>' +
           '<td><input type="date" class="eTo" aria-label="To date" value="' + esc(e.to) + '"></td>' +
           '<td class="r"><span class="days-pill">' + ed + '</span></td>' +
           '<td class="note-cell"><input type="text" class="eNote" aria-label="Note" value="' + esc(e.note || "") + '"></td>' +
           '<td class="r"><div class="prefix"><span>S$</span><input class="rate-in eRate num" type="number" min="0" step="0.01" aria-label="Rate per day" value="' + esc(e.rate) + '"></div></td>' +
-          moneyCells(calc(ed, e.rate), "preview") +
+          moneyCells(calc(ed, e.rate), "preview") + statusCell(e) +
           '<td><div class="actions"><button class="btn sm" data-act="save" type="button">Save</button><button class="btn ghost sm" data-act="cancel" type="button">Cancel</button></div></td></tr>';
         return;
       }
       var d = daysBetween(e.from, e.to);
       var inYr = daysInYear(e, year);
       var tag = inYr && inYr !== d ? '<span class="yr-tag" title="' + inYr + ' of these days fall in ' + year + '">' + inYr + 'd in ' + year + '</span>' : "";
+      var owed = owedDays(e);
       html += '<tr data-id="' + e.id + '">' +
         '<td class="num">' + fmtDate(e.from) + '</td><td class="num">' + fmtDate(e.to) + '</td>' +
         '<td class="r days-cell"><span class="days-pill">' + d + '</span>' + tag + '</td>' +
         '<td class="note-cell"><span class="note-txt">' + esc(e.note || "") + '</span></td>' +
-        '<td class="r">' + money.format(e.rate) + '</td>' + moneyCells(calc(d, e.rate)) +
-        '<td><div class="actions"><button class="btn ghost sm" data-act="edit" type="button">Edit</button><button class="btn del sm" data-act="del" type="button">Delete</button></div></td></tr>';
+        '<td class="r">' + money.format(e.rate) + '</td>' + moneyCells(calc(d, e.rate)) + statusCell(e) +
+        '<td><div class="actions">' + (owed ? '<button class="btn ghost sm" data-act="pay" type="button">Record pay</button>' : "") +
+        '<button class="btn ghost sm" data-act="edit" type="button">Edit</button><button class="btn del sm" data-act="del" type="button">Delete</button></div></td></tr>';
     });
     tb.innerHTML = html;
 
-    var tot = { days: 0, gross: 0, ee: 0, er: 0, take: 0 };
-    state.entries.forEach(function (e) { var c = calc(daysBetween(e.from, e.to), e.rate); Object.keys(tot).forEach(function (k) { tot[k] += c[k]; }); });
-    $("tfoot").innerHTML = rows.length ? '<tr><td colspan="2">All entries</td><td class="r num">' + tot.days + '</td><td></td><td></td>' + moneyCells(tot) + '<td></td></tr>' : "";
+    var tot = zero();
+    state.entries.forEach(function (e) { addInto(tot, calc(daysBetween(e.from, e.to), e.rate)); });
+    var paidAll = state.entries.reduce(function (s, e) { return s + Math.min(paidDays(e.id), daysBetween(e.from, e.to)); }, 0);
+    $("tfoot").innerHTML = rows.length ? '<tr><td colspan="2">All entries</td><td class="r num">' + tot.days + '</td><td></td><td></td>' + moneyCells(tot) +
+      '<td class="num">' + paidAll + " of " + tot.days + ' days paid</td><td></td></tr>' : "";
     $("logCount").textContent = rows.length + (rows.length === 1 ? " entry" : " entries") + " · newest first";
     bindTable();
   }
@@ -456,7 +629,7 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
       var hit = draft.from && draft.to && parse(draft.to) >= parse(draft.from) ? overlaps(draft.from, draft.to) : [];
       flash(hit.length ? "Heads up: this overlaps " + fmtDate(hit[0].from) + " to " + fmtDate(hit[0].to) + ". You can still log it." : "", "warn");
       render();
-      var el = $(focusId); if (el) { el.focus(); if (el.type === "text") el.setSelectionRange(el.value.length, el.value.length); }
+      var el = $(focusId); if (el) el.focus();
     }
     f.addEventListener("change", function () { refreshAdd("addTo"); });
     t.addEventListener("change", function () { refreshAdd("addNote"); });
@@ -471,25 +644,30 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
       state.entries.push({ id: uid(), from: draft.from, to: draft.to, note: draft.note.trim(), rate: rate });
       draft = { from: "", to: "", note: "", rate: "" };
       save(); render();
-      flash("Logged " + d + (d === 1 ? " day" : " days") + ".", "");
+      flash("Logged " + d + (d === 1 ? " day" : " days") + ". It shows as unpaid until you record a payment.", "");
     });
     n.addEventListener("keydown", function (e) { if (e.key === "Enter") $("addBtn").click(); });
 
     $("tbody").querySelectorAll("tr[data-id]").forEach(function (tr) {
-      var id = tr.dataset.id, entry = state.entries.find(function (e) { return e.id === id; });
+      var id = tr.dataset.id, entry = entryById(id);
       tr.querySelectorAll("button[data-act]").forEach(function (b) {
         b.addEventListener("click", function () {
           var act = b.dataset.act;
-          if (act === "edit") { editing = id; flash("", ""); render(); }
+          if (act === "pay") { openPay(id); }
+          else if (act === "edit") { editing = id; flash("", ""); render(); }
           else if (act === "cancel") { editing = null; render(); }
           else if (act === "save") {
             var from = tr.querySelector(".eFrom").value, to = tr.querySelector(".eTo").value;
             var rate = parseFloat(tr.querySelector(".eRate").value);
             var err = validate(from, to, rate);
+            var paid = paidDays(id);
+            if (!err && daysBetween(from, to) < paid) err = paid + " days of this stretch are already paid. Keep at least " + paid + " days, or delete a payment first.";
             if (err) { flash(err, "err"); return; }
             entry.from = from; entry.to = to; entry.rate = rate; entry.note = tr.querySelector(".eNote").value.trim();
             editing = null; save(); render(); flash("Saved.", "");
           } else if (act === "del") {
+            var pd = paidDays(id);
+            if (pd) { flash("This stretch has " + pd + " paid " + (pd === 1 ? "day" : "days") + " linked to income. Delete those payments below first.", "err"); return; }
             if (b.classList.contains("armed")) {
               state.entries = state.entries.filter(function (e) { return e.id !== id; });
               save(); render(); flash("Deleted.", "");
@@ -503,7 +681,6 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
       if (editing === id) {
         tr.querySelectorAll("input").forEach(function (inp) {
           inp.addEventListener("change", function () {
-            // live preview for the edited row
             var d = daysBetween(tr.querySelector(".eFrom").value, tr.querySelector(".eTo").value);
             var rt = parseFloat(tr.querySelector(".eRate").value) || 0;
             var c = calc(d, rt), cells = tr.querySelectorAll("td");
@@ -512,6 +689,162 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--ink);
           });
         });
       }
+    });
+  }
+
+  /* Record payment */
+  function openPay(onlyId) {
+    var owing = state.entries.filter(function (e) { return owedDays(e) > 0; }).sort(function (a, b) { return parse(a.from) - parse(b.from); });
+    if (!owing.length) return;
+    var today = todayIso();
+    pay = { received: today, month: today.slice(0, 7), account: state.settings.account, category: "cat-oncall", amountTouched: false, rows: owing.map(function (e) {
+      var on = onlyId ? e.id === onlyId : true;
+      return { id: e.id, on: on, days: owedDays(e) };
+    }) };
+    flash("", "");
+    renderPayForm();
+    $("payCard").hidden = false;
+    $("payCard").scrollIntoView({ block: "nearest" });
+    $("payReceived").focus();
+  }
+  function closePay() { pay = null; $("payCard").hidden = true; $("payCard").innerHTML = ""; }
+
+  function renderPayForm() {
+    var opts = function (list, sel) { return list.map(function (a) { return '<option value="' + a.id + '"' + (a.id === sel ? " selected" : "") + ">" + esc(a.name) + "</option>"; }).join(""); };
+    var rows = pay.rows.map(function (r, i) {
+      var e = entryById(r.id), owed = owedDays(e), total = daysBetween(e.from, e.to);
+      return '<tr data-i="' + i + '"' + (r.on ? "" : ' class="off"') + '>' +
+        '<td><input type="checkbox" class="pOn" aria-label="Include ' + esc(fmtRange(e)) + '"' + (r.on ? " checked" : "") + '></td>' +
+        '<td>' + esc(fmtRange(e)) + (e.note ? '<br><span class="note-txt">' + esc(e.note) + "</span>" : "") + '</td>' +
+        '<td class="r num">' + owed + (owed < total ? ' <span class="hint">of ' + total + "</span>" : "") + '</td>' +
+        '<td class="r"><input type="number" class="pDays num" min="1" max="' + owed + '" step="1" aria-label="Days paid now" value="' + r.days + '"' + (r.on ? "" : " disabled") + '></td>' +
+        '<td class="r pTake"></td><td class="pLeft"></td></tr>';
+    }).join("");
+    $("payCard").innerHTML =
+      '<h3>Record a payment from your payslip</h3>' +
+      '<div class="pay-fields">' +
+        '<div class="field"><label for="payReceived">Received on</label><input type="date" id="payReceived" value="' + pay.received + '"></div>' +
+        '<div class="field"><label for="payMonth">Salary month</label><input type="month" id="payMonth" value="' + pay.month + '"></div>' +
+        '<div class="field"><label for="payAccount">Deposit to</label><select id="payAccount">' + opts(ACCOUNTS, pay.account) + '</select></div>' +
+        '<div class="field"><label for="payCategory">Income category</label><select id="payCategory">' + opts(CATEGORIES, pay.category) + '</select></div>' +
+      '</div>' +
+      '<div class="field"><span class="lbl">Which days does this payslip cover?</span>' +
+        '<span class="hint">Untick a stretch that is not on this payslip. Lower the days if only part of it was paid. The rest stays as awaiting payment.</span></div>' +
+      '<div class="tbl-wrap"><table class="alloc-tbl"><thead><tr><th></th><th>Stretch</th><th class="r">Days owed</th><th class="r">Paid now</th><th class="r">Take-home</th><th>Left after this</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="pay-totals">' +
+        '<div class="t"><span class="lbl">Days</span><b id="ptDays"></b></div>' +
+        '<div class="t"><span class="lbl">Gross</span><b id="ptGross"></b></div>' +
+        '<div class="t"><span class="lbl">Employee CPF</span><b id="ptEe"></b></div>' +
+        '<div class="t"><span class="lbl">Employer CPF</span><b id="ptEr"></b></div>' +
+        '<div class="field amt"><label for="payAmt">Amount credited (from payslip)</label><div class="prefix"><span>S$</span><input type="number" id="payAmt" min="0" step="0.01" class="num"></div><span class="diff" id="payDiff"></span></div>' +
+      '</div>' +
+      '<div class="income-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg><span id="payPreview"></span></div>' +
+      '<p class="msg err" id="payErr" hidden></p>' +
+      '<div class="pay-actions"><button class="btn ghost" type="button" id="payCancel">Cancel</button><button class="btn" type="button" id="paySave">Save payment</button></div>';
+
+    $("payReceived").addEventListener("change", function () { pay.received = this.value; updatePay(); });
+    $("payMonth").addEventListener("change", function () { pay.month = this.value; updatePay(); });
+    $("payAccount").addEventListener("change", function () { pay.account = this.value; updatePay(); });
+    $("payCategory").addEventListener("change", function () { pay.category = this.value; updatePay(); });
+    $("payAmt").addEventListener("input", function () { pay.amountTouched = this.value !== ""; updatePay(); });
+    $("payCancel").addEventListener("click", function () { closePay(); $("openPay").focus(); });
+    $("paySave").addEventListener("click", savePay);
+    $("payCard").querySelectorAll("tr[data-i]").forEach(function (tr) {
+      var r = pay.rows[+tr.dataset.i], on = tr.querySelector(".pOn"), dIn = tr.querySelector(".pDays");
+      on.addEventListener("change", function () { r.on = on.checked; dIn.disabled = !on.checked; tr.classList.toggle("off", !on.checked); updatePay(); });
+      dIn.addEventListener("input", function () { r.days = parseInt(dIn.value, 10) || 0; updatePay(); });
+    });
+    updatePay();
+  }
+
+  function payTotals() {
+    var t = zero();
+    pay.rows.forEach(function (r) { if (r.on && r.days > 0) addInto(t, calc(r.days, entryById(r.id).rate)); });
+    return t;
+  }
+
+  function updatePay() {
+    var t = payTotals();
+    $("payCard").querySelectorAll("tr[data-i]").forEach(function (tr) {
+      var r = pay.rows[+tr.dataset.i], e = entryById(r.id), owed = owedDays(e);
+      var d = r.on ? Math.min(Math.max(r.days, 0), owed) : 0;
+      tr.querySelector(".pTake").textContent = r.on ? money.format(calc(d, e.rate).take) : "–";
+      var left = owed - d;
+      tr.querySelector(".pLeft").innerHTML = !r.on ? '<span class="hint">Not on this payslip</span>' : left ? '<span class="left-tag">' + left + (left === 1 ? " day" : " days") + " for a later payslip</span>" : '<span class="hint">Fully paid</span>';
+    });
+    $("ptDays").textContent = t.days;
+    $("ptGross").textContent = money.format(t.gross);
+    $("ptEe").textContent = money.format(t.ee);
+    $("ptEr").textContent = money.format(t.er);
+    var amtIn = $("payAmt");
+    if (!pay.amountTouched) amtIn.value = t.take.toFixed(2);
+    var amt = parseFloat(amtIn.value) || 0;
+    var diff = amt - t.take;
+    var differs = pay.amountTouched && Math.abs(diff) >= 0.005;
+    $("payDiff").classList.toggle("off", differs);
+    $("payDiff").textContent = differs
+      ? money.format(Math.abs(diff)) + (diff > 0 ? " more" : " less") + " than the worked-out take-home of " + money.format(t.take) + "."
+      : "Worked out from days × rate − employee CPF. Change it to match your payslip.";
+    $("payPreview").innerHTML = t.days
+      ? "Adds a <b>" + money.format(amt) + "</b> deposit to <b>" + esc(nameOf(ACCOUNTS, pay.account)) + "</b> under <b>" + esc(nameOf(CATEGORIES, pay.category)) + "</b> income, dated " +
+        (pay.received ? fmtDate(pay.received) : "–") + ", for salary month <b>" + fmtMonth(pay.month) + "</b>."
+      : "Pick at least one stretch to include.";
+    $("paySave").disabled = !t.days;
+  }
+
+  function savePay() {
+    var err = "";
+    var bad = pay.rows.find(function (r) { return r.on && (r.days < 1 || r.days > owedDays(entryById(r.id))); });
+    var amt = parseFloat($("payAmt").value);
+    if (!pay.received) err = "Pick the date the money came in.";
+    else if (!pay.month) err = "Pick the salary month this payslip is for.";
+    else if (bad) err = "Days paid for " + fmtRange(entryById(bad.id)) + " must be between 1 and " + owedDays(entryById(bad.id)) + ".";
+    else if (!(amt >= 0)) err = "Enter the amount credited, 0 or more.";
+    if (err) { $("payErr").textContent = err; $("payErr").hidden = false; return; }
+    var alloc = pay.rows.filter(function (r) { return r.on && r.days > 0; }).map(function (r) { return { entryId: r.id, days: r.days }; });
+    var p = { id: uid(), received: pay.received, month: pay.month, account: pay.account, category: pay.category, alloc: alloc, amount: Math.round(amt * 100) / 100 };
+    state.payments.push(p);
+    closePay(); save(); render();
+    var days = alloc.reduce(function (s, a) { return s + a.days; }, 0);
+    flash("Recorded " + money.format(p.amount) + " for " + days + (days === 1 ? " day" : " days") + " in " + fmtMonth(p.month) + ", deposited to " + nameOf(ACCOUNTS, p.account) + ".", "");
+  }
+
+  /* Payments list */
+  function renderPayments() {
+    var list = state.payments.slice().sort(function (a, b) { return a.received < b.received ? 1 : -1; });
+    if (!list.length) {
+      $("payBody").innerHTML = '<tr><td colspan="10" class="empty-state">No payments recorded yet. When a payslip includes on-call pay, press Record payment.</td></tr>';
+      return;
+    }
+    $("payBody").innerHTML = list.map(function (p) {
+      var c = paymentCalc(p);
+      var covers = p.alloc.map(function (a) {
+        var e = entryById(a.entryId); if (!e) return "";
+        var total = daysBetween(e.from, e.to);
+        return "<span>" + esc(fmtRange(e)) + (a.days < total ? " <em>(" + a.days + " of " + total + " days)</em>" : "") + "</span>";
+      }).join("");
+      return '<tr data-pid="' + p.id + '">' +
+        '<td class="num">' + fmtDate(p.received) + '</td>' +
+        '<td class="num"><b>' + fmtMonth(p.month) + '</b></td>' +
+        '<td><div class="covers">' + covers + '</div></td>' +
+        '<td class="r">' + c.days + '</td>' +
+        '<td class="r">' + money.format(c.gross) + '</td><td class="r">' + money.format(c.ee) + '</td><td class="r">' + money.format(c.er) + '</td>' +
+        '<td class="r"><b>' + money.format(p.amount) + '</b></td>' +
+        '<td><div class="covers"><span>' + esc(nameOf(ACCOUNTS, p.account)) + '</span><span><span class="cat-chip">' + esc(nameOf(CATEGORIES, p.category)) + '</span></span></div></td>' +
+        '<td><div class="actions"><button class="btn del sm" data-act="pdel" type="button">Delete</button></div></td></tr>';
+    }).join("");
+    $("payBody").querySelectorAll("tr[data-pid]").forEach(function (tr) {
+      var b = tr.querySelector("[data-act=pdel]");
+      b.addEventListener("click", function () {
+        if (b.classList.contains("armed")) {
+          state.payments = state.payments.filter(function (p) { return p.id !== tr.dataset.pid; });
+          if (pay) closePay();
+          save(); render(); flash("Payment deleted. Its income deposit is removed and those days are awaiting payment again.", "");
+        } else {
+          b.classList.add("armed"); b.textContent = "Confirm";
+          setTimeout(function () { if (b.isConnected) { b.classList.remove("armed"); b.textContent = "Delete"; } }, 3000);
+        }
+      });
     });
   }
 
