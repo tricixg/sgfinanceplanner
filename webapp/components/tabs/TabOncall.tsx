@@ -13,6 +13,7 @@ import { fmt2 } from "@/lib/finance/helpers";
 import { paidDaysByEntry, owedDays, summarizeOncall, type OncallScope } from "@/lib/oncall/calc";
 import { fmtSalaryMonth, plural } from "@/lib/oncall/format";
 import type { OncallPayment, OncallPaymentInput } from "@/lib/oncall/types";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 type Props = { enabled: boolean };
 
@@ -29,7 +30,8 @@ export function TabOncall({ enabled }: Props) {
   const [payFor, setPayFor] = useState<string | null | undefined>(undefined);
   const [msg, setMsg] = useState<Msg>({ text: "" });
 
-  const year = new Date().getFullYear();
+  // YTD follows the current Singapore calendar year (rolls over on 1 Jan SGT).
+  const year = Number(sgtTodayYmd().slice(0, 4));
   const summary = useMemo(
     () => summarizeOncall(oncall.entries, oncall.payments, oncall.settings, scope, year),
     [oncall.entries, oncall.payments, oncall.settings, scope, year]
