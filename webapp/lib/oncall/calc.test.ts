@@ -4,6 +4,7 @@ import {
   computeAmounts,
   daysInclusive,
   daysInYear,
+  findOncallIncomeCategory,
   owedDays,
   paidDaysByEntry,
   paymentAmounts,
@@ -137,5 +138,14 @@ describe("summarizeOncall", () => {
     expect(s.owed.days).toBe(7);
     expect(s.owedStretches).toBe(1);
     expect(s.owed.takeHome).toBeCloseTo(336);
+  });
+});
+
+describe("findOncallIncomeCategory", () => {
+  it("finds the user's existing on-call category by name", () => {
+    const cats = [{ id: "s", name: "Salary" }, { id: "o", name: "On-call Allowance" }];
+    expect(findOncallIncomeCategory(cats)?.id).toBe("o");
+    expect(findOncallIncomeCategory([{ id: "x", name: "Oncall pay" }])?.id).toBe("x");
+    expect(findOncallIncomeCategory([{ id: "s", name: "Salary" }])).toBeUndefined();
   });
 });

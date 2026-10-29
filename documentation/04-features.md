@@ -148,7 +148,7 @@ See [06-ledgers-and-transactions.md](./06-ledgers-and-transactions.md).
 
 ### On-call tracker (`/oncall`)
 
-**Purpose:** Log on-call stretches (from/to dates, daily rate) and see extra take-home and employee/employer CPF, YTD or lifetime. Payslip payments are recorded against stretches, including part of a stretch (e.g. 3 of 5 days), with the rest left as awaiting payment. A payment adds a deposit to the chosen cash account under the **On-call allowance** income category, or, when marked "already deposited", only marks the days as paid.
+**Purpose:** Log on-call stretches (from/to dates, daily rate) and see extra take-home and employee/employer CPF, YTD or lifetime. Payslip payments are recorded against stretches, including part of a stretch (e.g. 3 of 5 days), with the rest left as awaiting payment. A payment adds a deposit to the chosen cash account under your existing On-call allowance income category (picked by name; any category can be chosen), or, when marked "already deposited", only marks the days as paid.
 
 | Layer | Location |
 |-------|----------|

@@ -76,8 +76,7 @@ export async function saveIncomeCategories(
           slug === "reimbursement" ||
           slug === "transport-claims" ||
           slug === "medical-claims" ||
-          slug === "comms" ||
-          slug === "oncall"
+          slug === "comms"
         : true,
       updated_at: new Date().toISOString(),
     };

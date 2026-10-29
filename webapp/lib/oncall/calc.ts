@@ -168,3 +168,8 @@ export function summarizeOncall(
 
   return { earned, stretches, received, receivedCount, receivedWithoutDeposit, owed, owedStretches };
 }
+
+/** The user's own on-call income category, matched by name ("On-call allowance", "Oncall", …). */
+export function findOncallIncomeCategory<T extends { name: string }>(categories: T[]): T | undefined {
+  return categories.find((c) => /on[\s-]?call/i.test(c.name));
+}

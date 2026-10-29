@@ -8,6 +8,7 @@ import {
   addAmounts,
   computeAmounts,
   daysInclusive,
+  findOncallIncomeCategory,
   owedDays,
   paidDaysByEntry,
   zeroAmounts,
@@ -61,7 +62,7 @@ export function OncallPaymentForm({
       : accounts[0]?.id ?? ""
   );
   const [categoryId, setCategoryId] = useState(
-    categories.find((c) => c.slug === "oncall")?.id ?? categories[0]?.id ?? ""
+    findOncallIncomeCategory(categories)?.id ?? categories[0]?.id ?? ""
   );
   const [rows, setRows] = useState<Row[]>(() =>
     owing.map((e) => ({

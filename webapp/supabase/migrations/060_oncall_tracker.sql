@@ -3,8 +3,9 @@
 -- stretch (e.g. 3 of 5 days) with the rest paid on a later payslip, so
 -- payments link to stretches through oncall_payment_items (days per stretch).
 -- A payment normally creates an income deposit (savings_transactions) tagged
--- with the new "On-call allowance" income category; deposited = false marks a
--- payment for pay already recorded in income before the tracker existed.
+-- with an existing income category the user picks (their own "On-call
+-- allowance" category — this migration does not create one); deposited = false
+-- marks a payment for pay already recorded in income before the tracker existed.
 -- Run after 059_other_loans_bt_principal.sql
 
 create table if not exists oncall_settings (
@@ -94,13 +95,3 @@ create policy "Users manage own on-call payment items"
   on oncall_payment_items for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
-
--- "On-call allowance" income category: additive cashflow like Poker/Others,
--- not baseline, since on-call pay varies month to month.
-insert into income_categories (user_id, name, slug, sort_order, counts_in_baseline, counts_as_additive)
-select distinct ic.user_id, 'On-call allowance', 'oncall', 7, false, true
-from income_categories ic
-where not exists (
-  select 1 from income_categories x
-  where x.user_id = ic.user_id and x.slug = 'oncall'
-);
