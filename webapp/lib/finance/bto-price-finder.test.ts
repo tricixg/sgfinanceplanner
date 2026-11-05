@@ -120,6 +120,12 @@ describe("grant fixed from the HFE letter", () => {
     expect(base.tSal + base.pSal).toBeGreaterThan(9000);
     expect(b.totalGrants).toBe(10000);
     const noGrant = computeBTO({ ...base, price: 580000 });
-    expect(b.cpfAvailAFL - noGrant.cpfAvailAFL).toBeGreaterThan(10000);
+    // The grant credits the AFL bill directly (HDB disburses it before AFL
+    // specifically for that downpayment) rather than inflating projected CPF
+    // OA, which is unaffected by it.
+    expect(b.cpfAvailAFL).toBeCloseTo(noGrant.cpfAvailAFL, 5);
+    expect(noGrant.neededAFL - b.neededAFL).toBe(10000);
+    expect(b.grantAppliedAFL).toBe(10000);
+    expect(b.grantAppliedKC).toBe(0);
   });
 });

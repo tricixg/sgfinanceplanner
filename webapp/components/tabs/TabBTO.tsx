@@ -23,8 +23,8 @@ import {
   type BTOStageStatus,
 } from "@/lib/finance";
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
-import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
+import { BtoOATimelineChart } from "@/components/bto/BtoOATimelineChart";
 import { useBtoPlannerData } from "@/hooks/useBtoPlannerData";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 
@@ -103,6 +103,7 @@ export function TabBTO({ state: S, setState }: Props) {
     savePrefs,
     partnerOALive,
     selfMonthlyFromContrib,
+    selfLatestContribMonth,
     partnerMonthlyFromContrib,
   } = useBtoPlannerData(S, setState);
   const [editingSchemes, setEditingSchemes] = useState(false);
@@ -203,6 +204,7 @@ export function TabBTO({ state: S, setState }: Props) {
   );
 
   const todayYmd = useMemo(() => sgtTodayYmd(), []);
+  const todayYm = todayYmd.slice(0, 7);
 
   // Months from today to the resolved Booking/AFL/key-collection dates
   // (actual date if set, else the estimate) — keeps the CPF projection below
@@ -377,15 +379,21 @@ export function TabBTO({ state: S, setState }: Props) {
       </div>
 
       <div className="callout tip">
-        Grants (Enhanced Housing Grant) are credited straight into CPF OA to help pay the
-        downpayment — they don&apos;t reduce the loan, BSD, or the downpayment percentages
-        themselves, which are fixed shares of the full price regardless of grants. Type the
-        amount you expect, or leave it on auto from combined household income (
+        Grants (Enhanced Housing Grant) are disbursed to CPF OA before you sign the AFL and
+        credit straight against that downpayment bill — they don&apos;t reduce the loan, BSD, or
+        the downpayment percentages themselves, which are fixed shares of the full price
+        regardless of grants, and any amount left after AFL rolls over to credit key collection
+        too. Type the amount you expect, or leave it on auto from combined household income (
         {fmt(householdIncome)}/mo). The Staggered Downpayment Scheme shifts more of the 25%
-        downpayment to key collection (5% + 20% instead of 10% + 15%). CPF OA starts from your
-        real balance ({fmt(S.oa)}) and your partner&apos;s
+        downpayment to key collection (5% + 20% instead of 10% + 15%). Projected CPF OA below is
+        your own savings only — starting from your real balance ({fmt(S.oa)}
+        {selfLatestContribMonth
+          ? ` — contributions logged through ${formatMonthLabel(selfLatestContribMonth)}`
+          : ", no contributions logged yet"}
+        ) and your partner&apos;s
         {partnerOALive != null ? ` live balance (${fmt(partnerOALive)})` : " manually-entered balance"}
-        , plus any grants, then grows monthly using the projection mode you choose below.
+        , then growing monthly using the projection mode you choose below — grants are kept
+        separate so they&apos;re never counted twice.
       </div>
 
       <div className="section-head">
@@ -871,40 +879,37 @@ export function TabBTO({ state: S, setState }: Props) {
       </div>
 
       <div className="card">
-        <ChartBox
-          type="bar"
-          data={{
-            labels: b.labels,
-            datasets: [
-              { label: "Your OA", data: b.tSeries, backgroundColor: "#2f5d3a", stack: "a" },
-              { label: "Partner OA", data: b.pSeries, backgroundColor: "#3d6b8e", stack: "a" },
-              {
-                label: "CPF needed for next payment",
-                data: b.neededSeries,
-                type: "line",
-                stepped: true,
-                borderColor: "#b5482e",
-                borderWidth: 2.5,
-                borderDash: [6, 4],
-                pointRadius: 0,
-                fill: false,
-              },
-            ],
-          }}
-          options={{
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { stacked: true, grid: { display: false } },
-              y: {
-                stacked: true,
-                grid: { color: "#e6dfca" },
-                ticks: { callback: (v) => "$" + (Number(v) / 1000).toFixed(0) + "k" },
-              },
-            },
-          }}
+        <div className="bto-pf-chart-head">
+          <span className="section-lbl">CPF OA timeline</span>
+          <div className="bto-pf-key">
+            <span>
+              <i className="oa" />
+              Pooled OA (yours + partner)
+            </span>
+            <span>
+              <i className="due" />
+              Next bill due
+            </span>
+          </div>
+        </div>
+        <BtoOATimelineChart
+          series={b.pooledSeries}
+          todayYm={todayYm}
+          milestones={[
+            { month: bookingOffsetMonths, label: "Booking", tone: "muted" },
+            { month: aflOffsetMonths, label: "AFL", tone: "ink" },
+            { month: kcOffsetMonths, label: "Est. keys", tone: "ink" },
+            ...(showLatestKc
+              ? [{ month: latestKcOffsetMonths, label: "Latest keys", tone: "gold" as const }]
+              : []),
+          ]}
+          covered={
+            b.kcCoveredOffset != null
+              ? { month: b.kcCoveredOffset, due: b.neededKC, label: `Covers keys bill · ${kcCoveredLabel}` }
+              : null
+          }
         />
+        <p className="note">Hover (or tap) a month on the line for your/partner split that month.</p>
       </div>
 
       <div className="split">
@@ -918,6 +923,12 @@ export function TabBTO({ state: S, setState }: Props) {
             <span className="k">Option fee credit (paid at booking)</span>
             <span className="v pos">−{fmt(b.optionFee)}</span>
           </div>
+          {b.grantAppliedAFL > 0 && (
+            <div className="minirow">
+              <span className="k">CPF housing grant credit</span>
+              <span className="v pos">−{fmt(b.grantAppliedAFL)}</span>
+            </div>
+          )}
           <div className="minirow">
             <span className="k">Buyer&apos;s Stamp Duty</span>
             <span className="v">+{fmt(b.bsd)}</span>
@@ -946,6 +957,14 @@ export function TabBTO({ state: S, setState }: Props) {
               {fmt(b.cashAFL > 0 ? b.cashAFL : b.balAfterAFL)}
             </span>
           </div>
+          {b.grantAppliedAFL > 0 && (
+            <p className="note" style={{ marginTop: 6 }}>
+              HDB disburses your CPF housing grant to your CPF OA before you sign the AFL,
+              specifically so it can go toward this downpayment — it&apos;s credited straight
+              against the bill above, not drawn from your projected CPF OA, so the balances
+              above are your own savings only.
+            </p>
+          )}
         </div>
         <div className="card oa-gauge">
           <div className="section-lbl">Key collection — CPF check</div>
@@ -959,10 +978,22 @@ export function TabBTO({ state: S, setState }: Props) {
               <span className="v">+{fmt(b.loanShortfall)}</span>
             </div>
           )}
+          {b.grantAppliedKC > 0 && (
+            <div className="minirow">
+              <span className="k">CPF housing grant credit (leftover from AFL)</span>
+              <span className="v pos">−{fmt(b.grantAppliedKC)}</span>
+            </div>
+          )}
           <div className="minirow tot">
             <span className="k">Total due at key collection</span>
             <span className="v">{fmt(b.neededKC)}</span>
           </div>
+          {b.totalGrants > 0 && b.grantAppliedKC === 0 && (
+            <p className="note" style={{ marginTop: 6 }}>
+              Your {fmt(b.totalGrants)} CPF housing grant was already fully used against the AFL
+              downpayment — none left over for this payment.
+            </p>
+          )}
           <div className="minirow" style={{ marginTop: 10 }}>
             <span className="k">Pooled CPF OA projected</span>
             <span className="v">{fmt(b.cpfAvailKC)}</span>

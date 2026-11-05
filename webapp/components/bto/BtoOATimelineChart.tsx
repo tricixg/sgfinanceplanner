@@ -2,12 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import { addMonthsYm } from "@/lib/finance";
+import { fmt, formatMonthLabel } from "@/lib/finance/helpers";
 
 type Milestone = { month: number; label: string; tone: "muted" | "ink" | "gold" };
 
+type SeriesPoint = {
+  month: number;
+  balance: number;
+  due: number;
+  /** Self/partner split at this month — to + po === balance. */
+  to: number;
+  po: number;
+};
+
 type Props = {
-  /** Month-by-month pooled OA from computeBTO().pooledSeries. */
-  series: { month: number; balance: number; due: number }[];
+  /** Month-by-month pooled OA from computeBTO().pooledSeries, one entry per month. */
+  series: SeriesPoint[];
   /** "YYYY-MM" for month 0 — used to place year ticks. */
   todayYm: string;
   milestones: Milestone[];
@@ -24,10 +34,18 @@ const TONE: Record<Milestone["tone"], string> = {
 
 const fmtK = (v: number) => `$${Math.round(v / 1000)}k`;
 
-/** Pooled CPF OA against the next bill due, with milestone markers — sized to its container. */
+const TIP_W = 150;
+const TIP_PAD = 8;
+const TIP_LINE_H = 14;
+const TIP_H = TIP_PAD * 2 + TIP_LINE_H * 4 - 2;
+
+/** Pooled CPF OA against the next bill due, with milestone markers and a
+ * per-month hover tooltip showing the self/partner split — sized to its
+ * container. */
 export function BtoOATimelineChart({ series, todayYm, milestones, covered }: Props) {
   const ref = useRef<SVGSVGElement>(null);
   const [width, setWidth] = useState(720);
+  const [hoverMonth, setHoverMonth] = useState<number | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -66,13 +84,47 @@ export function BtoOATimelineChart({ series, todayYm, milestones, covered }: Pro
 
   const narrow = width < 520;
 
+  // series[m].month === m by construction (computeBTO pushes one contiguous
+  // entry per month from 0 to the horizon), so the month value doubles as
+  // the array index.
+  const hovered = hoverMonth != null ? (series[hoverMonth] ?? null) : null;
+
+  const monthFromPointerX = (clientX: number): number | null => {
+    const svg = ref.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width === 0) return null;
+    const scaleX = width / rect.width;
+    const px = (clientX - rect.left) * scaleX;
+    const m = Math.round(((px - PAD.l) / (width - PAD.l - PAD.r)) * horizon);
+    return Math.max(0, Math.min(horizon, m));
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<SVGRectElement>) => {
+    const m = monthFromPointerX(e.clientX);
+    if (m != null) setHoverMonth(m);
+  };
+  const handlePointerLeave = () => setHoverMonth(null);
+
+  let tipLeft = 0;
+  let tipTop = PAD.t + 2;
+  let selfPct = 50;
+  if (hovered) {
+    selfPct = hovered.balance > 0 ? Math.round((hovered.to / hovered.balance) * 100) : 50;
+    const hoveredFracRight = hovered.month / horizon > 0.55;
+    tipLeft = hoveredFracRight ? x(hovered.month) - TIP_W - 10 : x(hovered.month) + 10;
+    tipLeft = Math.max(PAD.l, Math.min(width - PAD.r - TIP_W, tipLeft));
+    tipTop = Math.max(PAD.t + 2, Math.min(HEIGHT - PAD.b - TIP_H, tipTop));
+  }
+  const partnerPct = 100 - selfPct;
+
   return (
     <svg
       ref={ref}
       className="bto-pf-chart"
       viewBox={`0 0 ${width} ${HEIGHT}`}
       role="img"
-      aria-label="Projected CPF OA against bills due"
+      aria-label="Projected CPF OA against bills due, by month"
     >
       {yTicks.map((v) => (
         <g key={v}>
@@ -115,6 +167,16 @@ export function BtoOATimelineChart({ series, todayYm, milestones, covered }: Pro
       />
       <path d={`M${pts.join(" L")}`} fill="none" stroke="var(--moss)" strokeWidth={2.2} />
       <path d={duePath} fill="none" stroke="var(--rust)" strokeWidth={2} strokeDasharray="6 4" />
+      {series.map((s) => (
+        <circle
+          key={s.month}
+          cx={x(s.month)}
+          cy={y(s.balance)}
+          r={hoverMonth === s.month ? 4 : 2}
+          fill={hoverMonth === s.month ? "var(--ink)" : "var(--moss)"}
+          fillOpacity={hoverMonth === s.month ? 1 : 0.5}
+        />
+      ))}
       {covered && (
         <g>
           <circle
@@ -135,6 +197,51 @@ export function BtoOATimelineChart({ series, todayYm, milestones, covered }: Pro
           </text>
         </g>
       )}
+      {hovered && (
+        <g pointerEvents="none">
+          <line
+            x1={x(hovered.month)}
+            x2={x(hovered.month)}
+            y1={PAD.t - 4}
+            y2={HEIGHT - PAD.b}
+            stroke="var(--ink)"
+            strokeOpacity={0.25}
+          />
+          <rect
+            x={tipLeft}
+            y={tipTop}
+            width={TIP_W}
+            height={TIP_H}
+            rx={4}
+            fill="var(--card)"
+            stroke="var(--line)"
+          />
+          <text className="ml" x={tipLeft + TIP_PAD} y={tipTop + TIP_PAD + 9}>
+            {formatMonthLabel(addMonthsYm(todayYm, hovered.month))}
+          </text>
+          <text className="ml" x={tipLeft + TIP_PAD} y={tipTop + TIP_PAD + 9 + TIP_LINE_H}>
+            Pooled {fmt(hovered.balance)}
+          </text>
+          <text className="ml" x={tipLeft + TIP_PAD} y={tipTop + TIP_PAD + 9 + TIP_LINE_H * 2}>
+            You {fmt(hovered.to)} ({selfPct}%)
+          </text>
+          <text className="ml" x={tipLeft + TIP_PAD} y={tipTop + TIP_PAD + 9 + TIP_LINE_H * 3}>
+            Partner {fmt(hovered.po)} ({partnerPct}%)
+          </text>
+        </g>
+      )}
+      <rect
+        x={PAD.l}
+        y={PAD.t}
+        width={width - PAD.l - PAD.r}
+        height={HEIGHT - PAD.t - PAD.b}
+        fill="transparent"
+        pointerEvents="all"
+        onPointerMove={handlePointerMove}
+        onPointerDown={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        style={{ cursor: "crosshair" }}
+      />
     </svg>
   );
 }

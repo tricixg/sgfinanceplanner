@@ -79,7 +79,7 @@ describe("BTO schemes", () => {
     expect("pOA" in shared).toBe(false);
   });
 
-  it("grants reduce the informational net price but not the loan/BSD/downpayment — they credit CPF OA instead", () => {
+  it("grants reduce the informational net price but not the loan/BSD/downpayment — they credit the AFL bill directly instead", () => {
     const base = {
       price: 580000,
       rate: 2.6,
@@ -115,8 +115,52 @@ describe("BTO schemes", () => {
     expect(withGrants.bsd).toBeCloseTo(withoutGrants.bsd, 5);
     expect(withGrants.dpAFL).toBeCloseTo(withoutGrants.dpAFL, 5);
 
-    // Grants instead show up as extra CPF OA available to pay the bills.
-    expect(withGrants.cpfAvailAFL).toBeGreaterThan(withoutGrants.cpfAvailAFL);
+    // HDB disburses grants before AFL specifically so they can go toward
+    // that downpayment — so the grant credits the AFL bill directly (like
+    // the option fee), and projected CPF OA is unaffected by it (no
+    // double-counting as both a bill credit and pooled CPF drawn to pay it).
+    expect(withGrants.cpfAvailAFL).toBeCloseTo(withoutGrants.cpfAvailAFL, 5);
+    expect(withGrants.neededAFL).toBeLessThan(withoutGrants.neededAFL);
+    expect(withoutGrants.grantAppliedAFL).toBe(0);
+    expect(withoutGrants.grantAppliedKC).toBe(0);
+
+    // This scenario's grant exceeds the AFL downpayment room (after the
+    // option fee credit), so it's capped there and the leftover rolls over
+    // to credit the key-collection downpayment too, instead of vanishing.
+    const dpAFLAfterOptionFee = withGrants.dpAFL - base.optionFee;
+    expect(withGrants.grantAppliedAFL).toBeCloseTo(dpAFLAfterOptionFee, 5);
+    expect(withGrants.neededAFL).toBeCloseTo(withGrants.bsd + withGrants.legalFee, 5);
+    expect(withGrants.grantAppliedKC).toBeCloseTo(grants - dpAFLAfterOptionFee, 5);
+    expect(withGrants.neededKC).toBeCloseTo(withGrants.dpKC - withGrants.grantAppliedKC, 5);
+    expect(withGrants.grantAppliedAFL + withGrants.grantAppliedKC).toBeCloseTo(grants, 5);
+  });
+
+  it("a grant smaller than the AFL downpayment room is fully absorbed at AFL, with nothing left for key collection", () => {
+    const b = computeBTO({
+      price: 580000,
+      rate: 2.6,
+      tenure: 25,
+      bookingOffsetMonths: 4,
+      aflOffsetMonths: 9,
+      kcOffsetMonths: 48,
+      optionFee: 2000,
+      legalFee: 650,
+      staggered: false,
+      maxLoanEligible: 0,
+      schemes: {
+        ehg: { enabled: true, amountOverride: 5000 },
+      },
+      tSal: 6500,
+      pSal: 4300,
+      pOA: 10000,
+      tOA: 20000,
+      tOAMonthly: 400,
+      pOAMonthly: 300,
+    });
+    expect(b.totalGrants).toBe(5000);
+    expect(b.grantAppliedAFL).toBe(5000);
+    expect(b.grantAppliedKC).toBe(0);
+    expect(b.neededAFL).toBeCloseTo(b.dpAFL - 2000 - 5000 + b.bsd + b.legalFee, 5);
   });
 });
 

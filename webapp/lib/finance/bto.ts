@@ -579,15 +579,28 @@ export function computeBTO(inputs: BTOInputs) {
 
   // The option fee paid in cash at booking is later offset against the
   // purchase price, crediting straight against the AFL downpayment due.
-  const neededAFL = Math.max(0, dpAFL - optionFee) + bsd + legalFee;
-  const neededKC = dpKC;
+  const dpAFLAfterOptionFee = Math.max(0, dpAFL - optionFee);
 
-  // CPF housing grants are credited into CPF OA as extra funds to help pay
-  // the (grant-independent) downpayment bills above — split between self and
-  // partner in proportion to their current OA balance.
-  const grantShare = tOA + pOA > 0 ? tOA / (tOA + pOA) : 0.5;
-  let to = tOA + totalGrants * grantShare;
-  let po = pOA + totalGrants * (1 - grantShare);
+  // HDB disburses CPF housing grants (EHG etc.) into CPF OA before buyers
+  // sign the Agreement for Lease, specifically so the grant can go toward
+  // the AFL downpayment — so it credits straight against the AFL bill here,
+  // the same way the option fee does, rather than sitting in the pooled CPF
+  // OA balance below (which would double-count it as both a bill credit and
+  // projected CPF money drawn down to pay that same bill). Any grant left
+  // over after AFL is fully covered rolls over to credit the key-collection
+  // downpayment too, since it was never actually spent.
+  const grantAppliedAFL = Math.min(totalGrants, dpAFLAfterOptionFee);
+  const grantLeftoverAfterAFL = totalGrants - grantAppliedAFL;
+  const neededAFL = dpAFLAfterOptionFee - grantAppliedAFL + bsd + legalFee;
+  const grantAppliedKC = Math.min(grantLeftoverAfterAFL, dpKC);
+  const neededKC = dpKC - grantAppliedKC;
+
+  // Pooled CPF OA below is purely the real/projected balance (today's
+  // balance plus monthly contributions, compounding) — grants are handled
+  // as direct bill credits above, not as money sitting in this pool, so
+  // they're never also drawn down from it to pay the same bill.
+  let to = tOA;
+  let po = pOA;
   let pooled = to + po;
   const labels = ["Now"];
   const tSeries = [to];
@@ -598,10 +611,11 @@ export function computeBTO(inputs: BTOInputs) {
   const neededSeries = [neededAFL];
   // Month-by-month pooled OA (AFL drawn, KC *not* drawn) out to the latest
   // key collection date, with the bill due next — lets the price finder
-  // show when OA catches up with the key-collection payment.
-  const pooledSeries: { month: number; balance: number; due: number }[] = [
-    { month: 0, balance: pooled, due: aflOffset > 0 ? neededAFL : neededKC },
-  ];
+  // show when OA catches up with the key-collection payment. `to`/`po` are
+  // the same split at that point, so UI consumers can show a self/partner
+  // breakdown per month without re-deriving it (to + po === balance always).
+  const pooledSeries: { month: number; balance: number; due: number; to: number; po: number }[] =
+    [{ month: 0, balance: pooled, due: aflOffset > 0 ? neededAFL : neededKC, to, po }];
 
   let cpfAvailAFL = pooled;
   let cpfUsedAFL = Math.min(neededAFL, cpfAvailAFL);
@@ -615,6 +629,11 @@ export function computeBTO(inputs: BTOInputs) {
   let cpfUsedKC = 0;
   let cashKC = neededKC;
   let balAfterKC = pooled;
+  // Pre-draw to/po snapshot at the key-collection month, matching cpfAvailKC
+  // (also captured before that month's draw) — keeps to + po === balance at
+  // the pooledSeries point for that month.
+  let toAtKC = to;
+  let poAtKC = po;
 
   // CPF-first, cash-fills-the-remainder waterfall at each payment stage —
   // amounts drawn from a pooled (self + partner) OA balance that keeps
@@ -664,6 +683,8 @@ export function computeBTO(inputs: BTOInputs) {
 
     if (m === kcOffset) {
       cpfAvailKC = pooled;
+      toAtKC = to;
+      poAtKC = po;
       cpfUsedKC = Math.min(neededKC - mandatoryCashAtKC(), cpfAvailKC);
       cashKC = neededKC - cpfUsedKC;
 
@@ -689,6 +710,8 @@ export function computeBTO(inputs: BTOInputs) {
     pooledSeries.push({
       month: m,
       balance: m === kcOffset ? cpfAvailKC : pooled,
+      to: m === kcOffset ? toAtKC : to,
+      po: m === kcOffset ? poAtKC : po,
       due: m < aflOffset ? neededAFL : neededKC,
     });
 
@@ -708,11 +731,18 @@ export function computeBTO(inputs: BTOInputs) {
   const cpfAllowedKC = neededKC - mandatoryCashKC;
   const latestKcOffset = Math.max(kcOffset, inputs.latestKcOffsetMonths ?? kcOffset);
   let cpfAvailLatestKC = cpfAvailKC;
+  // Mirrors cpfAvailLatestKC's "not yet drawn" assumption — grown in parallel
+  // from the same pre-draw toAtKC/poAtKC snapshot, so to + po === balance
+  // holds for these months too.
+  let toLatestKC = toAtKC;
+  let poLatestKC = poAtKC;
   let kcCoveredOffset: number | null = cpfAvailLatestKC >= cpfAllowedKC ? kcOffset : null;
   for (let m = kcOffset + 1; m <= latestKcOffset; m++) {
     const inflowAt = oaMonthlyAt(m);
     cpfAvailLatestKC = (cpfAvailLatestKC + inflowAt.t + inflowAt.p) * (1 + 0.025 / 12);
-    pooledSeries.push({ month: m, balance: cpfAvailLatestKC, due: neededKC });
+    toLatestKC = (toLatestKC + inflowAt.t) * (1 + 0.025 / 12);
+    poLatestKC = (poLatestKC + inflowAt.p) * (1 + 0.025 / 12);
+    pooledSeries.push({ month: m, balance: cpfAvailLatestKC, to: toLatestKC, po: poLatestKC, due: neededKC });
     if (kcCoveredOffset == null && cpfAvailLatestKC >= cpfAllowedKC) kcCoveredOffset = m;
   }
   // "OK" = CPF covers everything it's allowed to; any mandatory cash is expected.
@@ -751,6 +781,8 @@ export function computeBTO(inputs: BTOInputs) {
     loanShortfall,
     neededAFL,
     neededKC,
+    grantAppliedAFL,
+    grantAppliedKC,
     bsd,
     optionFee,
     legalFee,

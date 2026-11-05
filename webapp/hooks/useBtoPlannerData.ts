@@ -52,6 +52,7 @@ export function useBtoPlannerData(
     savePrefs,
     partnerOALive,
     selfMonthlyFromContrib: appData?.cpfContributions?.[0]?.oa ?? null,
+    selfLatestContribMonth: appData?.cpfContributions?.[0]?.month ?? null,
     partnerMonthlyFromContrib: partnerCpf?.paired ? partnerCpf.latestMonthlyOA : null,
   };
 }
