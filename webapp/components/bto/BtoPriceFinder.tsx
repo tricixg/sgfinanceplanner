@@ -76,12 +76,24 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
   const user = useAppSession();
   const { savingsTotals } = usePageSavings(user?.id, S);
   const {
+    household,
+    partnerCpf,
+    partnerCpfLoading,
+    sharedBtoLoading,
     savedPrefs,
     savePrefs,
     partnerOALive,
     selfMonthlyFromContrib,
     partnerMonthlyFromContrib,
   } = useBtoPlannerData(S, setState);
+  // Same staleness guard as the main BTO tab — household pairing, live
+  // partner CPF, and the shared household plan all resolve after first
+  // mount, so wait for them before showing numbers (see TabBTO.tsx).
+  const dataReady =
+    !household.loading &&
+    !partnerCpfLoading &&
+    !sharedBtoLoading &&
+    !(household.paired && partnerCpf == null);
 
   // Planner prefs edited here stay a draft until "Save to plan"; OA balances
   // and cash savings come from CPF / accounts and are what-if only.
@@ -296,6 +308,10 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
     ) : (
       <>CPF {fmt(cpf)}</>
     );
+
+  if (!dataReady) {
+    return <p className="loading">Loading your saved BTO plan…</p>;
+  }
 
   return (
     <section className="panel on bto-pf">

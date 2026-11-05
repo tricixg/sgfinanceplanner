@@ -99,6 +99,7 @@ export function TabBTO({ state: S, setState }: Props) {
     household,
     partnerCpf,
     partnerCpfLoading,
+    sharedBtoLoading,
     savedPrefs,
     savePrefs,
     partnerOALive,
@@ -106,6 +107,20 @@ export function TabBTO({ state: S, setState }: Props) {
     selfLatestContribMonth,
     partnerMonthlyFromContrib,
   } = useBtoPlannerData(S, setState);
+  // Household pairing, the partner's live CPF, and the shared household plan
+  // all load asynchronously after the page's core data — rendering before
+  // they resolve would show numbers from stale fallbacks (this account's own
+  // last-saved snapshot of the shared plan, a manually-entered partner OA)
+  // that then visibly jump once the real synced values arrive. Wait for all
+  // three so the first real paint is already correct. The extra paired-but-no-
+  // partnerCpf-yet check closes a one-render gap right after household data
+  // resolves, before usePartnerCpf's own effect has had a chance to flip its
+  // loading flag back on.
+  const dataReady =
+    !household.loading &&
+    !partnerCpfLoading &&
+    !sharedBtoLoading &&
+    !(household.paired && partnerCpf == null);
   const [editingSchemes, setEditingSchemes] = useState(false);
   const [editingCalc, setEditingCalc] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -366,6 +381,10 @@ export function TabBTO({ state: S, setState }: Props) {
       projected: b.cpfAvailKC,
     },
   };
+
+  if (!dataReady) {
+    return <p className="loading">Loading your saved BTO plan…</p>;
+  }
 
   return (
     <section className="panel on">

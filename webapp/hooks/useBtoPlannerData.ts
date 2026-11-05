@@ -21,7 +21,7 @@ export function useBtoPlannerData(
   const appData = useContext(AppDataContext);
   const household = useHousehold();
   const { partnerCpf, loading: partnerCpfLoading } = usePartnerCpf();
-  const { sharedBto, saveSharedBto } = useHouseholdBtoPlanner();
+  const { sharedBto, loading: sharedBtoLoading, saveSharedBto } = useHouseholdBtoPlanner();
 
   const savedPrefs = useMemo(() => resolveBtoPlannerPrefs(S, sharedBto), [S, sharedBto]);
 
@@ -48,6 +48,7 @@ export function useBtoPlannerData(
     partnerCpf,
     partnerCpfLoading,
     sharedBto,
+    sharedBtoLoading,
     savedPrefs,
     savePrefs,
     partnerOALive,
