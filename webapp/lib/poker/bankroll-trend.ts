@@ -26,7 +26,7 @@ export type TrendCornerLabels = {
   latestDate: string | null;
 };
 
-function playedAtMs(playedAt: string): number {
+export function playedAtMs(playedAt: string): number {
   return new Date(pokerPlayedAtToLedgerIso(playedAt)).getTime();
 }
 
@@ -54,7 +54,7 @@ export function buildBankrollTrendSeries(sessions: PokerSession[]): BankrollTren
   });
 }
 
-function startOfSgtDayMs(year: number, month: number, day: number): number {
+export function startOfSgtDayMs(year: number, month: number, day: number): number {
   return new Date(`${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00+08:00`).getTime();
 }
 

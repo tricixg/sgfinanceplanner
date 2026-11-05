@@ -1,7 +1,16 @@
 "use client";
 
-import type { PokerStatsBundle, StatsSlice } from "@/lib/poker/stats";
+import { useMemo, useState } from "react";
+import { buildPokerStats, type PokerStatsBundle, type StatsSlice } from "@/lib/poker/stats";
+import {
+  DEFAULT_POKER_DATE_RANGE,
+  filterSessionsByDateRange,
+  POKER_DATE_RANGE_PRESETS,
+  type PokerDateRangePreset,
+  type PokerDateRangeValue,
+} from "@/lib/poker/date-range";
 import { fmt2 } from "@/lib/finance/helpers";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 import {
   formatHourly,
   formatHours,
@@ -13,6 +22,65 @@ import {
 } from "@/components/poker/stats/format";
 
 type Props = { stats: PokerStatsBundle };
+
+function OverviewRangeControl({
+  value,
+  onChange,
+}: {
+  value: PokerDateRangeValue;
+  onChange: (value: PokerDateRangeValue) => void;
+}) {
+  return (
+    <div className="toolbar" style={{ marginBottom: 16, flexWrap: "wrap", alignItems: "end" }}>
+      <label>
+        Date range
+        <select
+          value={value.preset}
+          onChange={(e) => {
+            const preset = e.target.value as PokerDateRangePreset;
+            onChange(
+              preset === "custom"
+                ? {
+                    preset,
+                    customStart: value.customStart || sgtTodayYmd(),
+                    customEnd: value.customEnd || sgtTodayYmd(),
+                  }
+                : { preset, customStart: "", customEnd: "" }
+            );
+          }}
+        >
+          {POKER_DATE_RANGE_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {value.preset === "custom" ? (
+        <>
+          <label>
+            From
+            <input
+              type="date"
+              value={value.customStart}
+              max={value.customEnd || undefined}
+              onChange={(e) => onChange({ ...value, customStart: e.target.value })}
+            />
+          </label>
+          <label>
+            To
+            <input
+              type="date"
+              value={value.customEnd}
+              min={value.customStart || undefined}
+              onChange={(e) => onChange({ ...value, customEnd: e.target.value })}
+            />
+          </label>
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 const SLICE_LABEL: Record<StatsSlice, string> = {
   cash_game: "Cash game",
@@ -60,7 +128,14 @@ function MetricTable({ title, rows }: { title: string; rows: MetricRow[] }) {
 }
 
 export function PokerStatsOverview({ stats }: Props) {
-  const { overview } = stats;
+  const [range, setRange] = useState<PokerDateRangeValue>(DEFAULT_POKER_DATE_RANGE);
+
+  const filteredSessions = useMemo(
+    () => filterSessionsByDateRange(stats.sessions, range),
+    [stats.sessions, range]
+  );
+  const overview = useMemo(() => buildPokerStats(filteredSessions).overview, [filteredSessions]);
+
   const fin = overview.financial;
   const met = overview.metrics;
 
@@ -181,8 +256,18 @@ export function PokerStatsOverview({ stats }: Props) {
 
   const { current, previous } = overview.monthCompare;
 
+  if (filteredSessions.length === 0) {
+    return (
+      <>
+        <OverviewRangeControl value={range} onChange={setRange} />
+        <p className="note">No sessions in this date range.</p>
+      </>
+    );
+  }
+
   return (
     <>
+      <OverviewRangeControl value={range} onChange={setRange} />
       <div className="poker-stats-summary">
         <div className="poker-stats-summary-stat poker-stats-summary-stat--accent">
           <span className="poker-stats-summary-label">Net profit</span>
