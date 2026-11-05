@@ -22,7 +22,9 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
 
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [editLocationName, setEditLocationName] = useState("");
+  const [editLocationOnline, setEditLocationOnline] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationOnline, setNewLocationOnline] = useState(false);
 
   const [editingGameId, setEditingGameId] = useState<string | null>(null);
   const [editGameName, setEditGameName] = useState("");
@@ -88,7 +90,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, isOnline: newLocationOnline }),
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Failed to add location");
@@ -99,6 +101,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
           )
         );
         setNewLocationName("");
+        setNewLocationOnline(false);
         notifyChanged();
       }
     } catch (e) {
@@ -120,7 +123,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, isOnline: editLocationOnline }),
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Failed to rename location");
@@ -274,6 +277,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
   const startEditLocation = (loc: PokerLocationRecord) => {
     setEditingLocationId(loc.id);
     setEditLocationName(loc.name);
+    setEditLocationOnline(loc.isOnline);
     setEditingGameId(null);
   };
 
@@ -367,6 +371,22 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
                           style={{ flex: "1 1 160px" }}
                           disabled={busy}
                         />
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontSize: "0.85em",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editLocationOnline}
+                            onChange={(e) => setEditLocationOnline(e.target.checked)}
+                            disabled={busy}
+                          />
+                          Online
+                        </label>
                         <button
                           type="button"
                           className="btn sm"
@@ -386,7 +406,17 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
                       </>
                     ) : (
                       <>
-                        <span style={{ flex: "1 1 160px", fontWeight: 500 }}>{loc.name}</span>
+                        <span style={{ flex: "1 1 160px", fontWeight: 500 }}>
+                          {loc.name}
+                          {loc.isOnline ? (
+                            <span
+                              className="note"
+                              style={{ marginLeft: 6, fontWeight: 400, fontSize: "0.85em" }}
+                            >
+                              Online
+                            </span>
+                          ) : null}
+                        </span>
                         <button
                           type="button"
                           className="btn ghost sm"
@@ -417,7 +447,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
               <div className="lbl" style={{ marginBottom: 6 }}>
                 Add location
               </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <input
                   className="inp"
                   placeholder="Location name"
@@ -429,6 +459,17 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
                     if (e.key === "Enter") void addLocation();
                   }}
                 />
+                <label
+                  style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.85em" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={newLocationOnline}
+                    onChange={(e) => setNewLocationOnline(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Online
+                </label>
                 <button
                   type="button"
                   className="btn sm"

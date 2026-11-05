@@ -35,6 +35,7 @@ export function mapPokerSession(row: Record<string, unknown>): PokerSession {
     buyIn: Number(row.buy_in ?? 0),
     cashOut: Number(row.cash_out ?? 0),
     location,
+    isOnline: Boolean(row.is_online),
     tournamentName: row.tournament_name ? String(row.tournament_name) : null,
     gameId: row.game_id ? String(row.game_id) : null,
     game: mapPokerGame(gameRow),

@@ -12,6 +12,7 @@ function sampleSession(overrides: Partial<PokerSession> = {}): PokerSession {
     buyIn: 100,
     cashOut: 200,
     location: "Home",
+    isOnline: false,
     tournamentName: null,
     gameId: "g1",
     game: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterPokerSessions } from "@/lib/poker/filter-sessions";
+import { filterByOnlineMode, filterPokerSessions } from "@/lib/poker/filter-sessions";
 import type { PokerSession } from "@/lib/poker/types";
 
 function session(partial: Partial<PokerSession> & Pick<PokerSession, "id">): PokerSession {
@@ -10,6 +10,7 @@ function session(partial: Partial<PokerSession> & Pick<PokerSession, "id">): Pok
     buyIn: 100,
     cashOut: 150,
     location: "Club",
+    isOnline: false,
     tournamentName: null,
     gameId: "g1",
     game: null,
@@ -70,5 +71,25 @@ describe("filterPokerSessions", () => {
     expect(
       filterPokerSessions(rows, { sessionType: "all", gameId: "g2", location: "" })
     ).toEqual([rows[2]]);
+  });
+});
+
+describe("filterByOnlineMode", () => {
+  const rows = [
+    session({ id: "1", isOnline: true }),
+    session({ id: "2", isOnline: false }),
+    session({ id: "3", isOnline: true }),
+  ];
+
+  it("returns all sessions for mode 'all'", () => {
+    expect(filterByOnlineMode(rows, "all")).toHaveLength(3);
+  });
+
+  it("returns only online sessions for mode 'online'", () => {
+    expect(filterByOnlineMode(rows, "online")).toEqual([rows[0], rows[2]]);
+  });
+
+  it("returns only offline sessions for mode 'offline'", () => {
+    expect(filterByOnlineMode(rows, "offline")).toEqual([rows[1]]);
   });
 });

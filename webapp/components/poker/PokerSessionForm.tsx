@@ -62,6 +62,8 @@ export function PokerSessionForm({
     setShowNewLocation,
     newLocationName,
     setNewLocationName,
+    newLocationOnline,
+    setNewLocationOnline,
     creatingLocation,
     showNewGame,
     setShowNewGame,
@@ -240,6 +242,14 @@ export function PokerSessionForm({
                 onChange={(e) => setNewLocationName(e.target.value)}
                 placeholder="Marina Bay Sands, Home game…"
               />
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <input
+                type="checkbox"
+                checked={newLocationOnline}
+                onChange={(e) => setNewLocationOnline(e.target.checked)}
+              />
+              Online
             </label>
             <button
               type="button"

@@ -42,6 +42,7 @@ export function usePokerSessionForm({
   const [bountyAmount, setBountyAmount] = useState("");
   const [showNewLocation, setShowNewLocation] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationOnline, setNewLocationOnline] = useState(false);
   const [creatingLocation, setCreatingLocation] = useState(false);
   const [showNewGame, setShowNewGame] = useState(false);
   const [newGameName, setNewGameName] = useState("");
@@ -93,6 +94,7 @@ export function usePokerSessionForm({
     setBountyAmount("");
     setShowNewLocation(false);
     setNewLocationName("");
+    setNewLocationOnline(false);
     setShowNewGame(false);
     setCurrency(BASE_REPORTING_CURRENCY);
     setFxRateManual(false);
@@ -210,7 +212,7 @@ export function usePokerSessionForm({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, isOnline: newLocationOnline }),
       });
       if (!res.ok) throw new Error(data.error ?? "Failed to save location");
       const savedName =
@@ -220,6 +222,7 @@ export function usePokerSessionForm({
         setLocation(savedName);
         setShowNewLocation(false);
         setNewLocationName("");
+        setNewLocationOnline(false);
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Failed to save location");
@@ -428,6 +431,8 @@ export function usePokerSessionForm({
     setShowNewLocation,
     newLocationName,
     setNewLocationName,
+    newLocationOnline,
+    setNewLocationOnline,
     creatingLocation,
     showNewGame,
     setShowNewGame,

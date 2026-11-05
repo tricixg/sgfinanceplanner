@@ -41,6 +41,16 @@ export function filterPokerSessions(
   });
 }
 
+export type PokerOnlineMode = "all" | "online" | "offline";
+
+export function filterByOnlineMode(
+  sessions: PokerSession[],
+  mode: PokerOnlineMode
+): PokerSession[] {
+  if (mode === "all") return sessions;
+  return sessions.filter((session) => (mode === "online" ? session.isOnline : !session.isOnline));
+}
+
 export function derivePokerFilterCatalog(sessions: PokerSession[]): {
   locations: string[];
   games: PokerGame[];

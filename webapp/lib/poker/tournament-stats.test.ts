@@ -11,6 +11,7 @@ function tournament(
     buyIn: 500,
     cashOut: 0,
     location: "RWS",
+    isOnline: false,
     tournamentName: "APT",
     gameId: null,
     game: null,

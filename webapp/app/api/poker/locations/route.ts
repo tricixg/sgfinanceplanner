@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireSessionUser();
   if ("response" in auth) return auth.response;
 
-  let body: { name?: string };
+  let body: { name?: string; isOnline?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -37,10 +37,11 @@ export async function POST(req: NextRequest) {
   if (!name) {
     return NextResponse.json({ error: "Location name is required" }, { status: 400 });
   }
+  const isOnline = body.isOnline === true;
 
   const supabase = await createAuthedSupabaseClient();
   try {
-    const item = await upsertPokerLocation(supabase, auth.user.id, name);
+    const item = await upsertPokerLocation(supabase, auth.user.id, name, isOnline);
     return NextResponse.json({ item });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save location";

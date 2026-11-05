@@ -31,8 +31,10 @@ export async function insertPokerSession(
     if (!ok) return { error: "Invalid game" };
   }
 
+  let isOnline = false;
   if (data.location) {
-    await upsertPokerLocation(supabase, userId, data.location);
+    const locationRecord = await upsertPokerLocation(supabase, userId, data.location);
+    isOnline = locationRecord.isOnline;
   }
 
   const { data: row, error } = await supabase
@@ -40,6 +42,7 @@ export async function insertPokerSession(
     .insert({
       user_id: userId,
       ...pokerSessionRowFromParsed(data),
+      is_online: isOnline,
     })
     .select("*, poker_games(*)")
     .single();
@@ -110,14 +113,17 @@ export async function updatePokerSession(
 
   const previous = mapPokerSession(existingRow);
 
+  let isOnline = false;
   if (data.location) {
-    await upsertPokerLocation(supabase, userId, data.location);
+    const locationRecord = await upsertPokerLocation(supabase, userId, data.location);
+    isOnline = locationRecord.isOnline;
   }
 
   const { data: row, error: updateErr } = await supabase
     .from("poker_sessions")
     .update({
       ...pokerSessionRowFromParsed(data),
+      is_online: isOnline,
       savings_transaction_id: null,
     })
     .eq("id", sessionId)

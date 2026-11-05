@@ -19,6 +19,7 @@ export type PokerSession = {
   buyIn: number;
   cashOut: number;
   location: string;
+  isOnline: boolean;
   tournamentName: string | null;
   gameId: string | null;
   game: PokerGame | null;

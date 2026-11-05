@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { fetchJson } from "@/lib/fetch-json";
 import type { PokerStatsBundle } from "@/lib/poker/stats";
-import { locationDetailStats } from "@/lib/poker/stats";
+import { buildPokerStats, locationDetailStats } from "@/lib/poker/stats";
+import { filterByOnlineMode, type PokerOnlineMode } from "@/lib/poker/filter-sessions";
 import { PokerStatsOverview } from "@/components/poker/stats/PokerStatsOverview";
 import { PokerStatsSessions } from "@/components/poker/stats/PokerStatsSessions";
 import { PokerStatsLocations } from "@/components/poker/stats/PokerStatsLocations";
@@ -32,11 +33,18 @@ const TABS: { id: PokerStatsTab; label: string }[] = [
   { id: "trends", label: "Trends" },
 ];
 
+const MODES: { id: PokerOnlineMode; label: string }[] = [
+  { id: "all", label: "Overall" },
+  { id: "online", label: "Online" },
+  { id: "offline", label: "Offline" },
+];
+
 export function PokerStatsPage({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as PokerStatsTab | null;
   const locationParam = searchParams.get("location");
+  const modeParam = searchParams.get("mode") as PokerOnlineMode | null;
 
   const [stats, setStats] = useState<PokerStatsBundle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +52,14 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
 
   const activeTab: PokerStatsTab =
     tabParam && TABS.some((t) => t.id === tabParam) ? tabParam : "overview";
+  const activeMode: PokerOnlineMode =
+    modeParam && MODES.some((m) => m.id === modeParam) ? modeParam : "all";
+
+  const scoped = useMemo(() => {
+    if (!stats) return null;
+    if (activeMode === "all") return stats;
+    return buildPokerStats(filterByOnlineMode(stats.sessions, activeMode));
+  }, [stats, activeMode]);
 
   const load = useCallback(async () => {
     if (!enabled) return;
@@ -77,13 +93,22 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
     const params = new URLSearchParams();
     params.set("tab", tab);
     if (location) params.set("location", location);
+    if (activeMode !== "all") params.set("mode", activeMode);
+    router.replace(`/poker/stats?${params.toString()}`);
+  };
+
+  const setMode = (mode: PokerOnlineMode) => {
+    const params = new URLSearchParams();
+    params.set("tab", activeTab);
+    if (locationParam) params.set("location", locationParam);
+    if (mode !== "all") params.set("mode", mode);
     router.replace(`/poker/stats?${params.toString()}`);
   };
 
   const locationDetail = useMemo(() => {
-    if (!stats || !locationParam || activeTab !== "locations") return null;
-    return locationDetailStats(stats.sessions, decodeURIComponent(locationParam));
-  }, [stats, locationParam, activeTab]);
+    if (!scoped || !locationParam || activeTab !== "locations") return null;
+    return locationDetailStats(scoped.sessions, decodeURIComponent(locationParam));
+  }, [scoped, locationParam, activeTab]);
 
   if (!enabled) {
     return (
@@ -116,17 +141,30 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
         </Link>
       </div>
 
+      <div className="toolbar poker-stats-mode-toolbar" style={{ marginBottom: 16 }}>
+        {MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            className={activeMode === m.id ? "btn sm" : "btn ghost sm"}
+            onClick={() => setMode(m.id)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <p className="loading">Loading statistics…</p>
       ) : error ? (
         <p className="note">{error}</p>
-      ) : !stats ? (
+      ) : !scoped ? (
         <p className="note">No data.</p>
       ) : activeTab === "overview" ? (
-        <PokerStatsOverview stats={stats} />
+        <PokerStatsOverview stats={scoped} />
       ) : activeTab === "sessions" ? (
         <PokerStatsSessions
-          sessions={stats.sessions}
+          sessions={scoped.sessions}
           onSessionUpdated={(updated) => {
             setStats((prev) =>
               prev
@@ -160,7 +198,7 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
           }}
         />
       ) : activeTab === "tournaments" ? (
-        <PokerStatsTournaments stats={stats} />
+        <PokerStatsTournaments stats={scoped} />
       ) : activeTab === "locations" ? (
         locationDetail ? (
           <PokerStatsLocationDetail
@@ -169,14 +207,14 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
           />
         ) : (
           <PokerStatsLocations
-            locations={stats.locations}
+            locations={scoped.locations}
             onSelect={(loc) => setTab("locations", loc)}
           />
         )
       ) : activeTab === "charts" ? (
-        <PokerStatsCharts stats={stats} />
+        <PokerStatsCharts stats={scoped} />
       ) : (
-        <PokerStatsTrends sessions={stats.sessions} />
+        <PokerStatsTrends sessions={scoped.sessions} />
       )}
     </section>
   );

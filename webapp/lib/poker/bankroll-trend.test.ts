@@ -15,6 +15,7 @@ function session(partial: Partial<PokerSession> & Pick<PokerSession, "playedAt">
     buyIn: 100,
     cashOut: 150,
     location: "Home",
+    isOnline: false,
     tournamentName: null,
     gameId: null,
     game: null,
