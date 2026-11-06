@@ -719,6 +719,7 @@ tfoot td {
 }
 .editrow.holdings {
   grid-template-columns: 1.1fr 0.55fr 0.45fr 0.6fr 0.65fr 0.65fr 0.85fr auto;
+  min-width: 920px;
 }
 .holdings-charts {
   display: grid;
@@ -783,16 +784,38 @@ tfoot td {
 }
 .editrow.insurance {
   grid-template-columns: 1fr 0.85fr 0.75fr 0.9fr 0.55fr 0.85fr auto;
+  min-width: 820px;
 }
 .editrow.accounts {
   grid-template-columns: 1.3fr 0.85fr 1fr auto;
+  min-width: 640px;
 }
 .editrow.miles {
   grid-template-columns: 1.2fr 0.8fr 0.8fr 0.9fr 1fr auto;
+  min-width: 760px;
 }
 .editrow.cards-edit {
   grid-template-columns: 1.4fr 0.55fr 0.55fr 0.85fr auto;
   margin-top: 8px;
+}
+.editrow.trip-meta {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+.editrow.income-cat {
+  grid-template-columns: 1.6fr 1fr 1fr;
+  min-width: 360px;
+}
+@media (max-width: 640px) {
+  .editrow.cards-edit {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .editrow.cards-edit > input[type="text"] {
+    grid-column: 1 / -1;
+  }
+  .editrow.trip-meta {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 .catalog-select-row {
   display: grid;
@@ -939,6 +962,7 @@ tfoot td {
 }
 .editrow.budget-line {
   grid-template-columns: 1.6fr 0.75fr 0.75fr auto;
+  min-width: 480px;
 }
 .editrow.expense-line {
   grid-template-columns: 1.6fr 0.75fr 1fr auto;
@@ -1575,12 +1599,15 @@ input.decimal-input::-webkit-inner-spin-button {
 }
 .editrow.recurring-sub {
   grid-template-columns: 1.3fr 0.7fr 1.1fr 0.6fr 0.6fr 1.1fr auto;
+  min-width: 900px;
 }
 .editrow.recurring-invest {
   grid-template-columns: 1.1fr 0.6fr 1fr 1fr 0.55fr 0.55fr 1fr auto;
+  min-width: 980px;
 }
 .editrow.recurring-bnpl {
   grid-template-columns: 1.1fr 0.75fr 0.55fr 0.75fr 0.65fr 0.55fr 1fr auto;
+  min-width: 940px;
 }
 @media (max-width: 760px) {
   .split {

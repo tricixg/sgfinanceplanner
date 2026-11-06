@@ -175,6 +175,7 @@ export function TabCPF({ state: S, setState }: Props) {
 
       {editing ? (
         <div className="card">
+          <div className="table-scroll">
           <div className="editrow head">
             <span>Account</span>
             <span>Balance</span>
@@ -200,6 +201,7 @@ export function TabCPF({ state: S, setState }: Props) {
               <span></span>
             </div>
           ))}
+          </div>
         </div>
       ) : (
         <div className="grid g4">
@@ -227,6 +229,7 @@ export function TabCPF({ state: S, setState }: Props) {
         <>
           <h2>Log a contribution</h2>
           <div className="card">
+            <div className="table-scroll">
             <div className="editrow head">
               <span>Month</span>
               <span>OA</span>
@@ -251,6 +254,7 @@ export function TabCPF({ state: S, setState }: Props) {
               >
                 {contribSaving ? "Logging…" : "Log"}
               </button>
+            </div>
             </div>
             <input
               type="text"

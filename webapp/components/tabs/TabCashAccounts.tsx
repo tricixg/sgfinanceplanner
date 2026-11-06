@@ -534,6 +534,7 @@ export function TabCashAccounts({
                     {hiddenAccountsCount === 1 ? "" : "s"}
                   </button>
                 )}
+                <div className="table-scroll">
                 {cloudDraft.map((a, i) => {
                   if (a.hidden && !showHiddenAccounts) return null;
                   const isNew = !/^[0-9a-f-]{36}$/i.test(a.id);
@@ -618,6 +619,7 @@ export function TabCashAccounts({
                     </div>
                   );
                 })}
+                </div>
                 <button
                   type="button"
                   className="btn ghost sm"
@@ -715,6 +717,7 @@ export function TabCashAccounts({
               </p>
             ) : (
               <>
+                <div className="table-scroll">
                 <div className="editrow head accounts">
                   <span>Account</span>
                   <span>Balance</span>
@@ -759,6 +762,7 @@ export function TabCashAccounts({
                     </button>
                   </div>
                 ))}
+                </div>
               </>
             )}
             <div className="toolbar">

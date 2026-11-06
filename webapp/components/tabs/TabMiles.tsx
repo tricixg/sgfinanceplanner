@@ -305,6 +305,7 @@ export function TabMiles({ state: S, setState }: Props) {
               <p className="note">Add your bank points and Max Miles below.</p>
             ) : (
               <>
+                <div className="table-scroll">
                 <div className="editrow miles head">
                   <span>Bank / Program</span>
                   <span>Points balance</span>
@@ -370,6 +371,7 @@ export function TabMiles({ state: S, setState }: Props) {
                     </div>
                   </div>
                 ))}
+                </div>
               </>
             )}
             <div className="ctrl" style={{ marginBottom: 0 }}>

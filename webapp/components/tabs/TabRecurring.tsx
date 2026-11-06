@@ -559,6 +559,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
       {editingSubs ? (
         <div className="card">
+          <div className="table-scroll">
           <div className="editrow head recurring-sub">
             <span>Name</span>
             <span>Amount / mo</span>
@@ -716,6 +717,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
               </div>
             </details>
           )}
+          </div>
           <div className="toolbar">
             <button
               type="button"
@@ -858,6 +860,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
           {ilpPaymentRows.length > 0 ? (
             <p className="note">ILP policies are edited on the Investment tab.</p>
           ) : null}
+          <div className="table-scroll">
           <div className="editrow head recurring-invest">
             <span>Name</span>
             <span>Amount / mo</span>
@@ -1050,6 +1053,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
               </div>
             </details>
           )}
+          </div>
           <div className="toolbar">
             <button
               type="button"
@@ -1195,6 +1199,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
       {editingBnpl ? (
         <div className="card">
+          <div className="table-scroll">
           <div className="editrow head recurring-bnpl">
             <span>Name</span>
             <span>Total amount</span>
@@ -1368,6 +1373,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
               </div>
             </details>
           )}
+          </div>
           <div className="toolbar">
             <button
               type="button"

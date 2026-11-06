@@ -194,6 +194,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
                 Spending that does not match a budget category (fixed or spend). Total:{" "}
                 {fmt2(summary.uncategorized.spent)}
               </p>
+              <div className="table-scroll">
               <table>
                 <thead>
                   <tr>
@@ -247,6 +248,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : null}
         </>

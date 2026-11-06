@@ -509,6 +509,7 @@ export function TabWealth({
                 {hiddenFundsCount === 1 ? "" : "s"}
               </button>
             )}
+            <div className="table-scroll">
             {fundsDraft.map((f, i) => {
               if (f.hidden && !showHiddenFunds) return null;
               return (
@@ -560,6 +561,7 @@ export function TabWealth({
                 </div>
               );
             })}
+            </div>
             <button type="button" className="btn ghost sm" onClick={addFundRow}>
               + Add fund
             </button>
@@ -1034,6 +1036,7 @@ export function TabWealth({
               <span></span>
               <span></span>
             </div>
+            <div className="table-scroll">
             <div className="editrow head holdings">
               <span>Stock</span>
               <span>Ticker</span>
@@ -1105,6 +1108,7 @@ export function TabWealth({
                 </div>
               ))
             )}
+            </div>
             <div className="toolbar">
               <button type="button" className="btn ghost sm" onClick={addHolding}>
                 + Add holding

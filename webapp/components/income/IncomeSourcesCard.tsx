@@ -91,7 +91,8 @@ export function IncomeSourcesCard({ authEnabled }: Props) {
           {catDraft.map((c, i) => {
             const locked = Boolean(c.slug && isSystemIncomeSlug(c.slug));
             return (
-              <div className="editrow" key={c.id ?? i} style={{ marginBottom: 8 }}>
+              <div className="table-scroll" key={c.id ?? i} style={{ marginBottom: 8 }}>
+              <div className="editrow income-cat">
                 <input
                   type="text"
                   value={c.name}
@@ -114,6 +115,7 @@ export function IncomeSourcesCard({ authEnabled }: Props) {
                     Remove
                   </button>
                 ) : null}
+              </div>
               </div>
             );
           })}

@@ -457,7 +457,7 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       {editingTrip ? (
         <div className="card">
           <h3>Edit travel</h3>
-          <div className="editrow" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+          <div className="editrow trip-meta">
             <input
               type="text"
               placeholder="Trip name"

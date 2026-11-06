@@ -295,6 +295,7 @@ export function TabMe({
       <div className="card">
         {editingSalary ? (
           <>
+            <div className="table-scroll">
             <div className="editrow head">
               <span>Item</span>
               <span>Amount</span>
@@ -328,6 +329,7 @@ export function TabMe({
               </span>
               <span></span>
               <span></span>
+            </div>
             </div>
           </>
         ) : (
@@ -375,6 +377,7 @@ export function TabMe({
               </p>
             ) : (
               <>
+                <div className="table-scroll">
                 <div className="editrow head insurance">
                   <span>Plan</span>
                   <span>Insurer</span>
@@ -427,6 +430,7 @@ export function TabMe({
                     </button>
                   </div>
                 ))}
+                </div>
               </>
             )}
             <div className="toolbar">

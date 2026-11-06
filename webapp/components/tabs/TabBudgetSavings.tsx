@@ -230,6 +230,7 @@ export function TabBudgetSavings({
       : 0;
     return (
       <div className="budget-item" key={b.id ?? `budget-line-${i}`} style={{ marginBottom: 14 }}>
+        <div className="table-scroll">
         <div className="editrow budget-line">
           <input
             type="text"
@@ -261,6 +262,7 @@ export function TabBudgetSavings({
           <button type="button" className="btn del sm" onClick={() => removeBudgetLine(i)}>
             del
           </button>
+        </div>
         </div>
         <input
           type="range"
@@ -601,29 +603,37 @@ export function TabBudgetSavings({
                 Set up default categories
               </button>
             ) : null}
-            <div className="editrow budget-line computed-line">
-              <span>{COMPUTED_DEBT_LABEL}</span>
-              <span className="tag t-soon">auto</span>
-              <span className="num">{fmt2(debt)}</span>
-              <span></span>
+            <div className="table-scroll">
+              <div className="editrow budget-line computed-line">
+                <span>{COMPUTED_DEBT_LABEL}</span>
+                <span className="tag t-soon">auto</span>
+                <span className="num">{fmt2(debt)}</span>
+                <span></span>
+              </div>
             </div>
-            <div className="editrow budget-line computed-line">
-              <span>{COMPUTED_INSURANCE_LABEL}</span>
-              <span className="tag t-soon">auto</span>
-              <span className="num">{fmt2(insurancePrem)}</span>
-              <span></span>
+            <div className="table-scroll">
+              <div className="editrow budget-line computed-line">
+                <span>{COMPUTED_INSURANCE_LABEL}</span>
+                <span className="tag t-soon">auto</span>
+                <span className="num">{fmt2(insurancePrem)}</span>
+                <span></span>
+              </div>
             </div>
-            <div className="editrow budget-line computed-line">
-              <span>{COMPUTED_ILP_LABEL}</span>
-              <span>{renderAutoTags("ilp")}</span>
-              <span className="num">{fmt2(ilpPrem)}</span>
-              <span></span>
+            <div className="table-scroll">
+              <div className="editrow budget-line computed-line">
+                <span>{COMPUTED_ILP_LABEL}</span>
+                <span>{renderAutoTags("ilp")}</span>
+                <span className="num">{fmt2(ilpPrem)}</span>
+                <span></span>
+              </div>
             </div>
-            <div className="editrow budget-line computed-line">
-              <span>{COMPUTED_SAVINGS_LABEL}</span>
-              <span className="tag t-soon">auto</span>
-              <span className="num">{fmt2(savingsPrem)}</span>
-              <span></span>
+            <div className="table-scroll">
+              <div className="editrow budget-line computed-line">
+                <span>{COMPUTED_SAVINGS_LABEL}</span>
+                <span className="tag t-soon">auto</span>
+                <span className="num">{fmt2(savingsPrem)}</span>
+                <span></span>
+              </div>
             </div>
             {editBudgetRows.map(renderBudgetEditItem)}
             <div className="toolbar">

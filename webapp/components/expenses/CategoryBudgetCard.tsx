@@ -160,6 +160,7 @@ export function CategoryBudgetCard({
       </form>
 
       {rows.length > 0 ? (
+        <div className="table-scroll category-budget-table-scroll">
         <table className="category-budget-table">
           <thead>
             <tr>
@@ -218,6 +219,7 @@ export function CategoryBudgetCard({
             ))}
           </tbody>
         </table>
+        </div>
       ) : (
         <p className="note category-budget-empty">No spending this month.</p>
       )}
