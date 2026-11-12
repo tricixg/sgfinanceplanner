@@ -15,6 +15,8 @@ import type {
 import type { FinancialAccount } from "@/lib/transactions/types";
 import type { Fund, FundsTotals } from "@/lib/funds/types";
 import type { MilesBalance, MilesTotals } from "@/lib/miles/types";
+import type { BenefitInput, BenefitUsage } from "@/lib/benefits/types";
+import type { CardStatementComputed } from "@/lib/cards/types";
 
 export type AppDataContextValue = {
   state: DashboardState;
@@ -170,6 +172,32 @@ export type FinancialAccountsContextValue = {
   ensureLoaded: () => void;
 };
 
+export type BenefitsContextValue = {
+  benefits: BenefitUsage[];
+  loading: boolean;
+  configured: boolean;
+  reload: () => Promise<void>;
+  ensureLoaded: () => void;
+  save: (incoming: BenefitInput[]) => Promise<void>;
+  logClaim: (
+    benefitId: string,
+    input: { amount: number; claimedAt?: string; note?: string }
+  ) => Promise<void>;
+  updateClaim: (
+    benefitId: string,
+    claimId: string,
+    patch: { amount?: number; claimedAt?: string; note?: string }
+  ) => Promise<void>;
+  deleteClaim: (benefitId: string, claimId: string) => Promise<void>;
+};
+
+export type OutstandingCardStatementsContextValue = {
+  statements: CardStatementComputed[];
+  loading: boolean;
+  reload: () => Promise<void>;
+  ensureLoaded: () => void;
+};
+
 export const AppDataContext = createContext<AppDataContextValue | null>(null);
 export const SavingsContext = createContext<SavingsContextValue | null>(null);
 export const AccountsContext = createContext<AccountsContextValue | null>(null);
@@ -179,3 +207,6 @@ export const HouseholdContext = createContext<HouseholdContextValue | null>(null
 export const FinancialAccountsContext = createContext<FinancialAccountsContextValue | null>(
   null
 );
+export const BenefitsContext = createContext<BenefitsContextValue | null>(null);
+export const OutstandingCardStatementsContext =
+  createContext<OutstandingCardStatementsContextValue | null>(null);

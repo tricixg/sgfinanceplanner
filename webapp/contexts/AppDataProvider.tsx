@@ -8,13 +8,17 @@ import { useFundsProvider } from "@/hooks/useFunds";
 import { useMilesProvider } from "@/hooks/useMiles";
 import { useHouseholdProvider } from "@/hooks/useHousehold";
 import { useFinancialAccountsProvider } from "@/hooks/useFinancialAccounts";
+import { useBenefitsProvider } from "@/hooks/useBenefits";
+import { useOutstandingCardStatementsProvider } from "@/hooks/useOutstandingCardStatements";
 import {
   AccountsContext,
   AppDataContext,
+  BenefitsContext,
   FinancialAccountsContext,
   FundsContext,
   MilesContext,
   HouseholdContext,
+  OutstandingCardStatementsContext,
   SavingsContext,
 } from "@/contexts/app-data-contexts";
 
@@ -33,6 +37,8 @@ export function AppDataProvider({ userId, children }: Props) {
   const miles = useMilesProvider(enabled);
   const household = useHouseholdProvider(enabled);
   const financialAccounts = useFinancialAccountsProvider(enabled);
+  const benefits = useBenefitsProvider(enabled);
+  const outstandingCardStatements = useOutstandingCardStatementsProvider(enabled);
 
   useEffect(() => {
     console.info("[AppDataProvider] mounted", { userId: userId ?? null, enabled });
@@ -46,7 +52,13 @@ export function AppDataProvider({ userId, children }: Props) {
             <MilesContext.Provider value={miles}>
               <HouseholdContext.Provider value={household}>
                 <FinancialAccountsContext.Provider value={financialAccounts}>
-                  {children}
+                  <BenefitsContext.Provider value={benefits}>
+                    <OutstandingCardStatementsContext.Provider
+                      value={outstandingCardStatements}
+                    >
+                      {children}
+                    </OutstandingCardStatementsContext.Provider>
+                  </BenefitsContext.Provider>
                 </FinancialAccountsContext.Provider>
               </HouseholdContext.Provider>
             </MilesContext.Provider>

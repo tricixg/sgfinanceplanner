@@ -115,7 +115,7 @@ export function SavingsLedgerModal({
 
   const { categories: incomeCategories, configured: incomeConfigured } =
     useIncomeCategories(target.variant === "account");
-  const { benefits } = useBenefits(target.variant === "account");
+  const { benefits } = useBenefits();
 
   // Stable identity for the target so the reset effect below only fires when the
   // user actually switches account/pool — not on every parent re-render, which

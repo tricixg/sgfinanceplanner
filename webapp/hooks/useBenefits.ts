@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BenefitClaim, BenefitInput, BenefitUsage } from "@/lib/benefits/types";
+import { BenefitsContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 
-export function useBenefits(enabled: boolean) {
+export function useBenefitsProvider(enabled: boolean) {
   const [benefits, setBenefits] = useState<BenefitUsage[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
@@ -39,7 +40,10 @@ export function useBenefits(enabled: boolean) {
     }
   }, [enabled]);
 
-  useEffect(() => {
+  const requestedRef = useRef(false);
+  const ensureLoaded = useCallback(() => {
+    if (requestedRef.current) return;
+    requestedRef.current = true;
     void load();
   }, [load]);
 
@@ -117,5 +121,30 @@ export function useBenefits(enabled: boolean) {
     [load]
   );
 
-  return { benefits, loading, configured, reload: load, save, logClaim, updateClaim, deleteClaim };
+  return useMemo(
+    () => ({
+      benefits,
+      loading,
+      configured,
+      reload: load,
+      ensureLoaded,
+      save,
+      logClaim,
+      updateClaim,
+      deleteClaim,
+    }),
+    [benefits, loading, configured, load, ensureLoaded, save, logClaim, updateClaim, deleteClaim]
+  );
+}
+
+export function useBenefits() {
+  const ctx = useContext(BenefitsContext);
+  if (!ctx) {
+    throw new Error("useBenefits must be used within AppDataProvider");
+  }
+  useEffect(() => {
+    ctx.ensureLoaded();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureLoaded only, not ctx itself
+  }, [ctx.ensureLoaded]);
+  return ctx;
 }

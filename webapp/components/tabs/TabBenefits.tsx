@@ -70,7 +70,7 @@ type Props = {
 };
 
 export function TabBenefits({ enabled }: Props) {
-  const benefitsApi = useBenefits(enabled);
+  const benefitsApi = useBenefits();
   const { categories: incomeCategories } = useIncomeCategories(enabled);
 
   const [editing, setEditing] = useState(false);

@@ -54,8 +54,9 @@ function eventsForTransactionChange(
 export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const { accounts } = useFinancialAccounts();
   const { categories: incomeCategories } = useIncomeCategories(true);
-  const { benefits } = useBenefits(true);
-  const { statements: outstandingStatements } = useOutstandingCardStatements(true);
+  const { benefits } = useBenefits();
+  const { statements: outstandingStatements, loading: statementsLoading } =
+    useOutstandingCardStatements();
   const [note, setNote] = useState(tx.note ?? "");
   const [category, setCategory] = useState(tx.category ?? "");
   const [date, setDate] = useState(toDateInput(tx));
@@ -334,14 +335,17 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
                   />
                 </label>
               ) : null}
-              {statementOptions.length ? (
+              {statementOptions.length || statementsLoading ? (
                 <label>
                   Apply to statement
                   <select
                     value={statementId}
                     onChange={(e) => setStatementId(e.target.value)}
+                    disabled={statementsLoading && !statementOptions.length}
                   >
-                    <option value="">— None —</option>
+                    <option value="">
+                      {statementsLoading && !statementOptions.length ? "Loading…" : "— None —"}
+                    </option>
                     {statementOptions.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.cardName} · stmt {fmtCardDate(s.statementCloseDate)} · outstanding {fmt2(s.outstandingBalance)}

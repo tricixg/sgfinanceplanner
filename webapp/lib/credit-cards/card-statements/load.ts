@@ -445,22 +445,31 @@ export async function loadOutstandingStatements(
       ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
       : new Map();
 
-  const outstanding: CardStatementComputed[] = [];
+  // paid_at is only ever set once a statement's outstanding balance hits zero (and
+  // cleared again on undo), so a paid statement can never be outstanding — skip the
+  // interest recompute/enrich work for it entirely. Most of a card's history (up to
+  // HISTORY_CYCLES back) is paid, so this keeps this call fast regardless of history depth.
+  const perStatement = cards.flatMap((card, i) =>
+    (rowsByCard[i] ?? [])
+      .filter((row) => !row.paidAt)
+      .map((row) => ({ card, row }))
+  );
 
-  for (let i = 0; i < cards.length; i++) {
-    const card = cards[i]!;
-    const rows = rowsByCard[i]!;
-    const spendIndex = card.financialAccountId
-      ? spendIndexMap.get(card.financialAccountId) ?? null
-      : null;
-    const btInterestFree = await interestFreeBalanceTransferPrincipal(
-      supabase,
-      userId,
-      card.id,
-      today
-    );
+  const btFreeByCardId = new Map<string, number>();
+  await Promise.all(
+    [...new Set(perStatement.map((p) => p.card.id))].map(async (cardId) => {
+      btFreeByCardId.set(
+        cardId,
+        await interestFreeBalanceTransferPrincipal(supabase, userId, cardId, today)
+      );
+    })
+  );
 
-    for (const row of rows) {
+  const enriched = await Promise.all(
+    perStatement.map(async ({ card, row }) => {
+      const spendIndex = card.financialAccountId
+        ? spendIndexMap.get(card.financialAccountId) ?? null
+        : null;
       const tracked = cycleSpendTotal(spendIndex, row.cycleStartDate, row.cycleEndDate);
       const interest = await recomputeInterestForStatement(
         supabase,
@@ -469,18 +478,17 @@ export async function loadOutstandingStatements(
         row,
         spendIndex
       );
-      const enriched = enrichStatement(
+      return enrichStatement(
         row,
         { creditCardKey: card.cardKey, cardName: card.name },
         interest,
         tracked,
-        btInterestFree
+        btFreeByCardId.get(card.id) ?? 0
       );
-      if (enriched.isClosed && enriched.outstandingBalance > 0.01) {
-        outstanding.push(enriched);
-      }
-    }
-  }
+    })
+  );
+
+  const outstanding = enriched.filter((s) => s.isClosed && s.outstandingBalance > 0.01);
 
   outstanding.sort((a, b) =>
     a.cardName === b.cardName
