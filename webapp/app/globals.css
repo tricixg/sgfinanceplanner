@@ -3878,6 +3878,20 @@ footer {
 .bto-pf-chip.ok { color: var(--moss); background: #e3ecdf; }
 .bto-pf-chip.bad { color: var(--rust); background: #f3ddd5; }
 
+.cs-paid-chip {
+  display: inline-block;
+  font-family: "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.cs-paid-chip.paid { color: var(--moss); background: #e3ecdf; }
+.cs-paid-chip.part { color: var(--gold); background: rgba(192, 138, 46, 0.18); }
+.cs-paid-chip.unpaid { color: var(--rust); background: #f3ddd5; }
+
 .bto-pf-chart-head {
   display: flex;
   flex-wrap: wrap;

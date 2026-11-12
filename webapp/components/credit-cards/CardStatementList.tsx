@@ -89,6 +89,7 @@ export function CardStatementList({
             const stmt = statementByCardKey.get(cardKey);
             const rowSaving = stmt != null && savingRow === stmt.id;
             const rowUndoing = stmt != null && undoingRow === stmt.id;
+            const paidStatus = !stmt ? null : stmt.paidAt ? "paid" : stmt.amountPaid > 0 ? "part" : "unpaid";
 
             return (
               <tr key={cardKey} className={stmt?.isOverdue ? "row-overdue" : undefined}>
@@ -176,11 +177,23 @@ export function CardStatementList({
                   {stmt?.untrackedAmount != null ? fmt2(stmt.untrackedAmount) : "—"}
                 </td>
                 <td>
-                  {stmt?.paidAt
-                    ? `Yes ${fmt2(stmt.amountPaid)}`
-                    : stmt && stmt.amountPaid > 0
-                      ? `Partial ${fmt2(stmt.amountPaid)}`
-                      : "No"}
+                  {stmt && paidStatus ? (
+                    <span
+                      className={`cs-paid-chip ${paidStatus}`}
+                      title={
+                        paidStatus === "paid"
+                          ? `Paid in full · ${fmt2(stmt.amountPaid)}`
+                          : paidStatus === "part"
+                            ? `Paid ${fmt2(stmt.amountPaid)} of ${fmt2(stmt.actualAmount ?? stmt.amountPaid)} · ${fmt2(stmt.outstandingBalance)} outstanding`
+                            : `No payment yet · ${fmt2(stmt.outstandingBalance)} outstanding`
+                      }
+                    >
+                      {paidStatus === "paid" ? "Paid" : paidStatus === "part" ? "Partial" : "Unpaid"}
+                      {stmt.amountPaid > 0 ? ` ${fmt2(stmt.amountPaid)}` : ""}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
                 </td>
                 <td>
                   {stmt ? (
