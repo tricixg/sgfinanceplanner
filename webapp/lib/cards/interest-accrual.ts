@@ -111,6 +111,30 @@ export function outstandingBalance(params: {
 }
 
 /**
+ * Outstanding balance for a statement that has just closed but whose bank total
+ * hasn't been entered yet. `actualAmount` stays null from the statement close
+ * date until the user saves the real amount — without a fallback, the
+ * just-closed cycle's whole balance reads as ~0 for that gap. Falls back to
+ * the cycle's own tracked spend so the open-cycle figure holds steady through
+ * the gap, then switches to the real `actualAmount` once it's saved.
+ */
+export function openCycleCarriedForward(params: {
+  carriedForwardIn: number;
+  actualAmount: number | null;
+  amountIncludesPriorBalance?: boolean;
+  amountPaid: number;
+  trackedSpendInCycle: number;
+}): number {
+  const actual = params.actualAmount ?? params.trackedSpendInCycle;
+  return outstandingBalance({
+    carriedForwardIn: statementCarryIn(params),
+    actualAmount: actual,
+    interestAccrued: 0,
+    amountPaid: params.amountPaid,
+  });
+}
+
+/**
  * Portion of `total` covered by a linked balance-transfer loan (capped at
  * `total`, floored at 0) — same clamp `splitCardPaymentAmount` uses to split
  * a card payment between BT and non-BT, applied here to net BT loans out of

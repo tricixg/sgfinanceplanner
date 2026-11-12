@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accrueDailyInterest,
   balanceTransferWithinStatement,
+  openCycleCarriedForward,
   outstandingBalance,
   principalAtDue,
   statementCarryIn,
@@ -111,5 +112,52 @@ describe("interest-accrual", () => {
         5000
       )
     ).toBe(5000);
+  });
+
+  describe("openCycleCarriedForward", () => {
+    it("falls back to tracked spend when actual amount is not yet saved", () => {
+      expect(
+        openCycleCarriedForward({
+          carriedForwardIn: 500,
+          actualAmount: null,
+          amountPaid: 0,
+          trackedSpendInCycle: 320,
+        })
+      ).toBe(820);
+    });
+
+    it("ignores tracked spend once the real amount is saved", () => {
+      expect(
+        openCycleCarriedForward({
+          carriedForwardIn: 500,
+          actualAmount: 900,
+          amountPaid: 0,
+          trackedSpendInCycle: 320,
+        })
+      ).toBe(1400);
+    });
+
+    it("zeroes out older carry-in once a saved bank-total amount includes it", () => {
+      expect(
+        openCycleCarriedForward({
+          carriedForwardIn: 500,
+          actualAmount: 900,
+          amountIncludesPriorBalance: true,
+          amountPaid: 0,
+          trackedSpendInCycle: 320,
+        })
+      ).toBe(900);
+    });
+
+    it("matches the old zero-default when there is no tracked spend to fall back to", () => {
+      expect(
+        openCycleCarriedForward({
+          carriedForwardIn: 500,
+          actualAmount: null,
+          amountPaid: 100,
+          trackedSpendInCycle: 0,
+        })
+      ).toBe(400);
+    });
   });
 });

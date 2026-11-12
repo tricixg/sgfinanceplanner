@@ -3,6 +3,7 @@ import type { DbCreditCard } from "@/lib/credit-cards/mappers";
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import {
   outstandingBalance,
+  openCycleCarriedForward,
   principalAtDue,
   balanceTransferWithinStatement,
   roundMoney,
@@ -340,11 +341,19 @@ export async function loadCardStatementsBundle(
         );
         // Post-due interest is reported separately so it isn't counted twice
         // (once inside carried forward and again as the interest estimate).
-        carriedForward = outstandingBalance({
-          carriedForwardIn: statementCarryIn(priorClosed),
+        // Until the bank's real statement total is saved, fall back to this
+        // just-closed cycle's own tracked spend so its balance doesn't
+        // momentarily vanish from the open-cycle estimate.
+        carriedForward = openCycleCarriedForward({
+          carriedForwardIn: priorClosed.carriedForwardIn,
           actualAmount: priorClosed.actualAmount,
-          interestAccrued: 0,
+          amountIncludesPriorBalance: priorClosed.amountIncludesPriorBalance,
           amountPaid: priorClosed.amountPaid,
+          trackedSpendInCycle: cycleSpendTotal(
+            spendIndex,
+            priorClosed.cycleStartDate,
+            priorClosed.cycleEndDate
+          ),
         });
         interestEstimate = priorInterest;
       }
