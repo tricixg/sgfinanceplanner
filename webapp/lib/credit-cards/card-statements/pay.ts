@@ -271,10 +271,14 @@ export async function previewStatementOutstanding(
   supabase: SupabaseClient,
   userId: string,
   statementId: string
-): Promise<{ card: DbCreditCard; outstanding: number }> {
+): Promise<{ card: DbCreditCard; outstanding: number; statementCloseDate: string }> {
   const card = await resolveCardForStatement(supabase, userId, statementId);
   const ctx = await loadStatementOutstandingContext(supabase, userId, card, statementId);
-  return { card, outstanding: roundMoney(ctx.outstanding) };
+  return {
+    card,
+    outstanding: roundMoney(ctx.outstanding),
+    statementCloseDate: ctx.stmt.statementCloseDate,
+  };
 }
 
 /** Split+allocate `amount` against a statement's outstanding (and any BT loans), updating card_statements. */
