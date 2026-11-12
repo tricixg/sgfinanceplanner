@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { eachDayYmd } from "./interest-accrual";
 import type { DailySpendMap } from "./interest-accrual";
+import { loadStatementCreditedBudgetTransactionIds } from "./statement-spend-index";
 
 export function sumAmounts(rows: { amount: number }[]): number {
   return rows.reduce((s, r) => s + Number(r.amount ?? 0), 0);
@@ -53,7 +54,7 @@ export async function sumCardSpendByDay(
 
   const { data: budgetRows, error: budErr } = await supabase
     .from("budget_transactions")
-    .select("amount, spent_at, transaction_type")
+    .select("id, amount, spent_at, transaction_type")
     .eq("user_id", userId)
     .eq("financial_account_id", financialAccountId)
     .is("expense_id", null)
@@ -62,7 +63,12 @@ export async function sumCardSpendByDay(
 
   if (budErr) throw new Error(budErr.message);
 
+  // Excluded for the same reason as buildCardSpendIndexMap: already captured via the
+  // credited statement's amount_paid, not spend/anti-spend in any billing cycle.
+  const excludedIds = await loadStatementCreditedBudgetTransactionIds(supabase, userId);
+
   for (const row of budgetRows ?? []) {
+    if (excludedIds.has(String(row.id))) continue;
     const day = String(row.spent_at).slice(0, 10);
     const signed =
       row.transaction_type === "income"

@@ -24,6 +24,22 @@ export function resolveSpendDay(row: SpendRow): string | null {
   return null;
 }
 
+/** budget_transactions ids already credited toward a statement (card_statement_credits) —
+ * excluded from spend tracking everywhere since that balance effect is already captured
+ * via the statement's amount_paid, not as spend/anti-spend in any billing cycle. */
+export async function loadStatementCreditedBudgetTransactionIds(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("card_statement_credits")
+    .select("source_record_id")
+    .eq("user_id", userId)
+    .eq("source_record_type", "budget");
+  if (error) throw new Error(error.message);
+  return new Set((data ?? []).map((r) => String(r.source_record_id)));
+}
+
 function indexFromByDay(byDay: DailySpendMap): CardSpendIndex {
   return {
     sumInRange(cycleStart, cycleEnd) {
@@ -85,7 +101,7 @@ export async function buildCardSpendIndexMap(
 
   const { data: budgetRows, error: budErr } = await supabase
     .from("budget_transactions")
-    .select("amount, spent_at, created_at, financial_account_id, transaction_type")
+    .select("id, amount, spent_at, created_at, financial_account_id, transaction_type")
     .eq("user_id", userId)
     .in("financial_account_id", financialAccountIds)
     .is("expense_id", null)
@@ -94,7 +110,13 @@ export async function buildCardSpendIndexMap(
 
   if (budErr) throw new Error(budErr.message);
 
+  // A reimbursement credited toward a specific statement (card_statement_credits) is
+  // already fully accounted for via that statement's amount_paid — it isn't new spend
+  // or anti-spend in any billing cycle, so it must not also move a cycle's tracked total.
+  const excludedIds = await loadStatementCreditedBudgetTransactionIds(supabase, userId);
+
   for (const row of budgetRows ?? []) {
+    if (excludedIds.has(String(row.id))) continue;
     const accountId = String(row.financial_account_id ?? "");
     const day = resolveSpendDay(row);
     if (!day) {

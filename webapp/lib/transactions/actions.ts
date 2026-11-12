@@ -183,17 +183,11 @@ export async function reimburseTransactionWithLedger(
   const { recordType, id, amount } = input;
   if (!(amount > 0)) throw new Error("Valid amount required");
 
-  let targetStatementCloseDate: string | null = null;
   if (input.statementId) {
-    const { outstanding, statementCloseDate } = await previewStatementOutstanding(
-      supabase,
-      userId,
-      input.statementId
-    );
+    const { outstanding } = await previewStatementOutstanding(supabase, userId, input.statementId);
     if (amount > outstanding + 0.01) {
       throw new Error(`Reimbursement amount exceeds statement outstanding balance (${outstanding})`);
     }
-    targetStatementCloseDate = statementCloseDate;
   }
 
   const incomeCategory = input.incomeCategoryId
@@ -308,13 +302,7 @@ export async function reimburseTransactionWithLedger(
       ledger: account.name,
       category,
       amount,
-      // A credit posted toward a specific (already-closed) statement belongs to that
-      // statement's own cycle for spend tracking — dating it "today" would otherwise
-      // make it look like it reduced new spend in the next cycle, which it didn't.
-      spentAt:
-        targetStatementCloseDate && account.accountType === "credit_card"
-          ? targetStatementCloseDate
-          : sgtTodayYmd(),
+      spentAt: sgtTodayYmd(),
       spentTime: sgtNowTimeHms(),
       note,
       transactionType: "income",
