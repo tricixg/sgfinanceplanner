@@ -29,6 +29,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     incomeCategoryId?: string;
     benefitId?: string;
     benefitClaimDate?: string;
+    statementId?: string;
   };
   try {
     body = await req.json();
@@ -51,12 +52,20 @@ export async function POST(req: NextRequest, { params }: Params) {
       incomeCategoryId: body.incomeCategoryId,
       benefitId: body.benefitId,
       benefitClaimDate: body.benefitClaimDate,
+      statementId: body.statementId,
     });
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Reimburse failed";
     const status =
-      msg === "Not found" ? 404 : msg === "Invalid income category" || msg === "Invalid benefit" ? 400 : 500;
+      msg === "Not found" || msg === "Statement not found" || msg === "Card not found"
+        ? 404
+        : msg === "Invalid income category" ||
+            msg === "Invalid benefit" ||
+            msg.includes("exceeds statement outstanding") ||
+            msg.includes("Payment exceeds outstanding")
+          ? 400
+          : 500;
     console.error("[transactions-action] reimburse failed", {
       recordType,
       id,

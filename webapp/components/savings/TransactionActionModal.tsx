@@ -5,10 +5,12 @@ import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { useBenefits } from "@/hooks/useBenefits";
+import { useCardStatements } from "@/hooks/useCardStatements";
 import { isSystemIncomeSlug } from "@/lib/income/types";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { fmtCardDate } from "@/components/credit-cards/card-ui";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import type { DomainEventName } from "@/lib/events/domain-events";
 
@@ -53,6 +55,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const { accounts } = useFinancialAccounts();
   const { categories: incomeCategories } = useIncomeCategories(true);
   const { benefits } = useBenefits(true);
+  const { bundle: cardStatementsBundle } = useCardStatements(true);
   const [note, setNote] = useState(tx.note ?? "");
   const [category, setCategory] = useState(tx.category ?? "");
   const [date, setDate] = useState(toDateInput(tx));
@@ -67,6 +70,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const [reimburseCategoryId, setReimburseCategoryId] = useState("");
   const [benefitId, setBenefitId] = useState("");
   const [benefitClaimDate, setBenefitClaimDate] = useState(toDateInput(tx));
+  const [statementId, setStatementId] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const reimburseLock = useRef(false);
@@ -94,6 +98,14 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
       ),
     [benefits, reimburseCategoryId]
   );
+  const statementOptions = useMemo(
+    () => cardStatementsBundle.statements.filter((s) => s.outstandingBalance > 0.01),
+    [cardStatementsBundle.statements]
+  );
+  const selectedStatement = useMemo(
+    () => statementOptions.find((s) => s.id === statementId),
+    [statementOptions, statementId]
+  );
 
   useEffect(() => {
     if (!reimburseCategoryId && reimburseCategoryOptions.length) {
@@ -109,6 +121,12 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
       setBenefitId("");
     }
   }, [benefitId, benefitOptions]);
+
+  useEffect(() => {
+    if (statementId && !statementOptions.some((s) => s.id === statementId)) {
+      setStatementId("");
+    }
+  }, [statementId, statementOptions]);
 
   const saveEdit = async () => {
     setBusy(true);
@@ -155,6 +173,14 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
     setBusy(true);
     setMsg("");
     try {
+      if (
+        selectedStatement &&
+        Number(reimburseAmount || 0) > selectedStatement.outstandingBalance + 0.01
+      ) {
+        throw new Error(
+          `Amount exceeds statement outstanding (${fmt2(selectedStatement.outstandingBalance)})`
+        );
+      }
       const { res, data } = await fetchJson<{ error?: string }>(
         `${route}/reimburse`,
         {
@@ -167,6 +193,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
             incomeCategoryId: reimburseCategoryId || undefined,
             benefitId: benefitId || undefined,
             benefitClaimDate: benefitId ? benefitClaimDate || undefined : undefined,
+            statementId: statementId || undefined,
           }),
         }
       );
@@ -175,6 +202,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
       onClose();
       dispatchDomainEvent(eventsForTransactionChange(tx.recordType));
       if (benefitId) dispatchDomainEvent("benefits:changed");
+      if (statementId) dispatchDomainEvent("cards:changed");
       onSaved("Reimbursement recorded");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Reimburse failed";
@@ -304,6 +332,22 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
                     value={benefitClaimDate}
                     onChange={(e) => setBenefitClaimDate(e.target.value)}
                   />
+                </label>
+              ) : null}
+              {statementOptions.length ? (
+                <label>
+                  Apply to statement
+                  <select
+                    value={statementId}
+                    onChange={(e) => setStatementId(e.target.value)}
+                  >
+                    <option value="">— None —</option>
+                    {statementOptions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.cardName} · stmt {fmtCardDate(s.statementCloseDate)} · outstanding {fmt2(s.outstandingBalance)}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               ) : null}
             </>

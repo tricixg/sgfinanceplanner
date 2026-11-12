@@ -4,7 +4,12 @@ import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
 import { restoreOtherLoanPayment, restoreOtherLoanDrawDown } from "@/lib/other-loans/pay";
 import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { createBudgetTransaction, deleteBudgetTransaction, getBudgetTransactionById } from "@/lib/budget/transactions";
-import { syncStatementAfterPaymentTransactionDelete } from "@/lib/credit-cards/card-statements/pay";
+import {
+  applyReimbursementCreditToStatement,
+  previewStatementOutstanding,
+  reverseStatementCreditByLedgerRecord,
+  syncStatementAfterPaymentTransactionDelete,
+} from "@/lib/credit-cards/card-statements/pay";
 import { applyTransaction, deleteSavingsTransaction, getSavingsTransactionById } from "@/lib/savings/ledger";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { applyReimbursementBudgetImpact } from "@/lib/transactions/reimburse-budget-impact";
@@ -45,10 +50,12 @@ async function deleteLinkedReimbursements(
 
   for (const row of savingsLinks.data ?? []) {
     await deleteBenefitClaimByLedgerRecord(supabase, userId, "savings", String(row.id));
+    await reverseStatementCreditByLedgerRecord(supabase, userId, "savings", String(row.id));
     await deleteSavingsTransaction(supabase, userId, String(row.id));
   }
   for (const row of budgetLinks.data ?? []) {
     await deleteBenefitClaimByLedgerRecord(supabase, userId, "budget", String(row.id));
+    await reverseStatementCreditByLedgerRecord(supabase, userId, "budget", String(row.id));
     await deleteBudgetTransaction(supabase, userId, String(row.id));
   }
 }
@@ -169,10 +176,19 @@ export async function reimburseTransactionWithLedger(
     benefitId?: string;
     /** Date the claim counts toward a benefit's cycle (YYYY-MM-DD). Defaults to the source's own date — often not the day the reimbursement is actually processed. */
     benefitClaimDate?: string;
+    /** Credit card statement this reimbursement should also pay down (e.g. a refund posted directly to the card). */
+    statementId?: string;
   }
 ): Promise<{ recordType: "savings" | "budget"; item: unknown }> {
   const { recordType, id, amount } = input;
   if (!(amount > 0)) throw new Error("Valid amount required");
+
+  if (input.statementId) {
+    const { outstanding } = await previewStatementOutstanding(supabase, userId, input.statementId);
+    if (amount > outstanding + 0.01) {
+      throw new Error(`Reimbursement amount exceeds statement outstanding balance (${outstanding})`);
+    }
+  }
 
   const incomeCategory = input.incomeCategoryId
     ? await verifyIncomeCategory(supabase, userId, input.incomeCategoryId)
@@ -309,11 +325,24 @@ export async function reimburseTransactionWithLedger(
     });
   }
 
+  if (input.statementId) {
+    const ledgerId = (result.item as { id: string }).id;
+    await applyReimbursementCreditToStatement(
+      supabase,
+      userId,
+      input.statementId,
+      amount,
+      { recordType: result.recordType, recordId: ledgerId },
+      note
+    );
+  }
+
   console.info("[tx-actions] reimbursement complete", {
     recordType,
     id,
     amount,
     ledgerRecordType: result.recordType,
+    statementId: input.statementId,
   });
 
   return result;
