@@ -422,6 +422,10 @@ export function useAppDataProvider(enabled: boolean) {
       if (existingIdx === -1) {
         return [...hist, snap].slice(-NET_WORTH_HISTORY_LIMIT);
       }
+      const existing = hist[existingIdx]!;
+      if (existing.lnw === snap.lnw && existing.cpf === snap.cpf) {
+        return hist;
+      }
       const next = [...hist];
       next[existingIdx] = snap;
       return next;

@@ -20,6 +20,10 @@ type MonthPoint = {
 const lineOpts: ChartOptions<"line"> = {
   responsive: true,
   maintainAspectRatio: false,
+  // History settles in two steps after mount (cached figure, then the
+  // freshly-computed one a moment later) — animating that redraw makes the
+  // chart look like it's reloading, so updates apply instantly.
+  animation: false,
   plugins: { legend: { display: false } },
   scales: {
     y: {
