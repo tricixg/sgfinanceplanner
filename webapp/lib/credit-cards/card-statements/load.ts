@@ -410,6 +410,92 @@ export async function loadCardStatementsBundle(
   return { configured: true, statements, openCycles, navigation };
 }
 
+/** Every statement across a card's history (up to HISTORY_CYCLES back) that still has an
+ * outstanding balance — unlike loadCardStatementsBundle, not limited to the currently
+ * viewed cycle batch. Used where a user needs to pick any unpaid statement regardless of
+ * month, e.g. applying a reimbursement to an older carried-forward balance. */
+export async function loadOutstandingStatements(
+  supabase: SupabaseClient,
+  userId: string,
+  cardsInput: DbCreditCard[]
+): Promise<CardStatementComputed[]> {
+  const today = sgtTodayYmd();
+
+  let cards = cardsInput;
+  if (cards.some((c) => !c.financialAccountId)) {
+    await syncCreditCardFinancialAccountsFromRows(supabase, userId, cards);
+    cards = await loadCreditCards(supabase, userId);
+  }
+
+  const rowsByCard = await Promise.all(
+    cards.map((card) => ensureStatementRows(supabase, userId, card))
+  );
+
+  const finIds = cards
+    .map((c) => c.financialAccountId)
+    .filter((id): id is string => Boolean(id));
+  let spendFrom = today;
+  for (const rows of rowsByCard) {
+    for (const r of rows) {
+      if (r.cycleStartDate < spendFrom) spendFrom = r.cycleStartDate;
+    }
+  }
+  const spendIndexMap =
+    finIds.length > 0
+      ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
+      : new Map();
+
+  const outstanding: CardStatementComputed[] = [];
+
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i]!;
+    const rows = rowsByCard[i]!;
+    const spendIndex = card.financialAccountId
+      ? spendIndexMap.get(card.financialAccountId) ?? null
+      : null;
+    const btInterestFree = await interestFreeBalanceTransferPrincipal(
+      supabase,
+      userId,
+      card.id,
+      today
+    );
+
+    for (const row of rows) {
+      const tracked = cycleSpendTotal(spendIndex, row.cycleStartDate, row.cycleEndDate);
+      const interest = await recomputeInterestForStatement(
+        supabase,
+        userId,
+        card,
+        row,
+        spendIndex
+      );
+      const enriched = enrichStatement(
+        row,
+        { creditCardKey: card.cardKey, cardName: card.name },
+        interest,
+        tracked,
+        btInterestFree
+      );
+      if (enriched.isClosed && enriched.outstandingBalance > 0.01) {
+        outstanding.push(enriched);
+      }
+    }
+  }
+
+  outstanding.sort((a, b) =>
+    a.cardName === b.cardName
+      ? b.statementCloseDate.localeCompare(a.statementCloseDate)
+      : a.cardName.localeCompare(b.cardName)
+  );
+
+  console.info("[card-statements] loaded outstanding statements", {
+    userId,
+    count: outstanding.length,
+  });
+
+  return outstanding;
+}
+
 export async function updateStatementFields(
   supabase: SupabaseClient,
   userId: string,

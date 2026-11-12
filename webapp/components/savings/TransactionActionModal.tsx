@@ -5,7 +5,7 @@ import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { useBenefits } from "@/hooks/useBenefits";
-import { useCardStatements } from "@/hooks/useCardStatements";
+import { useOutstandingCardStatements } from "@/hooks/useOutstandingCardStatements";
 import { isSystemIncomeSlug } from "@/lib/income/types";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
@@ -55,7 +55,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const { accounts } = useFinancialAccounts();
   const { categories: incomeCategories } = useIncomeCategories(true);
   const { benefits } = useBenefits(true);
-  const { bundle: cardStatementsBundle } = useCardStatements(true);
+  const { statements: outstandingStatements } = useOutstandingCardStatements(true);
   const [note, setNote] = useState(tx.note ?? "");
   const [category, setCategory] = useState(tx.category ?? "");
   const [date, setDate] = useState(toDateInput(tx));
@@ -99,8 +99,8 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
     [benefits, reimburseCategoryId]
   );
   const statementOptions = useMemo(
-    () => cardStatementsBundle.statements.filter((s) => s.outstandingBalance > 0.01),
-    [cardStatementsBundle.statements]
+    () => outstandingStatements.filter((s) => s.outstandingBalance > 0.01),
+    [outstandingStatements]
   );
   const selectedStatement = useMemo(
     () => statementOptions.find((s) => s.id === statementId),
