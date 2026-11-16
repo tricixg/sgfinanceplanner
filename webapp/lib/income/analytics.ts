@@ -45,6 +45,7 @@ export type LeanDepositRow = {
   occurredAt: string;
   incomeCategoryId?: string | null;
   accountId?: string | null;
+  sourceRecordId?: string | null;
 };
 
 const UNCATEGORIZED_ID = "__uncategorized__";
@@ -133,6 +134,7 @@ export function buildIncomeAnalytics(input: {
   deposits: LeanDepositRow[];
   categories: { id: string; name: string }[];
   accounts: { id: string; name: string }[];
+  excludeReimbursements?: boolean;
 }): IncomeAnalyticsBundle {
   const window = monthRangeForWindow(
     input.throughYm,
@@ -153,6 +155,9 @@ export function buildIncomeAnalytics(input: {
   for (const row of input.deposits) {
     const ym = ymFromOccurredAt(row.occurredAt);
     if (!ym || !monthSet.has(ym)) continue;
+    // A deposit is a reimbursement purely because it's linked to a specific expense/
+    // transaction (source_record_id set) — not because of its category.
+    if (input.excludeReimbursements && row.sourceRecordId != null) continue;
     const amount = Number(row.amount ?? 0);
     if (!Number.isFinite(amount) || amount <= 0) continue;
 

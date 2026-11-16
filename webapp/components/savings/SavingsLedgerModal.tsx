@@ -408,7 +408,6 @@ export function SavingsLedgerModal({
                   {incomeCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
-                      {c.countsAsAdditive ? " (+ cashflow)" : ""}
                     </option>
                   ))}
                 </select>

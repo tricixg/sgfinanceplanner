@@ -11,6 +11,7 @@ import { IncomeKpiStrip } from "@/components/income/IncomeKpiStrip";
 import { IncomeMonthlyTable } from "@/components/income/IncomeMonthlyTable";
 import { IncomeCategoryChart } from "@/components/income/IncomeCategoryChart";
 import { IncomeStackedBarChart } from "@/components/income/IncomeStackedBarChart";
+import { IncludeCheckbox } from "@/components/IncludeCheckbox";
 import { fetchJson } from "@/lib/fetch-json";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 import type { SpendingAnalyticsBundle } from "@/lib/spending/analytics";
@@ -30,9 +31,12 @@ export function TabPastCashflow({ enabled }: Props) {
   const cacheRef = useRef<SpendingAnalyticsBundle | null>(null);
 
   const [incomeAnalytics, setIncomeAnalytics] = useState<IncomeAnalyticsBundle | null>(null);
+  const [incomeAnalyticsTrueIncome, setIncomeAnalyticsTrueIncome] =
+    useState<IncomeAnalyticsBundle | null>(null);
   const [incomeLoading, setIncomeLoading] = useState(false);
   const [incomeRefreshing, setIncomeRefreshing] = useState(false);
   const [incomeError, setIncomeError] = useState("");
+  const [includeReimbursements, setIncludeReimbursements] = useState(false);
   const incomeCacheRef = useRef<IncomeAnalyticsBundle | null>(null);
 
   const load = useCallback(
@@ -91,12 +95,14 @@ export function TabPastCashflow({ enabled }: Props) {
         const { res, data } = await fetchJson<{
           configured?: boolean;
           analytics?: IncomeAnalyticsBundle;
+          analyticsTrueIncome?: IncomeAnalyticsBundle;
           error?: string;
         }>(`/api/income/analytics?${qs}`, { credentials: "include" });
         if (!res.ok) throw new Error(data.error ?? "Failed to load income analytics");
-        if (!data.analytics) throw new Error("No analytics returned");
+        if (!data.analytics || !data.analyticsTrueIncome) throw new Error("No analytics returned");
         incomeCacheRef.current = data.analytics;
         setIncomeAnalytics(data.analytics);
+        setIncomeAnalyticsTrueIncome(data.analyticsTrueIncome);
         console.info("[TabPastCashflow] income loaded", {
           months: data.analytics.months.length,
           total: data.analytics.monthly.reduce((s, m) => s + m.total, 0),
@@ -145,6 +151,9 @@ export function TabPastCashflow({ enabled }: Props) {
 
   const showSkeleton = loading && !analytics;
   const showIncomeSkeleton = incomeLoading && !incomeAnalytics;
+  const activeIncomeAnalytics = includeReimbursements
+    ? incomeAnalytics
+    : incomeAnalyticsTrueIncome;
 
   return (
     <section className="panel on">
@@ -188,6 +197,14 @@ export function TabPastCashflow({ enabled }: Props) {
 
       <h2>Income</h2>
       <div className="ctrl" style={{ marginBottom: 16, alignItems: "center" }}>
+        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <IncludeCheckbox
+            checked={includeReimbursements}
+            onChange={() => setIncludeReimbursements((v) => !v)}
+            ariaLabel="Include reimbursements in income"
+          />
+          <span>Include reimbursements (medical/transport claims, etc.)</span>
+        </label>
         {incomeRefreshing ? <span className="note">Refreshing…</span> : null}
         {incomeError ? (
           <button type="button" className="btn sm" onClick={() => void loadIncome()}>
@@ -200,14 +217,14 @@ export function TabPastCashflow({ enabled }: Props) {
         <p className="loading">Loading income analytics…</p>
       ) : incomeError && !incomeAnalytics ? (
         <p className="note">{incomeError}</p>
-      ) : incomeAnalytics ? (
+      ) : activeIncomeAnalytics ? (
         <>
-          <IncomeKpiStrip analytics={incomeAnalytics} />
-          <IncomeMonthlyTable analytics={incomeAnalytics} />
-          <IncomeCategoryChart analytics={incomeAnalytics} />
+          <IncomeKpiStrip analytics={activeIncomeAnalytics} />
+          <IncomeMonthlyTable analytics={activeIncomeAnalytics} />
+          <IncomeCategoryChart analytics={activeIncomeAnalytics} />
           <IncomeStackedBarChart
             title="Income by account (5 months)"
-            monthly={incomeAnalytics.monthly}
+            monthly={activeIncomeAnalytics.monthly}
             dimension="byAccount"
           />
         </>

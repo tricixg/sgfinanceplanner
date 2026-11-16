@@ -98,4 +98,40 @@ describe("buildIncomeAnalytics", () => {
       { id: "__unassigned__", label: "Unassigned", amount: 75 },
     ]);
   });
+
+  it("excludes reimbursement-linked deposits when excludeReimbursements is set, regardless of category", () => {
+    const comms = [...categories, { id: "cat-comms", name: "Communication" }];
+    const analytics = buildIncomeAnalytics({
+      throughYm: "2026-03",
+      months: 1,
+      deposits: [
+        {
+          amount: 500,
+          occurredAt: "2026-03-01T00:00:00Z",
+          incomeCategoryId: "cat-poker",
+          sourceRecordId: "expense-123",
+        },
+        {
+          amount: 165,
+          occurredAt: "2026-03-02T00:00:00Z",
+          incomeCategoryId: "cat-comms",
+          sourceRecordId: "expense-456",
+        },
+        {
+          amount: 40,
+          occurredAt: "2026-03-03T00:00:00Z",
+          incomeCategoryId: "cat-comms",
+          sourceRecordId: null,
+        },
+      ],
+      categories: comms,
+      accounts,
+      excludeReimbursements: true,
+    });
+
+    expect(analytics.monthly[0]!.total).toBe(40);
+    expect(analytics.monthly[0]!.byCategory).toEqual([
+      { id: "cat-comms", label: "Communication", amount: 40 },
+    ]);
+  });
 });

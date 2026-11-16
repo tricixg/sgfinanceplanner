@@ -44,7 +44,7 @@ describe("addAdditiveRowsToMonths", () => {
     expect(result["2026-05"]).toBe(80);
   });
 
-  it("still counts a reimbursement-linked deposit in the additive bucket when its category is in the always-count set (e.g. Communication)", () => {
+  it("excludes a reimbursement-linked Communication deposit just like any other linked deposit (no category exception)", () => {
     const result = { "2026-05": 0 };
     addAdditiveRowsToMonths(
       result,
@@ -61,11 +61,16 @@ describe("addAdditiveRowsToMonths", () => {
           source_record_id: "expense-456",
           income_category_id: "cat-comms",
         },
+        {
+          occurred_at: "2026-05-03T00:00:00Z",
+          amount: 40,
+          source_record_id: null,
+          income_category_id: "cat-comms",
+        },
       ],
-      true,
-      new Set(["cat-comms"])
+      true
     );
-    expect(result["2026-05"]).toBe(165);
+    expect(result["2026-05"]).toBe(40);
   });
 
   it("counts reimbursement-linked deposits by default (baseline bucket)", () => {

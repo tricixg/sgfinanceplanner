@@ -1,8 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Categories that are real recurring income, not a cost being returned — count them even when claiming them happens to go through the reimbursement flow. */
-const ALWAYS_COUNT_DESPITE_REIMBURSEMENT_SLUGS = new Set(["comms"]);
-
 function addMonthsYm(ym: string, n: number): string {
   const [y, m] = ym.split("-").map(Number);
   const total = y * 12 + (m - 1) + n;
@@ -19,18 +16,14 @@ export function addAdditiveRowsToMonths(
     source_record_id?: unknown;
     income_category_id?: unknown;
   }>,
-  excludeReimbursements = false,
-  alwaysCountCategoryIds?: Set<string>
+  excludeReimbursements = false
 ): Record<string, number> {
   for (const row of rows) {
     // Reimbursement-linked deposits (source_record_id set) return money for an expense
     // this model's flat budget allocation never subtracted as an outflow — counting them
-    // as additive income would double it. Exception: categories in `alwaysCountCategoryIds`
-    // (e.g. Communication) are real recurring income by design, not a cost being returned,
-    // even though claiming them happens to go through the same reimbursement flow.
-    const alwaysCount =
-      alwaysCountCategoryIds?.has(String(row.income_category_id ?? "")) ?? false;
-    if (excludeReimbursements && row.source_record_id != null && !alwaysCount) continue;
+    // as additive income would double it. A deposit is a reimbursement purely because it's
+    // linked to a specific expense/transaction, regardless of its category.
+    if (excludeReimbursements && row.source_record_id != null) continue;
     const occurred = String(row.occurred_at ?? "");
     const ym = occurred.slice(0, 7);
     if (!(ym in result)) continue;
@@ -56,18 +49,13 @@ async function loadIncomeByYmForFlag(
 
   const { data: categories, error: catErr } = await supabase
     .from("income_categories")
-    .select("id, slug")
+    .select("id")
     .eq("user_id", userId)
     .eq(flagColumn, true);
 
   if (catErr) throw new Error(catErr.message);
 
   const categoryIds = (categories ?? []).map((c) => String(c.id));
-  const alwaysCountCategoryIds = new Set(
-    (categories ?? [])
-      .filter((c) => ALWAYS_COUNT_DESPITE_REIMBURSEMENT_SLUGS.has(String(c.slug)))
-      .map((c) => String(c.id))
-  );
   const result: Record<string, number> = {};
 
   for (let i = 0; i < count; i++) {
@@ -90,12 +78,7 @@ async function loadIncomeByYmForFlag(
 
   if (error) throw new Error(error.message);
 
-  addAdditiveRowsToMonths(
-    result,
-    rows ?? [],
-    flagColumn === "counts_as_additive",
-    alwaysCountCategoryIds
-  );
+  addAdditiveRowsToMonths(result, rows ?? [], flagColumn === "counts_as_additive");
 
   console.info("[income] deposits by month", { userId, startYm, count, flagColumn, result });
   return result;

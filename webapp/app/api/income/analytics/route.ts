@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   const [depositsRes, categories, accountsBundle] = await Promise.all([
     supabase
       .from("savings_transactions")
-      .select("amount, occurred_at, income_category_id, account_id")
+      .select("amount, occurred_at, income_category_id, account_id, source_record_id")
       .eq("user_id", user.id)
       .eq("kind", "deposit")
       .not("income_category_id", "is", null)
@@ -59,14 +59,21 @@ export async function GET(req: NextRequest) {
     occurredAt: String(row.occurred_at ?? ""),
     incomeCategoryId: row.income_category_id ? String(row.income_category_id) : null,
     accountId: row.account_id ? String(row.account_id) : null,
+    sourceRecordId: row.source_record_id ? String(row.source_record_id) : null,
   }));
 
-  const analytics = buildIncomeAnalytics({
+  const sharedInput = {
     throughYm,
     months,
     deposits,
     categories: categories.map((c) => ({ id: c.id, name: c.name })),
     accounts: accountsBundle.accounts.map((a) => ({ id: a.id, name: a.name })),
+  };
+
+  const analytics = buildIncomeAnalytics(sharedInput);
+  const analyticsTrueIncome = buildIncomeAnalytics({
+    ...sharedInput,
+    excludeReimbursements: true,
   });
 
   const ms = Date.now() - started;
@@ -77,5 +84,5 @@ export async function GET(req: NextRequest) {
     ms,
   });
 
-  return NextResponse.json({ configured: true, analytics });
+  return NextResponse.json({ configured: true, analytics, analyticsTrueIncome });
 }
