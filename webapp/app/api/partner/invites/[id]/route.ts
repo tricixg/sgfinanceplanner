@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { ensureUserHousehold } from "@/lib/household/bootstrap";
+import { acceptPartnerInvite } from "@/lib/household/accept-invite";
+import { saveErrorStatus } from "@/lib/sync/save-error";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -76,67 +77,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: existingMembers } = await supabase
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const oldHouseholdId = existingMembers?.household_id;
-
-  const { error: delMemErr } = await supabase
-    .from("household_members")
-    .delete()
-    .eq("user_id", user.id);
-
-  if (delMemErr) {
-    console.error("[api/partner/invites] remove old membership failed", delMemErr.message);
-    return NextResponse.json({ error: delMemErr.message }, { status: 500 });
+  // Membership changes are only possible through this SQL function (migration 066):
+  // it re-validates the invite, enforces the 2-member cap and runs atomically.
+  let householdId: string;
+  try {
+    householdId = await acceptPartnerInvite(supabase, id);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to accept invite";
+    console.error("[api/partner/invites] accept failed", msg);
+    return NextResponse.json({ error: msg }, { status: saveErrorStatus(e) });
   }
-
-  const { error: joinErr } = await supabase.from("household_members").insert({
-    household_id: invite.household_id,
-    user_id: user.id,
-    role: "member",
-  });
-
-  if (joinErr) {
-    console.error("[api/partner/invites] join household failed", joinErr.message);
-    if (oldHouseholdId) {
-      await ensureUserHousehold(supabase, user.id);
-    }
-    return NextResponse.json({ error: joinErr.message }, { status: 500 });
-  }
-
-  if (oldHouseholdId && oldHouseholdId !== invite.household_id) {
-    const { count } = await supabase
-      .from("household_members")
-      .select("*", { count: "exact", head: true })
-      .eq("household_id", oldHouseholdId);
-    if ((count ?? 0) === 0) {
-      await supabase.from("households").delete().eq("id", oldHouseholdId);
-      console.info("[api/partner/invites] removed empty solo household", {
-        oldHouseholdId,
-      });
-    }
-  }
-
-  await supabase
-    .from("partner_invites")
-    .update({ status: "accepted", responded_at: new Date().toISOString() })
-    .eq("id", id);
-
-  await supabase
-    .from("partner_invites")
-    .update({ status: "cancelled", responded_at: new Date().toISOString() })
-    .eq("inviter_id", user.id)
-    .eq("status", "pending");
 
   console.info("[api/partner/invites] accepted", {
     id,
     userId: user.id,
-    householdId: invite.household_id,
+    householdId,
   });
 
-  return NextResponse.json({ ok: true, householdId: invite.household_id });
+  return NextResponse.json({ ok: true, householdId });
 }

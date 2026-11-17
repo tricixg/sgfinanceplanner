@@ -148,13 +148,7 @@ Personal **Cash Accounts** and **Expenses** remain individual unless you both lo
 
 ## Back up your data
 
-**Goal:** Keep a copy of your settings and data.
-
-1. Go to **ME**.
-2. Use **Export JSON** (or similar).
-3. Save the file somewhere safe.
-
-**Restore:** Use **Import JSON** on **ME** only if you understand it overwrites current data — use with caution.
+Your data is backed up by the database host (Supabase), not from inside the app. There is no backup or restore button on **ME**. The app owner manages backups in the Supabase dashboard: **Database → Backups**.
 
 ---
 

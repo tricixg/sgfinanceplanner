@@ -49,6 +49,10 @@ export function useSavingsProvider(enabled: boolean) {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [error, setError] = useState("");
+  const bundleRef = useRef(bundle);
+  bundleRef.current = bundle;
+  const hasLoadedRef = useRef(hasLoaded);
+  hasLoadedRef.current = hasLoaded;
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -106,13 +110,20 @@ export function useSavingsProvider(enabled: boolean) {
 
   const savePools = useCallback(
     async (pools: SavingsPool[]) => {
+      if (!hasLoadedRef.current) {
+        throw new Error("Savings haven't finished loading — reload and try again.");
+      }
+      // Only rows the user saw (loaded from the server) and then removed are deleted.
+      const deletedPoolIds = bundleRef.current.pools
+        .filter((p) => !pools.some((x) => x.id === p.id))
+        .map((p) => p.id);
       const { res, data } = await fetchJson<SavingsBundle & { error?: string }>(
         "/api/savings",
         {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pools }),
+          body: JSON.stringify({ pools, deletedPoolIds }),
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Failed to save pools");
@@ -124,13 +135,19 @@ export function useSavingsProvider(enabled: boolean) {
   );
 
   const saveGoals = useCallback(async (goals: SavingsGoal[]) => {
+    if (!hasLoadedRef.current) {
+      throw new Error("Savings haven't finished loading — reload and try again.");
+    }
+    const deletedGoalIds = bundleRef.current.goals
+      .filter((g) => !goals.some((x) => x.id === g.id))
+      .map((g) => g.id);
     const { res, data } = await fetchJson<SavingsBundle & { error?: string }>(
       "/api/savings",
       {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goals }),
+        body: JSON.stringify({ goals, deletedGoalIds }),
       }
     );
     if (!res.ok) throw new Error(data.error ?? "Failed to save goals");

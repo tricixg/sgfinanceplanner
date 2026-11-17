@@ -25,6 +25,8 @@ import { fmt, fmt2, formatSnapshotDate } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
+import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
+import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
 import type { ChartOptions } from "chart.js";
@@ -91,6 +93,7 @@ export function TabWealth({
   savingsGoals = [],
 }: Props) {
   const appData = useContext(AppDataContext);
+  const holdingsLoadError = useDomainLoadError("holdings").error;
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [savingIlp, setSavingIlp] = useState(false);
@@ -424,6 +427,7 @@ export function TabWealth({
 
   return (
     <section className="panel on">
+      <DomainLoadErrorBanner domain="holdings" />
       {savings && personalCash > 0 ? (
         <p className="ui-hint" style={{ marginBottom: 12 }}>
           Free cash uses your personal accounts (Cash Accounts tab). Joint pools stay on Savings
@@ -971,7 +975,12 @@ export function TabWealth({
             {savingHoldings ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button type="button" className="btn ghost sm" onClick={startHoldingsEdit}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            disabled={Boolean(holdingsLoadError)}
+            onClick={startHoldingsEdit}
+          >
             Edit
           </button>
         )}

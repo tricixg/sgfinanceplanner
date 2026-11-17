@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Loan } from "@/lib/types";
 
-const UUID_RE = /^[0-9a-f-]{36}$/i;
+import { SaveError, cleanIdList, isPersistedId } from "@/lib/sync/save-error";
 
 export async function loadLoans(
   supabase: SupabaseClient,
@@ -26,26 +26,23 @@ async function cardKeyToUuid(
   return map;
 }
 
+/**
+ * Save instalment plans. Rows are matched by DB `id`; rows without a persisted
+ * id are inserted. Rows are deleted only when their id is in `deletedIds`.
+ * Plans with `monthly = 0` are kept like any other plan.
+ */
 export async function saveLoans(
   supabase: SupabaseClient,
   userId: string,
-  incoming: Loan[]
+  incoming: Loan[],
+  deletedIds: unknown = []
 ): Promise<Loan[]> {
-  const instalmentOnly = incoming.filter((l) => l.monthly > 0);
   const keyToUuid = await cardKeyToUuid(supabase, userId);
 
-  const { data: existing } = await supabase
-    .from("loans")
-    .select("id, name")
-    .eq("user_id", userId);
-
-  const keepIds = new Set<string>();
-
-  for (let i = 0; i < instalmentOnly.length; i++) {
-    const l = instalmentOnly[i];
+  for (let i = 0; i < incoming.length; i++) {
+    const l = incoming[i];
     const creditCardId = l.cardId ? keyToUuid.get(l.cardId) ?? null : null;
     const payload = {
-      user_id: userId,
       name: l.name ?? "",
       card_label: l.card ?? "",
       credit_card_id: creditCardId,
@@ -58,28 +55,44 @@ export async function saveLoans(
       updated_at: new Date().toISOString(),
     };
 
-    const match =
-      l.id && UUID_RE.test(l.id)
-        ? (existing ?? []).find((e) => e.id === l.id)
-        : (existing ?? []).find((e) => e.name === l.name && !keepIds.has(e.id));
-    if (match?.id && UUID_RE.test(match.id)) {
-      keepIds.add(match.id);
-      await supabase.from("loans").update(payload).eq("id", match.id);
+    if (isPersistedId(l.id)) {
+      const { data, error } = await supabase
+        .from("loans")
+        .update(payload)
+        .eq("id", l.id)
+        .eq("user_id", userId)
+        .select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) {
+        throw new SaveError(
+          `Instalment plan "${l.name}" no longer exists. Reload and try again.`,
+          409
+        );
+      }
     } else {
-      const { data: ins } = await supabase.from("loans").insert(payload).select("id").single();
-      if (ins?.id) keepIds.add(String(ins.id));
+      const { error } = await supabase
+        .from("loans")
+        .insert({ user_id: userId, ...payload });
+      if (error) throw new Error(error.message);
     }
   }
 
-  for (const row of existing ?? []) {
-    if (!keepIds.has(row.id)) {
-      await supabase.from("loans").delete().eq("id", row.id);
-    }
+  const toDelete = cleanIdList(deletedIds).filter(
+    (id) => !incoming.some((l) => l.id === id)
+  );
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from("loans")
+      .delete()
+      .in("id", toDelete)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
   }
 
   console.info("[loans] saved instalment plans", {
     userId,
-    count: instalmentOnly.length,
+    count: incoming.length,
+    deleted: toDelete.length,
   });
   return loadLoans(supabase, userId);
 }

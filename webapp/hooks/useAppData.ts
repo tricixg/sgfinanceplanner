@@ -13,6 +13,12 @@ import { AppDataContext } from "@/contexts/app-data-contexts";
 import { resolveBudgetMonth } from "@/lib/budget/monthly";
 import { currentYm } from "@/lib/finance/helpers";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
+import {
+  assertDomainEditable,
+  removedIds,
+  type GuardedDomain,
+  type LoadErrors,
+} from "@/lib/sync/explicit-delete";
 
 export const PORTFOLIO_HISTORY_LIMIT = 30;
 export const NET_WORTH_HISTORY_LIMIT = 60;
@@ -86,6 +92,27 @@ export function useAppDataProvider(enabled: boolean) {
 
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  // Per-domain load failures. A domain that failed to load holds an empty list
+  // that is NOT the user's real data, so its editing is blocked (see saveLoans /
+  // saveCards / saveHoldings) and the UI shows a retry banner.
+  const [loadErrors, setLoadErrors] = useState<LoadErrors>({});
+  const loadErrorsRef = useRef(loadErrors);
+  loadErrorsRef.current = loadErrors;
+  const setDomainError = useCallback((domain: GuardedDomain, message: string | null) => {
+    setLoadErrors((prev) => {
+      if ((prev[domain] ?? null) === message) return prev;
+      const next = { ...prev };
+      if (message) next[domain] = message;
+      else delete next[domain];
+      return next;
+    });
+  }, []);
+
+  // Raw lists exactly as loaded from the server — the baseline for "what did
+  // the user remove" when saving.
+  const loadedRef = useRef({ loans, creditCards, holdings });
+  loadedRef.current = { loans, creditCards, holdings };
 
   const loadSnapshots = useCallback(async () => {
     if (!enabled) return;
@@ -176,25 +203,32 @@ export function useAppDataProvider(enabled: boolean) {
     void loadNetWorthHistory();
     void loadCpfContributions();
     void loadCpfTransactions();
+    // A failed/throwing request resolves to `{ res.ok: false }` so one bad
+    // domain can't hide behind (or break) the others.
+    const safe = <T,>(p: Promise<{ res: Response; data: T }>) =>
+      p.catch((e: unknown) => {
+        console.warn("[useAppData] request failed", e);
+        return { res: { ok: false, status: 0 } as Response, data: {} as T };
+      });
     try {
       const [prefsRes, profRes, loansRes, otherLoansRes, budgetRes, cardsRes, holdRes] =
         await Promise.all([
-          fetchJson<{ data?: { prefs?: DashboardState["prefs"] }; configured?: boolean }>(
+          safe(fetchJson<{ data?: { prefs?: DashboardState["prefs"] }; configured?: boolean }>(
             "/api/state",
             { credentials: "include" }
-          ),
-          fetchJson<ProfileBundle & { configured?: boolean }>("/api/profile", {
+          )),
+          safe(fetchJson<ProfileBundle & { configured?: boolean }>("/api/profile", {
             credentials: "include",
-          }),
-          fetchJson<{ loans?: DashboardState["loans"]; configured?: boolean }>(
+          })),
+          safe(fetchJson<{ loans?: DashboardState["loans"]; configured?: boolean }>(
             "/api/loans",
             { credentials: "include" }
-          ),
-          fetchJson<{ otherLoans?: DashboardState["otherLoans"]; configured?: boolean }>(
+          )),
+          safe(fetchJson<{ otherLoans?: DashboardState["otherLoans"]; configured?: boolean }>(
             "/api/other-loans",
             { credentials: "include" }
-          ),
-          fetchJson<{
+          )),
+          safe(fetchJson<{
             budget?: DashboardState["budget"];
             months?: Record<string, DashboardState["budget"]>;
             income?: Record<string, number>;
@@ -203,15 +237,15 @@ export function useAppDataProvider(enabled: boolean) {
           }>(
             "/api/budget-lines",
             { credentials: "include" }
-          ),
-          fetchJson<{ cards?: DashboardState["creditCards"]; configured?: boolean }>(
+          )),
+          safe(fetchJson<{ cards?: DashboardState["creditCards"]; configured?: boolean }>(
             "/api/credit-cards",
             { credentials: "include" }
-          ),
-          fetchJson<{ holdings?: DashboardState["holdings"]; configured?: boolean }>(
+          )),
+          safe(fetchJson<{ holdings?: DashboardState["holdings"]; configured?: boolean }>(
             "/api/holdings",
             { credentials: "include" }
-          ),
+          )),
         ]);
 
       setConfigured(profRes.data.configured !== false);
@@ -226,6 +260,9 @@ export function useAppDataProvider(enabled: boolean) {
         });
       }
       if (loansRes.res.ok) setLoans(loansRes.data.loans ?? []);
+      setDomainError("loans", loansRes.res.ok ? null : "Couldn't load instalment plans");
+      setDomainError("cards", cardsRes.res.ok ? null : "Couldn't load credit cards");
+      setDomainError("holdings", holdRes.res.ok ? null : "Couldn't load holdings");
       if (otherLoansRes.res.ok) setOtherLoans(otherLoansRes.data.otherLoans ?? []);
       if (budgetRes.res.ok) {
         setBudgetMonths(budgetRes.data.months ?? {});
@@ -240,7 +277,7 @@ export function useAppDataProvider(enabled: boolean) {
     } finally {
       setCoreLoading(false);
     }
-  }, [enabled, loadSnapshots, loadNetWorthHistory, loadCpfContributions, loadCpfTransactions]);
+  }, [enabled, loadSnapshots, loadNetWorthHistory, loadCpfContributions, loadCpfTransactions, setDomainError]);
 
   useEffect(() => {
     void load();
@@ -253,9 +290,12 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (res.ok) {
       setLoans(data.loans ?? []);
+      setDomainError("loans", null);
       console.info("[useAppData] reloadLoans ok", { count: data.loans?.length ?? 0 });
+    } else {
+      setDomainError("loans", "Couldn't load instalment plans");
     }
-  }, []);
+  }, [setDomainError]);
 
   const reloadHoldings = useCallback(async () => {
     const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
@@ -264,11 +304,14 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (res.ok) {
       setHoldings(data.holdings ?? []);
+      setDomainError("holdings", null);
       console.info("[useAppData] reloadHoldings ok", {
         count: data.holdings?.length ?? 0,
       });
+    } else {
+      setDomainError("holdings", "Couldn't load holdings");
     }
-  }, []);
+  }, [setDomainError]);
 
   const reloadOtherLoans = useCallback(async () => {
     const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
@@ -314,16 +357,18 @@ export function useAppDataProvider(enabled: boolean) {
   );
 
   const saveLoans = useCallback(async (next: DashboardState["loans"]) => {
-    const { res, data } = await fetchJson<{ loans?: DashboardState["loans"] }>(
+    assertDomainEditable(loadErrorsRef.current, "loans");
+    const deletedIds = removedIds(loadedRef.current.loans, next, (l) => l.id);
+    const { res, data } = await fetchJson<{ loans?: DashboardState["loans"]; error?: string }>(
       "/api/loans",
       {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loans: next }),
+        body: JSON.stringify({ loans: next, deletedIds }),
       }
     );
-    if (!res.ok) throw new Error("Failed to save loans");
+    if (!res.ok) throw new Error(data.error ?? "Failed to save loans");
     setLoans(data.loans ?? next);
     dispatchDomainEvent("loans:changed");
   }, []);
@@ -353,31 +398,41 @@ export function useAppDataProvider(enabled: boolean) {
   );
 
   const saveCards = useCallback(async (next: DashboardState["creditCards"]) => {
-    const { res, data } = await fetchJson<{ cards?: DashboardState["creditCards"] }>(
+    assertDomainEditable(loadErrorsRef.current, "cards");
+    const deletedCardKeys = removedIds(loadedRef.current.creditCards, next, (c) => c.id);
+    const { res, data } = await fetchJson<{
+      cards?: DashboardState["creditCards"];
+      error?: string;
+    }>(
       "/api/credit-cards",
       {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cards: next }),
+        body: JSON.stringify({ cards: next, deletedCardKeys }),
       }
     );
-    if (!res.ok) throw new Error("Failed to save cards");
+    if (!res.ok) throw new Error(data.error ?? "Failed to save cards");
     setCreditCards(data.cards ?? next);
     dispatchDomainEvent("cards:changed");
   }, []);
 
   const saveHoldings = useCallback(async (next: DashboardState["holdings"]) => {
-    const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
+    assertDomainEditable(loadErrorsRef.current, "holdings");
+    const deletedIds = removedIds(loadedRef.current.holdings, next, (h) => h.id);
+    const { res, data } = await fetchJson<{
+      holdings?: DashboardState["holdings"];
+      error?: string;
+    }>(
       "/api/holdings",
       {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ holdings: next }),
+        body: JSON.stringify({ holdings: next, deletedIds }),
       }
     );
-    if (!res.ok) throw new Error("Failed to save holdings");
+    if (!res.ok) throw new Error(data.error ?? "Failed to save holdings");
     setHoldings(data.holdings ?? next);
     dispatchDomainEvent("holdings:changed");
   }, []);
@@ -738,6 +793,7 @@ export function useAppDataProvider(enabled: boolean) {
     coreLoading,
     snapshotsLoading,
     configured,
+    loadErrors,
     reload: load,
     reloadLoans,
     reloadOtherLoans,

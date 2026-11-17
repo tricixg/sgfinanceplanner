@@ -9,12 +9,21 @@ import {
 import type { AccountsBundle, UserSavingsAccount } from "@/lib/savings/types";
 import { AccountsContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { assertDomainEditable, removedIds, type LoadErrors } from "@/lib/sync/explicit-delete";
 
 export function useAccountsProvider(enabled: boolean) {
   const [accounts, setAccounts] = useState<UserSavingsAccount[]>([]);
   const [totals, setTotals] = useState<AccountsBundle["totals"] | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
+  // Set when the last load failed. Editing is blocked until a load succeeds so
+  // an empty/stale list can't be saved over the user's real accounts.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadErrorsRef = useRef<LoadErrors>({});
+  loadErrorsRef.current = loadError ? { accounts: loadError } : {};
+  const accountsRef = useRef(accounts);
+  accountsRef.current = accounts;
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!enabled) {
@@ -29,16 +38,24 @@ export function useAccountsProvider(enabled: boolean) {
         totals?: AccountsBundle["totals"];
         error?: string;
       }>("/api/accounts", { credentials: "include" });
-      if (!res.ok || !data.configured) {
+      if (!res.ok) {
+        setLoadError(data.error ?? "Couldn't load cash accounts");
         setConfigured(false);
         return;
       }
+      if (!data.configured) {
+        setConfigured(false);
+        return;
+      }
+      setLoadError(null);
+      hasLoadedRef.current = true;
       setConfigured(true);
       setAccounts(data.accounts ?? []);
       setTotals(data.totals ?? null);
       console.info("[useAccounts] loaded", { count: data.accounts?.length });
     } catch (e) {
       console.error("[useAccounts] load failed", e);
+      setLoadError(e instanceof Error ? e.message : "Couldn't load cash accounts");
       setConfigured(false);
     } finally {
       setLoading(false);
@@ -74,6 +91,11 @@ export function useAccountsProvider(enabled: boolean) {
 
   const saveAccounts = useCallback(
     async (next: UserSavingsAccount[]) => {
+      assertDomainEditable(loadErrorsRef.current, "accounts");
+      if (!hasLoadedRef.current) {
+        throw new Error("Cash accounts haven't finished loading — reload and try again.");
+      }
+      const deletedIds = removedIds(accountsRef.current, next, (a) => a.id);
       const { res, data } = await fetchJson<{
         configured?: boolean;
         accounts?: UserSavingsAccount[];
@@ -83,7 +105,7 @@ export function useAccountsProvider(enabled: boolean) {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accounts: next }),
+        body: JSON.stringify({ accounts: next, deletedIds }),
       });
       if (!res.ok) {
         throw new Error(data.error ?? "Failed to save accounts");
@@ -137,6 +159,7 @@ export function useAccountsProvider(enabled: boolean) {
       totals,
       loading,
       configured,
+      loadError,
       reload: load,
       ensureLoaded,
       saveAccounts,
@@ -147,6 +170,7 @@ export function useAccountsProvider(enabled: boolean) {
       totals,
       loading,
       configured,
+      loadError,
       load,
       ensureLoaded,
       saveAccounts,

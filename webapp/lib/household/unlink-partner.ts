@@ -110,7 +110,7 @@ export async function unlinkPartner(
   }
 
   for (const memberId of memberIds) {
-    await ensureUserHousehold(admin, memberId);
+    await ensureUserHousehold(admin, memberId, { viaServiceRole: true });
   }
 
   const result: UnlinkPartnerResult = {

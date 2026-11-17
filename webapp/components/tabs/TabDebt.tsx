@@ -19,6 +19,8 @@ import { RecurringScheduleFields } from "@/components/recurring/RecurringSchedul
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
+import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
+import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 
 type Props = {
   state: DashboardState;
@@ -27,6 +29,7 @@ type Props = {
 
 export function TabDebt({ state: S, setState }: Props) {
   const appData = useContext(AppDataContext);
+  const loansLoadError = useDomainLoadError("loans").error;
   const [editing, setEditing] = useState(false);
   const [editingOtherLoans, setEditingOtherLoans] = useState(false);
   const [otherLoansSaveRequest, setOtherLoansSaveRequest] = useState(0);
@@ -193,6 +196,7 @@ export function TabDebt({ state: S, setState }: Props) {
 
   return (
     <section className="panel on">
+      <DomainLoadErrorBanner domain="loans" />
       <div className="callout tip">
         <span className="ico">Tip</span>
         Monthly instalment plans feed cashflow, calendar, and debt burn-down charts.
@@ -232,7 +236,12 @@ export function TabDebt({ state: S, setState }: Props) {
             {saving ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button type="button" className="btn ghost sm" onClick={startEditing}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            disabled={Boolean(loansLoadError)}
+            onClick={startEditing}
+          >
             Edit
           </button>
         )}

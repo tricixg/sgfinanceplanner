@@ -18,6 +18,8 @@ import { ensureCreditCardIds } from "@/lib/finance/card-linking";
 import { getCatalogEntry } from "@/lib/cards/sg-card-catalog";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
+import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
+import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 import { Snackbar } from "@/components/Snackbar";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCardStatements } from "@/hooks/useCardStatements";
@@ -47,6 +49,7 @@ type Props = {
 
 export function TabCards({ state: S, setState, cardsApi }: Props) {
   const creditCards = cardsApi?.configured ? cardsApi.cards : S.creditCards;
+  const cardsLoadError = useDomainLoadError("cards").error;
   const statementsEnabled = Boolean(cardsApi?.configured);
   const [statementCycleOffset, setStatementCycleOffset] = useState(0);
   const {
@@ -332,6 +335,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
 
   return (
     <section className="panel on">
+      <DomainLoadErrorBanner domain="cards" />
       <div className="callout tip">
         <span className="ico">Tip</span>
         Pick cards from the Singapore catalog (indicative as of {CATALOG_AS_OF}).
@@ -394,7 +398,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
           <button
             type="button"
             className="btn ghost sm"
-            disabled={savingRow !== null}
+            disabled={savingRow !== null || Boolean(cardsLoadError)}
             onClick={startEditing}
           >
             Edit
