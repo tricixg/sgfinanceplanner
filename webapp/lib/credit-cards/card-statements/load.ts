@@ -64,32 +64,60 @@ function closingUnpaidForCarry(stmt: DbCardStatement): number {
   return roundMoney(principal + stmt.interestAccrued);
 }
 
-export async function ensureStatementRows(
-  supabase: SupabaseClient,
+type NewStatementPayload = {
+  user_id: string;
+  credit_card_id: string;
+  statement_close_date: string;
+  cycle_start_date: string;
+  cycle_end_date: string;
+  payment_due_date: string;
+  carried_forward_in: number;
+  updated_at: string;
+};
+
+export type StatementRowsPlan = {
+  /** Every row of the card after the plan is applied, newest close date first. New rows have a
+   * placeholder id until they are written. */
+  rows: DbCardStatement[];
+  inserts: NewStatementPayload[];
+  updates: { id: string; patch: Record<string, unknown> }[];
+};
+
+/**
+ * What a row looks like straight after insert: the column defaults of card_statements
+ * (migrations 017, 018, 058). The carry chain below reads these fields of a just-created row,
+ * so the plan can be computed without writing it first.
+ */
+function freshStatementRow(payload: NewStatementPayload): DbCardStatement {
+  return mapCardStatement({
+    id: `pending:${payload.statement_close_date}`,
+    ...payload,
+    actual_amount: null,
+    tracked_amount: null,
+    amount_paid: 0,
+    interest_accrued: 0,
+    paid_at: null,
+    amount_includes_prior_balance: false,
+    minimum_due: null,
+  });
+}
+
+/**
+ * Decide which of a card's last HISTORY_CYCLES statement rows are missing or stale. Pure: the
+ * cycle and carry-forward arithmetic is exactly what ensureStatementRows has always done,
+ * walking the cycles oldest to newest so each row's carry comes from the one before it. It
+ * only reports the writes needed; nothing is read or written here.
+ */
+export function planStatementRows(
   userId: string,
-  card: DbCreditCard
-): Promise<DbCardStatement[]> {
-  const today = sgtTodayYmd();
-  const closeDates = recentStatementCloseDates(
-    card.statementDay,
-    HISTORY_CYCLES,
-    today
-  );
-
-  const { data: existing, error } = await supabase
-    .from("card_statements")
-    .select("*")
-    .eq("credit_card_id", card.id)
-    .eq("user_id", userId);
-
-  if (error) throw new Error(error.message);
-
-  const byClose = new Map(
-    (existing ?? []).map((r) => [
-      String(r.statement_close_date).slice(0, 10),
-      mapCardStatement(r),
-    ])
-  );
+  card: Pick<DbCreditCard, "id" | "statementDay" | "paymentDueDay">,
+  existing: DbCardStatement[],
+  today: string
+): StatementRowsPlan {
+  const closeDates = recentStatementCloseDates(card.statementDay, HISTORY_CYCLES, today);
+  const byClose = new Map(existing.map((r) => [r.statementCloseDate, r]));
+  const inserts: NewStatementPayload[] = [];
+  const updates: StatementRowsPlan["updates"] = [];
 
   const sortedCloses = [...closeDates].sort();
   let priorCarry = 0;
@@ -100,7 +128,7 @@ export async function ensureStatementRows(
     const row = byClose.get(close);
 
     if (!row) {
-      const payload = {
+      const payload: NewStatementPayload = {
         user_id: userId,
         credit_card_id: card.id,
         statement_close_date: close,
@@ -110,13 +138,8 @@ export async function ensureStatementRows(
         carried_forward_in: priorCarry,
         updated_at: new Date().toISOString(),
       };
-      const { data: inserted, error: insErr } = await supabase
-        .from("card_statements")
-        .insert(payload)
-        .select("*")
-        .single();
-      if (insErr) throw new Error(insErr.message);
-      const mapped = mapCardStatement(inserted);
+      inserts.push(payload);
+      const mapped = freshStatementRow(payload);
       byClose.set(close, mapped);
       priorCarry =
         today > due && !mapped.paidAt ? closingUnpaidForCarry(mapped) : 0;
@@ -134,15 +157,13 @@ export async function ensureStatementRows(
           patch.cycle_end_date = cycleEnd;
         }
         if (carryStale) patch.carried_forward_in = priorCarry;
+        updates.push({ id: row.id, patch });
 
-        const { data: updated, error: updErr } = await supabase
-          .from("card_statements")
-          .update(patch)
-          .eq("id", row.id)
-          .select("*")
-          .single();
-        if (updErr) throw new Error(updErr.message);
-        const mapped = mapCardStatement(updated);
+        const mapped: DbCardStatement = {
+          ...row,
+          ...(cycleDatesStale ? { cycleStartDate: cycleStart, cycleEndDate: cycleEnd } : {}),
+          ...(carryStale ? { carriedForwardIn: priorCarry } : {}),
+        };
         byClose.set(close, mapped);
         if (cycleDatesStale) {
           console.info("[card-statements] corrected cycle dates", {
@@ -160,9 +181,80 @@ export async function ensureStatementRows(
     }
   }
 
-  return [...byClose.values()].sort((a, b) =>
-    b.statementCloseDate.localeCompare(a.statementCloseDate)
-  );
+  return {
+    rows: [...byClose.values()].sort((a, b) =>
+      b.statementCloseDate.localeCompare(a.statementCloseDate)
+    ),
+    inserts,
+    updates,
+  };
+}
+
+/**
+ * A card's statement rows, with any missing/stale ones in the last HISTORY_CYCLES cycles
+ * created/corrected first. In the steady state this is a single read and no writes. Missing
+ * rows go in as ONE `INSERT … ON CONFLICT DO NOTHING` (unique index card_statements_card_close_uidx),
+ * and corrections run in parallel, instead of one awaited write per row. Because the insert
+ * ignores duplicates, two requests loading the same new card at once no longer fail on the
+ * unique index: if another request created some of the rows first, this one re-reads and
+ * re-plans against what is there.
+ */
+export async function ensureStatementRows(
+  supabase: SupabaseClient,
+  userId: string,
+  card: DbCreditCard
+): Promise<DbCardStatement[]> {
+  const today = sgtTodayYmd();
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: existingRows, error } = await supabase
+      .from("card_statements")
+      .select("*")
+      .eq("credit_card_id", card.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+
+    const plan = planStatementRows(
+      userId,
+      card,
+      (existingRows ?? []).map((r) => mapCardStatement(r)),
+      today
+    );
+    if (plan.inserts.length === 0 && plan.updates.length === 0) return plan.rows;
+
+    const [insertResult, ...updateResults] = await Promise.all([
+      plan.inserts.length > 0
+        ? supabase
+            .from("card_statements")
+            .upsert(plan.inserts, {
+              onConflict: "credit_card_id,statement_close_date",
+              ignoreDuplicates: true,
+            })
+            .select("*")
+        : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
+      ...plan.updates.map((u) =>
+        supabase.from("card_statements").update(u.patch).eq("id", u.id)
+      ),
+    ]);
+    if (insertResult.error) throw new Error(insertResult.error.message);
+    for (const r of updateResults) if (r.error) throw new Error(r.error.message);
+
+    const inserted = (insertResult.data ?? []).map((r) => mapCardStatement(r));
+    if (inserted.length < plan.inserts.length) {
+      // Another request created some of these rows between our read and write. Take the
+      // authoritative rows (and their ids) from a fresh read.
+      console.info("[card-statements] concurrent row creation; re-reading", {
+        cardId: card.id,
+        planned: plan.inserts.length,
+        inserted: inserted.length,
+      });
+      continue;
+    }
+
+    const insertedByClose = new Map(inserted.map((r) => [r.statementCloseDate, r]));
+    return plan.rows.map((r) => insertedByClose.get(r.statementCloseDate) ?? r);
+  }
+  throw new Error("Couldn't prepare card statements; please retry");
 }
 
 function closedStatementsNewestFirst(
@@ -314,19 +406,24 @@ export async function loadCardStatementsBundle(
       const spendIndex = finId ? spendIndexMap.get(finId) ?? null : null;
 
       const { latestClosed, viewedClosed } = selections[cardIdx]!;
+      // The viewed and the latest closed statement are the same row at offset 0; compute
+      // (and, if it changed, write) a statement's interest once per load, not once per use.
+      const interestByStatement = new Map<string, Promise<number>>();
+      const interestFor = (stmt: DbCardStatement) => {
+        let p = interestByStatement.get(stmt.id);
+        if (!p) {
+          p = recomputeInterestForStatement(supabase, userId, card, stmt, spendIndex);
+          interestByStatement.set(stmt.id, p);
+        }
+        return p;
+      };
       if (viewedClosed) {
         const tracked = cycleSpendTotal(
           spendIndex,
           viewedClosed.cycleStartDate,
           viewedClosed.cycleEndDate
         );
-        const interest = await recomputeInterestForStatement(
-          supabase,
-          userId,
-          card,
-          viewedClosed,
-          spendIndex
-        );
+        const interest = await interestFor(viewedClosed);
         const btInterestFree = await interestFreeBalanceTransferPrincipal(
           supabase,
           userId,
@@ -348,13 +445,7 @@ export async function loadCardStatementsBundle(
       let interestEstimate = 0;
       const priorClosed = latestClosed;
       if (priorClosed && !priorClosed.paidAt) {
-        const priorInterest = await recomputeInterestForStatement(
-          supabase,
-          userId,
-          card,
-          priorClosed,
-          spendIndex
-        );
+        const priorInterest = await interestFor(priorClosed);
         // Post-due interest is reported separately so it isn't counted twice
         // (once inside carried forward and again as the interest estimate).
         // Until the bank's real statement total is saved, fall back to this

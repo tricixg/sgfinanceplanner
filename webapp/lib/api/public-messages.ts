@@ -38,6 +38,7 @@ export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
   "Choose a personal savings goal",
   "Choose a shared savings goal",
   "Code already used",
+  "Couldn't prepare card statements; please retry",
   "Code expired — generate a new one in the app",
   "Code not found or expired",
   "Companion not on this trip",

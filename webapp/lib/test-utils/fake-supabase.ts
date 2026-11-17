@@ -5,7 +5,7 @@ type Filter = { col: string; op: "eq" | "in" | "neq" | "or"; val: unknown };
 
 export type FakeOp = {
   table: string;
-  kind: "select" | "insert" | "update" | "delete";
+  kind: "select" | "insert" | "update" | "delete" | "upsert";
   filters: Filter[];
   payload?: unknown;
 };
@@ -47,6 +47,7 @@ export function createFakeSupabase(
     let kind: FakeOp["kind"] = "select";
     let payload: unknown;
     let wantRows = false;
+    let upsertOpts: { onConflict?: string; ignoreDuplicates?: boolean } = {};
     let single = false;
     let rangeFrom: number | null = null;
     let rangeTo = 0;
@@ -66,6 +67,25 @@ export function createFakeSupabase(
       const failMsg = opts.failOn?.(op) ?? null;
       if (failMsg) return { data: null, error: { message: failMsg } };
       const rows = rowsOf(table);
+      if (kind === "upsert") {
+        // INSERT ... ON CONFLICT (cols) DO NOTHING (ignoreDuplicates) / DO UPDATE.
+        const cols = (upsertOpts.onConflict ?? "id").split(",").map((c) => c.trim());
+        const out: Row[] = [];
+        for (const p of Array.isArray(payload) ? payload : [payload]) {
+          const hit = rows.find((r) => cols.every((c) => r[c] === (p as Row)[c]));
+          if (hit) {
+            if (!upsertOpts.ignoreDuplicates) {
+              Object.assign(hit, p as Row);
+              out.push(hit);
+            }
+            continue;
+          }
+          const row = { id: `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`, ...(p as Row) };
+          rows.push(row);
+          out.push(row);
+        }
+        return { data: wantRows ? out : null, error: null };
+      }
       if (kind === "insert") {
         const inserted = (Array.isArray(payload) ? payload : [payload]).map((p) => ({
           id: `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`,
@@ -95,6 +115,12 @@ export function createFakeSupabase(
       insert: (p: unknown) => {
         kind = "insert";
         payload = p;
+        return api;
+      },
+      upsert: (p: unknown, o?: { onConflict?: string; ignoreDuplicates?: boolean }) => {
+        kind = "upsert";
+        payload = p;
+        upsertOpts = o ?? {};
         return api;
       },
       update: (p: unknown) => {
