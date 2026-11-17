@@ -227,7 +227,7 @@ export function resolveBtoOAMonthly(
     "tOaGrowthMode" | "pOaGrowthMode" | "tOAMonthly" | "pOAMonthly" | "tSal" | "pSal"
   >,
   fromContrib: { self: number | null; partner: number | null },
-  /** CPF age of the user (partner's age isn't captured, so they use the ≤35 rates). */
+  /** CPF age of the user (partner's age isn't captured, so they use the under-35 rates). */
   selfAge?: number | null
 ): { tOAMonthly: number; pOAMonthly: number } {
   const resolve = (

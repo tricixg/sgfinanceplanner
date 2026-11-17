@@ -382,7 +382,7 @@ export function TabMe({
             </div>
             <div className="minirow">
               <span className="k">Date of birth</span>
-              <span className="v">{S.dateOfBirth || "— (assumes CPF rates for age 35 and below)"}</span>
+              <span className="v">{S.dateOfBirth || "— (assumes CPF rates for under 35)"}</span>
             </div>
             <p className="note" style={{ marginTop: 8, marginBottom: 0 }}>
               Feeds cashflow and budget take-home · click Edit to change

@@ -36,7 +36,7 @@ All application tables use **Row Level Security (RLS)** unless noted.
 | 024 | `024_expenses_spent_time.sql` | `spent_time` on `expenses` |
 | 025 | `025_transactions_source_links.sql` | `source_record_type` / `source_record_id` on ledger tables |
 | 066 | `066_household_membership_hardening.sql` | SEC-001: drops client insert/update policies on `household_members`; adds `create_solo_household()`, `accept_partner_invite(invite_id)` and a 2-members-per-household trigger |
-| 067 | `067_profile_date_of_birth.sql` | FIN-003: nullable `date_of_birth` on `user_finance_profile`; picks age-based CPF rates (null = assume ≤35) |
+| 067 | `067_profile_date_of_birth.sql` | FIN-003: nullable `date_of_birth` on `user_finance_profile`; picks age-based CPF rates (null = assume under 35) |
 | 068 | `068_monthly_computed_lines.sql` | FIN-005: `monthly_computed_lines` — frozen insurance / ILP / loan-load per finished month (backfilled at today's settings for months before this month; later months are frozen by the month-end job). Months without a row follow live settings |
 
 ---

@@ -6,7 +6,7 @@
  * ordinary wages above $750/month. Re-check against cpf.gov.sg each January.
  *
  * Modelling limits (also shown to the user on the Year and CPF pages):
- *  - Ages above 65 use the 60–65 row (not separately modelled).
+ *  - Age 65 and over uses the 60–64 row (the 65+ rates are not separately modelled).
  *  - From 1 Jan 2027 the 55–65 total rates rise (CPF Board); that step is not
  *    modelled, the 2026 rates are used for every projected year.
  *  - Members 55+ have no Special Account: the `sa` bucket stands for their
@@ -20,7 +20,11 @@ export const OW_CEIL = 8000;
 export type CpfAllocation = { oa: number; sa: number; ma: number };
 
 export type CpfRateBand = {
-  /** Band applies while the CPF age is <= maxAge (CPF's "above X to Y" bands). */
+  /**
+   * Band applies while the CPF age is BELOW maxAge. CPF moves you to the next
+   * band from the first day of the month after your 35th / 45th / 50th / 55th /
+   * 60th / 65th birthday, so a member who has completed age 35 is already in the next band.
+   */
   maxAge: number;
   label: string;
   /** Employee share of ordinary wages. */
@@ -32,27 +36,27 @@ export type CpfRateBand = {
 };
 
 export const CPF_RATE_BANDS: readonly CpfRateBand[] = [
-  { maxAge: 35, label: "35 and below", employee: 0.2, employer: 0.17, allocation: { oa: 0.6217, sa: 0.1621, ma: 0.2162 } },
-  { maxAge: 45, label: "Above 35 to 45", employee: 0.2, employer: 0.17, allocation: { oa: 0.5677, sa: 0.1891, ma: 0.2432 } },
-  { maxAge: 50, label: "Above 45 to 50", employee: 0.2, employer: 0.17, allocation: { oa: 0.5136, sa: 0.2162, ma: 0.2702 } },
-  { maxAge: 55, label: "Above 50 to 55", employee: 0.2, employer: 0.17, allocation: { oa: 0.4055, sa: 0.3108, ma: 0.2837 } },
-  { maxAge: 60, label: "Above 55 to 60", employee: 0.18, employer: 0.16, allocation: { oa: 0.353, sa: 0.3382, ma: 0.3088 } },
-  { maxAge: 65, label: "Above 60 to 65", employee: 0.125, employer: 0.125, allocation: { oa: 0.14, sa: 0.44, ma: 0.42 } },
+  { maxAge: 35, label: "Under 35", employee: 0.2, employer: 0.17, allocation: { oa: 0.6217, sa: 0.1621, ma: 0.2162 } },
+  { maxAge: 45, label: "35 to 44", employee: 0.2, employer: 0.17, allocation: { oa: 0.5677, sa: 0.1891, ma: 0.2432 } },
+  { maxAge: 50, label: "45 to 49", employee: 0.2, employer: 0.17, allocation: { oa: 0.5136, sa: 0.2162, ma: 0.2702 } },
+  { maxAge: 55, label: "50 to 54", employee: 0.2, employer: 0.17, allocation: { oa: 0.4055, sa: 0.3108, ma: 0.2837 } },
+  { maxAge: 60, label: "55 to 59", employee: 0.18, employer: 0.16, allocation: { oa: 0.353, sa: 0.3382, ma: 0.3088 } },
+  { maxAge: 65, label: "60 to 64", employee: 0.125, employer: 0.125, allocation: { oa: 0.14, sa: 0.44, ma: 0.42 } },
 ];
 
-/** Oldest band modelled; older members use it too. */
+/** Members this age and over are not separately modelled; they use the last (60–64) band. */
 export const CPF_MAX_MODELLED_AGE = 65;
 
-// ≤35 allocation, kept for the BTO planner and existing callers.
+// Under-35 allocation, kept for the BTO planner and existing callers.
 export const ALLOC_OA = CPF_RATE_BANDS[0].allocation.oa;
 export const ALLOC_SA = CPF_RATE_BANDS[0].allocation.sa;
 export const ALLOC_MA = CPF_RATE_BANDS[0].allocation.ma;
 
-/** Band for a CPF age. `null`/unknown age → the ≤35 band (the behaviour before DOB existed). */
+/** Band for a CPF age. `null`/unknown age → the under-35 band (the behaviour before DOB existed). */
 export function cpfBandForAge(age: number | null | undefined): CpfRateBand {
   if (age == null || !Number.isFinite(age)) return CPF_RATE_BANDS[0];
   return (
-    CPF_RATE_BANDS.find((b) => age <= b.maxAge) ??
+    CPF_RATE_BANDS.find((b) => age < b.maxAge) ??
     CPF_RATE_BANDS[CPF_RATE_BANDS.length - 1]
   );
 }

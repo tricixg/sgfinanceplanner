@@ -15,7 +15,7 @@ export function CpfAssumptions({ state: S }: { state: Pick<DashboardState, "date
       <span className="ico">Assumptions</span>
       {age == null ? (
         <>
-          Date of birth not set, so the “35 and below” CPF rates are assumed.{" "}
+          Date of birth not set, so the “under 35” CPF rates are assumed.{" "}
           <Link href="/me">Set it in Me</Link> for age-based rates.{" "}
         </>
       ) : (
@@ -30,7 +30,7 @@ export function CpfAssumptions({ state: S }: { state: Pick<DashboardState, "date
       first $60,000 of combined balances (OA counts up to $20,000) paid into SA/RA, and a further
       1% on the first $30,000 from age 55. A contribution earns from the month after it is made,
       and interest already earned earlier this year is not included in today’s balance. Based on
-      CPF Board’s 2026 rates; ages above {CPF_MAX_MODELLED_AGE} use the 60–65 row, the
+      CPF Board’s 2026 rates; age {CPF_MAX_MODELLED_AGE} and over uses the 60–64 row, the
       1 Jan 2027 increase for ages 55–65 is not modelled, and the $8,000 monthly wage ceiling
       applies. Bonuses (additional wages) and income tax are not modelled.
     </div>

@@ -178,22 +178,22 @@ describe("age-based CPF in projections (FIN-003)", () => {
   const base = { ...DEFAULTS, monthlySal: 6500, oa: 0, sa: 0, ma: 0, dateOfBirth: "" };
 
   it("a 50-year-old accrues less OA than a 30-year-old on the same salary", () => {
-    const young = simulateCPF({ ...base, dateOfBirth: "1996-01-01" }, 0, "2026-08-15");
+    const young = simulateCPF({ ...base, dateOfBirth: "2000-01-01" }, 0, "2026-08-15");
     const older = simulateCPF({ ...base, dateOfBirth: "1976-01-01" }, 0, "2026-08-15");
     expect(older.at(-1)!.oa).toBeLessThan(young.at(-1)!.oa);
     expect(older.at(-1)!.sa).toBeGreaterThan(young.at(-1)!.sa);
   });
 
-  it("no date of birth reproduces the previous (≤35) projection", () => {
+  it("no date of birth reproduces the previous (under-35) projection", () => {
     const none = simulateCPF(base, 0, "2026-08-15");
-    const thirty = simulateCPF({ ...base, dateOfBirth: "1996-01-01" }, 0, "2026-08-15");
+    const thirty = simulateCPF({ ...base, dateOfBirth: "2000-01-01" }, 0, "2026-08-15");
     expect(none.at(-1)!.oa).toBeCloseTo(thirty.at(-1)!.oa, 6);
   });
 
   it("the band switches mid-projection when the member passes 35", () => {
-    // 35th birthday 2027-01-10 → first month on the "above 35" rates is 2027-02
+    // 35th birthday 2027-01-10 → first month on the 35–44 rates is 2027-02
     const s = simulateCPF({ ...base, dateOfBirth: "1992-01-10" }, 0, "2026-08-15");
-    const noSwitch = simulateCPF({ ...base, dateOfBirth: "1996-01-01" }, 0, "2026-08-15");
+    const noSwitch = simulateCPF({ ...base, dateOfBirth: "2000-01-01" }, 0, "2026-08-15");
     expect(s.at(-1)!.oa).toBeLessThan(noSwitch.at(-1)!.oa);
   });
 

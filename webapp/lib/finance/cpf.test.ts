@@ -31,16 +31,17 @@ describe("cpf by age (FIN-003)", () => {
     }
   });
 
-  it("unknown age keeps the previous (35 and below) behaviour", () => {
+  it("unknown age keeps the previous (under 35) behaviour", () => {
     expect(cpfTotal(6500)).toBe(cpfTotal(6500, 30));
     expect(cpfAllocate(6500).oa).toBeCloseTo(6500 * 0.37 * 0.6217, 6);
-    expect(cpfOAmonthly(6500)).toBeCloseTo(cpfOAmonthly(6500, 35), 6);
+    expect(cpfOAmonthly(6500)).toBeCloseTo(cpfOAmonthly(6500, 34), 6);
   });
 
+  // CPF moves you up from the month after your Nth birthday, so age N is already in the next band.
   it.each([
-    [35, 0.6217], [36, 0.5677], [45, 0.5677], [46, 0.5136],
-    [50, 0.5136], [51, 0.4055], [55, 0.4055], [56, 0.353], [60, 0.353], [61, 0.14],
-    [65, 0.14], [80, 0.14],
+    [34, 0.6217], [35, 0.5677], [44, 0.5677], [45, 0.5136],
+    [49, 0.5136], [50, 0.4055], [54, 0.4055], [55, 0.353], [59, 0.353], [60, 0.14],
+    [64, 0.14], [65, 0.14], [80, 0.14],
   ])("age %i uses OA share %f", (age, oaShare) => {
     expect(cpfBandForAge(age).allocation.oa).toBe(oaShare);
   });
@@ -53,18 +54,24 @@ describe("cpf by age (FIN-003)", () => {
     expect(cpfTotal(6000, 62)).toBeCloseTo(1500, 6);
   });
 
-  it("OA credit at $6,500 falls from age 35 to 40 to 52 (example numbers)", () => {
+  it("OA credit at $6,500 falls from age 30 to 40 to 52 (example numbers)", () => {
     expect(cpfOAmonthly(6500, 30)).toBeCloseTo(2405 * 0.6217, 6);
     expect(cpfOAmonthly(6500, 40)).toBeCloseTo(2405 * 0.5677, 6);
     expect(cpfOAmonthly(6500, 52)).toBeCloseTo(2405 * 0.4055, 6);
   });
 
-  it("age changes the month AFTER the birthday month", () => {
-    // turns 36 on 2026-06-15 → age on 31 May is 35, on 30 Jun is 36
-    expect(cpfAgeForMonth("1990-06-15", "2026-06")).toBe(35);
-    expect(cpfAgeForMonth("1990-06-15", "2026-07")).toBe(36);
-    expect(cpfBandForAge(cpfAgeForMonth("1990-06-15", "2026-06")).allocation.oa).toBe(0.6217);
-    expect(cpfBandForAge(cpfAgeForMonth("1990-06-15", "2026-07")).allocation.oa).toBe(0.5677);
+  it("someone turning 35 in March 2026 gets the 35–44 rates from April 2026", () => {
+    // born 1991-03-15 → 35th birthday 2026-03-15
+    expect(cpfAgeForMonth("1991-03-15", "2026-03")).toBe(34); // age on 28 Feb
+    expect(cpfAgeForMonth("1991-03-15", "2026-04")).toBe(35); // age on 31 Mar
+    expect(cpfBandForAge(cpfAgeForMonth("1991-03-15", "2026-03")).allocation.oa).toBe(0.6217);
+    expect(cpfBandForAge(cpfAgeForMonth("1991-03-15", "2026-04")).allocation.oa).toBe(0.5677);
+  });
+
+  it("the same rule at 55: the 55–59 rates start the month after the 55th birthday", () => {
+    // born 1971-06-15 → 55th birthday 2026-06-15
+    expect(cpfBandForAge(cpfAgeForMonth("1971-06-15", "2026-06")).employee).toBe(0.2);
+    expect(cpfBandForAge(cpfAgeForMonth("1971-06-15", "2026-07")).employee).toBe(0.18);
   });
 
   it("handles January (previous month is last December) and bad input", () => {

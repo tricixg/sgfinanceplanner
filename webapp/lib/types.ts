@@ -244,7 +244,7 @@ export type DashboardState = {
   prefs?: DashboardPrefs;
   monthlySal: number;
   salaryCreditDay: number;
-  /** YYYY-MM-DD; drives age-based CPF rates. Empty/absent = unknown (≤35 rates assumed). */
+  /** YYYY-MM-DD; drives age-based CPF rates. Empty/absent = unknown (under-35 rates assumed). */
   dateOfBirth?: string;
   /** Frozen insurance / ILP / loan-load figures of finished months, keyed YYYY-MM. */
   computedMonths?: import("./finance/computed-months").ComputedMonthMap;
