@@ -16,7 +16,7 @@ The **sidebar** groups pages into five areas:
 | **Planning** | Set targets: budget, savings goals, longer cashflow and wealth views, BTO |
 | **Tracking** | Log spending, mark bills paid, review history, travel and poker |
 | **Accounts** | Cash, cards, investments, CPF, and loans |
-| **Configuration** | Your profile, salary, partner, and full data backup (download) |
+| **Configuration** | Your profile, salary, and partner |
 
 You need to **sign in** (email magic link) for data to save in the cloud. Without sign-in, the app may run in a limited local-only mode.
 

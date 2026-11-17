@@ -212,6 +212,18 @@ Unified UI type: [webapp/lib/transactions/types.ts](../webapp/lib/transactions/t
 
 ---
 
+## Backups
+
+The app has no in-app backup or restore; recovery relies on Supabase's platform backups. In the Supabase dashboard open **Database → Backups**:
+
+- **Scheduled backups** (daily) are available on the Pro plan and above, kept for 7 days on Pro. The Free plan has no downloadable backups.
+- **Point in Time Recovery (PITR)** is a paid add-on (Pro or higher) that lets you restore to any second; enable it under **Database → Backups → Point in Time**.
+- To restore, use **Restore** on a backup (or a PITR timestamp) on that same page. This replaces the live database, so test it first on a scratch project.
+
+Check the current plan and retention in the dashboard (details change; see Supabase's backup docs).
+
+---
+
 ## Household membership hardening (migration 066)
 
 Before 066, RLS on `household_members` let any signed-in user insert or update their own membership row to point at **any** household id (`with check (user_id = auth.uid())`). Anyone who learned a household id (for example from an old invite) could join it and read its shared pools, goals and ledger. 066 removes those two policies, restricts invite creation to the inviter's own household, and moves every join into the two functions above.

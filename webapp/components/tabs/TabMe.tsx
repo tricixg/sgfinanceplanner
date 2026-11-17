@@ -1,6 +1,5 @@
 "use client";
 
-import { sgtTodayYmd } from "@/lib/time/sgt";
 import { canReplaceLocalState } from "@/lib/me/local-data-actions";
 import { useContext, useEffect, useRef, useState } from "react";
 import type { DashboardState, InsurancePolicy } from "@/lib/types";
@@ -229,45 +228,6 @@ export function TabMe({
       return;
     }
     onReset();
-  };
-
-  const [backingUp, setBackingUp] = useState(false);
-  const [backupMsg, setBackupMsg] = useState("");
-
-  /** Server-side export of every table the user owns (GET /api/export). */
-  const downloadFullBackup = async () => {
-    setBackingUp(true);
-    setBackupMsg("");
-    try {
-      const res = await fetch("/api/export", { credentials: "include" });
-      if (!res.ok) {
-        throw new Error(
-          res.status === 401 ? "Please sign in again." : `Backup failed (${res.status}).`
-        );
-      }
-      const text = await res.text();
-      const parsed = JSON.parse(text) as {
-        summary?: { complete?: boolean; errors?: Record<string, string>; totalRows?: number };
-      };
-      const blob = new Blob([text], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `sgfinanceplanner-backup-${sgtTodayYmd()}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      if (parsed.summary?.complete) {
-        setBackupMsg(`Backup downloaded (${parsed.summary.totalRows ?? 0} records).`);
-      } else {
-        const failed = Object.keys(parsed.summary?.errors ?? {}).join(", ") || "unknown";
-        setBackupMsg(`Backup is INCOMPLETE — could not read: ${failed}. Don't rely on this file.`);
-      }
-      console.info("[TabMe] full backup downloaded", { complete: parsed.summary?.complete });
-    } catch (e) {
-      setBackupMsg(e instanceof Error ? e.message : "Backup failed.");
-      console.error("[TabMe] full backup failed", e);
-    } finally {
-      setBackingUp(false);
-    }
   };
 
   /** Browser-only mode: the dashboard state held in memory (NOT a backup of server data). */
@@ -641,14 +601,7 @@ export function TabMe({
             data fills every tab — salary, accounts, budget, goals, loans, cards (with catalog
             rewards), holdings (SGX + US), portfolio history, CPF, BTO planner, and more.
           </p>
-        ) : (
-          <p className="note" style={{ marginTop: 0 }}>
-            <b>Download full backup</b> saves a copy of everything you&apos;ve stored — expenses,
-            accounts and ledgers, cards and statements, goals and shared pools, loans, holdings,
-            CPF, benefits, travel, poker and more — as a JSON file. It is a copy for safekeeping
-            and can&apos;t be re-imported here. Keep it somewhere safe, outside this app.
-          </p>
-        )}
+        ) : null}
         <div className="toolbar">
           <button type="button" className="btn" onClick={onApply}>
             Apply &amp; refresh
@@ -662,16 +615,7 @@ export function TabMe({
             <button type="button" className="btn ghost" onClick={exportJSON}>
               Export dashboard JSON (this browser only)
             </button>
-          ) : (
-            <button
-              type="button"
-              className="btn ghost"
-              disabled={backingUp}
-              onClick={() => void downloadFullBackup()}
-            >
-              {backingUp ? "Preparing backup…" : "Download full backup (JSON)"}
-            </button>
-          )}
+          ) : null}
           {localMode ? (
             <>
               <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
@@ -698,11 +642,6 @@ export function TabMe({
           ) : null}
           <span className="save-status">{saveMsg}</span>
         </div>
-        {backupMsg ? (
-          <p className="note" role="status" style={{ marginBottom: 0 }}>
-            {backupMsg}
-          </p>
-        ) : null}
       </div>
     </section>
   );
