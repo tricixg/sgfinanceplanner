@@ -69,7 +69,10 @@ export async function resolveComputedLinesForMonth(
   return pickComputedLines(snapshots, live, ym, nowYm);
 }
 
-/** Freeze a month's computed lines. Never overwrites an existing snapshot (the first freeze wins). */
+/**
+ * Freeze a month's computed lines (the month-end job). Overwrites any earlier row for the
+ * month, so a mid-month test run is corrected by the real run on the last day.
+ */
 export async function saveComputedMonth(
   supabase: SupabaseClient,
   userId: string,
@@ -84,7 +87,7 @@ export async function saveComputedMonth(
       ilp: round2(lines.ilp),
       debt: round2(lines.debt),
     },
-    { onConflict: "user_id,month", ignoreDuplicates: true }
+    { onConflict: "user_id,month" }
   );
   if (error) throw new Error(error.message);
 }
