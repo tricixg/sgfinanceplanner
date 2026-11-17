@@ -115,8 +115,15 @@ export type GoalProgress = {
   monthsLeft: number | null;
   /** Monthly amount needed to reach the target on time; null without a future target date. */
   neededPerMonth: number | null;
-  /** Planned monthly contribution covers what's needed (or the goal is done). */
+  /** Planned monthly contribution covers what's needed (or the goal is done);
+   *  null when there's no target date or the goal hasn't started yet. */
   onTrack: boolean | null;
+  /** Planned monthly contribution, as set on the Savings & Goals tab. */
+  monthlyContribution: number;
+  /** Month the saving window starts (YYYY-MM); null when unset. */
+  startYm: string | null;
+  /** Start month is still in the future (and the goal isn't already reached). */
+  notStarted: boolean;
 };
 
 export function goalProgress(goal: SavingsGoal, currentYm: string): GoalProgress {
@@ -131,10 +138,16 @@ export function goalProgress(goal: SavingsGoal, currentYm: string): GoalProgress
     monthsLeft = ty! * 12 + tm! - (cy! * 12 + cm!);
   }
   const done = target > 0 && remaining <= 0;
+  const startYm = goal.startDate ? goal.startDate.slice(0, 7) : null;
+  const notStarted = !done && startYm != null && startYm > currentYm;
+  // For a goal that hasn't started, count months from its start (the planned window).
+  const monthsToSave =
+    notStarted && monthsLeft != null && targetYm ? ymDiff(targetYm, startYm!) : monthsLeft;
   const neededPerMonth =
-    done ? 0 : monthsLeft != null && monthsLeft > 0 ? remaining / monthsLeft : null;
+    done ? 0 : monthsToSave != null && monthsToSave > 0 ? remaining / monthsToSave : null;
   let onTrack: boolean | null = null;
   if (done) onTrack = true;
+  else if (notStarted) onTrack = null;
   else if (monthsLeft != null && monthsLeft <= 0) onTrack = false;
   else if (neededPerMonth != null) onTrack = goal.monthlyContribution + 0.005 >= neededPerMonth;
   return {
@@ -148,5 +161,14 @@ export function goalProgress(goal: SavingsGoal, currentYm: string): GoalProgress
     monthsLeft,
     neededPerMonth,
     onTrack,
+    monthlyContribution: Math.max(0, goal.monthlyContribution),
+    startYm,
+    notStarted,
   };
+}
+
+function ymDiff(a: string, b: string): number {
+  const [ay, am] = a.split("-").map(Number);
+  const [by, bm] = b.split("-").map(Number);
+  return ay! * 12 + am! - (by! * 12 + bm!);
 }
