@@ -465,23 +465,42 @@ h1 {
     left: 0;
     bottom: 0;
     width: min(304px, 86vw);
-    height: auto;
+    /* Explicit height (dvh tracks the mobile browser toolbars) so the nav list
+       can scroll inside it instead of running off-screen. */
+    height: 100vh;
+    height: 100dvh;
+    bottom: auto;
     margin: 0;
-    padding: calc(18px + env(safe-area-inset-top, 0px)) 12px
-      calc(24px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+    padding: calc(18px + env(safe-area-inset-top, 0px)) 0 0
+      max(12px, env(safe-area-inset-left, 0px));
+    display: flex;
+    flex-direction: column;
     border-right: none;
     border-radius: 0 var(--r-lg) var(--r-lg) 0;
     background: var(--paper);
     box-shadow: none;
     transform: translateX(-102%);
     transition: transform 0.28s var(--ease), box-shadow 0.28s var(--ease);
+    overflow: hidden;
+    z-index: 40;
+    visibility: hidden;
+  }
+
+  .sidebar-brand {
+    flex: 0 0 auto;
+    margin-right: 12px;
+  }
+
+  /* The scrolling region: all tabs reachable, with room below for the home bar. */
+  .sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-y;
-    z-index: 40;
-    visibility: hidden;
+    padding: 0 12px calc(96px + env(safe-area-inset-bottom, 0px)) 0;
   }
 
   .sidebar--open {
