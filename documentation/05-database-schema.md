@@ -116,7 +116,7 @@ Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboar
 |-------|-------------|---------|
 | `expenses` | `amount`, `spent_at`, `spent_time`, `category`, `budget_line_id`, `auto_category`, source FKs, `financial_account_id` | Canonical spend |
 | `budget_lines` | `category`, `line_type` (`amount` is **deprecated** since 063) | Category catalog — stable ids, name and type shared by all months |
-| `budget_months` | `user_id`, `month` (`YYYY-MM`) | One header row per month a user has saved a budget for |
+| `budget_months` | `user_id`, `month` (`YYYY-MM`), `monthly_salary` | One header row per month a user has saved a budget for; `monthly_salary` is the gross salary recorded at save time |
 | `budget_line_months` | `budget_line_id`, `month`, `amount`, `sort_order` | Per-month amount and order of each category (unique on `budget_line_id, month`) |
 | `budget_transactions` | `financial_account_id`, `transaction_type`, `spent_at`, `expense_id`, `import_batch_id` | Card/import ledger |
 | `recurring_subscriptions` | `amount`, `deduction_day`, `default_financial_account_id` | Subscription defs |
@@ -199,6 +199,6 @@ Unified UI type: [webapp/lib/transactions/types.ts](../webapp/lib/transactions/t
 
 ## Monthly budgets (migration 063)
 
-`063_monthly_budgets.sql` adds `budget_months` and `budget_line_months` (RLS: `user_id = auth.uid()`) and seeds one baseline snapshot per user, dated the month before the migration runs (Singapore time), from the `budget_lines.amount` values. Run it in the SQL editor immediately before deploying the matching code; running it twice seeds nobody. Rollback of the code needs no SQL because `budget_lines.amount` keeps its rollout-time values.
+`063_monthly_budgets.sql` adds `budget_months` and `budget_line_months` (RLS: `user_id = auth.uid()`) and seeds one baseline snapshot per user, dated the month before the migration runs (Singapore time), from the `budget_lines.amount` values and the profile salary. Run it in the SQL editor immediately before deploying the matching code; running it twice seeds nobody. Rollback of the code needs no SQL because `budget_lines.amount` keeps its rollout-time values.
 
 Known limit: PostgREST returns at most 1000 rows per query, so `budget_line_months` for one user could be truncated after roughly eight years of monthly edits. Not reachable today; a later change can load only the months needed.

@@ -77,6 +77,7 @@ Status pills (Healthy / Watch / At risk) use rule-of-thumb thresholds defined in
 
 - Budgets are **monthly snapshots**. A month stepper (Prev / Next / This month) shows any past month read-only; only the **current and next month** are editable (enforced in the UI and the API, Singapore time).
 - A month nobody has saved **inherits** the latest earlier snapshot (or the earliest one if none is earlier). Saving creates that month's own snapshot and leaves other months untouched.
+- Each saved month also records the **gross monthly salary** at save time (`budget_months.monthly_salary`); take-home for a month is derived from it, so past months show the income they were planned with. Months without a snapshot inherit the latest earlier salary.
 - Categories keep one id in `budget_lines`; name and type are global, amount/order/presence are per month (`budget_months`, `budget_line_months`).
 - Pure logic: [webapp/lib/budget/monthly.ts](../webapp/lib/budget/monthly.ts) (resolver, editable window) and [webapp/lib/budget/save-plan.ts](../webapp/lib/budget/save-plan.ts) (save planner).
 - Expenses, the Dashboard budget card, Past Cashflow variance, the Now table, the 5-year projection and the Telegram bot all use the budget that applies to the month in question.

@@ -80,7 +80,7 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 
 **`/api/budget-lines` (monthly budgets)**
 
-- `GET` → `{ configured, currentYm, months, budget }`. `months` maps `YYYY-MM` to the budget lines saved for that month (configured months only); `budget` is the budget resolved for `currentYm` (kept for older clients).
+- `GET` → `{ configured, currentYm, months, income, budget }`. `income` maps `YYYY-MM` to the gross monthly salary recorded when that month was saved (resolved with the same inheritance rule as budgets). `months` maps `YYYY-MM` to the budget lines saved for that month (configured months only); `budget` is the budget resolved for `currentYm` (kept for older clients).
 - `PUT { month?, budget }` saves one month's budget (`month` defaults to the current month) and returns the same shape. Errors: `400 Invalid month (use YYYY-MM)`; `400 Budgets can only be edited for the current or next month` (Singapore time); `400 budget must be an array` / `Too many budget lines` (max 200).
 - A month with no snapshot of its own uses the latest earlier snapshot, else the earliest one.
 

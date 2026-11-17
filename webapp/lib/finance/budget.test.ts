@@ -13,6 +13,7 @@ import {
 import { defaultIlpPolicy } from "./ilp";
 import { loanLoadForMonth } from "./loanLoad";
 import { currentYm, monIdx, ymFromMonIdx } from "./helpers";
+import { takeHomeForMonth } from "./income";
 
 describe("monthlyInvestContribution", () => {
   it("sums invest-type budget lines", () => {
@@ -94,5 +95,15 @@ describe("per-month budgets", () => {
   it("ymFromMonIdx inverts monIdx", () => {
     expect(ymFromMonIdx(monIdx("2026-12"))).toBe("2026-12");
     expect(ymFromMonIdx(monIdx("2027-01"))).toBe("2027-01");
+  });
+});
+
+describe("takeHomeForMonth", () => {
+  it("uses the month's recorded salary, else the profile salary", () => {
+    const S = { ...DEFAULTS, monthlySal: 8000, incomeMonths: { "2026-10": 5000 } };
+    expect(takeHomeForMonth(S, "2026-03")).toBe(takeHomeForMonth({ ...S, monthlySal: 5000 }));
+    expect(takeHomeForMonth({ ...S, incomeMonths: undefined }, "2026-03")).toBe(
+      takeHomeForMonth(S, undefined)
+    );
   });
 });

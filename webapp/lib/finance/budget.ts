@@ -5,7 +5,7 @@ import { effectiveMonthlySave } from "./savings-totals";
 import { resolveDashboardCash } from "./wealth";
 import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
-import { stableTakeHome } from "./income";
+import { takeHomeForMonth } from "./income";
 import { totalLoanLoadForMonth } from "./loanLoad";
 import { budgetYm, currentYm, monIdx } from "./helpers";
 import { computedInsuranceMonthly } from "./insurance";
@@ -202,7 +202,7 @@ export function budgetVerdict(
   ym?: string,
   savingsMonthly?: number
 ) {
-  const income = stableTakeHome(S);
+  const income = takeHomeForMonth(S, ym);
   const alloc = S.budget.reduce((s, b) => s + b.amt, 0);
   const debt = computedDebtMonthly(S, ym);
   const ilp = computedIlpMonthly(S);

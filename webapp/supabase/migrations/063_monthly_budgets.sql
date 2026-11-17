@@ -8,6 +8,8 @@
 create table if not exists budget_months (
   user_id uuid not null references auth.users (id) on delete cascade,
   month text not null check (month ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+  -- Gross monthly salary recorded when the month was saved (null = not recorded).
+  monthly_salary numeric(14, 2) check (monthly_salary is null or monthly_salary >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (user_id, month)
@@ -48,7 +50,7 @@ comment on column budget_lines.amount is
   'DEPRECATED since 063 — amounts live in budget_line_months';
 
 -- Backfill: one baseline snapshot per user, dated the month before this runs
--- (Singapore time), copied from today's budget_lines amounts. Users who already
+-- (Singapore time), copied from today's budget_lines amounts and the profile salary. Users who already
 -- have any budget_months row are skipped, so running the file twice seeds nobody.
 with baseline as (
   select to_char(
@@ -57,10 +59,11 @@ with baseline as (
   ) as month
 ),
 seeded as (
-  insert into budget_months (user_id, month)
-  select distinct bl.user_id, baseline.month
+  insert into budget_months (user_id, month, monthly_salary)
+  select distinct bl.user_id, baseline.month, round(greatest(coalesce(p.monthly_sal, 0), 0), 2)
   from budget_lines bl
   cross join baseline
+  left join user_finance_profile p on p.user_id = bl.user_id
   where bl.line_type <> 'save'
     and not exists (select 1 from budget_months bm where bm.user_id = bl.user_id)
   returning user_id, month

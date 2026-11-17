@@ -6,6 +6,7 @@ import {
   isBudgetMonthEditable,
   isYm,
   resolveBudgetMonth,
+  resolveMonthSalary,
 } from "./monthly";
 
 const line = (id: string, amt: number) => ({ id, cat: id, amt, type: "fixed" as const });
@@ -63,5 +64,16 @@ describe("budgetLineRowsForMonth", () => {
       ["Investing", 1000, undefined],
       ["Old", 0, true],
     ]);
+  });
+});
+
+describe("resolveMonthSalary", () => {
+  it("resolves like budgets and is null when empty", () => {
+    expect(resolveMonthSalary({}, "2026-11")).toBeNull();
+    const inc = { "2026-10": 5000, "2026-12": 6000 };
+    expect(resolveMonthSalary(inc, "2026-03")?.salary).toBe(5000);
+    expect(resolveMonthSalary(inc, "2026-11")?.salary).toBe(5000);
+    expect(resolveMonthSalary(inc, "2026-12")?.salary).toBe(6000);
+    expect(resolveMonthSalary(inc, "2027-05")?.salary).toBe(6000);
   });
 });

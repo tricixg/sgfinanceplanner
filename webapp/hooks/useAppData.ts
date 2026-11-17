@@ -48,6 +48,7 @@ export function useAppDataProvider(enabled: boolean) {
   const [profileBundle, setProfileBundle] = useState<ProfileBundle | null>(null);
   const [loans, setLoans] = useState<DashboardState["loans"]>([]);
   const [budgetMonths, setBudgetMonths] = useState<Record<string, DashboardState["budget"]>>({});
+  const [incomeMonths, setIncomeMonths] = useState<Record<string, number>>({});
   const [creditCards, setCreditCards] = useState<DashboardState["creditCards"]>([]);
   const [holdings, setHoldings] = useState<DashboardState["holdings"]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<
@@ -70,6 +71,7 @@ export function useAppDataProvider(enabled: boolean) {
       loans,
       budget: resolveBudgetMonth(budgetMonths, currentYm()).lines,
       budgetMonths,
+      incomeMonths,
       creditCards,
       holdings,
       portfolioHistory,
@@ -77,7 +79,7 @@ export function useAppDataProvider(enabled: boolean) {
       accounts: [],
       goals: [],
     });
-  }, [profileBundle, loans, budgetMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
+  }, [profileBundle, loans, budgetMonths, incomeMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -176,6 +178,7 @@ export function useAppDataProvider(enabled: boolean) {
           fetchJson<{
             budget?: DashboardState["budget"];
             months?: Record<string, DashboardState["budget"]>;
+            income?: Record<string, number>;
             currentYm?: string;
             configured?: boolean;
           }>(
@@ -205,7 +208,10 @@ export function useAppDataProvider(enabled: boolean) {
       }
       if (loansRes.res.ok) setLoans(loansRes.data.loans ?? []);
       if (otherLoansRes.res.ok) setOtherLoans(otherLoansRes.data.otherLoans ?? []);
-      if (budgetRes.res.ok) setBudgetMonths(budgetRes.data.months ?? {});
+      if (budgetRes.res.ok) {
+        setBudgetMonths(budgetRes.data.months ?? {});
+        setIncomeMonths(budgetRes.data.income ?? {});
+      }
       if (cardsRes.res.ok) setCreditCards(cardsRes.data.cards ?? []);
       if (holdRes.res.ok) setHoldings(holdRes.data.holdings ?? []);
 
@@ -311,6 +317,7 @@ export function useAppDataProvider(enabled: boolean) {
       }
       const { res, data } = await fetchJson<{
         months?: Record<string, DashboardState["budget"]>;
+        income?: Record<string, number>;
         error?: string;
       }>("/api/budget-lines", {
         method: "PUT",
@@ -320,6 +327,7 @@ export function useAppDataProvider(enabled: boolean) {
       });
       if (!res.ok) throw new Error(data.error ?? "Failed to save budget");
       setBudgetMonths(data.months ?? {});
+      setIncomeMonths(data.income ?? {});
       dispatchDomainEvent("budget:changed");
     },
     [configured]

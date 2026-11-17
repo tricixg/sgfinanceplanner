@@ -5,9 +5,15 @@ import { mapDbBudgetLine, type BudgetLineRow } from "@/lib/expenses/budget-match
 import { budgetLineRowsForMonth, resolveBudgetMonth, type BudgetMonthMap } from "@/lib/budget/monthly";
 import { classifyRemovedLines, planBudgetMonthSave } from "@/lib/budget/save-plan";
 import { currentYm } from "@/lib/finance/helpers";
+import { loadFinanceProfile } from "@/lib/profile/load";
 import { loadRecurringInvestments, loadRecurringSubscriptions } from "@/lib/recurring/load";
 
-export type BudgetData = { catalog: BudgetLineRow[]; months: BudgetMonthMap };
+export type BudgetData = {
+  catalog: BudgetLineRow[];
+  months: BudgetMonthMap;
+  /** Gross monthly salary recorded per saved month (months with none recorded are omitted). */
+  income: Record<string, number>;
+};
 
 /** Catalog (ids, names, types) plus every configured month snapshot. */
 export async function loadBudgetData(
@@ -20,7 +26,7 @@ export async function loadBudgetData(
       .select("id, category, line_type, sort_order")
       .eq("user_id", userId)
       .order("sort_order", { ascending: true }),
-    supabase.from("budget_months").select("month").eq("user_id", userId),
+    supabase.from("budget_months").select("month, monthly_salary").eq("user_id", userId),
     supabase
       .from("budget_line_months")
       .select("budget_line_id, month, amount, sort_order")
@@ -37,7 +43,11 @@ export async function loadBudgetData(
   }));
   const byId = new Map(catalog.map((c) => [c.id, c]));
   const months: BudgetMonthMap = {};
-  for (const m of monthsRes.data ?? []) months[String(m.month)] = [];
+  const income: Record<string, number> = {};
+  for (const m of monthsRes.data ?? []) {
+    months[String(m.month)] = [];
+    if (m.monthly_salary != null) income[String(m.month)] = Number(m.monthly_salary);
+  }
   for (const r of lineMonthsRes.data ?? []) {
     const month = String(r.month);
     const line = byId.get(String(r.budget_line_id));
@@ -49,7 +59,7 @@ export async function loadBudgetData(
       type: line.lineType,
     });
   }
-  return { catalog, months };
+  return { catalog, months, income };
 }
 
 export async function loadBudgetMonths(
@@ -116,11 +126,12 @@ export async function saveBudgetMonth(
   userId: string,
   ym: string,
   incoming: BudgetItem[]
-): Promise<BudgetMonthMap> {
-  const [{ catalog, months }, subscriptions, investments] = await Promise.all([
+): Promise<{ months: BudgetMonthMap; income: Record<string, number> }> {
+  const [{ catalog, months }, subscriptions, investments, profile] = await Promise.all([
     loadBudgetData(supabase, userId),
     loadRecurringSubscriptions(supabase, userId),
     loadRecurringInvestments(supabase, userId),
+    loadFinanceProfile(supabase, userId),
   ]);
   const floors = recurringFloorsByBudgetLine([...subscriptions, ...investments], ym);
   const plan = planBudgetMonthSave({ ym, incoming, catalog, months, floors });
@@ -166,7 +177,16 @@ export async function saveBudgetMonth(
 
   const { error: monthErr } = await supabase
     .from("budget_months")
-    .upsert({ user_id: userId, month: ym, updated_at: now }, { onConflict: "user_id,month" });
+    .upsert(
+      {
+        user_id: userId,
+        month: ym,
+        // Snapshot of income as it stands when this month is saved.
+        monthly_salary: Math.max(0, Math.round((profile.monthlySal || 0) * 100) / 100),
+        updated_at: now,
+      },
+      { onConflict: "user_id,month" }
+    );
   check(monthErr, "upsert budget month");
 
   if (lineMonthRows.length) {
@@ -218,7 +238,8 @@ export async function saveBudgetMonth(
   }
 
   console.info("[budget] saved month", { userId, ym, count: plan.lines.length });
-  return loadBudgetMonths(supabase, userId);
+  const fresh = await loadBudgetData(supabase, userId);
+  return { months: fresh.months, income: fresh.income };
 }
 
 /** Save the current month's budget (used by the legacy migration). */
@@ -228,7 +249,7 @@ export async function saveBudgetLines(
   incoming: BudgetItem[]
 ): Promise<BudgetItem[]> {
   const ym = currentYm();
-  const months = await saveBudgetMonth(supabase, userId, ym, incoming);
+  const { months } = await saveBudgetMonth(supabase, userId, ym, incoming);
   return resolveBudgetMonth(months, ym).lines;
 }
 

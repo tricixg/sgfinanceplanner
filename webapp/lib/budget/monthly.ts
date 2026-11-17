@@ -82,3 +82,18 @@ export function budgetLineRowsForMonth(
   }
   return rows;
 }
+
+/** Same resolution rule as budgets, over months that recorded a salary. */
+export function resolveMonthSalary(
+  income: Record<string, number> | undefined | null,
+  ym: string
+): { salary: number; sourceYm: string; isOwn: boolean } | null {
+  const keys = Object.keys(income ?? {}).sort();
+  if (!income || keys.length === 0) return null;
+  let sourceYm = keys[0];
+  for (const k of keys) {
+    if (k <= ym) sourceYm = k;
+    else break;
+  }
+  return { salary: income[sourceYm], sourceYm, isOwn: sourceYm === ym };
+}

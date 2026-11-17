@@ -11,7 +11,7 @@ import {
   budgetProjection,
   budgetVerdict,
   monthlyInvestContributionWithIlp,
-  stableTakeHome,
+  takeHomeForMonth,
 } from "@/lib/finance";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import { useSavings } from "@/hooks/useSavings";
@@ -213,7 +213,7 @@ export function TabBudgetSavings({
     }
   );
 
-  const income = stableTakeHome(S);
+  const income = takeHomeForMonth(S, viewYm);
   const debt =
     lookupComputedSpend(expenseSummary, "debt")?.allocated ??
     computedDebtMonthly(S, viewYm);
