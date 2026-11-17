@@ -382,7 +382,7 @@ export function DashboardPage({ enabled }: Props) {
             </div>
 
             <div className="span-6 span-sm-6">
-              <BudgetCard ym={currentYm} todayYmd={todayYmd} />
+              <BudgetCard ym={isMonthView ? monthYm : currentYm} todayYmd={todayYmd} />
             </div>
             <div className="span-6 span-sm-6">
               <RecentActivityCard />
