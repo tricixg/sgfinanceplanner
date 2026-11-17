@@ -1,6 +1,6 @@
 # 05 — Database schema
 
-PostgreSQL schema is defined in [webapp/supabase/migrations/](../webapp/supabase/migrations/). Apply migrations **001 through 025 in order** in the Supabase SQL editor (or via CLI).
+PostgreSQL schema is defined in [webapp/supabase/migrations/](../webapp/supabase/migrations/). Apply migrations **in numeric order** (the index below is abridged; apply every file in the folder up to 066) in the Supabase SQL editor (or via CLI).
 
 All application tables use **Row Level Security (RLS)** unless noted.
 
@@ -35,6 +35,7 @@ All application tables use **Row Level Security (RLS)** unless noted.
 | 023 | `023_travel.sql` | `travel_trips`, `travel_trip_budgets` |
 | 024 | `024_expenses_spent_time.sql` | `spent_time` on `expenses` |
 | 025 | `025_transactions_source_links.sql` | `source_record_type` / `source_record_id` on ledger tables |
+| 066 | `066_household_membership_hardening.sql` | SEC-001: drops client insert/update policies on `household_members`; adds `create_solo_household()`, `accept_partner_invite(invite_id)` and a 2-members-per-household trigger |
 
 ---
 
@@ -45,12 +46,19 @@ All application tables use **Row Level Security (RLS)** unless noted.
 | **Owner** | Most tables | `user_id = auth.uid()` for ALL |
 | **Household member** | `households`, `savings_pools`, shared goals | `is_household_member(household_id)` |
 | **Split ledger** | `savings_transactions` | Personal account OR pool membership |
-| **Partner invites** | `partner_invites` | Inviter full access; invitee can accept pending by email |
+| **Household membership** | `household_members` | Members read their household; a user may read and delete their own row. **No client insert/update** (066) — rows are written only by the `security definer` functions below |
+| **Partner invites** | `partner_invites` | Inviter full access, but only for a household they belong to (066); invitee can read/respond to pending invites addressed to their email |
 
 **Helper functions** (003, `security definer`):
 
 - `public.is_household_member(hid uuid)`
 - `public.my_household_id()`
+
+**Membership functions** (066, `security definer`, `execute` granted to `authenticated` only):
+
+- `public.create_solo_household()` — creates the caller's solo household and owner membership (idempotent; returns the household id). Used by `ensureUserHousehold` in `lib/household/bootstrap.ts`; the service-role path used when unlinking a partner still inserts directly.
+- `public.accept_partner_invite(invite_id uuid)` — in one transaction: locks the invite, checks it is `pending` and addressed to `auth.jwt()->>'email'`, checks the inviter still belongs to the household, moves the caller's membership, marks the invite `accepted` and cancels the caller's own other pending invites. Raises `invite_not_found` / `household_full` / `not_authenticated`. Called by `POST /api/partner/invites/[id]` (`action: accept`) via `lib/household/accept-invite.ts`.
+- Trigger `household_members_limit` (`enforce_household_member_limit()`) — rejects a third member (`household_full`), serialised per household with an advisory lock; applies to service-role writes too.
 
 ---
 
@@ -201,6 +209,26 @@ Unified UI type: [webapp/lib/transactions/types.ts](../webapp/lib/transactions/t
 
 - [06-ledgers-and-transactions.md](./06-ledgers-and-transactions.md) — How expense and ledger tables interact
 - [08-authentication-and-security.md](./08-authentication-and-security.md) — Auth + RLS usage from the app
+
+---
+
+## Household membership hardening (migration 066)
+
+Before 066, RLS on `household_members` let any signed-in user insert or update their own membership row to point at **any** household id (`with check (user_id = auth.uid())`). Anyone who learned a household id (for example from an old invite) could join it and read its shared pools, goals and ledger. 066 removes those two policies, restricts invite creation to the inviter's own household, and moves every join into the two functions above.
+
+**How to apply** (manually, in the Supabase SQL editor):
+
+1. Run `webapp/supabase/migrations/066_household_membership_hardening.sql` **immediately before deploying the matching code**. It is idempotent (`drop policy if exists`, `create or replace`, `drop trigger if exists`), so re-running is safe.
+2. Deploy. Until the new code is live, an old build can't create a solo household for a *brand-new* user or accept an invite (the direct inserts are now blocked). Existing users and everything else are unaffected. If the code is deployed first, solo-household creation falls back to the old direct insert until 066 is applied, but invite accept requires 066.
+3. Check that no household already has more than two members (the trigger only blocks new joins):
+
+   ```sql
+   select household_id, count(*) from household_members group by 1 having count(*) > 2;
+   ```
+
+   Any row returned is an unexpected member; investigate and remove it with the service role / SQL editor.
+
+Behaviour notes: accepting an invite leaves the accepter's previous solo household in place with no members (as before); it is not deleted, so its pools and ledger are not cascaded away.
 
 ---
 

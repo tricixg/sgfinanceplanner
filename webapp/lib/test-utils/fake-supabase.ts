@@ -18,8 +18,16 @@ export type FakeOp = {
  */
 export function createFakeSupabase(
   seed: Record<string, Row[]> = {},
-  opts: { failOn?: (op: FakeOp) => string | null } = {}
+  opts: {
+    failOn?: (op: FakeOp) => string | null;
+    /** Handlers for supabase.rpc(name, args). Unknown names return a "function not found" error. */
+    rpc?: Record<
+      string,
+      (args: unknown) => { data?: unknown; error?: { message: string; code?: string } | null }
+    >;
+  } = {}
 ) {
+  const rpcCalls: { name: string; args: unknown }[] = [];
   const tables: Record<string, Row[]> = {};
   for (const [k, v] of Object.entries(seed)) tables[k] = v.map((r) => ({ ...r }));
   const ops: FakeOp[] = [];
@@ -107,10 +115,25 @@ export function createFakeSupabase(
     return api;
   }
 
-  const client = { from: (t: string) => builder(t) } as unknown as SupabaseClient;
+  const client = {
+    from: (t: string) => builder(t),
+    rpc: async (name: string, args?: unknown) => {
+      rpcCalls.push({ name, args });
+      const h = opts.rpc?.[name];
+      if (!h) {
+        return {
+          data: null,
+          error: { message: `Could not find the function public.${name}`, code: "PGRST202" },
+        };
+      }
+      const r = h(args);
+      return { data: r.data ?? null, error: r.error ?? null };
+    },
+  } as unknown as SupabaseClient;
   return {
     client,
     ops,
+    rpcCalls,
     table: (t: string) => rowsOf(t),
     deletes: (t?: string) =>
       ops.filter((o) => o.kind === "delete" && (!t || o.table === t)),
