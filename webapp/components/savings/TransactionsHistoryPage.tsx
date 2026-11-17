@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { UNCATEGORIZED_CATEGORY_FILTER } from "@/lib/transactions/types";
@@ -85,6 +86,12 @@ function detectPeriod(dateFrom: string, dateTo: string): PeriodPreset {
   return "custom";
 }
 
+/** In-app return link (e.g. a dashboard drill-down); only dashboard paths are trusted. */
+function readBackHref(searchParams: URLSearchParams): string {
+  const back = searchParams.get("back")?.trim() ?? "";
+  return /^\/dashboard(?:[?#]|$)/.test(back) ? back : "";
+}
+
 function buildQuery(params: {
   accountId: string;
   financialAccountId: string;
@@ -120,6 +127,7 @@ export function TransactionsHistoryPage() {
   const dateFrom = searchParams.get("dateFrom") ?? "";
   const dateTo = searchParams.get("dateTo") ?? "";
   const period = detectPeriod(dateFrom, dateTo);
+  const backHref = readBackHref(searchParams);
 
   const [items, setItems] = useState<UnifiedTransaction[]>([]);
   const [total, setTotal] = useState(0);
@@ -267,6 +275,7 @@ export function TransactionsHistoryPage() {
     if (cat) params.set("category", cat);
     if (from) params.set("dateFrom", from);
     if (to) params.set("dateTo", to);
+    if (backHref) params.set("back", backHref);
     const path = params.toString() ? `/transactions?${params}` : "/transactions";
     router.replace(path);
   };
@@ -293,8 +302,20 @@ export function TransactionsHistoryPage() {
     router.replace("/transactions");
   };
 
+  // Keep a linked-in category selectable even before (or without) a matching option.
+  const categorySelectOptions =
+    category && category !== UNCATEGORIZED_CATEGORY_FILTER && !categoryOptions.includes(category)
+      ? [category, ...categoryOptions]
+      : categoryOptions;
+
   return (
     <>
+      {backHref ? (
+        <Link href={backHref} className="link-more tx-back">
+          <Icon name="chevron-left" />
+          Dashboard
+        </Link>
+      ) : null}
       <div className="tx-filters">
         <label className="tx-filter">
           <span className="tx-filter-label">Account</span>
@@ -353,7 +374,7 @@ export function TransactionsHistoryPage() {
           <select value={category} onChange={(e) => setFilters({ category: e.target.value })}>
             <option value="">All</option>
             <option value={UNCATEGORIZED_CATEGORY_FILTER}>Uncategorized</option>
-            {categoryOptions.map((c) => (
+            {categorySelectOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>

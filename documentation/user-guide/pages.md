@@ -13,12 +13,12 @@ What each page is for, in sidebar order. Page names match the sidebar labels.
 **You’ll see:**
 
 - **Net cash flow**, with **income**, **spending** and **savings rate** beside it
-- A period switcher: This month, Last month, 3M, 6M, YTD, 12M
+- A period switcher: Month, 3M, 6M, YTD, 12M. In **Month**, use ‹ › to step back through earlier months (up to two years); **This month** jumps back to today
 - **Income vs spending** by month, with your selected period highlighted
-- **Where your money went** — your biggest categories for the period
+- **Where your money went**: your biggest categories for the period. Tap a category to open **Transactions** filtered to that category and period. Tap **Other** to see the smaller categories it groups
 - **Budget** for the current month and your **recent activity**
 
-**Typical use:** Check how the month is going, then tap a card’s link (Past cashflow, Expenses, All transactions) for the detail.
+**Typical use:** Check how the month is going, then tap a card’s link (Past cashflow, Expenses, All transactions) or a spending category for the detail. **‹ Dashboard** on Transactions (or your browser’s Back) returns you to the same month.
 
 **Good to know:** Early in the month the figure can look negative until your salary arrives; the dashboard tells you when it normally lands.
 

@@ -5476,6 +5476,153 @@ a.metric:hover .metric-label {
   transition: width 0.5s var(--ease);
 }
 
+/* Clickable category rows (dashboard → Transactions drill-down) */
+.rank-link {
+  grid-template-columns: minmax(0, 1fr) auto 16px;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.rank-link .rank-bar {
+  grid-column: 1 / 3;
+}
+.rank-link:hover {
+  background: var(--fill);
+}
+.rank-link:active {
+  background: var(--fill-strong);
+}
+.rank-link:hover .rank-bar {
+  background: var(--fill-strong);
+}
+.rank-link:focus-visible {
+  outline-offset: 0;
+  border-radius: var(--r-sm);
+}
+.rank-chev {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  opacity: 0.6;
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.rank-link:hover .rank-chev,
+.rank-link:focus-visible .rank-chev {
+  opacity: 1;
+  color: var(--ink);
+}
+a.rank-link:hover .rank-chev {
+  transform: translateX(2px);
+}
+@media (hover: none) {
+  .rank-chev {
+    opacity: 0.85;
+  }
+}
+.rank-toggle {
+  width: calc(100% + 16px);
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+.rank-group {
+  display: flex;
+  flex-direction: column;
+}
+.rank-group.open .rank-toggle .rank-chev {
+  transform: rotate(180deg);
+}
+.rank-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0 0 4px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line-soft);
+}
+.rank-sub[hidden] {
+  display: none;
+}
+.rank-sub .rank-name,
+.rank-sub .rank-val {
+  font-size: 13.5px;
+}
+.rank-sub .rank-bar {
+  height: 4px;
+}
+
+/* Month stepper (dashboard Month view) */
+.month-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.month-stepper-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+}
+.month-stepper-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+.month-stepper-btn:disabled {
+  background: transparent;
+  color: var(--muted);
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+.month-stepper-label {
+  min-width: 8.5em;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.month-stepper-today {
+  margin-left: 6px;
+}
+@media (pointer: coarse) {
+  .month-stepper-btn {
+    width: var(--tap);
+    height: var(--tap);
+  }
+}
+@media (hover: none) {
+  /* No sticky hover tint after a tap. */
+  .month-stepper-btn:hover {
+    background: transparent;
+  }
+  .month-stepper-btn:active:not(:disabled) {
+    background: var(--fill-strong);
+  }
+}
+@media (max-width: 520px) {
+  .month-stepper {
+    width: 100%;
+  }
+  .month-stepper-label {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.tx-back {
+  margin: -4px 0 8px -4px;
+  padding-right: 6px;
+}
+
 /* Stacked allocation bar */
 .alloc-bar {
   display: flex;

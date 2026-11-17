@@ -1,20 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CashflowTrendChart } from "@/components/dashboard/CashflowTrendChart";
 import { BudgetCard } from "@/components/dashboard/BudgetCard";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
+import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
+import { MonthStepper } from "@/components/dashboard/MonthStepper";
 import { CardHeader } from "@/components/ui/CardHeader";
 import { Delta } from "@/components/ui/Delta";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { EmptyState, ErrorState, Skeleton, SkeletonLines } from "@/components/ui/States";
-import { colorAt } from "@/components/spending/chart-colors";
 import { useAppData } from "@/hooks/useAppData";
 import { useCashflowAnalytics } from "@/hooks/useCashflowAnalytics";
 import {
   RANGE_OPTIONS,
+  clampMonthYm,
   monthElapsed,
+  normaliseRangeKey,
   pctChange,
   periodLabel,
   priorLabel,
@@ -22,6 +26,7 @@ import {
   summariseFlows,
   topWithOther,
   trendMonths,
+  trendSubtitle,
   type RangeKey,
 } from "@/lib/dashboard/cashflow";
 import { effectiveCalendarDay, fmt, fmtSigned2 } from "@/lib/finance/helpers";
@@ -36,37 +41,76 @@ const SEGMENTS = RANGE_OPTIONS.map((o) => ({ value: o.key, label: o.short, compa
 
 function readStoredRange(): RangeKey {
   try {
-    const raw = window.localStorage.getItem(RANGE_STORAGE_KEY);
-    if (raw && RANGE_OPTIONS.some((o) => o.key === raw)) return raw as RangeKey;
+    const stored = normaliseRangeKey(window.localStorage.getItem(RANGE_STORAGE_KEY));
+    if (stored) return stored;
   } catch {
     // Storage can be unavailable (private mode); the default range is fine.
   }
-  return "this-month";
+  return "month";
 }
 
 const signedWhole = (n: number) => `${n < 0 ? "-" : ""}${fmt(Math.abs(n))}`;
 
 export function DashboardPage({ enabled }: Props) {
-  const [range, setRange] = useState<RangeKey>("this-month");
-  useEffect(() => {
-    setRange(readStoredRange());
-  }, []);
-
-  const chooseRange = useCallback((next: RangeKey) => {
-    setRange(next);
-    try {
-      window.localStorage.setItem(RANGE_STORAGE_KEY, next);
-    } catch {
-      // Non-critical preference.
-    }
-    console.info("[DashboardPage] range", next);
-  }, []);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const { state: profile } = useAppData();
   // Fixed for the life of the page so every derived period uses the same "today".
   const [todayYmd] = useState(() => sgtTodayYmd());
   const currentYm = todayYmd.slice(0, 7);
-  const window_ = useMemo(() => rangeWindow(range, currentYm), [range, currentYm]);
+
+  // A month in the URL means the user stepped to it — show it in Month view,
+  // and keep it there so Back from a drill-down returns to the same month.
+  const urlMonth = clampMonthYm(searchParams.get("month"), currentYm);
+  const monthYm = urlMonth ?? currentYm;
+
+  const [range, setRange] = useState<RangeKey>("month");
+  useEffect(() => {
+    if (!urlMonth) setRange(readStoredRange());
+    // Only on mount: later URL changes come from this page's own controls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setMonthParam = useCallback(
+    (ym: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (ym && ym !== currentYm) params.set("month", ym);
+      else params.delete("month");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams, currentYm]
+  );
+
+  const chooseRange = useCallback(
+    (next: RangeKey) => {
+      // Tapping Month again returns to the current month.
+      if (next !== "month" || range === "month") setMonthParam(null);
+      setRange(next);
+      try {
+        window.localStorage.setItem(RANGE_STORAGE_KEY, next);
+      } catch {
+        // Non-critical preference.
+      }
+      console.info("[DashboardPage] range", next);
+    },
+    [range, setMonthParam]
+  );
+
+  const chooseMonth = useCallback(
+    (ym: string) => {
+      setMonthParam(ym);
+      console.info("[DashboardPage] month", ym);
+    },
+    [setMonthParam]
+  );
+
+  const window_ = useMemo(
+    () => rangeWindow(range, currentYm, monthYm),
+    [range, currentYm, monthYm]
+  );
   const plotMonths = useMemo(() => trendMonths(window_, currentYm), [window_, currentYm]);
   const earliestYm = window_.prior[0]! < plotMonths[0]! ? window_.prior[0]! : plotMonths[0]!;
 
@@ -96,7 +140,10 @@ export function DashboardPage({ enabled }: Props) {
   }
 
   const busy = loading || pending;
-  const isThisMonth = range === "this-month";
+  const isMonthView = range === "month";
+  const isThisMonth = isMonthView && monthYm === currentYm;
+  const periodText = periodLabel(window_, todayYmd);
+  const backHref = isMonthView && urlMonth ? `/dashboard?month=${urlMonth}` : "/dashboard";
   const compareTo = priorLabel(window_);
   const hasActivity = current.income > 0 || current.spending > 0;
   const flowTotal = current.income + current.spending;
@@ -123,7 +170,16 @@ export function DashboardPage({ enabled }: Props) {
           label="Date range"
           fill
         />
-        <span className="dash-period">{periodLabel(window_, todayYmd)}</span>
+        {isMonthView ? (
+          <MonthStepper
+            ym={monthYm}
+            currentYm={currentYm}
+            label={periodText}
+            onChange={chooseMonth}
+          />
+        ) : (
+          <span className="dash-period">{periodText}</span>
+        )}
       </div>
 
       {error && flows.size === 0 ? (
@@ -262,7 +318,7 @@ export function DashboardPage({ enabled }: Props) {
             <div className="card span-7">
               <CardHeader
                 title="Income vs spending"
-                subtitle={`Last ${plotMonths.length} months`}
+                subtitle={trendSubtitle(plotMonths, currentYm)}
                 href="/past-cashflow"
                 linkLabel="Past cashflow"
               />
@@ -296,7 +352,7 @@ export function DashboardPage({ enabled }: Props) {
             <div className="card span-5">
               <CardHeader
                 title="Where your money went"
-                subtitle={periodLabel(window_, todayYmd)}
+                subtitle={periodText}
                 href="/past-cashflow"
                 linkLabel="Breakdown"
               />
@@ -315,31 +371,13 @@ export function DashboardPage({ enabled }: Props) {
                   Expenses you log for this period will be grouped by category here.
                 </EmptyState>
               ) : (
-                <div className="rank">
-                  {categories.map((c, i) => {
-                    const color = c.id === "__other__" ? "var(--muted)" : colorAt(i);
-                    return (
-                      <div className="rank-row" key={c.id}>
-                        <div className="rank-name">
-                          <span className="dot" style={{ background: color }} />
-                          <span>{c.label}</span>
-                        </div>
-                        <div className="rank-val">
-                          {fmt(c.amount)}
-                          <small>{Math.round(c.share * 100)}%</small>
-                        </div>
-                        <div className="rank-bar">
-                          <i
-                            style={{
-                              width: `${(c.amount / categories[0]!.amount) * 100}%`,
-                              background: color,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <CategoryBreakdown
+                  key={window_.months.join(",")}
+                  rows={categories}
+                  window={window_}
+                  periodText={periodText}
+                  backHref={backHref}
+                />
               )}
             </div>
 
