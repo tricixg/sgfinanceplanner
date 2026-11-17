@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULTS } from "./defaults";
-import { simulate5y, simulateCPF } from "./projection";
+import { simulate5y, simulateCPF, simulateCPFFromContribution } from "./projection";
 import { netWorthTotal } from "./wealth";
 import type { DashboardState } from "@/lib/types";
 import type { OpenCycleEstimate } from "@/lib/cards/types";
@@ -201,6 +201,46 @@ describe("age-based CPF in projections (FIN-003)", () => {
     const at40 = simulate5y({ ...base, dateOfBirth: "1986-01-01" }, PARAMS_NOW, "2026-08-15");
     const at62 = simulate5y({ ...base, dateOfBirth: "1964-01-01" }, PARAMS_NOW, "2026-08-15");
     expect(at62.at(-1)!.cash).toBeGreaterThan(at40.at(-1)!.cash);
+  });
+});
+
+describe("CPF interest model (FIN-003)", () => {
+  // no salary, no age: isolates interest. Start 2026-01 so the first year is Jan–Dec 2026.
+  const S = { ...DEFAULTS, monthlySal: 0, oa: 100_000, sa: 0, ma: 0, dateOfBirth: "" };
+
+  it("credits a year's interest once, in December, without compounding inside the year", () => {
+    const s = simulateCPF(S, 0, "2026-01-15");
+    // OA: 12 × (100,000 × 2.5% / 12) = 2,500 (monthly compounding would give 2,528)
+    expect(s[1].oa).toBeCloseTo(102_500, 6);
+    // extra 1% on the first 20,000 of OA (the OA cap) is credited to SA: 200
+    expect(s[1].sa).toBeCloseTo(200, 6);
+  });
+
+  it("the second year earns on the credited balance, with extra interest still going to SA", () => {
+    const s = simulateCPF(S, 0, "2026-01-15");
+    expect(s[2].oa).toBeCloseTo(102_500 * 1.025, 6);
+    // SA: 200 + base 4% on 200 (8) + extra 1% on (20,000 OA cap + 200 SA) = 202
+    expect(s[2].sa).toBeCloseTo(200 + 8 + 202, 6);
+  });
+
+  it("a contribution earns from the month AFTER it is made", () => {
+    // OA 0, $1,000 OA/month for Jan–Dec: interest accrues on opening balances 0,1000,…,11000
+    const s = simulateCPFFromContribution(
+      { ...S, oa: 0 },
+      { oa: 1000, sa: 0, ma: 0 },
+      1,
+      "2026-01-15"
+    );
+    const interest = (66_000 * 0.025) / 12; // sum of opening balances × rate / 12
+    const base = s[1].oa - 12_000;
+    // sa gets the extra 1% on OA, so only compare the OA interest
+    expect(base).toBeCloseTo(interest, 6);
+  });
+
+  it("members 55+ earn the extra 1% on a further first-$30k slice (into RA)", () => {
+    const young = simulateCPF({ ...S, oa: 0, sa: 40_000, dateOfBirth: "1986-01-01" }, 0, "2026-01-15");
+    const senior = simulateCPF({ ...S, oa: 0, sa: 40_000, dateOfBirth: "1966-01-01" }, 0, "2026-01-15");
+    expect(senior[1].sa - young[1].sa).toBeCloseTo(300, 6);
   });
 });
 

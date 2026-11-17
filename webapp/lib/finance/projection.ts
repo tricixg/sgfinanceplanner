@@ -1,11 +1,19 @@
 import type { DashboardState } from "@/lib/types";
 import { cpfAgeForMonth, cpfAllocate, cpfEmp } from "./cpf";
+import {
+  ZERO_BALANCES,
+  addBalances,
+  isInterestCreditMonth,
+  monthlyCpfInterest,
+  type CpfBalances,
+} from "./cpf-interest";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import type { OpenCycleEstimate } from "@/lib/cards/types";
 import { wealthSummary } from "./wealth";
 import { computedInsuranceMonthly } from "./insurance";
 import { monIdx, ymFromMonIdx } from "./helpers";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 export type ProjectionRow = {
   label: string;
@@ -61,6 +69,7 @@ export function simulate5y(
   let cash = start.cash;
   let margin = useMargin ? S.margin : 0;
   let sal = S.monthlySal;
+  let cpfPending: CpfBalances = ZERO_BALANCES;
   const insuranceMonthly = computedInsuranceMonthly(S);
   // Liabilities that stay constant over the projection (see assumptions).
   const heldLiab = start.liabLines
@@ -106,14 +115,22 @@ export function simulate5y(
   const startYear = Number(startYM.slice(0, 4));
   const endIdx = monIdx(`${startYear + 5}-12`);
   for (let i = curIdx; i <= endIdx; i++) {
-    const age = cpfAgeForMonth(S.dateOfBirth, ymFromMonIdx(i));
+    const ym = ymFromMonIdx(i);
+    const age = cpfAgeForMonth(S.dateOfBirth, ym);
+    // CPF interest: this month's interest on the balance held at its start
+    // (the month's contribution arrives later, so it earns from next month),
+    // paid out once a year in December — see cpf-interest.ts.
+    cpfPending = addBalances(cpfPending, monthlyCpfInterest({ oa, sa, ma }, age));
     const credit = cpfAllocate(sal, age);
     oa += credit.oa;
     sa += credit.sa;
     ma += credit.ma;
-    oa *= 1 + 0.025 / 12;
-    sa *= 1 + 0.04 / 12;
-    ma *= 1 + 0.04 / 12;
+    if (isInterestCreditMonth(ym)) {
+      oa += cpfPending.oa;
+      sa += cpfPending.sa;
+      ma += cpfPending.ma;
+      cpfPending = ZERO_BALANCES;
+    }
 
     let loanPaid = 0;
     loanState.forEach((l) => {
@@ -165,25 +182,45 @@ export function simulate5y(
 /**
  * 5-year CPF projection driven by a flat monthly contribution (e.g. the last
  * logged actual contribution) rather than a salary-derived formula. Same
- * interest-crediting model as simulateCPF (OA 2.5%/yr, SA/MA 4%/yr, monthly
- * compounding, contribution added before compounding), but as a rolling
- * window from now instead of calendar year-end snapshots.
+ * interest model as simulateCPF (monthly interest on the lowest balance,
+ * credited each December — see cpf-interest.ts), but as a rolling window from
+ * now instead of calendar year-end snapshots.
  */
 export function simulateCPFFromContribution(
   S: DashboardState,
   monthly: { oa: number; sa: number; ma: number },
-  years = 5
+  years = 5,
+  todayYmd: string = sgtTodayYmd()
 ): { label: string; oa: number; sa: number; ma: number }[] {
   let oa = S.oa;
   let sa = S.sa;
   let ma = S.ma;
+  let pending: CpfBalances = ZERO_BALANCES;
   const series = [{ label: "Now", oa, sa, ma }];
+  const startIdx = monIdx(todayYmd.slice(0, 7));
   for (let m = 1; m <= years * 12; m++) {
-    oa = (oa + monthly.oa) * (1 + 0.025 / 12);
-    sa = (sa + monthly.sa) * (1 + 0.04 / 12);
-    ma = (ma + monthly.ma) * (1 + 0.04 / 12);
+    const ym = ymFromMonIdx(startIdx + m - 1);
+    const age = cpfAgeForMonth(S.dateOfBirth, ym);
+    // Interest on the balance at the start of the month; contribution earns from next month.
+    pending = addBalances(pending, monthlyCpfInterest({ oa, sa, ma }, age));
+    oa += monthly.oa;
+    sa += monthly.sa;
+    ma += monthly.ma;
+    if (isInterestCreditMonth(ym)) {
+      oa += pending.oa;
+      sa += pending.sa;
+      ma += pending.ma;
+      pending = ZERO_BALANCES;
+    }
     if (m % 12 === 0) {
-      series.push({ label: `Year ${m / 12}`, oa, sa, ma });
+      // Rolling "Year N" points are not December-aligned, so they include
+      // interest accrued so far this year but not yet credited.
+      series.push({
+        label: `Year ${m / 12}`,
+        oa: oa + pending.oa,
+        sa: sa + pending.sa,
+        ma: ma + pending.ma,
+      });
     }
   }
   return series;
@@ -199,6 +236,7 @@ export function simulateCPF(
   let sa = S.sa;
   let ma = S.ma;
   let sal = S.monthlySal;
+  let pending: CpfBalances = ZERO_BALANCES;
   const series = [{ label: "Now", oa, sa, ma }];
   // Same "through December of year+5" window as simulate5y — see its comment.
   const startYM = todayYmd.slice(0, 7);
@@ -207,13 +245,19 @@ export function simulateCPF(
   const endIdx = monIdx(`${startYear + 5}-12`);
 
   for (let i = curIdx; i <= endIdx; i++) {
-    const credit = cpfAllocate(sal, cpfAgeForMonth(S.dateOfBirth, ymFromMonIdx(i)));
+    const ym = ymFromMonIdx(i);
+    const age = cpfAgeForMonth(S.dateOfBirth, ym);
+    pending = addBalances(pending, monthlyCpfInterest({ oa, sa, ma }, age));
+    const credit = cpfAllocate(sal, age);
     oa += credit.oa;
     sa += credit.sa;
     ma += credit.ma;
-    oa *= 1 + 0.025 / 12;
-    sa *= 1 + 0.04 / 12;
-    ma *= 1 + 0.04 / 12;
+    if (isInterestCreditMonth(ym)) {
+      oa += pending.oa;
+      sa += pending.sa;
+      ma += pending.ma;
+      pending = ZERO_BALANCES;
+    }
     if (i % 12 === 11) {
       series.push({ label: String(Math.floor(i / 12)), oa, sa, ma });
       sal = Math.round(sal * (1 + growth));

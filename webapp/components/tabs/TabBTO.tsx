@@ -423,7 +423,8 @@ export function TabBTO({ state: S, setState }: Props) {
         Grants are credited to CPF OA before AFL and go toward the downpayment; they don&apos;t
         reduce the loan or BSD. Projected OA starts from your balance ({fmt(S.oa)}) and your
         partner&apos;s{partnerOALive != null ? ` (${fmt(partnerOALive)}, live)` : ""}, growing as set
-        in Edit.
+        in Edit. OA earns 2.5% a year, worked out monthly on the lowest balance and credited each
+        December, so interest earned since January can&apos;t be used for a bill paid before then.
       </div>
 
       <div className="grid g4" style={{ marginBottom: 24 }}>

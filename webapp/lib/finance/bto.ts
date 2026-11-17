@@ -7,7 +7,8 @@ import {
   totalHousingGrants,
   type BTOSchemeSelection,
 } from "./bto-schemes";
-import { fmt } from "./helpers";
+import { currentYm, fmt } from "./helpers";
+import { isInterestCreditMonth, monthlyOaInterest } from "./cpf-interest";
 import { BANK_LOAN_RULES, bankLoanCapacity, type BankLoanCapacity } from "./bto-bank-loan";
 
 /** Months from BTO application to the booking (1st) appointment. */
@@ -93,6 +94,12 @@ export type BTOInputs = {
    * the flat tOAMonthly / pOAMonthly.
    */
   oaMonthlyAt?: (m: number) => { t: number; p: number };
+  /**
+   * Calendar month (YYYY-MM) that "months from today" is counted from; CPF
+   * credits a year's interest each December, so the projection needs it.
+   * Defaults to the current SGT month.
+   */
+  todayYm?: string;
   /**
    * Bill money already paid (logged in the CPF transaction log, net of grant
    * money) toward the AFL / key-collection payments. The projection only
@@ -621,6 +628,15 @@ export function computeBTO(inputs: BTOInputs) {
   let to = tOA;
   let po = pOA;
   let pooled = to + po;
+  // CPF OA interest is earned monthly on the lowest balance but only credited
+  // each December (cpf-interest.ts). Accrued-but-uncredited interest can't be
+  // used to pay a bill, so it stays out of to / po / pooled until credited.
+  // Interest already earned earlier this calendar year isn't estimated.
+  const startYm = inputs.todayYm ?? currentYm();
+  let pendT = 0;
+  let pendP = 0;
+  let latestPendT = 0;
+  let latestPendP = 0;
   const labels = ["Now"];
   const tSeries = [to];
   const pSeries = [po];
@@ -663,9 +679,12 @@ export function computeBTO(inputs: BTOInputs) {
   // uninterrupted accumulation curve that never reflects money leaving.
   for (let m = 1; m <= kcOffset; m++) {
     const inflowAt = oaMonthlyAt(m);
-    to = (to + inflowAt.t) * (1 + 0.025 / 12);
-    po = (po + inflowAt.p) * (1 + 0.025 / 12);
-    pooled = (pooled + inflowAt.t + inflowAt.p) * (1 + 0.025 / 12);
+    const openT = to;
+    const openP = po;
+    // This month's contribution arrives during the month, so it earns from next month.
+    to += inflowAt.t;
+    po += inflowAt.p;
+    pooled += inflowAt.t + inflowAt.p;
     let milestoneHit = false;
 
     if (bookingOffset > 0 && m === bookingOffset) {
@@ -726,6 +745,23 @@ export function computeBTO(inputs: BTOInputs) {
       milestoneHit = true;
     }
 
+    // Lowest OA balance in month m: the opening balance, or less if a bill was
+    // paid out of OA this month (draws above already reduced to / po).
+    if (m === kcOffset) {
+      // Path where the KC bill is NOT drawn (used for the "latest keys" check below).
+      latestPendT = pendT + monthlyOaInterest(openT);
+      latestPendP = pendP + monthlyOaInterest(openP);
+    }
+    pendT += monthlyOaInterest(Math.min(openT, to - inflowAt.t));
+    pendP += monthlyOaInterest(Math.min(openP, po - inflowAt.p));
+    if (isInterestCreditMonth(addMonthsYm(startYm, m))) {
+      to += pendT;
+      po += pendP;
+      pooled += pendT + pendP;
+      pendT = 0;
+      pendP = 0;
+    }
+
     pooledSeries.push({
       month: m,
       balance: m === kcOffset ? cpfAvailKC : pooled,
@@ -756,11 +792,31 @@ export function computeBTO(inputs: BTOInputs) {
   let toLatestKC = toAtKC;
   let poLatestKC = poAtKC;
   let kcCoveredOffset: number | null = cpfAvailLatestKC >= cpfAllowedKC ? kcOffset : null;
+  let latestPT = latestPendT;
+  let latestPP = latestPendP;
+  if (latestKcOffset > kcOffset && isInterestCreditMonth(addMonthsYm(startYm, kcOffset))) {
+    toLatestKC += latestPT;
+    poLatestKC += latestPP;
+    cpfAvailLatestKC += latestPT + latestPP;
+    latestPT = 0;
+    latestPP = 0;
+  }
   for (let m = kcOffset + 1; m <= latestKcOffset; m++) {
     const inflowAt = oaMonthlyAt(m);
-    cpfAvailLatestKC = (cpfAvailLatestKC + inflowAt.t + inflowAt.p) * (1 + 0.025 / 12);
-    toLatestKC = (toLatestKC + inflowAt.t) * (1 + 0.025 / 12);
-    poLatestKC = (poLatestKC + inflowAt.p) * (1 + 0.025 / 12);
+    const openLT = toLatestKC;
+    const openLP = poLatestKC;
+    toLatestKC += inflowAt.t;
+    poLatestKC += inflowAt.p;
+    cpfAvailLatestKC += inflowAt.t + inflowAt.p;
+    latestPT += monthlyOaInterest(openLT);
+    latestPP += monthlyOaInterest(openLP);
+    if (isInterestCreditMonth(addMonthsYm(startYm, m))) {
+      toLatestKC += latestPT;
+      poLatestKC += latestPP;
+      cpfAvailLatestKC += latestPT + latestPP;
+      latestPT = 0;
+      latestPP = 0;
+    }
     pooledSeries.push({ month: m, balance: cpfAvailLatestKC, to: toLatestKC, po: poLatestKC, due: dueKC });
     if (kcCoveredOffset == null && cpfAvailLatestKC >= cpfAllowedKC) kcCoveredOffset = m;
   }
