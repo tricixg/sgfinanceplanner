@@ -30,6 +30,7 @@ import {
 } from "@/lib/dashboard/health";
 import { fetchJson } from "@/lib/fetch-json";
 import { computedDebtMonthly, netWorthSlices, stableTakeHome, wealthSummary } from "@/lib/finance";
+import { cardUpcomingItems } from "@/lib/dashboard/still-to-pay";
 import { addMonthsYm } from "@/lib/finance/calendar";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
@@ -170,16 +171,7 @@ export function FinancialHealthPage({ state: S }: Props) {
         amount: r.amount,
       });
     }
-    for (const s of outstandingStatements) {
-      if (!(s.outstandingBalance > 0)) continue;
-      items.push({
-        key: `card:${s.id}`,
-        name: s.cardName,
-        kind: "card",
-        due: s.paymentDueDate,
-        amount: s.outstandingBalance,
-      });
-    }
+    items.push(...cardUpcomingItems(outstandingStatements, sgtTodayYmd()));
     return items.sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"));
   }, [recurring, outstandingStatements]);
   const upcomingTotal = upcoming.reduce((s, u) => s + u.amount, 0);

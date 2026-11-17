@@ -63,6 +63,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         : msg === "Invalid income category" ||
             msg === "Invalid benefit" ||
             msg.includes("exceeds statement outstanding") ||
+            msg.includes("superseded by a newer statement") ||
             msg.includes("Payment exceeds outstanding")
           ? 400
           : 500;
