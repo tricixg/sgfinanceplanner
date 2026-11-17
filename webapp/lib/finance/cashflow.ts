@@ -3,7 +3,7 @@ import type { SavingsSnapshot } from "@/lib/savings/types";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
 import { resolveDashboardCash } from "./wealth";
 import { computedInsuranceMonthly } from "./insurance";
-import { computedIlpMonthly } from "./ilp";
+import { computedLinesForMonth } from "./computed-months";
 import { formatMonthLabel } from "./helpers";
 import { monthCashIncome } from "@/lib/income/hybrid-cashflow";
 import { totalLoanLoadForMonth } from "./loanLoad";
@@ -49,8 +49,6 @@ export function buildMonths(
   additiveIncomeByYm: Record<string, number> = {},
   actualBaselineByYm: Record<string, number> = {}
 ): MonthRow[] {
-  const ilpPrem = computedIlpMonthly(S);
-  const insurance = computedInsuranceMonthly(S);
   const months = Array.from({ length: count }, (_, i) => {
     const ym = addMonths(startYm, i);
     const fixed = budgetFixedTotal(S, ym);
@@ -80,14 +78,16 @@ export function buildMonths(
 
   let running = resolveDashboardCash(S, savings).cash;
   return months.map((o) => {
-    const loans = totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], o.ym);
-    const net = o.income - o.fixed - o.spend - loans - ilpPrem - insurance;
+    // Finished months use their frozen figures, the current and later months live settings.
+    const computed = computedLinesForMonth(S, o.ym);
+    const loans = computed.debt;
+    const net = o.income - o.fixed - o.spend - loans - computed.ilp - computed.insurance;
     running += net;
     return {
       ...o,
       loans,
-      ilp: ilpPrem,
-      insurance,
+      ilp: computed.ilp,
+      insurance: computed.insurance,
       net,
       running,
     };

@@ -13,6 +13,7 @@ import { AppDataContext } from "@/contexts/app-data-contexts";
 import { resolveBudgetMonth } from "@/lib/budget/monthly";
 import { currentYm } from "@/lib/finance/helpers";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
+import { createLatestWinsWriter } from "@/lib/net-worth/latest-wins";
 import {
   assertDomainEditable,
   removedIds,
@@ -57,6 +58,7 @@ export function useAppDataProvider(enabled: boolean) {
   const [loans, setLoans] = useState<DashboardState["loans"]>([]);
   const [budgetMonths, setBudgetMonths] = useState<Record<string, DashboardState["budget"]>>({});
   const [incomeMonths, setIncomeMonths] = useState<Record<string, number>>({});
+  const [computedMonths, setComputedMonths] = useState<DashboardState["computedMonths"]>({});
   const [creditCards, setCreditCards] = useState<DashboardState["creditCards"]>([]);
   const [holdings, setHoldings] = useState<DashboardState["holdings"]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<
@@ -81,6 +83,7 @@ export function useAppDataProvider(enabled: boolean) {
       budget: resolveBudgetMonth(budgetMonths, currentYm()).lines,
       budgetMonths,
       incomeMonths,
+      computedMonths,
       creditCards,
       holdings,
       portfolioHistory,
@@ -88,7 +91,7 @@ export function useAppDataProvider(enabled: boolean) {
       accounts: [],
       goals: [],
     });
-  }, [profileBundle, loans, budgetMonths, incomeMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
+  }, [profileBundle, loans, budgetMonths, incomeMonths, computedMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -232,6 +235,7 @@ export function useAppDataProvider(enabled: boolean) {
             budget?: DashboardState["budget"];
             months?: Record<string, DashboardState["budget"]>;
             income?: Record<string, number>;
+            computed?: DashboardState["computedMonths"];
             currentYm?: string;
             configured?: boolean;
           }>(
@@ -259,6 +263,14 @@ export function useAppDataProvider(enabled: boolean) {
           ilpPolicies: profRes.data.ilpPolicies ?? [],
         });
       }
+      setDomainError(
+        "profile",
+        profRes.res.ok && profRes.data.profile ? null : "Couldn't load your profile"
+      );
+      setDomainError(
+        "otherLoans",
+        otherLoansRes.res.ok ? null : "Couldn't load personal and balance-transfer loans"
+      );
       if (loansRes.res.ok) setLoans(loansRes.data.loans ?? []);
       setDomainError("loans", loansRes.res.ok ? null : "Couldn't load instalment plans");
       setDomainError("cards", cardsRes.res.ok ? null : "Couldn't load credit cards");
@@ -267,6 +279,7 @@ export function useAppDataProvider(enabled: boolean) {
       if (budgetRes.res.ok) {
         setBudgetMonths(budgetRes.data.months ?? {});
         setIncomeMonths(budgetRes.data.income ?? {});
+        setComputedMonths(budgetRes.data.computed ?? {});
       }
       if (cardsRes.res.ok) setCreditCards(cardsRes.data.cards ?? []);
       if (holdRes.res.ok) setHoldings(holdRes.data.holdings ?? []);
@@ -320,11 +333,14 @@ export function useAppDataProvider(enabled: boolean) {
     );
     if (res.ok) {
       setOtherLoans(data.otherLoans ?? []);
+      setDomainError("otherLoans", null);
       console.info("[useAppData] reloadOtherLoans ok", {
         count: data.otherLoans?.length ?? 0,
       });
+    } else {
+      setDomainError("otherLoans", "Couldn't load personal and balance-transfer loans");
     }
-  }, []);
+  }, [setDomainError]);
 
   // Dispatched by TabCards/CardPaymentModal (a statement payment can pay down
   // a linked BT loan) and OtherLoansPanel (direct edits) — nothing else keeps
@@ -501,30 +517,51 @@ export function useAppDataProvider(enabled: boolean) {
     });
   }, []);
 
+  // One request in flight at a time; the newest snapshot always wins (see
+  // createLatestWinsWriter). Without this, overlapping POSTs could land out of
+  // order and leave an older figure stored for the month.
+  const netWorthWriterRef = useRef<ReturnType<
+    typeof createLatestWinsWriter<NetWorthSnapshot>
+  > | null>(null);
+  if (!netWorthWriterRef.current) {
+    netWorthWriterRef.current = createLatestWinsWriter<NetWorthSnapshot>(async (snap) => {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        "/api/net-worth/snapshots",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ snapshot: snap }),
+        }
+      );
+      if (!res.ok) {
+        throw new Error(data.error ?? "Couldn't save net worth snapshot");
+      }
+    });
+  }
+
   /**
    * Upserts the current month's net worth. Unlike appendSnapshot (one write per
    * day, first write wins), this always posts on every call — the stored value
    * for a month should reflect the latest known state as of that visit, so it
    * keeps approximating "month end" more closely the closer to month-end you are.
+   * Callers must only call this once every input has loaded successfully
+   * (see lib/net-worth/snapshot-gate.ts). Rejects if the save failed; local
+   * history is only updated after the server accepted the value.
    */
   const appendNetWorthSnapshot = useCallback(async (snap: NetWorthSnapshot) => {
-    await fetchJson("/api/net-worth/snapshots", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ snapshot: snap }),
-    });
+    const persisted = await netWorthWriterRef.current!.write(snap);
     setNetWorthHistory((hist) => {
-      const existingIdx = hist.findIndex((h) => h.month === snap.month);
+      const existingIdx = hist.findIndex((h) => h.month === persisted.month);
       if (existingIdx === -1) {
-        return [...hist, snap].slice(-NET_WORTH_HISTORY_LIMIT);
+        return [...hist, persisted].slice(-NET_WORTH_HISTORY_LIMIT);
       }
       const existing = hist[existingIdx]!;
-      if (existing.lnw === snap.lnw && existing.cpf === snap.cpf) {
+      if (existing.lnw === persisted.lnw && existing.cpf === persisted.cpf) {
         return hist;
       }
       const next = [...hist];
-      next[existingIdx] = snap;
+      next[existingIdx] = persisted;
       return next;
     });
   }, []);

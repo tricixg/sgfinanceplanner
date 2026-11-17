@@ -14,6 +14,7 @@ import {
   resolveBTOMilestoneDates,
   resolveBTOMonthOffsets,
   resolveBtoOAMonthly,
+  cpfAgeForMonth,
   schemeComputedAmount,
   totalLoanLoadForMonth,
   type BTOInputs,
@@ -163,10 +164,20 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
 
   const offsets = useMemo(() => resolveBTOMonthOffsets(p, todayYmd), [p, todayYmd]);
   const milestones = useMemo(() => resolveBTOMilestoneDates(p), [p]);
-  const { tOAMonthly, pOAMonthly } = resolveBtoOAMonthly(p, {
-    self: selfMonthlyFromContrib,
-    partner: partnerMonthlyFromContrib,
-  });
+  const dateOfBirth = S.dateOfBirth;
+  const selfCpfAge = useMemo(
+    () => cpfAgeForMonth(dateOfBirth, todayYmd.slice(0, 7)),
+    [dateOfBirth, todayYmd]
+  );
+  const { tOAMonthly, pOAMonthly } = useMemo(
+    () =>
+      resolveBtoOAMonthly(
+        p,
+        { self: selfMonthlyFromContrib, partner: partnerMonthlyFromContrib },
+        selfCpfAge
+      ),
+    [p, selfMonthlyFromContrib, partnerMonthlyFromContrib, selfCpfAge]
+  );
 
   // Debt repayments still running at key collection (card instalments,
   // personal loans) count against a bank loan's 55% total-debt limit.

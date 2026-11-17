@@ -111,6 +111,7 @@ Patterns documented in [05-database-schema.md](./05-database-schema.md):
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | OK |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | OK with RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | Never prefix with `NEXT_PUBLIC_` |
+| `CRON_SECRET` | **Server only** | Authenticates `/api/cron/month-end` (bearer, constant-time compare). Unset = route returns 503 |
 | `NEXT_PUBLIC_SITE_URL` | Public | Magic link redirect base |
 
 ---

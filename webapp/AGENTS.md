@@ -6,6 +6,7 @@
 - **Logging:** prefer `console.info` / `console.error` with a `[Component]` or `[api/feature]` prefix; avoid noisy `console.log` in production UI paths.
 - **Large tabs:** credit card UI lives under [`components/credit-cards/`](components/credit-cards/); `TabCards.tsx` composes those pieces only.
 - **Page errors:** [`PageErrorBoundary`](components/app/PageErrorBoundary.tsx) wraps main content in `AppShell`; [`app/(app)/error.tsx`](app/(app)/error.tsx) handles segment failures. Prefer extending `PageErrorFallback` for shared copy/actions.
+- **Row limits:** PostgREST silently truncates any response at 1,000 rows. Any query that feeds a sum, analytic or index must page with [`fetchAllRows`](lib/supabase/fetch-all.ts) (deterministic `order` by date then `id`), not a bare `.select()`.
 - **Telegram bot:** webhook [`app/api/telegram/webhook/route.ts`](app/api/telegram/webhook/route.ts); logic in [`lib/telegram/`](lib/telegram/); link UI on Me tab. Uses service role + `telegram_links` user mapping.
 
 <!-- BEGIN:nextjs-agent-rules -->

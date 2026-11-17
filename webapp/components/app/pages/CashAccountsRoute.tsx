@@ -16,9 +16,11 @@ function CashAccountsContent({
   setState: Parameters<typeof TabCashAccounts>[0]["setState"];
 }) {
   const user = useAppSession();
-  const { savingsTotals, savingsApi, accountsApi } = usePageSavings(user?.id, state);
+  const { savingsTotals, savingsApi, accountsApi, fundsApi } = usePageSavings(user?.id, state);
   const { netWorthHistory, appendNetWorthSnapshot } = useAppData();
-  const { bundle: cardStatementsBundle } = useCardStatements(Boolean(user?.id));
+  const { bundle: cardStatementsBundle, loading: cardStatementsLoading } = useCardStatements(
+    Boolean(user?.id)
+  );
 
   // Depend on the *stable* members (reload is a useCallback, configured is a
   // boolean) — not the whole accountsApi object, which is a fresh identity every
@@ -49,6 +51,16 @@ function CashAccountsContent({
       savingsGoals={savingsApi.configured ? savingsApi.bundle.goals : undefined}
       netWorthApi={{ history: netWorthHistory, appendSnapshot: appendNetWorthSnapshot }}
       openCycles={cardStatementsBundle.openCycles}
+      snapshotInputs={{
+        accountsLoaded:
+          accountsApi.configured &&
+          !accountsApi.loading &&
+          !accountsApi.loadError &&
+          accountsApi.totals != null,
+        fundsLoaded: fundsApi.configured && !fundsApi.loading,
+        // A failed statements load resets the bundle to configured:false.
+        cardStatementsLoaded: cardStatementsBundle.configured && !cardStatementsLoading,
+      }}
     />
   );
 }

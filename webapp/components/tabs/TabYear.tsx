@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardState } from "@/lib/types";
 import type { SavingsSnapshot } from "@/lib/savings/types";
+import type { OpenCycleEstimate } from "@/lib/cards/types";
 import { monthlyInvestContributionWithIlp, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import { ChartBox } from "@/components/ChartBox";
+import { CpfAssumptions } from "@/components/cpf/CpfAssumptions";
 import { DecimalInput } from "@/components/DecimalInput";
 import type { ChartOptions } from "chart.js";
 
@@ -14,9 +16,10 @@ type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   savings?: SavingsSnapshot | null;
+  openCycles?: OpenCycleEstimate[];
 };
 
-export function TabYear({ state: S, savings }: Props) {
+export function TabYear({ state: S, savings, openCycles }: Props) {
   const [growth, setGrowth] = useState(3.5);
   const [invRet, setInvRet] = useState(6);
   const [showMargin, setShowMargin] = useState(true);
@@ -39,9 +42,10 @@ export function TabYear({ state: S, savings }: Props) {
         S,
         { growth, invAdd: invAmt, invRet, useMargin: showMargin },
         sgtTodayYmd(),
-        savings
+        savings,
+        openCycles
       ),
-    [S, growth, invAmt, invRet, showMargin, savings]
+    [S, growth, invAmt, invRet, showMargin, savings, openCycles]
   );
   const last = series[series.length - 1];
 
@@ -152,7 +156,7 @@ export function TabYear({ state: S, savings }: Props) {
         <div className="stat accent">
           <div className="lbl">Projected net worth · 2031</div>
           <div className="val">{fmt(last.nw)}</div>
-          <div className="note">CPF + investments + cash − debt</div>
+          <div className="note">CPF + investments (incl. funds) + cash − debt</div>
         </div>
         <div className="stat">
           <div className="lbl">CPF total · 2031</div>
@@ -173,6 +177,19 @@ export function TabYear({ state: S, savings }: Props) {
       <div className="card">
         <ChartBox type="bar" data={chartData} options={chartOpts} tall />
       </div>
+
+      <div className="callout tip">
+        <span className="ico">Assumptions</span>
+        “Now” matches your net worth on Cash Accounts (CPF, investments, funds,
+        cash, less margin, instalment, personal and balance-transfer loans and
+        card balances). Each month, take-home pay is reduced by budget spend,
+        insurance premiums, loan repayments, investing and margin repayment.
+        Instalment and personal loans are paid down by their monthly amount;
+        balance-transfer loans and card balances are held flat. Insurance
+        premiums stay constant. Income tax is not modelled.
+      </div>
+
+      <CpfAssumptions state={S} />
 
       <div className="card table-scroll projection-table-scroll">
         <table>

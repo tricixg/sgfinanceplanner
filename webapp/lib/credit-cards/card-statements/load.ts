@@ -258,12 +258,42 @@ export async function loadCardStatementsBundle(
     cards.map((card) => ensureStatementRows(supabase, userId, card))
   );
 
-  let spendFrom = today;
-  for (const rows of rowsByCard) {
-    for (const r of rows) {
-      if (r.cycleStartDate < spendFrom) spendFrom = r.cycleStartDate;
+  const earliestDay = resolveEarliestStatementDay(cards);
+
+  // Decide up front which statements this response actually reads, so the spend
+  // query only covers those cycles instead of the whole statement history
+  // (DATA-004). Each card needs spend for: the open cycle, the latest closed
+  // statement and the statement being viewed (cycleOffset). Interest for a
+  // statement runs from after its due date to today, i.e. inside that span.
+  const selections = cards.map((card, cardIdx) => {
+    const rows = rowsByCard[cardIdx]!;
+    const { statementClose: openClose } = openCycleBounds(card.statementDay, today);
+    let latestClosed = findLatestClosedStatement(rows, today);
+    if (!latestClosed && rows.length > 0) {
+      latestClosed = rows.find((r) => r.statementCloseDate !== openClose) ?? rows[0];
     }
-  }
+    const viewedClosed = findStatementForBatchOffset(
+      rows,
+      card,
+      today,
+      earliestDay,
+      safeOffset
+    );
+    return { latestClosed, viewedClosed };
+  });
+
+  let spendFrom = today;
+  cards.forEach((card, cardIdx) => {
+    const { cycleStart } = openCycleBounds(card.statementDay, today);
+    const { latestClosed, viewedClosed } = selections[cardIdx]!;
+    for (const day of [
+      cycleStart,
+      latestClosed?.cycleStartDate,
+      viewedClosed?.cycleStartDate,
+    ]) {
+      if (day && day < spendFrom) spendFrom = day;
+    }
+  });
 
   const finIds = cards
     .map((c) => c.financialAccountId)
@@ -273,11 +303,8 @@ export async function loadCardStatementsBundle(
       ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
       : new Map();
 
-  const earliestDay = resolveEarliestStatementDay(cards);
-
   await Promise.all(
     cards.map(async (card, cardIdx) => {
-      const rows = rowsByCard[cardIdx]!;
       const finId = card.financialAccountId;
       const { statementClose: openClose, cycleStart, cycleEnd } = openCycleBounds(
         card.statementDay,
@@ -286,19 +313,7 @@ export async function loadCardStatementsBundle(
 
       const spendIndex = finId ? spendIndexMap.get(finId) ?? null : null;
 
-      let latestClosed = findLatestClosedStatement(rows, today);
-      if (!latestClosed && rows.length > 0) {
-        latestClosed =
-          rows.find((r) => r.statementCloseDate !== openClose) ?? rows[0];
-      }
-
-      const viewedClosed = findStatementForBatchOffset(
-        rows,
-        card,
-        today,
-        earliestDay,
-        safeOffset
-      );
+      const { latestClosed, viewedClosed } = selections[cardIdx]!;
       if (viewedClosed) {
         const tracked = cycleSpendTotal(
           spendIndex,
@@ -440,20 +455,6 @@ export async function loadOutstandingStatements(
     cards.map((card) => ensureStatementRows(supabase, userId, card))
   );
 
-  const finIds = cards
-    .map((c) => c.financialAccountId)
-    .filter((id): id is string => Boolean(id));
-  let spendFrom = today;
-  for (const rows of rowsByCard) {
-    for (const r of rows) {
-      if (r.cycleStartDate < spendFrom) spendFrom = r.cycleStartDate;
-    }
-  }
-  const spendIndexMap =
-    finIds.length > 0
-      ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
-      : new Map();
-
   // paid_at is only ever set once a statement's outstanding balance hits zero (and
   // cleared again on undo), so a paid statement can never be outstanding — skip the
   // interest recompute/enrich work for it entirely. Most of a card's history (up to
@@ -464,6 +465,24 @@ export async function loadOutstandingStatements(
     const latest = latestClosedOf(rowsByCard[i] ?? [], today);
     return latest && !latest.paidAt ? [{ card, row: latest }] : [];
   });
+
+  // Only the statements listed above read spend, so bound the query to their
+  // cycles rather than the whole statement history (DATA-004).
+  let spendFrom = today;
+  for (const { row } of perStatement) {
+    if (row.cycleStartDate < spendFrom) spendFrom = row.cycleStartDate;
+  }
+  const finIds = [
+    ...new Set(
+      perStatement
+        .map((p) => p.card.financialAccountId)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const spendIndexMap =
+    finIds.length > 0
+      ? await buildCardSpendIndexMap(supabase, userId, finIds, spendFrom, today)
+      : new Map();
 
   const btFreeByCardId = new Map<string, number>();
   await Promise.all(

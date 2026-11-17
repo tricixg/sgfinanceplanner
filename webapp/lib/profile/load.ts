@@ -8,11 +8,13 @@ import type {
 import type { MilesPlannerPrefs } from "@/lib/miles/types";
 import { createEmptyState } from "@/lib/finance/defaults";
 import { normalizeBtoPlannerPrefs } from "@/lib/finance/bto";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 export type FinanceProfile = Pick<
   DashboardState,
   | "monthlySal"
   | "salaryCreditDay"
+  | "dateOfBirth"
   | "oa"
   | "sa"
   | "ma"
@@ -42,6 +44,7 @@ export async function loadFinanceProfile(
   return {
     monthlySal: Number(data.monthly_sal ?? 0),
     salaryCreditDay: Number(data.salary_credit_day ?? 25),
+    dateOfBirth: data.date_of_birth ? String(data.date_of_birth).slice(0, 10) : "",
     oa: Number(data.oa ?? 0),
     sa: Number(data.sa ?? 0),
     ma: Number(data.ma ?? 0),
@@ -79,6 +82,7 @@ export function profileFromState(state: DashboardState): FinanceProfile {
   return {
     monthlySal: state.monthlySal,
     salaryCreditDay: state.salaryCreditDay,
+    dateOfBirth: state.dateOfBirth ?? "",
     oa: state.oa,
     sa: state.sa,
     ma: state.ma,
@@ -110,6 +114,17 @@ export function mergeFinanceProfile(
   };
 }
 
+/** A real calendar date in the past, giving an age between 0 and 120. */
+export function isPlausibleDateOfBirth(value: string, today = sgtTodayYmd()): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+    return false;
+  }
+  return value <= today && y >= Number(today.slice(0, 4)) - 120;
+}
+
 export async function saveFinanceProfile(
   supabase: SupabaseClient,
   userId: string,
@@ -117,11 +132,16 @@ export async function saveFinanceProfile(
 ): Promise<FinanceProfile> {
   const current = await loadFinanceProfile(supabase, userId);
   const merged = mergeFinanceProfile(current, patch);
+  const dob = merged.dateOfBirth ?? "";
+  if (dob !== "" && !isPlausibleDateOfBirth(dob)) {
+    throw new Error("Invalid date of birth");
+  }
 
   const payload = {
     user_id: userId,
     monthly_sal: merged.monthlySal,
     salary_credit_day: merged.salaryCreditDay,
+    date_of_birth: dob === "" ? null : dob,
     oa: merged.oa,
     sa: merged.sa,
     ma: merged.ma,

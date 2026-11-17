@@ -6,9 +6,8 @@ import { resolveDashboardCash } from "./wealth";
 import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
 import { takeHomeForMonth } from "./income";
-import { totalLoanLoadForMonth } from "./loanLoad";
+import { computedLinesForMonth } from "./computed-months";
 import { budgetYm, currentYm, monIdx } from "./helpers";
-import { computedInsuranceMonthly } from "./insurance";
 import { computedIlpMonthly, ilpTotalValue } from "./ilp";
 import { portfolioInvestmentValue } from "./wealth";
 
@@ -91,7 +90,7 @@ export function monthlySaveContribution(S: DashboardState): number {
 
 /** Instalment load from Debts & Loans — not stored in budget. Uses current month unless ym is passed. */
 export function computedDebtMonthly(S: DashboardState, ym?: string): number {
-  return totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], budgetYm(ym));
+  return computedLinesForMonth(S, budgetYm(ym)).debt;
 }
 
 /** Sum of each active goal's monthlyContribution, as set on the Savings & Goals tab.
@@ -204,9 +203,10 @@ export function budgetVerdict(
 ) {
   const income = takeHomeForMonth(S, ym);
   const alloc = S.budget.reduce((s, b) => s + b.amt, 0);
-  const debt = computedDebtMonthly(S, ym);
-  const ilp = computedIlpMonthly(S);
-  const insurance = computedInsuranceMonthly(S);
+  const computed = computedLinesForMonth(S, budgetYm(ym));
+  const debt = computed.debt;
+  const ilp = computed.ilp;
+  const insurance = computed.insurance;
   const savings = savingsMonthly ?? 0;
   const left = income - alloc - debt - ilp - insurance - savings;
   const inv = monthlyInvestContributionWithIlp(S);

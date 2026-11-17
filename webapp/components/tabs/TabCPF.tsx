@@ -10,6 +10,7 @@ import { AppDataContext } from "@/contexts/app-data-contexts";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import { CpfTransactionForm } from "@/components/cpf/CpfTransactionForm";
 import { CpfOaHistory } from "@/components/cpf/CpfOaHistory";
+import { CpfAssumptions } from "@/components/cpf/CpfAssumptions";
 
 type Props = {
   state: DashboardState;
@@ -106,6 +107,8 @@ export function TabCPF({ state: S, setState }: Props) {
         worth (when CPF is included), and the 5-year projection. Log contributions, withdrawals and
         BTO payments below and your balances adjust automatically.
       </div>
+
+      <CpfAssumptions state={S} />
 
       <div className="section-head">
         <h2>CPF balances · now</h2>

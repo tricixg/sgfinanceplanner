@@ -29,7 +29,8 @@ Full user-facing steps: [webapp/README.md](../webapp/README.md).
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes (cloud mode) | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon key for client + RLS |
 | `NEXT_PUBLIC_SITE_URL` | Production | Magic link redirect base |
-| `SUPABASE_SERVICE_ROLE_KEY` | Optional | Admin routes, dev bypass |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional (required for the month-end job) | Admin routes, dev bypass, `/api/cron/month-end` |
+| `CRON_SECRET` | Required for the month-end job | Random secret; Vercel Cron sends it as `Authorization: Bearer …`. Unset = the job refuses to run |
 | `NEXT_PUBLIC_APP_TITLE` etc. | Optional | Branding ([config.ts](../webapp/lib/config.ts)) |
 | `AUTH_BYPASS_DEV` | Local only | Skip login |
 | `DEV_USER_ID` / `DEV_USER_EMAIL` | With bypass | Impersonate user |
@@ -169,3 +170,17 @@ Technical docs: [documentation/README.md](./README.md)
 
 - [02-architecture.md](./02-architecture.md)
 - [08-authentication-and-security.md](./08-authentication-and-security.md)
+
+## Month-end job
+
+`vercel.json` runs `/api/cron/month-end` daily at 15:30 UTC (23:30 Singapore) on days 28–31. The handler
+only proceeds when today (SGT) is the **last day of the month**, then for every user with a finance profile:
+
+1. records the month's **net-worth snapshot** (same calculation as Cash Accounts: personal accounts + funds,
+   joint money excluded, less open card balances) — it overwrites any interim value written by the client;
+2. **freezes the month's insurance / ILP / loan-load figures** (`monthly_computed_lines`, migration 068).
+
+Nothing is written for a user whose data fails to load. Setup: set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET`
+in Vercel. To test: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<app>/api/cron/month-end?force=1"`
+runs it for the current month on any day; the real run on the last day overwrites that month's rows.
+Vercel Hobby cron fires within the scheduled hour, which still falls on the last day in Singapore.

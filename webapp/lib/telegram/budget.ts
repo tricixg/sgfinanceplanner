@@ -8,6 +8,8 @@ import { loadLoans } from "@/lib/loans/load";
 import { loadOtherLoans } from "@/lib/other-loans/load";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { mapExpense } from "@/lib/savings/db-mappers";
+import { resolveComputedLinesForMonth } from "@/lib/budget/computed-months-load";
+import { currentYm } from "@/lib/finance/helpers";
 
 export type MonthBudgetSummary = ReturnType<typeof buildBudgetExpenseSummary>;
 
@@ -64,11 +66,17 @@ export async function loadMonthBudgetSummary(
     transactionType: String(r.transaction_type ?? "expense"),
   }));
 
-  const computedAlloc = {
-    debt: totalLoanLoadForMonth(loans, otherLoans, ym),
-    insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
-    ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
-  };
+  const computedAlloc = await resolveComputedLinesForMonth(
+    supabase,
+    userId,
+    ym,
+    {
+      debt: totalLoanLoadForMonth(loans, otherLoans, ym),
+      insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
+      ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
+    },
+    currentYm()
+  );
 
   const reimbursements = await loadReimbursementTotals(supabase, userId);
   return buildBudgetExpenseSummary(

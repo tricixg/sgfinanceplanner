@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DailySpendMap } from "./interest-accrual";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 /** In-memory index of card spend by day for fast cycle sums. */
 export type CardSpendIndex = {
@@ -31,13 +32,16 @@ export async function loadStatementCreditedBudgetTransactionIds(
   supabase: SupabaseClient,
   userId: string
 ): Promise<Set<string>> {
-  const { data, error } = await supabase
-    .from("card_statement_credits")
-    .select("source_record_id")
-    .eq("user_id", userId)
-    .eq("source_record_type", "budget");
-  if (error) throw new Error(error.message);
-  return new Set((data ?? []).map((r) => String(r.source_record_id)));
+  const data = await fetchAllRows<{ source_record_id: unknown }>((from, to) =>
+    supabase
+      .from("card_statement_credits")
+      .select("source_record_id")
+      .eq("user_id", userId)
+      .eq("source_record_type", "budget")
+      .order("id")
+      .range(from, to)
+  );
+  return new Set(data.map((r) => String(r.source_record_id)));
 }
 
 function indexFromByDay(byDay: DailySpendMap): CardSpendIndex {
@@ -75,17 +79,26 @@ export async function buildCardSpendIndexMap(
     byAccountDay.set(id, {});
   }
 
-  const { data: expenses, error: expErr } = await supabase
-    .from("expenses")
-    .select("amount, spent_at, created_at, financial_account_id")
-    .eq("user_id", userId)
-    .in("financial_account_id", financialAccountIds)
-    .gte("spent_at", from)
-    .lte("spent_at", to);
+  // Paged: PostgREST silently truncates at 1,000 rows (DATA-004).
+  const expenses = await fetchAllRows<{
+    amount: unknown;
+    spent_at: unknown;
+    created_at: unknown;
+    financial_account_id: unknown;
+  }>((rFrom, rTo) =>
+    supabase
+      .from("expenses")
+      .select("amount, spent_at, created_at, financial_account_id")
+      .eq("user_id", userId)
+      .in("financial_account_id", financialAccountIds)
+      .gte("spent_at", from)
+      .lte("spent_at", to)
+      .order("spent_at")
+      .order("id")
+      .range(rFrom, rTo)
+  );
 
-  if (expErr) throw new Error(expErr.message);
-
-  for (const row of expenses ?? []) {
+  for (const row of expenses) {
     const accountId = String(row.financial_account_id ?? "");
     const day = resolveSpendDay(row);
     if (!day) {
@@ -99,23 +112,33 @@ export async function buildCardSpendIndexMap(
     bucket[day] = (bucket[day] ?? 0) + Number(row.amount ?? 0);
   }
 
-  const { data: budgetRows, error: budErr } = await supabase
-    .from("budget_transactions")
-    .select("id, amount, spent_at, created_at, financial_account_id, transaction_type")
-    .eq("user_id", userId)
-    .in("financial_account_id", financialAccountIds)
-    .is("expense_id", null)
-    .gte("spent_at", from)
-    .lte("spent_at", to);
-
-  if (budErr) throw new Error(budErr.message);
+  const budgetRows = await fetchAllRows<{
+    id: unknown;
+    amount: unknown;
+    spent_at: unknown;
+    created_at: unknown;
+    financial_account_id: unknown;
+    transaction_type: unknown;
+  }>((rFrom, rTo) =>
+    supabase
+      .from("budget_transactions")
+      .select("id, amount, spent_at, created_at, financial_account_id, transaction_type")
+      .eq("user_id", userId)
+      .in("financial_account_id", financialAccountIds)
+      .is("expense_id", null)
+      .gte("spent_at", from)
+      .lte("spent_at", to)
+      .order("spent_at")
+      .order("id")
+      .range(rFrom, rTo)
+  );
 
   // A reimbursement credited toward a specific statement (card_statement_credits) is
   // already fully accounted for via that statement's amount_paid — it isn't new spend
   // or anti-spend in any billing cycle, so it must not also move a cycle's tracked total.
   const excludedIds = await loadStatementCreditedBudgetTransactionIds(supabase, userId);
 
-  for (const row of budgetRows ?? []) {
+  for (const row of budgetRows) {
     if (excludedIds.has(String(row.id))) continue;
     const accountId = String(row.financial_account_id ?? "");
     const day = resolveSpendDay(row);

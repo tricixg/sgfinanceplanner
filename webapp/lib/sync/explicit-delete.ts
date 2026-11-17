@@ -17,8 +17,19 @@ export function removedIds<T>(
     .filter((id): id is string => Boolean(id) && !keep.has(id as string));
 }
 
-/** Domains whose editing depends on a successful load. */
-export type GuardedDomain = "loans" | "cards" | "holdings" | "accounts";
+/**
+ * Domains that can fail to load. loans/cards/holdings/accounts also block
+ * editing (whole-list saves); profile and otherLoans are tracked so figures
+ * derived from them (e.g. the monthly net-worth snapshot) are never recorded
+ * from a failed load.
+ */
+export type GuardedDomain =
+  | "loans"
+  | "cards"
+  | "holdings"
+  | "accounts"
+  | "profile"
+  | "otherLoans";
 
 export type LoadErrors = Partial<Record<GuardedDomain, string>>;
 
@@ -27,6 +38,8 @@ const LABELS: Record<GuardedDomain, string> = {
   cards: "credit cards",
   holdings: "holdings",
   accounts: "cash accounts",
+  profile: "profile (CPF, margin, policies)",
+  otherLoans: "personal and balance-transfer loans",
 };
 
 export function domainLabel(domain: GuardedDomain): string {
