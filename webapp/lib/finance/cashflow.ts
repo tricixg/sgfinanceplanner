@@ -6,7 +6,7 @@ import { computedInsuranceMonthly } from "./insurance";
 import { computedIlpMonthly } from "./ilp";
 import { formatMonthLabel } from "./helpers";
 import { monthCashIncome } from "@/lib/income/hybrid-cashflow";
-import { loanLoadForMonth, totalLoanLoadForMonth } from "./loanLoad";
+import { totalLoanLoadForMonth } from "./loanLoad";
 
 export { stableTakeHome } from "./income";
 

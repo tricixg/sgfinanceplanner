@@ -61,6 +61,14 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
     return buildPokerStats(filterByOnlineMode(stats.sessions, activeMode));
   }, [stats, activeMode]);
 
+  // Keep this above setMode: that closure hands activeTab/locationParam to
+  // URLSearchParams, which React Compiler treats as a possible mutation, so a memo
+  // declared after it cannot be preserved (react-hooks/preserve-manual-memoization).
+  const locationDetail = useMemo(() => {
+    if (!scoped || !locationParam || activeTab !== "locations") return null;
+    return locationDetailStats(scoped.sessions, decodeURIComponent(locationParam));
+  }, [scoped, locationParam, activeTab]);
+
   const load = useCallback(async () => {
     if (!enabled) return;
     setLoading(true);
@@ -104,11 +112,6 @@ export function PokerStatsPage({ enabled }: { enabled: boolean }) {
     if (mode !== "all") params.set("mode", mode);
     router.replace(`/poker/stats?${params.toString()}`);
   };
-
-  const locationDetail = useMemo(() => {
-    if (!scoped || !locationParam || activeTab !== "locations") return null;
-    return locationDetailStats(scoped.sessions, decodeURIComponent(locationParam));
-  }, [scoped, locationParam, activeTab]);
 
   if (!enabled) {
     return (

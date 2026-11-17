@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { normalizeQuoteSymbols } from "@/lib/holdings/quote-symbols";
 
 export type QuoteResult = {
   price: number;
@@ -10,8 +11,6 @@ export type QuoteResult = {
 
 const CONCURRENCY = 4;
 const YAHOO_UA = "Mozilla/5.0 (compatible; SGFinancePlanner/1.0)";
-const MAX_SYMBOLS = 20;
-const MAX_SYMBOL_LENGTH = 24;
 const RATE_LIMIT = { limit: 30, windowMs: 60_000 };
 
 async function fetchYahooQuote(symbol: string): Promise<QuoteResult | null> {
@@ -60,24 +59,6 @@ async function mapPool<T, R>(
     results.push(...chunkResults);
   }
   return results;
-}
-
-/** Normalize and cap symbol list from request body */
-export function normalizeQuoteSymbols(raw: unknown): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  const list = Array.isArray(raw) ? raw : [];
-
-  for (const item of list) {
-    if (out.length >= MAX_SYMBOLS) break;
-    const symbol = String(item).trim().toUpperCase();
-    if (!symbol || symbol === "—" || symbol.length > MAX_SYMBOL_LENGTH) continue;
-    if (seen.has(symbol)) continue;
-    seen.add(symbol);
-    out.push(symbol);
-  }
-
-  return out;
 }
 
 export async function POST(req: NextRequest) {
