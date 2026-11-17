@@ -148,13 +148,14 @@ Personal **Cash Accounts** and **Expenses** remain individual unless you both lo
 
 ## Back up your data
 
-**Goal:** Keep a copy of your settings and data.
+**Goal:** Keep a copy of all your data somewhere outside the app.
 
 1. Go to **ME**.
-2. Use **Export JSON** (or similar).
-3. Save the file somewhere safe.
+2. Click **Download full backup (JSON)**.
+3. Check the message under the buttons says the backup was downloaded (and not "INCOMPLETE").
+4. Save the file somewhere safe.
 
-**Restore:** Use **Import JSON** on **ME** only if you understand it overwrites current data — use with caution.
+The backup covers all of your records (expenses, accounts and ledgers, cards and statements, goals and shared pools, loans, holdings, CPF, travel, poker and more). It is a copy for safekeeping: there is **no in-app restore**, and restoring is done from the database (the app owner can do this from Supabase backups or a database dump). Do not rely on the old dashboard-only export, which left most data out.
 
 ---
 

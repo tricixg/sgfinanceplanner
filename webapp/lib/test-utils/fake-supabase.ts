@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Row = Record<string, unknown>;
-type Filter = { col: string; op: "eq" | "in" | "neq"; val: unknown };
+type Filter = { col: string; op: "eq" | "in" | "neq" | "or"; val: unknown };
 
 export type FakeOp = {
   table: string;
@@ -34,10 +34,11 @@ export function createFakeSupabase(
   let seq = 0;
 
   const rowsOf = (t: string) => (tables[t] ??= []);
-  const matches = (row: Row, filters: Filter[]) =>
+  const matches = (row: Row, filters: Filter[]): boolean =>
     filters.every((f) => {
       if (f.op === "eq") return row[f.col] === f.val;
       if (f.op === "neq") return row[f.col] !== f.val;
+      if (f.op === "or") return (f.val as Filter[]).some((g) => matches(row, [g]));
       return (f.val as unknown[]).includes(row[f.col]);
     });
 
@@ -47,6 +48,8 @@ export function createFakeSupabase(
     let payload: unknown;
     let wantRows = false;
     let single = false;
+    let rangeFrom: number | null = null;
+    let rangeTo = 0;
 
     const exec = (): { data: unknown; error: { message: string } | null } => {
       const r = run();
@@ -80,7 +83,8 @@ export function createFakeSupabase(
         tables[table] = rows.filter((r) => !hit.includes(r));
         return { data: wantRows ? hit : null, error: null };
       }
-      return { data: hit, error: null };
+      const page = rangeFrom === null ? hit : hit.slice(rangeFrom, rangeTo + 1);
+      return { data: page, error: null };
     };
 
     const api: Record<string, unknown> = {
@@ -105,6 +109,15 @@ export function createFakeSupabase(
       single: () => ((single = true), (wantRows = true), api),
       maybeSingle: () => ((single = true), (wantRows = true), api),
       order: () => api,
+      range: (a: number, b: number) => ((rangeFrom = a), (rangeTo = b), api),
+      or: (expr: string) => {
+        const parts = expr.split(",").map((p) => {
+          const [col, op, ...rest] = p.split(".");
+          return { col, op: op as "eq", val: rest.join(".") } as Filter;
+        });
+        filters.push({ col: "", op: "or", val: parts });
+        return api;
+      },
       limit: () => api,
       eq: (col: string, val: unknown) => (filters.push({ col, op: "eq", val }), api),
       neq: (col: string, val: unknown) => (filters.push({ col, op: "neq", val }), api),

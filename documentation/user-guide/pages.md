@@ -297,11 +297,12 @@ What each page is for, in sidebar order. Page names match the sidebar labels.
 - Salary, commission, salary credit day
 - Insurance policies (non-ILP) and premiums
 - **Partner** — invite by email to share household savings
-- **Import / export** — backup or restore dashboard JSON
-- Optional **dummy data** for trying the app
+- **Download full backup (JSON)** — a server-side export of everything you've stored: expenses, cash accounts and their ledgers, cards and statements, goals and shared pools (including your partner's entries on shared pools), loans, holdings and dividends, CPF contributions and transactions, funds, benefits, on-call, travel, poker, budgets and snapshots. It is a **copy for safekeeping — it can't be re-imported** into the app. Telegram link data is left out. The page tells you if any table couldn't be read ("Backup is INCOMPLETE"); don't rely on such a file.
 - Sign out
 
-**Typical use:** Set up once; revisit when salary or insurance changes; invite partner; export backup before big changes.
+When you are signed in, the Me page no longer offers **Reset all to zero**, **Add dummy data** or **Import JSON**: they only changed what was on screen (nothing was saved) and could lead to real data being overwritten by a later edit. In **browser-only mode** (no sign-in) they remain, with Reset asking for confirmation, and the export is labelled *Export dashboard JSON (this browser only)*.
+
+**Typical use:** Set up once; revisit when salary or insurance changes; invite partner; download a full backup before big changes and keep it outside the app.
 
 ---
 
