@@ -9,6 +9,7 @@ import { totalLoanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { resolveComputedLinesForMonth } from "@/lib/budget/computed-months-load";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
@@ -110,11 +111,18 @@ export async function GET(req: NextRequest) {
     transactionType: String(r.transaction_type ?? "expense"),
   }));
 
-  const computedAlloc = {
-    debt: totalLoanLoadForMonth(loans, otherLoans, ym),
-    insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
-    ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
-  };
+  // A finished month uses its frozen insurance / ILP / loan figures when it has them.
+  const computedAlloc = await resolveComputedLinesForMonth(
+    supabase,
+    user.id,
+    ym,
+    {
+      debt: totalLoanLoadForMonth(loans, otherLoans, ym),
+      insurance: insurancePolicies.reduce((s, p) => s + p.monthlyPremium, 0),
+      ilp: ilpPolicies.reduce((s, p) => s + p.monthlyPremium, 0),
+    },
+    currentYm()
+  );
 
   const summary = buildBudgetExpenseSummary(
     ym,

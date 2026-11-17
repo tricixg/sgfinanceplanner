@@ -37,6 +37,7 @@ All application tables use **Row Level Security (RLS)** unless noted.
 | 025 | `025_transactions_source_links.sql` | `source_record_type` / `source_record_id` on ledger tables |
 | 066 | `066_household_membership_hardening.sql` | SEC-001: drops client insert/update policies on `household_members`; adds `create_solo_household()`, `accept_partner_invite(invite_id)` and a 2-members-per-household trigger |
 | 067 | `067_profile_date_of_birth.sql` | FIN-003: nullable `date_of_birth` on `user_finance_profile`; picks age-based CPF rates (null = assume ≤35) |
+| 068 | `068_monthly_computed_lines.sql` | FIN-005: `monthly_computed_lines` — frozen insurance / ILP / loan-load per finished month (backfilled at today's settings for months before this month; later months are frozen by the month-end job). Months without a row follow live settings |
 
 ---
 
@@ -153,6 +154,7 @@ Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboar
 | `holdings` | `ticker`, `market`, `qty`, `avg_cost` | Stocks |
 | `portfolio_snapshots` | `total_value`, `recorded_at` | History |
 | `user_finance_profile` | salary, CPF, `date_of_birth` (067), `bto_planner` jsonb | Planning inputs |
+| `monthly_computed_lines` | `month`, `insurance`, `ilp`, `debt` (PK user + month) | Frozen computed lines of finished months (068). Current / future months always use live settings; a finished month with no row falls back to live settings |
 | `insurance_policies` | `monthly_premium`, `deduction_day` | Insurance |
 | `ilp_policies` | premiums, funds json | ILP |
 

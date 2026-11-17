@@ -35,14 +35,13 @@ import {
   budgetBalanceLabel,
   computedDebtMonthly,
   COMPUTED_INSURANCE_LABEL,
-  computedInsuranceMonthly,
   COMPUTED_ILP_LABEL,
-  computedIlpMonthly,
   COMPUTED_SAVINGS_LABEL,
   computedSavingsMonthly,
   defaultBudgetTemplate,
   recurringFloorsByBudgetLine,
 } from "@/lib/finance/budget";
+import { computedLinesForMonth } from "@/lib/finance/computed-months";
 
 type Props = {
   state: DashboardState;
@@ -217,8 +216,9 @@ export function TabBudgetSavings({
   const debt =
     lookupComputedSpend(expenseSummary, "debt")?.allocated ??
     computedDebtMonthly(S, viewYm);
-  const insurancePrem = computedInsuranceMonthly(S);
-  const ilpPrem = computedIlpMonthly(S);
+  const viewComputed = computedLinesForMonth(S, viewYm);
+  const insurancePrem = viewComputed.insurance;
+  const ilpPrem = viewComputed.ilp;
   const savingsPrem = computedSavingsMonthly(savingsGoals, savingsBundle.myUserId, viewYm);
   const { alloc, left, invPct } = budgetVerdict(budgetState, viewYm, savingsPrem);
   // Includes ILP premiums so the allocation projection grows them as investments.

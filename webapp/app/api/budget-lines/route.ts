@@ -3,11 +3,16 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadBudgetData, saveBudgetMonth } from "@/lib/budget/load";
 import { isBudgetMonthEditable, isYm, resolveBudgetMonth, type BudgetMonthMap } from "@/lib/budget/monthly";
 import { currentYm } from "@/lib/finance/helpers";
+import { loadComputedMonths } from "@/lib/budget/computed-months-load";
+import type { ComputedMonthMap } from "@/lib/finance/computed-months";
 import type { BudgetItem } from "@/lib/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
-function payload(data: { months: BudgetMonthMap; income: Record<string, number> }) {
+function payload(
+  data: { months: BudgetMonthMap; income: Record<string, number> },
+  computed: ComputedMonthMap = {}
+) {
   const ym = currentYm();
   const { months, income } = data;
   return {
@@ -15,6 +20,8 @@ function payload(data: { months: BudgetMonthMap; income: Record<string, number> 
     currentYm: ym,
     months,
     income,
+    /** Frozen insurance / ILP / loan figures of finished months. */
+    computed,
     budget: resolveBudgetMonth(months, ym).lines,
   };
 }
@@ -27,7 +34,11 @@ export async function GET() {
   if ("response" in auth) return auth.response;
   try {
     const supabase = await createAuthedSupabaseClient();
-    return NextResponse.json(payload(await loadBudgetData(supabase, auth.user.id)));
+    const [data, computed] = await Promise.all([
+      loadBudgetData(supabase, auth.user.id),
+      loadComputedMonths(supabase, auth.user.id),
+    ]);
+    return NextResponse.json(payload(data, computed));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load budget";
     return NextResponse.json({ error: msg }, { status: 500 });

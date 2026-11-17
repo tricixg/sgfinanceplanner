@@ -58,6 +58,7 @@ export function useAppDataProvider(enabled: boolean) {
   const [loans, setLoans] = useState<DashboardState["loans"]>([]);
   const [budgetMonths, setBudgetMonths] = useState<Record<string, DashboardState["budget"]>>({});
   const [incomeMonths, setIncomeMonths] = useState<Record<string, number>>({});
+  const [computedMonths, setComputedMonths] = useState<DashboardState["computedMonths"]>({});
   const [creditCards, setCreditCards] = useState<DashboardState["creditCards"]>([]);
   const [holdings, setHoldings] = useState<DashboardState["holdings"]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<
@@ -82,6 +83,7 @@ export function useAppDataProvider(enabled: boolean) {
       budget: resolveBudgetMonth(budgetMonths, currentYm()).lines,
       budgetMonths,
       incomeMonths,
+      computedMonths,
       creditCards,
       holdings,
       portfolioHistory,
@@ -89,7 +91,7 @@ export function useAppDataProvider(enabled: boolean) {
       accounts: [],
       goals: [],
     });
-  }, [profileBundle, loans, budgetMonths, incomeMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
+  }, [profileBundle, loans, budgetMonths, incomeMonths, computedMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -233,6 +235,7 @@ export function useAppDataProvider(enabled: boolean) {
             budget?: DashboardState["budget"];
             months?: Record<string, DashboardState["budget"]>;
             income?: Record<string, number>;
+            computed?: DashboardState["computedMonths"];
             currentYm?: string;
             configured?: boolean;
           }>(
@@ -276,6 +279,7 @@ export function useAppDataProvider(enabled: boolean) {
       if (budgetRes.res.ok) {
         setBudgetMonths(budgetRes.data.months ?? {});
         setIncomeMonths(budgetRes.data.income ?? {});
+        setComputedMonths(budgetRes.data.computed ?? {});
       }
       if (cardsRes.res.ok) setCreditCards(cardsRes.data.cards ?? []);
       if (holdRes.res.ok) setHoldings(holdRes.data.holdings ?? []);
