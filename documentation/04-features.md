@@ -23,7 +23,7 @@ Metric definitions:
 - **Spending** — all recorded spending net of reimbursements (`scope=all`): budget categories plus recurring debt, insurance, ILP, subscription, instalment and investment payments.
 - **Net cash flow** — income − spending. **Savings rate** — net ÷ income (shown as "—" when there is no income).
 - **Date range** — This month, Last month, 3M, 6M, YTD, 12M. Each is compared with the equal-length period before it. Analytics are requested in fixed 6-month windows and cached, matching the size of the existing Past Cashflow requests.
-- **Budget** card is always the current month (budgets are monthly) and uses the same totals as the Expenses page.
+- **Budget** card follows the month you step to in Month view (current month in other ranges) and uses the same totals as the Expenses page for that month.
 
 ### Financial Health (`/financial-health`)
 

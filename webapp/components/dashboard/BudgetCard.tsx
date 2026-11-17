@@ -12,14 +12,14 @@ import { fetchJson } from "@/lib/fetch-json";
 import { fmt } from "@/lib/finance/helpers";
 
 type Props = {
-  /** Budget month (YYYY-MM) — budgets are monthly, so this is always the current month. */
+  /** Budget month (YYYY-MM) — the month stepped to on the Dashboard (current month by default). */
   ym: string;
   todayYmd: string;
 };
 
 const MAX_ROWS = 4;
 
-/** This month's budget utilisation, from the same summary the Expenses page uses. */
+/** The selected month's budget utilisation, from the same summary the Expenses page uses. */
 export function BudgetCard({ ym, todayYmd }: Props) {
   const [summary, setSummary] = useState<BudgetExpenseSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,7 +90,9 @@ export function BudgetCard({ ym, todayYmd }: Props) {
   const spent = summary.totals.spent;
   const remaining = summary.totals.remaining;
   const used = spent / allocated;
-  const elapsed = monthElapsed(todayYmd);
+  const todayYm = todayYmd.slice(0, 7);
+  // Past months are fully elapsed, later months haven't started.
+  const elapsed = ym < todayYm ? 1 : ym > todayYm ? 0 : monthElapsed(todayYmd);
   // Spending faster than the month is passing is worth a nudge before it becomes an overrun.
   const tone = used > 1 ? "over" : used > elapsed + 0.1 ? "warn" : "default";
 
