@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { applyFundTransaction } from "@/lib/funds/ledger";
@@ -24,7 +25,7 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load funds";
     console.error("[api/funds] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/funds", msg, { fallback: "Failed to load funds" });
   }
 }
 
@@ -83,7 +84,7 @@ export async function PUT(req: NextRequest) {
 
       if (error) {
         console.error("[api/funds] update failed", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return apiError("api/funds", error);
       }
       continue;
     }
@@ -104,7 +105,7 @@ export async function PUT(req: NextRequest) {
 
     if (error) {
       console.error("[api/funds] insert failed", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return apiError("api/funds", error);
     }
 
     if (opening !== 0 && row?.id) {

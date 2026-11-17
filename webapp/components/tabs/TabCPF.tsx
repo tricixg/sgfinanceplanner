@@ -50,7 +50,7 @@ export function TabCPF({ state: S, setState }: Props) {
         setState((prev) => ({ ...prev, ...cpfDraft }));
       }
       setEditing(false);
-      console.info("[TabCPF] CPF balances saved", cpfDraft);
+      console.info("[TabCPF] CPF balances saved");
     } catch (e) {
       console.error("[TabCPF] CPF save failed", e);
     } finally {
@@ -60,7 +60,7 @@ export function TabCPF({ state: S, setState }: Props) {
 
   const patchCpfDraft = (key: "oa" | "sa" | "ma", val: number) => {
     setCpfDraft((d) => ({ ...d, [key]: val }));
-    console.info("[TabCPF] draft CPF balance", key, val);
+    console.info("[TabCPF] draft CPF balance edited", key);
   };
 
   const chartData = {

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOtherLoans } from "@/lib/other-loans/load";
@@ -55,11 +56,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       note
     );
   const otherLoans = await loadOtherLoans(supabase, auth.user.id);
-    console.info("[api/other-loans] POST pay", { id, amount });
+    console.info("[api/other-loans] POST pay", { id });
     return NextResponse.json({ ok: true, otherLoans });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Payment failed";
     console.error("[api/other-loans] POST pay failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/other-loans/[id]/pay", msg, { fallback: "Payment failed" });
   }
 }

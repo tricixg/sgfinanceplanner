@@ -77,9 +77,6 @@ export function CardPaymentModal({ statement, onClose, onPaid }: Props) {
     setAmount(String(roundMoney(Math.max(0, pay))));
     console.info("[CardPaymentModal] defaults", {
       accountId,
-      pay,
-      cashAvailable: acct?.balance,
-      statementDue,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when modal opens or balances change
   }, [statement.id, cashPayOptions.map((o) => `${o.financialAccountId}:${o.balance}`).join("|")]);
@@ -118,7 +115,7 @@ export function CardPaymentModal({ statement, onClose, onPaid }: Props) {
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Payment failed");
-      console.info("[CardPaymentModal] payment ok", { statementId: statement.id, amt });
+      console.info("[CardPaymentModal] payment ok", { statementId: statement.id });
       dispatchDomainEvent([
         "expense:changed",
         "cards:changed",

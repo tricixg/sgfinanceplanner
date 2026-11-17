@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import {
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       financialAccountId
     );
 
-    console.info("[api/credit-cards/statements] POST pay", { id, amount });
+    console.info("[api/credit-cards/statements] POST pay", { id });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Payment failed";
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         ? 400
         : 500;
     console.error("[api/credit-cards/statements] POST pay failed", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/credit-cards/statements/[id]/pay", msg, { status, fallback: "Payment failed" });
   }
 }
 
@@ -117,6 +118,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Undo payment failed";
     console.error("[api/credit-cards/statements] DELETE pay failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/credit-cards/statements/[id]/pay", msg, { fallback: "Undo payment failed" });
   }
 }

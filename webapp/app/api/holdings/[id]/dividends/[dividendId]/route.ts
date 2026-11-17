@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteHoldingDividend } from "@/lib/holdings/dividends";
@@ -33,6 +34,6 @@ export async function DELETE(_req: Request, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to delete dividend";
     console.error("[api/holdings/dividends] DELETE failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/holdings/[id]/dividends/[dividendId]", msg, { fallback: "Failed to delete dividend" });
   }
 }

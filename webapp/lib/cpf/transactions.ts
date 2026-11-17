@@ -117,7 +117,6 @@ export async function addCpfTransaction(
     userId,
     category: transaction.category,
     stage: transaction.btoStage,
-    delta,
   });
   return { transaction, oa };
 }
@@ -152,7 +151,7 @@ export async function deleteCpfTransaction(
     });
     oa = updated.oa;
   }
-  console.info("[cpf/transactions] deleted", { userId, id, delta });
+  console.info("[cpf/transactions] deleted", { userId, id });
   return { oa };
 }
 

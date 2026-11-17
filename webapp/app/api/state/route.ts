@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { mergeWithDefaults } from "@/lib/finance/defaults";
@@ -45,7 +46,7 @@ export async function GET() {
 
   if (error) {
     console.error("[api/state] GET error", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/state", error);
   }
 
   const raw = row?.data;
@@ -168,7 +169,7 @@ export async function PUT(req: NextRequest) {
 
   if (error) {
     console.error("[api/state] PUT error", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/state", error);
   }
 
   console.info("[api/state] PUT ok (prefs only)", { userId: user.id });

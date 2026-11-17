@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { mapPokerSession } from "@/lib/poker/db-mappers";
@@ -26,7 +27,7 @@ export async function GET() {
 
   if (error) {
     console.error("[api/poker/stats] GET failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/poker/stats", error);
   }
 
   const sessions = (rows ?? []).map((r) => mapPokerSession(r));

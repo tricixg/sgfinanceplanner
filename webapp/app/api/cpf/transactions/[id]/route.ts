@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteCpfTransaction, updateCpfTransaction } from "@/lib/cpf/transactions";
@@ -22,7 +23,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     return NextResponse.json({ ok: true, oa });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to delete CPF transaction";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/cpf/transactions/[id]", msg, { status: 400, fallback: "Failed to delete CPF transaction" });
   }
 }
 
@@ -55,6 +56,6 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ item: result.transaction, oa: result.oa });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to update CPF transaction";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/cpf/transactions/[id]", msg, { status: 400, fallback: "Failed to update CPF transaction" });
   }
 }

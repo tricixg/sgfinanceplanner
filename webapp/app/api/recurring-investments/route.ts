@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import {
@@ -59,7 +60,7 @@ export async function PUT(req: NextRequest) {
     .in("id", fundIds);
 
   if (fundsErr) {
-    return NextResponse.json({ error: fundsErr.message }, { status: 500 });
+    return apiError("api/recurring-investments", fundsErr);
   }
   const ownedFundIds = new Set((ownedFunds ?? []).map((f) => String(f.id)));
   if (fundIds.some((id) => !ownedFundIds.has(id))) {

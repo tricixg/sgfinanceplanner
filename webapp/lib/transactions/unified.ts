@@ -325,7 +325,6 @@ export async function listUnifiedTransactions(
     amountTotal = roundCents(savingsSum + budgetSum + expenseSum);
     console.info("[transactions] filtered amount total", {
       userId,
-      amountTotal,
       savingsSum,
       budgetSum,
       expenseSum,

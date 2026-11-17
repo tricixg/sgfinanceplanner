@@ -33,7 +33,7 @@ export function usePartnerCpf() {
         throw new Error(json.error ?? "Failed to load partner CPF");
       }
       setData(json);
-      console.info("[usePartnerCpf] loaded", { paired: json.paired, hasOA: json.oa != null });
+      console.info("[usePartnerCpf] loaded", { paired: json.paired });
     } catch (e) {
       console.error("[usePartnerCpf] load failed", e);
       setData(null);

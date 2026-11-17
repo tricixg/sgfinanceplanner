@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
@@ -90,15 +91,15 @@ export async function GET(req: NextRequest) {
 
   if (budgetLines instanceof Error) {
     console.error("[api/expenses/summary] budget load failed", budgetLines.message);
-    return NextResponse.json({ error: budgetLines.message }, { status: 500 });
+    return apiError("api/expenses/summary", budgetLines);
   }
   if (expensesRes instanceof Error) {
     console.error("[api/expenses/summary] expenses load failed", expensesRes.message);
-    return NextResponse.json({ error: expensesRes.message }, { status: 500 });
+    return apiError("api/expenses/summary", expensesRes);
   }
   if (importsRes instanceof Error) {
     console.error("[api/expenses/summary] imports load failed", importsRes.message);
-    return NextResponse.json({ error: importsRes.message }, { status: 500 });
+    return apiError("api/expenses/summary", importsRes);
   }
 
   const expenses = expensesRes.map((r) => mapExpense(r));

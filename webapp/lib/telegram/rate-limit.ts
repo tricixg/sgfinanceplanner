@@ -13,7 +13,7 @@ export function isRateLimited(chatId: number): boolean {
   }
   entry.count += 1;
   if (entry.count > MAX_PER_WINDOW) {
-    console.info("[telegram] rate limited", { chatId, count: entry.count });
+    console.info("[telegram] rate limited", { count: entry.count });
     return true;
   }
   return false;

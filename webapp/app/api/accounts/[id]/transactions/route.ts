@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { applyTransaction, listAccountTransactions } from "@/lib/savings/ledger";
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ configured: true, ...page });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load transactions";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/accounts/[id]/transactions", msg, { fallback: "Failed to load transactions" });
   }
 }
 
@@ -150,6 +151,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Transaction failed";
     console.error("[api/accounts/transactions] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/accounts/[id]/transactions", msg, { fallback: "Transaction failed" });
   }
 }

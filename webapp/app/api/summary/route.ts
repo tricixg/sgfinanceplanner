@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { totalStatementAmount } from "@/lib/finance/calendar";
@@ -83,6 +84,6 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load summary";
     console.error("[api/summary] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/summary", msg, { fallback: "Failed to load summary" });
   }
 }

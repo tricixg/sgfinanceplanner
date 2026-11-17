@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureTravelBudgetLine } from "@/lib/travel/budget-line";
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
       .eq("user_id", userId)
       .in("trip_id", tripIds.length ? tripIds : ["00000000-0000-0000-0000-000000000000"]);
     if (budgetErr) {
-      return NextResponse.json({ error: budgetErr.message }, { status: 500 });
+      return apiError("api/travel/trips", budgetErr);
     }
     const from = `${year}-01-01`;
     const to = `${year}-12-31`;
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load travel trips";
     console.error("[api/travel/trips] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/travel/trips", msg, { fallback: "Failed to load travel trips" });
   }
 }
 
@@ -108,6 +109,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to create trip";
     console.error("[api/travel/trips] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/travel/trips", msg, { fallback: "Failed to create trip" });
   }
 }

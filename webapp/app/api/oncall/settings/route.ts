@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOncallBundle, saveOncallSettings } from "@/lib/oncall/load";
@@ -32,6 +33,6 @@ export async function PUT(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save settings";
     console.error("[api/oncall/settings] PUT failed", msg);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/oncall/settings", msg, { status: 400, fallback: "Failed to save settings" });
   }
 }

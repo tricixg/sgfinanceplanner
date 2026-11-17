@@ -66,7 +66,6 @@ export function TabPastCashflow({ enabled }: Props) {
         console.info("[TabPastCashflow] spending loaded", {
           scope,
           months: data.analytics.months.length,
-          total: data.analytics.monthly.reduce((s, m) => s + m.total, 0),
         });
       } catch (e) {
         console.error("[TabPastCashflow] spending load failed", e);
@@ -105,7 +104,6 @@ export function TabPastCashflow({ enabled }: Props) {
         setIncomeAnalyticsTrueIncome(data.analyticsTrueIncome);
         console.info("[TabPastCashflow] income loaded", {
           months: data.analytics.months.length,
-          total: data.analytics.monthly.reduce((s, m) => s + m.total, 0),
         });
       } catch (e) {
         console.error("[TabPastCashflow] income load failed", e);

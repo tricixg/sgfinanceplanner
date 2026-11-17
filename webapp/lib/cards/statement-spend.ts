@@ -95,7 +95,6 @@ export async function sumCardSpendByDay(
     financialAccountId,
     from,
     to,
-    total: Object.values(map).reduce((s, v) => s + v, 0),
   });
 
   return map;

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOtherLoans, saveOtherLoans } from "@/lib/other-loans/load";
@@ -18,7 +19,7 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load other loans";
     console.error("[api/other-loans] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/other-loans", msg, { fallback: "Failed to load other loans" });
   }
 }
 
@@ -45,6 +46,6 @@ export async function PUT(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save other loans";
     console.error("[api/other-loans] PUT failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/other-loans", msg, { fallback: "Failed to save other loans" });
   }
 }

@@ -125,9 +125,7 @@ export async function applyFundTransaction(
     userId: input.userId,
     fundId: input.fundId,
     kind,
-    amount,
     goalId: input.goalId ?? null,
-    balanceAfter,
   });
 
   const mapped = mapFundTransaction(row);
@@ -196,7 +194,6 @@ export async function deleteFundTransaction(
     userId,
     fundId,
     transactionId,
-    amount: tx.amount,
     goalId: tx.goal_id ?? null,
   });
 }

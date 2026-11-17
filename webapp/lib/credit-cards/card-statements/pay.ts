@@ -319,7 +319,7 @@ async function applyPaymentGivenContext(
     throw new Error(`Payment exceeds outstanding balance (${maxPayable})`);
   }
 
-  const { payToNonBt, btPayment } = splitCardPaymentAmount(amount, outstanding, btOutstanding);
+  const { btPayment } = splitCardPaymentAmount(amount, outstanding, btOutstanding);
   const newPaid = roundMoney(stmt.amountPaid + amount);
   const newOutstanding = outstandingBalance({
     carriedForwardIn: statementCarryIn(stmt),
@@ -353,10 +353,6 @@ async function applyPaymentGivenContext(
 
   console.info("[card-statements] payment recorded", {
     statementId,
-    amount,
-    payToNonBt,
-    btPayment,
-    newPaid,
     fullyPaid,
     linked: Boolean(linkFields),
   });
@@ -452,7 +448,6 @@ export async function applyReimbursementCreditToStatement(
 
   console.info("[card-statements] reimbursement credit applied", {
     statementId,
-    amount,
     source,
   });
 
@@ -555,7 +550,6 @@ async function reversePaymentAmount(
     await reverseBtPaymentAllocation(supabase, userId, btRowsForUndo, btPayment);
     console.info("[card-statements] BT portion reversed on undo", {
       statementId,
-      btPayment,
     });
   }
 
@@ -590,8 +584,6 @@ async function reversePaymentAmount(
   console.info("[card-statements] payment undone", {
     statementId,
     paymentAmount,
-    btPayment,
-    newPaid,
   });
 
   return mapCardStatement(updated);
@@ -691,6 +683,5 @@ export async function syncStatementAfterPaymentTransactionDelete(
     statementId: stmt.id,
     deletedSavingsTransactionId,
     deletedAmount,
-    newPaid,
   });
 }

@@ -188,7 +188,6 @@ export function TransactionsHistoryPage() {
           append,
           count: nextItems.length,
           total: data.total,
-          amountTotal: data.amountTotal,
         });
       } catch (e) {
         console.error("[TransactionsHistoryPage] load failed", e);

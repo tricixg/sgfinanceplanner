@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadTrip, updateTrip, deleteTrip } from "@/lib/travel/load";
@@ -53,7 +54,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       .eq("category", "Travel")
       .gte("spent_at", prev.startDate)
       .lte("spent_at", prev.endDate);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return apiError("api/travel/trips/[id]", error);
     for (const row of rows ?? []) {
       const note = String(row.note ?? "");
       if (!note.startsWith(prefixOld)) continue;

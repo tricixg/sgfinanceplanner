@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { mapCpfTransaction } from "@/lib/cpf/transactions";
@@ -36,7 +37,7 @@ export async function GET() {
     .eq("household_id", householdId);
   if (memErr) {
     console.error("[api/household/partner-bto-payments] members failed", memErr.message);
-    return NextResponse.json({ error: memErr.message }, { status: 500 });
+    return apiError("api/household/partner-bto-payments", memErr);
   }
 
   const partnerId = (members ?? []).map((m) => m.user_id).find((id) => id !== user.id);
@@ -59,7 +60,7 @@ export async function GET() {
     .limit(500);
   if (error) {
     console.error("[api/household/partner-bto-payments] query failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/household/partner-bto-payments", error);
   }
 
   const items = (data ?? []).map(mapCpfTransaction);

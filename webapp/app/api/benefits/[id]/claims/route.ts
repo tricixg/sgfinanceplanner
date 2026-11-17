@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadBenefitClaims, recordBenefitClaim, verifyBenefit } from "@/lib/benefits/load";
@@ -25,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load claims";
     console.error("[api/benefits/claims] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/benefits/[id]/claims", msg, { fallback: "Failed to load claims" });
   }
 }
 
@@ -64,6 +65,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to log claim";
     console.error("[api/benefits/claims] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/benefits/[id]/claims", msg, { fallback: "Failed to log claim" });
   }
 }

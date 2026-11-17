@@ -381,7 +381,6 @@ export async function createTripSettlement(
     tripId,
     companionId: input.companionId,
     direction: input.direction,
-    amount: input.amount,
   });
   return mapSettlement(data);
 }

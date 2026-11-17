@@ -39,7 +39,7 @@ export async function createLinkCode(
     throw new Error(error.message);
   }
 
-  console.info("[telegram] link code created", { userId, code });
+  console.info("[telegram] link code created", { userId });
   return { code, expiresAt };
 }
 
@@ -104,9 +104,6 @@ export async function consumeLinkCode(
 
   console.info("[telegram] account linked", {
     userId,
-    telegramUserId,
-    telegramChatId,
-    username,
   });
   return { ok: true, userId };
 }

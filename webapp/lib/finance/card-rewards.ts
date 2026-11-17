@@ -120,7 +120,6 @@ export function recommendCardForSpend(
 
   if (best) {
     console.log("[card-rewards] recommendCardForSpend", {
-      amount,
       category,
       preference,
       winner: best.cardName,

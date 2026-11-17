@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
@@ -58,12 +59,11 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error("[api/partner/invites] POST failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/partner/invites", error);
   }
 
   console.info("[api/partner/invites] invite sent", {
     inviterId: user.id,
-    inviteeEmail: email,
     householdId,
   });
 

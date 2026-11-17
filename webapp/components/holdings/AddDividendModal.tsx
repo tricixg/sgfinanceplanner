@@ -100,12 +100,7 @@ export function AddDividendModal({
       setUnits(String(holding.qty));
       setNote("");
       setHistoryKey((k) => k + 1);
-      console.info("[AddDividendModal] recorded", {
-        holdingId: holding.id,
-        perShare: perShareNum,
-        qty: unitsNum,
-        total,
-      });
+      console.info("[AddDividendModal] recorded", { holdingId: holding.id });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to record dividend");
     } finally {

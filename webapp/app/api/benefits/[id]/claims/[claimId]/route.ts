@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteBenefitClaim, updateBenefitClaim, verifyBenefit } from "@/lib/benefits/load";
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to update claim";
     console.error("[api/benefits/claims] PATCH failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/benefits/[id]/claims/[claimId]", msg, { fallback: "Failed to update claim" });
   }
 }
 
@@ -59,6 +60,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to delete claim";
     console.error("[api/benefits/claims] DELETE failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/benefits/[id]/claims/[claimId]", msg, { fallback: "Failed to delete claim" });
   }
 }

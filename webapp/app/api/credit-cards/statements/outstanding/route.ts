@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOutstandingStatements } from "@/lib/credit-cards/card-statements/load";
@@ -27,6 +28,6 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load outstanding statements";
     console.error("[api/credit-cards/statements/outstanding] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/credit-cards/statements/outstanding", msg, { fallback: "Failed to load outstanding statements" });
   }
 }

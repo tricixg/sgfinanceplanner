@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { unlinkPartner } from "@/lib/household/unlink-partner";
@@ -29,6 +30,6 @@ export async function POST() {
     const status =
       msg === "Not in a household" || msg === "No partner linked" ? 409 : 500;
     console.error("[api/partner/unlink] failed", { userId: user.id, msg });
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/partner/unlink", msg, { status, fallback: "Failed to unlink partner" });
   }
 }

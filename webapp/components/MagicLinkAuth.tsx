@@ -43,7 +43,7 @@ export function MagicLinkAuth({
         return;
       }
       setSent(true);
-      console.info("[MagicLinkAuth] magic link sent", { email: targetEmail, redirectNext: next });
+      console.info("[MagicLinkAuth] magic link sent", { redirectNext: next });
     } catch (err) {
       console.error("[MagicLinkAuth] unexpected error", err);
       setError("Could not send magic link. Try again.");

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -58,6 +59,6 @@ export async function GET(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Month-end job failed";
     console.error("[cron/month-end] failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/cron/month-end", msg, { fallback: "Month-end job failed" });
   }
 }

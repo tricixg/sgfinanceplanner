@@ -191,7 +191,6 @@ async function syncBtFinanceChargeExpense(
   if (insErr) throw new Error(insErr.message);
   console.info("[other-loans] created BT finance charge expense", {
     loanId,
-    amount: charge,
     spentAt: btStartDate,
     financialAccountId,
     expenseId: inserted?.id ?? null,

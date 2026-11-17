@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { getTelegramBot, isTelegramConfigured } from "@/lib/telegram/bot";
 import { verifyTelegramWebhookSecret } from "@/lib/telegram/config";
 
@@ -24,6 +25,6 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Webhook failed";
     console.error("[telegram/webhook] error", msg);
-    return Response.json({ error: msg }, { status: 500 });
+    return apiError("api/telegram/webhook", msg, { fallback: "Webhook failed" });
   }
 }

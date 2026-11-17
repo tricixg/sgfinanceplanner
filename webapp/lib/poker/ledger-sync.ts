@@ -65,7 +65,6 @@ export async function createPokerLedger(
     });
     console.info("[poker-ledger] deposit created", {
       sessionId: session.id,
-      profit,
       txId: tx.id,
     });
     return tx.id;
@@ -82,7 +81,6 @@ export async function createPokerLedger(
   });
   console.info("[poker-ledger] withdrawal created", {
     sessionId: session.id,
-    loss: Math.abs(profit),
     txId: tx.id,
   });
   return tx.id;
@@ -132,7 +130,6 @@ export async function reversePokerLedger(
   console.info("[poker-ledger] reversed", {
     sessionId: session.id,
     txId: row.id,
-    restoreAmount,
   });
 }
 

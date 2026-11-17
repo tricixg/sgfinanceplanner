@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOtherLoanPayments } from "@/lib/other-loans/payment-history";
@@ -42,6 +43,6 @@ export async function GET(_req: Request, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load payments";
     console.error("[api/other-loans] GET payments failed", { id, msg });
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/other-loans/[id]/payments", msg, { fallback: "Failed to load payments" });
   }
 }

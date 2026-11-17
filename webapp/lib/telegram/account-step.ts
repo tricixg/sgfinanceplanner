@@ -368,7 +368,6 @@ export async function completeFlowWithAccount(
       const quip = pokerSuccessQuip(result.profit);
       console.info("[telegram] poker session saved", {
         userId,
-        profit: result.profit,
         financialAccountId,
       });
       await ctx.reply(`Poker session saved. P/L: ${fmtMoney(result.profit)}.${ledger}${quip}`);

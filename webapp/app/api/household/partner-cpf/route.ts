@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
@@ -48,7 +49,7 @@ export async function GET() {
 
   if (memErr) {
     console.error("[api/household/partner-cpf] members failed", memErr.message);
-    return NextResponse.json({ error: memErr.message }, { status: 500 });
+    return apiError("api/household/partner-cpf", memErr);
   }
 
   const partnerId = (members ?? []).map((m) => m.user_id).find((id) => id !== user.id);

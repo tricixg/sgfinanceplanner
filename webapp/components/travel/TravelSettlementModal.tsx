@@ -73,7 +73,6 @@ export function TravelSettlementModal({ tripId, tripName, row, onClose, onSaved 
       tripId,
       companionId: row.companionId,
       direction,
-      amount: amt,
       financialAccountId: direction === "received" ? financialAccountId : null,
     });
     if (syncLedger) {

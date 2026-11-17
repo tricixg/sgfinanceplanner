@@ -340,7 +340,6 @@ export async function reimburseTransactionWithLedger(
   console.info("[tx-actions] reimbursement complete", {
     recordType,
     id,
-    amount,
     ledgerRecordType: result.recordType,
     statementId: input.statementId,
   });

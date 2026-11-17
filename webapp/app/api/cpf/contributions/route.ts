@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { addCpfContribution, listCpfContributions } from "@/lib/cpf/contributions";
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ configured: true, items });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load CPF contributions";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/cpf/contributions", msg, { fallback: "Failed to load CPF contributions" });
   }
 }
 
@@ -68,6 +69,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ item: result.contribution, profile: result.profile });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to log CPF contribution";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/cpf/contributions", msg, { status: 400, fallback: "Failed to log CPF contribution" });
   }
 }

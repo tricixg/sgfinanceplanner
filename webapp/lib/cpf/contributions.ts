@@ -86,7 +86,7 @@ export async function addCpfContribution(
     ma: current.ma + ma,
   });
 
-  console.info("[cpf/contributions] added", { userId, month: input.month, oa, sa, ma });
+  console.info("[cpf/contributions] added", { userId, month: input.month });
 
   return {
     contribution: mapCpfContribution(row),

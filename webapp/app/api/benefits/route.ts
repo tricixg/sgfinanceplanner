@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadBenefitUsage, saveBenefits } from "@/lib/benefits/load";
@@ -22,7 +23,7 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load benefits";
     console.error("[api/benefits] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/benefits", msg, { fallback: "Failed to load benefits" });
   }
 }
 
@@ -58,6 +59,6 @@ export async function PUT(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save benefits";
     console.error("[api/benefits] PUT failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/benefits", msg, { fallback: "Failed to save benefits" });
   }
 }

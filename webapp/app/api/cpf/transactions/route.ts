@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { addCpfTransaction, listCpfTransactions } from "@/lib/cpf/transactions";
@@ -18,7 +19,7 @@ export async function GET() {
     return NextResponse.json({ configured: true, items });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load CPF transactions";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/cpf/transactions", msg, { fallback: "Failed to load CPF transactions" });
   }
 }
 
@@ -50,6 +51,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ item: result.transaction, oa: result.oa });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to log CPF transaction";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/cpf/transactions", msg, { status: 400, fallback: "Failed to log CPF transaction" });
   }
 }

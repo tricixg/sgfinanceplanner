@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { updateRecurringDeductionDay } from "@/lib/recurring/load";
@@ -54,7 +55,7 @@ export async function PATCH(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Update failed";
     console.error("[api/recurring/deduction-day] failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/recurring/deduction-day", msg, { fallback: "Update failed" });
   }
 
   return NextResponse.json({ ok: true });

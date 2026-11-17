@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
@@ -47,7 +48,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to update category";
       console.error("[api/expenses] PATCH budget line relink failed", msg);
-      return NextResponse.json({ error: msg }, { status: 500 });
+      return apiError("api/expenses/[id]", msg, { fallback: "Failed to update category" });
     }
   }
   const { data: row, error } = await supabase
@@ -60,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("[api/expenses] PATCH failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/expenses/[id]", error);
   }
   if (!row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -91,7 +92,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   if (fetchErr) {
     console.error("[api/expenses] DELETE fetch failed", fetchErr.message);
-    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+    return apiError("api/expenses/[id]", fetchErr);
   }
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -100,7 +101,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const expense = mapExpense(existing);
   const ledgerReverse = await syncExpenseLedgerBeforeDelete(supabase, user.id, expense);
   if (!ledgerReverse.ok) {
-    return NextResponse.json({ error: ledgerReverse.error }, { status: 500 });
+    return apiError("api/expenses/[id]", ledgerReverse.error);
   }
 
   const { error } = await supabase
@@ -111,7 +112,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("[api/expenses] DELETE failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/expenses/[id]", error);
   }
 
   if (existing.auto_category === "debt" && existing.loan_id) {

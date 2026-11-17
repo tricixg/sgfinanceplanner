@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
@@ -71,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Failed to update category";
         console.error("[api/transactions] PATCH budget line relink failed", msg);
-        return NextResponse.json({ error: msg }, { status: 500 });
+        return apiError("api/transactions/[recordType]/[id]", msg, { fallback: "Failed to update category" });
       }
     }
 
@@ -82,7 +83,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .eq("user_id", user.id)
       .select("*")
       .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return apiError("api/transactions/[recordType]/[id]", error);
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ item: mapExpense(data) });
   }
@@ -102,7 +103,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .eq("user_id", user.id)
       .select("*")
       .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return apiError("api/transactions/[recordType]/[id]", error);
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ item: data });
   }
@@ -153,6 +154,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
       id,
       msg,
     });
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/transactions/[recordType]/[id]", msg, { status, fallback: "Failed to delete transaction" });
   }
 }

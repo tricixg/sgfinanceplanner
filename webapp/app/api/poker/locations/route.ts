@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { listPokerLocationRecords, upsertPokerLocation } from "@/lib/poker/locations";
@@ -46,6 +47,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save location";
     console.error("[api/poker/locations] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/poker/locations", msg, { fallback: "Failed to save location" });
   }
 }

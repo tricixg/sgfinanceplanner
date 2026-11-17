@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import {
@@ -49,7 +50,7 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load credit cards";
     console.error("[api/credit-cards] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/credit-cards", msg, { fallback: "Failed to load credit cards" });
   }
 }
 
@@ -81,6 +82,6 @@ export async function PUT(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save credit cards";
     console.error("[api/credit-cards] PUT failed", msg);
-    return NextResponse.json({ error: msg }, { status: saveErrorStatus(e) });
+    return apiError("api/credit-cards", msg, { status: saveErrorStatus(e), fallback: "Failed to save credit cards" });
   }
 }

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
@@ -72,6 +73,6 @@ export async function POST(req: NextRequest, { params }: Params) {
       id,
       msg,
     });
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/transactions/[recordType]/[id]/reimburse", msg, { status, fallback: "Reimburse failed" });
   }
 }

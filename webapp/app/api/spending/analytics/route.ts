@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadBudgetData } from "@/lib/budget/load";
@@ -104,15 +105,15 @@ export async function GET(req: NextRequest) {
 
   if (budgetData instanceof Error) {
     console.error("[api/spending/analytics] budget load failed", budgetData.message);
-    return NextResponse.json({ error: budgetData.message }, { status: 500 });
+    return apiError("api/spending/analytics", budgetData);
   }
   if (expensesRes instanceof Error) {
     console.error("[api/spending/analytics] expenses load failed", expensesRes.message);
-    return NextResponse.json({ error: expensesRes.message }, { status: 500 });
+    return apiError("api/spending/analytics", expensesRes);
   }
   if (importsRes instanceof Error) {
     console.error("[api/spending/analytics] imports load failed", importsRes.message);
-    return NextResponse.json({ error: importsRes.message }, { status: 500 });
+    return apiError("api/spending/analytics", importsRes);
   }
 
   const budgetLines = budgetData.catalog;
