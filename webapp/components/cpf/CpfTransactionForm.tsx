@@ -61,9 +61,13 @@ function clearPrefillFromUrl() {
 export function CpfTransactionForm() {
   const appData = useContext(AppDataContext);
   const [prefill, setPrefill] = useState<Prefill>(readPrefill);
-  const [direction, setDirection] = useState<Direction>("out");
-  const [category, setCategory] = useState<FormCategory>(prefill?.category ?? "bto_downpayment");
-  const [stage, setStage] = useState<CpfBtoStage | null>(prefill?.stage ?? "afl");
+  // Opens on Money in → Monthly contribution (the most common entry), unless
+  // the BTO planner linked here to log a specific payment.
+  const [direction, setDirection] = useState<Direction>(() =>
+    prefill && CPF_TXN_CATEGORIES[prefill.category].direction === "debit" ? "out" : "in"
+  );
+  const [category, setCategory] = useState<FormCategory>(prefill?.category ?? "contribution");
+  const [stage, setStage] = useState<CpfBtoStage | null>(prefill?.stage ?? null);
   const [amount, setAmount] = useState(prefill?.amount ?? 0);
   const [txnDate, setTxnDate] = useState(() => sgtTodayYmd());
   const [source, setSource] = useState<CpfFundingSource>("cpf_oa");
