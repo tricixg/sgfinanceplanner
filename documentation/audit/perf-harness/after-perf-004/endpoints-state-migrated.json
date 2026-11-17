@@ -1,0 +1,10 @@
+[
+  {
+    "endpoint": "/api/state",
+    "status": 200,
+    "wallMs": 345,
+    "authCalls": 1,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  }
+]

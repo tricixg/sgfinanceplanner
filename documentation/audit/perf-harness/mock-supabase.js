@@ -16,8 +16,18 @@ const USER = {
   created_at: "2026-01-01T00:00:00Z",
 };
 let counter = 0;
-const store = {};
-const STATEFUL = new Set(["income_categories"]);
+// household_members is seeded with the user's membership so ensureUserHousehold() takes the
+// common "already has a household" path (1 read) instead of the first-sign-in create path
+// (read + rpc + 2 inserts). Set MOCK_NO_HOUSEHOLD=1 to measure the first-sign-in path.
+const HOUSEHOLD_ID = "11111111-1111-4111-8111-111111111111";
+const store = process.env.MOCK_NO_HOUSEHOLD
+  ? {}
+  : {
+      household_members: [{ household_id: HOUSEHOLD_ID, user_id: USER.id, role: "owner", joined_at: "2026-01-01T00:00:00Z" }],
+      // an already-migrated (v2) user, so /api/state takes the common prefs-only path
+      dashboard_state: [{ user_id: USER.id, data: { prefs: {}, _migrated_v2: true }, updated_at: "2026-01-01T00:00:00Z" }],
+    };
+const STATEFUL = new Set(["income_categories", "household_members", "dashboard_state"]);
 let inflight = 0;
 let maxInflight = 0;
 // Every call (start time, method, path) since the last reset, so a client can compute the
@@ -51,6 +61,10 @@ const server = http.createServer((req, res) => {
       if (req.method === "HEAD") { res.setHeader("Content-Range", "*/0"); return res.end(); }
       if (req.method === "GET") {
         if (prefer.includes("count=")) res.setHeader("Content-Range", "*/0");
+        const tblObj = url.pathname.split("/").pop();
+        if (wantsObject && STATEFUL.has(tblObj) && (store[tblObj] || []).length) {
+          return res.end(JSON.stringify(store[tblObj][0]));
+        }
         if (wantsObject) {
           res.statusCode = 406;
           return res.end(JSON.stringify({ code: "PGRST116", message: "no rows", details: "", hint: null }));

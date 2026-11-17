@@ -119,6 +119,11 @@ export function createFakeSupabase(
         return api;
       },
       limit: () => api,
+      // Not evaluated by the fake — enough for read paths whose result a test seeds directly.
+      ilike: () => api,
+      lte: () => api,
+      gte: () => api,
+      not: () => api,
       eq: (col: string, val: unknown) => (filters.push({ col, op: "eq", val }), api),
       neq: (col: string, val: unknown) => (filters.push({ col, op: "neq", val }), api),
       in: (col: string, val: unknown[]) => (filters.push({ col, op: "in", val }), api),

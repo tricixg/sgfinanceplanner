@@ -393,18 +393,19 @@ export async function loadSplitsForExpenses(
   const out = new Map<string, ReturnType<typeof mapSplitFromDb>>();
   if (expenseIds.length === 0) return out;
 
-  const { data: splits, error: splitErr } = await supabase
-    .from("travel_expense_splits")
-    .select("*")
-    .eq("user_id", userId)
-    .in("expense_id", expenseIds);
+  const [{ data: splits, error: splitErr }, { data: shares, error: shareErr }] = await Promise.all([
+    supabase
+      .from("travel_expense_splits")
+      .select("*")
+      .eq("user_id", userId)
+      .in("expense_id", expenseIds),
+    supabase
+      .from("travel_expense_split_shares")
+      .select("*")
+      .eq("user_id", userId)
+      .in("expense_id", expenseIds),
+  ]);
   if (splitErr) throw new Error(splitErr.message);
-
-  const { data: shares, error: shareErr } = await supabase
-    .from("travel_expense_split_shares")
-    .select("*")
-    .eq("user_id", userId)
-    .in("expense_id", expenseIds);
   if (shareErr) throw new Error(shareErr.message);
 
   const sharesByExpense = new Map<string, Record<string, unknown>[]>();
