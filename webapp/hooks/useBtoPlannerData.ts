@@ -55,7 +55,12 @@ export function useBtoPlannerData(
           .filter((t) => t.btoStage != null)
           .map((t) => ({ ...t, owner: "self" as const })),
         ...partnerPayments.map((t) => ({ ...t, owner: "partner" as const })),
-      ].sort((a, b) => b.txnDate.localeCompare(a.txnDate) || b.createdAt.localeCompare(a.createdAt)),
+      ].sort(
+        (a, b) =>
+          b.txnDate.localeCompare(a.txnDate) ||
+          (b.txnTime ?? "").localeCompare(a.txnTime ?? "") ||
+          b.createdAt.localeCompare(a.createdAt)
+      ),
     [selfTransactions, partnerPayments]
   );
 

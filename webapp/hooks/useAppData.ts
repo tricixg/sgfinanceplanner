@@ -474,7 +474,15 @@ export function useAppDataProvider(enabled: boolean) {
   }, []);
 
   const addCpfContribution = useCallback(
-    async (input: { month: string; oa: number; sa: number; ma: number; note?: string }) => {
+    async (input: {
+      month: string;
+      oa: number;
+      sa: number;
+      ma: number;
+      note?: string;
+      creditedOn?: string | null;
+      creditedTime?: string | null;
+    }) => {
       const { res, data } = await fetchJson<{
         item?: CpfContribution;
         profile?: { oa: number; sa: number; ma: number };
@@ -532,7 +540,10 @@ export function useAppDataProvider(enabled: boolean) {
     const item = data.item;
     setCpfTransactions((list) =>
       [item, ...list].sort(
-        (a, b) => b.txnDate.localeCompare(a.txnDate) || b.createdAt.localeCompare(a.createdAt)
+        (a, b) =>
+          b.txnDate.localeCompare(a.txnDate) ||
+          (b.txnTime ?? "").localeCompare(a.txnTime ?? "") ||
+          b.createdAt.localeCompare(a.createdAt)
       )
     );
     if (typeof data.oa === "number") {

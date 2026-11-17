@@ -151,8 +151,8 @@ Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboar
 
 | Table | Key columns | Purpose |
 |-------|-------------|---------|
-| `cpf_contributions` | `month`, `oa`, `sa`, `ma` (unique per user + month) | Monthly contributions; insert adds to `user_finance_profile.oa/sa/ma`, delete reverses |
-| `cpf_transactions` | `txn_date`, `direction` (debit/credit), `funding_source` (cpf_oa/cash), `amount`, `category`, `bto_stage` | OA withdrawals and credits plus cash-paid BTO bills (migration 064). `cpf_oa` rows adjust `user_finance_profile.oa`; cash rows must be BTO debits and never touch CPF. Rows with `bto_stage` reconcile on the BTO planner; the linked partner can read only those (service role, `/api/household/partner-bto-payments`) |
+| `cpf_contributions` | `month`, `oa`, `sa`, `ma` (unique per user + month), `credited_on`, `credited_time` (065) | Monthly contributions; insert adds to `user_finance_profile.oa/sa/ma`, delete reverses |
+| `cpf_transactions` | `txn_date`, `txn_time` (065), `direction` (debit/credit), `funding_source` (cpf_oa/cash), `amount`, `category`, `bto_stage` | OA withdrawals and credits plus cash-paid BTO bills (migration 064). `cpf_oa` rows adjust `user_finance_profile.oa`; cash rows must be BTO debits and never touch CPF. Rows with `bto_stage` reconcile on the BTO planner; the linked partner can read only those (service role, `/api/household/partner-bto-payments`) |
 
 ### Poker & travel
 

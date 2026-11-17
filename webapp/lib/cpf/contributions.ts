@@ -10,6 +10,8 @@ function mapCpfContribution(row: Record<string, unknown>): CpfContribution {
     sa: Number(row.sa ?? 0),
     ma: Number(row.ma ?? 0),
     note: String(row.note ?? ""),
+    creditedOn: row.credited_on ? String(row.credited_on).slice(0, 10) : null,
+    creditedTime: row.credited_time ? String(row.credited_time).slice(0, 8) : null,
     createdAt: String(row.created_at),
   };
 }
@@ -35,6 +37,9 @@ export type AddCpfContributionInput = {
   sa: number;
   ma: number;
   note?: string;
+  /** Date/time it was credited (SGT). Optional for older clients. */
+  creditedOn?: string | null;
+  creditedTime?: string | null;
 };
 
 export type CpfBalance = { oa: number; sa: number; ma: number };
@@ -62,6 +67,13 @@ export async function addCpfContribution(
       sa,
       ma,
       note: input.note ?? "",
+      credited_on: input.creditedOn && /^\d{4}-\d{2}-\d{2}$/.test(input.creditedOn) ? input.creditedOn : null,
+      credited_time:
+        input.creditedTime && /^\d{2}:\d{2}(:\d{2})?$/.test(input.creditedTime)
+          ? input.creditedTime.length === 5
+            ? `${input.creditedTime}:00`
+            : input.creditedTime
+          : null,
     })
     .select("*")
     .single();

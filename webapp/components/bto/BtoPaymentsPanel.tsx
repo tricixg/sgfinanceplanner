@@ -4,7 +4,13 @@ import { useContext, useState } from "react";
 import { BtoLogPaymentForm, BTO_STAGE_ITEMS } from "@/components/bto/BtoLogPaymentForm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { AppDataContext } from "@/contexts/app-data-contexts";
-import { CPF_BTO_STAGE_LABEL, CPF_TXN_CATEGORIES, type CpfBtoStage, type CpfTxnCategory } from "@/lib/cpf/types";
+import {
+  CPF_BTO_STAGE_LABEL,
+  CPF_TXN_CATEGORIES,
+  formatCpfDateTime,
+  type CpfBtoStage,
+  type CpfTxnCategory,
+} from "@/lib/cpf/types";
 import type { BtoPaymentRow, BtoReconcileStatus, BtoStageReconcile } from "@/lib/finance/bto-reconcile";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 
@@ -19,16 +25,6 @@ function statusLabel(status: BtoReconcileStatus, reached: boolean): string {
   if (status === "partial") return "Partial";
   if (status === "over") return "Overpaid";
   return reached ? "Nothing logged" : "Not due";
-}
-
-function formatYmd(ymd: string): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 type Props = {
@@ -300,7 +296,7 @@ export function BtoPaymentsPanel({
           <table style={{ minWidth: "36rem" }}>
             <thead>
               <tr>
-                <th>Date</th>
+                <th>Date &amp; time</th>
                 <th>Stage</th>
                 <th>Item</th>
                 {paired && <th>Who</th>}
@@ -312,7 +308,7 @@ export function BtoPaymentsPanel({
             <tbody>
               {shown.map((r) => (
                 <tr key={`${r.owner}-${r.id}`}>
-                  <td>{formatYmd(r.txnDate)}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{formatCpfDateTime(r.txnDate, r.txnTime)}</td>
                   <td>{r.btoStage ? CPF_BTO_STAGE_LABEL[r.btoStage] : "—"}</td>
                   <td>
                     <b>{CPF_TXN_CATEGORIES[r.category]?.label ?? r.category}</b>
