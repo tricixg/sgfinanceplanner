@@ -271,13 +271,13 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
           <thead>
             <tr>
               <th>Month</th>
-              <th>Cash in</th>
-              <th className="cashflow-sep-inout">Fixed</th>
-              <th>Loans</th>
-              <th>Spend</th>
-              <th>Insurance</th>
-              <th>ILP</th>
-              <th className="cashflow-sep-outnet">Net</th>
+              <th className="num">Cash in</th>
+              <th className="cashflow-sep-inout num">Fixed</th>
+              <th className="num">Loans</th>
+              <th className="num">Spend</th>
+              <th className="num">Insurance</th>
+              <th className="num">ILP</th>
+              <th className="cashflow-sep-outnet num">Net</th>
             </tr>
           </thead>
           <tbody>

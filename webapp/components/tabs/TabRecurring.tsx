@@ -739,7 +739,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Amount / mo</th>
+                    <th className="num">Amount / mo</th>
                     <th>Category</th>
                     <th>Due</th>
                     <th>Pay from</th>
@@ -810,7 +810,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Amount / mo</th>
+                      <th className="num">Amount / mo</th>
                       <th>Ended</th>
                     </tr>
                   </thead>
@@ -1080,7 +1080,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Amount / mo</th>
+                    <th className="num">Amount / mo</th>
                     <th>Category</th>
                     <th>Fund</th>
                     <th>Due</th>
@@ -1162,7 +1162,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Amount / mo</th>
+                      <th className="num">Amount / mo</th>
                       <th>Fund</th>
                       <th>Ended</th>
                     </tr>
@@ -1395,8 +1395,8 @@ export function TabRecurring({ enabled, onReload }: Props) {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Monthly</th>
-                    <th>Total</th>
+                    <th className="num">Monthly</th>
+                    <th className="num">Total</th>
                     <th>Tenure</th>
                     <th>Months paid</th>
                     <th>Due</th>
@@ -1481,8 +1481,8 @@ export function TabRecurring({ enabled, onReload }: Props) {
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Monthly</th>
-                      <th>Total</th>
+                      <th className="num">Monthly</th>
+                      <th className="num">Total</th>
                       <th>Tenure</th>
                     </tr>
                   </thead>

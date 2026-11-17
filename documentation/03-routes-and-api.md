@@ -4,11 +4,13 @@ All routes live under [webapp/app/](../webapp/app/). Unless noted, API routes re
 
 ## Page routes (UI)
 
-Root redirect: `/` → `/this-month` ([webapp/app/page.tsx](../webapp/app/page.tsx)).
+Root redirect: `/` → `/dashboard` ([webapp/app/page.tsx](../webapp/app/page.tsx)).
 
 | Path | Page file | Route wrapper | Tab / component |
 |------|-----------|---------------|-----------------|
 | `/login` | `app/login/page.tsx` | — | Magic link sign-in |
+| `/dashboard` | `app/(app)/dashboard/page.tsx` | `DashboardRoute` | `DashboardPage` |
+| `/financial-health` | `app/(app)/financial-health/page.tsx` | `FinancialHealthRoute` | `FinancialHealthPage` |
 | `/this-month` | `app/(app)/this-month/page.tsx` | `ThisMonthRoute` | `TabThisMonth` |
 | `/this-month-cashflow` | `app/(app)/this-month-cashflow/page.tsx` | `ThisMonthCashflowRoute` | `TabThisMonthCashflow` |
 | `/budget` | `app/(app)/budget/page.tsx` | `BudgetRoute` | `TabBudgetSavings` |

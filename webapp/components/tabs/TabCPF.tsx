@@ -352,15 +352,15 @@ export function TabCPF({ state: S, setState }: Props) {
         />
       </div>
 
-      <div className="card">
-        <table>
+      <div className="card table-scroll">
+        <table style={{ minWidth: "30rem" }}>
           <thead>
             <tr>
               <th>{latestContribution ? "Year" : "Year-end"}</th>
-              <th>OA</th>
-              <th>SA</th>
-              <th>MA</th>
-              <th>Total</th>
+              <th className="num">OA</th>
+              <th className="num">SA</th>
+              <th className="num">MA</th>
+              <th className="num">Total</th>
             </tr>
           </thead>
           <tbody>

@@ -21,9 +21,9 @@ export function CardListSection({ cards }: Props) {
               <th>Card</th>
               <th>Bank</th>
               <th>Rewards</th>
-              <th>Interest %</th>
-              <th>Stmt day</th>
-              <th>Due day</th>
+              <th className="num">Interest %</th>
+              <th className="num">Stmt day</th>
+              <th className="num">Due day</th>
             </tr>
           </thead>
           <tbody>

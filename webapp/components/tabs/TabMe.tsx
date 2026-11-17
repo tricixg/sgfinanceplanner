@@ -450,7 +450,7 @@ export function TabMe({
                 <tr>
                   <th>Plan</th>
                   <th>Insurer</th>
-                  <th>Premium / mo</th>
+                  <th className="num">Premium / mo</th>
                   <th>Notes</th>
                 </tr>
               </thead>

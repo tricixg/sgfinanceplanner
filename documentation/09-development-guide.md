@@ -123,6 +123,7 @@ See [webapp/AGENTS.md](../webapp/AGENTS.md#client-data-and-cross-page-refresh) f
 | `travel/` | Trips, budgets, expenses |
 | `poker/` | Sessions, stats, ledger sync |
 | `household/` | Partner bootstrap, invites |
+| `dashboard/` | Dashboard and Financial Health calculations (pure, unit-tested) |
 | `time/` | SGT date/time helpers |
 | `migrate-all-domains.ts` | Legacy dashboard JSON → tables |
 

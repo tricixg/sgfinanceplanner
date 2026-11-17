@@ -71,5 +71,6 @@ export function effectiveCalendarDay(day: number, ym: string): number {
   return clampDay(y, m - 1, day);
 }
 
-export const CHART_FONT = "'SF Mono',ui-monospace,Menlo,monospace";
+export const CHART_FONT =
+  "-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 export const CHART_COLOR = "#7d7560";

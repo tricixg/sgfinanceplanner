@@ -202,7 +202,7 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
                     <th>Source</th>
                     <th>Category</th>
                     <th>Note</th>
-                    <th>Amount</th>
+                    <th className="num">Amount</th>
                   </tr>
                 </thead>
                 <tbody>

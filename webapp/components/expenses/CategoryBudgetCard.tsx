@@ -9,6 +9,7 @@ import type { FinancialAccount } from "@/lib/transactions/types";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
+import { Icon } from "@/components/ui/Icon";
 
 type Props = {
   category: CategoryBudgetSummary;
@@ -42,6 +43,8 @@ export function CategoryBudgetCard({
   const [spentAtInput, setSpentAtInput] = useState(sgtNowInputDateTime());
   const [financialAccountId, setFinancialAccountId] = useState("");
   const [saving, setSaving] = useState(false);
+  // The entry form is tucked away until needed, so a month of categories stays scannable.
+  const [adding, setAdding] = useState(false);
 
   const over = category.allocated > 0 && category.spent > category.allocated;
   const pct = progressPct(category.spent, category.allocated);
@@ -92,6 +95,9 @@ export function CategoryBudgetCard({
     })),
   ].sort((a, b) => b.date.localeCompare(a.date));
 
+  // Short lists stay visible; long ones start folded so the month fits on a screen.
+  const [entriesOpen, setEntriesOpen] = useState(rows.length <= 4);
+
   return (
     <div className={`card category-budget-card ${compact ? "category-budget-card--compact" : ""}`}>
       <div className="category-budget-head">
@@ -123,7 +129,26 @@ export function CategoryBudgetCard({
         </div>
       ) : null}
 
-      <form className="category-budget-add" onSubmit={(e) => void handleSubmit(e)}>
+      {!adding ? (
+        <button
+          type="button"
+          className="btn ghost sm category-budget-add-toggle"
+          onClick={() => {
+            // Stamp the entry with the moment the form is opened, not when the page loaded.
+            setSpentAtInput(sgtNowInputDateTime());
+            setAdding(true);
+          }}
+        >
+          <Icon name="plus" size={14} />
+          Add expense
+        </button>
+      ) : null}
+
+      <form
+        className="category-budget-add"
+        hidden={!adding}
+        onSubmit={(e) => void handleSubmit(e)}
+      >
         <label>
           Date & time
           <input
@@ -154,12 +179,30 @@ export function CategoryBudgetCard({
             accounts={financialAccounts}
           />
         </label>
-        <button type="submit" className="btn sm" disabled={saving}>
-          {saving ? "Adding…" : "Add"}
-        </button>
+        <div className="category-budget-add-actions">
+          <button type="submit" className="btn sm" disabled={saving}>
+            {saving ? "Adding…" : "Add"}
+          </button>
+          <button
+            type="button"
+            className="btn ghost sm"
+            disabled={saving}
+            onClick={() => setAdding(false)}
+          >
+            Done
+          </button>
+        </div>
       </form>
 
       {rows.length > 0 ? (
+        <details
+          className="category-budget-entries"
+          open={entriesOpen}
+          onToggle={(e) => setEntriesOpen(e.currentTarget.open)}
+        >
+          <summary>
+            {rows.length} {rows.length === 1 ? "entry" : "entries"} this month
+          </summary>
         <div className="table-scroll category-budget-table-scroll">
         <table className="category-budget-table">
           <thead>
@@ -167,7 +210,7 @@ export function CategoryBudgetCard({
               <th>Date</th>
               <th>Source</th>
               <th>Note</th>
-              <th>Amount</th>
+              <th className="num">Amount</th>
               <th />
             </tr>
           </thead>
@@ -220,6 +263,7 @@ export function CategoryBudgetCard({
           </tbody>
         </table>
         </div>
+        </details>
       ) : (
         <p className="note category-budget-empty">No spending this month.</p>
       )}

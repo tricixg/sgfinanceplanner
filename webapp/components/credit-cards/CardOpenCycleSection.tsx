@@ -83,10 +83,10 @@ export function CardOpenCycleSection({
             <tr>
               <th>Card</th>
               <th>Next statement</th>
-              <th>Carried</th>
-              <th>New spend</th>
-              <th>Interest</th>
-              <th>Est. total</th>
+              <th className="num">Carried</th>
+              <th className="num">New spend</th>
+              <th className="num">Interest</th>
+              <th className="num">Est. total</th>
             </tr>
           </thead>
           <tbody>

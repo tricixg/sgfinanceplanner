@@ -128,7 +128,7 @@ function OtherLoanHistoryTable({
               <tr>
                 <th>Date</th>
                 <th>Type</th>
-                <th>Amount</th>
+                <th className="num">Amount</th>
                 <th>Account</th>
                 <th>Notes</th>
                 <th></th>
@@ -926,11 +926,11 @@ export function OtherLoansPanel({
                     <th>Source card</th>
                     <th>Due</th>
                     <th>BT start</th>
-                    <th>BT charge</th>
-                    <th>Tenure</th>
-                    <th>Principal</th>
-                    <th>Outstanding</th>
-                    <th>Interest %</th>
+                    <th className="num">BT charge</th>
+                    <th className="num">Tenure</th>
+                    <th className="num">Principal</th>
+                    <th className="num">Outstanding</th>
+                    <th className="num">Interest %</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -960,12 +960,12 @@ export function OtherLoansPanel({
                   <tr>
                     <th>Loan</th>
                     <th>Due</th>
-                    <th>Tenure</th>
-                    <th>Principal</th>
-                    <th>Outstanding</th>
-                    <th>Interest %</th>
-                    <th>Fees paid</th>
-                    <th>Monthly</th>
+                    <th className="num">Tenure</th>
+                    <th className="num">Principal</th>
+                    <th className="num">Outstanding</th>
+                    <th className="num">Interest %</th>
+                    <th className="num">Fees paid</th>
+                    <th className="num">Monthly</th>
                     <th>Net worth</th>
                     <th></th>
                   </tr>
@@ -1014,11 +1014,11 @@ export function OtherLoansPanel({
                     <tr>
                       <th>Loan</th>
                       <th>Source card</th>
-                      <th>Principal</th>
-                      <th>Amount paid</th>
-                      <th>BT charge</th>
-                      <th>Tenure</th>
-                      <th>Interest %</th>
+                      <th className="num">Principal</th>
+                      <th className="num">Amount paid</th>
+                      <th className="num">BT charge</th>
+                      <th className="num">Tenure</th>
+                      <th className="num">Interest %</th>
                       <th>Paid on</th>
                     </tr>
                   </thead>
@@ -1051,12 +1051,12 @@ export function OtherLoansPanel({
                   <thead>
                     <tr>
                       <th>Loan</th>
-                      <th>Tenure</th>
-                      <th>Principal</th>
-                      <th>Amount paid</th>
-                      <th>Interest %</th>
-                      <th>Fees paid</th>
-                      <th>Monthly</th>
+                      <th className="num">Tenure</th>
+                      <th className="num">Principal</th>
+                      <th className="num">Amount paid</th>
+                      <th className="num">Interest %</th>
+                      <th className="num">Fees paid</th>
+                      <th className="num">Monthly</th>
                       <th>Paid on</th>
                     </tr>
                   </thead>

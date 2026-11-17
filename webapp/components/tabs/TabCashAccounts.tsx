@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DashboardState, NetWorthSnapshot, SavingsAccount } from "@/lib/types";
 import type { AccountsBundle, SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
+import type { TooltipItem } from "chart.js";
 import type { OpenCycleEstimate } from "@/lib/cards/types";
 import {
   cashAccountsTotal,
@@ -340,7 +341,7 @@ export function TabCashAccounts({
                 },
                 tooltip: {
                   callbacks: {
-                    label: (ctx) => {
+                    label: (ctx: TooltipItem<"pie">) => {
                       const v = Number(ctx.raw);
                       const sum = nwSlices.reduce((s, x) => s + x.value, 0);
                       const pct = sum > 0 ? ((v / sum) * 100).toFixed(1) : "0";
@@ -781,7 +782,7 @@ export function TabCashAccounts({
               <thead>
                 <tr>
                   <th>Account</th>
-                  <th>Balance</th>
+                  <th className="num">Balance</th>
                   <th>In savings?</th>
                   <th>Notes</th>
                 </tr>

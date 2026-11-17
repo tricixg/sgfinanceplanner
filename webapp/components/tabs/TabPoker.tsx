@@ -251,11 +251,11 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
                 <th>Type</th>
                 <th>Location</th>
                 <th>Game / event</th>
-                <th>Buy-in</th>
-                <th>Cash-out / won</th>
-                <th>P/L</th>
+                <th className="num">Buy-in</th>
+                <th className="num">Cash-out / won</th>
+                <th className="num">P/L</th>
                 <th>Result</th>
-                <th>Hrs</th>
+                <th className="num">Hrs</th>
                 <th>Note</th>
               </tr>
             </thead>

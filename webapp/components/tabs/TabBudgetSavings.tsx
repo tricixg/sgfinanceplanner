@@ -535,7 +535,7 @@ export function TabBudgetSavings({
               <tr>
                 <th>Category</th>
                 <th>Type</th>
-                <th>Amount / month</th>
+                <th className="num">Amount / month</th>
               </tr>
             </thead>
             <tbody>

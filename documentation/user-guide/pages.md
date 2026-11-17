@@ -6,6 +6,39 @@ What each page is for, in sidebar order. Page names match the sidebar labels.
 
 ## Overview
 
+### Dashboard
+
+**Purpose:** The page you land on. A quick read of your money for a period you choose.
+
+**You’ll see:**
+
+- **Net cash flow**, with **income**, **spending** and **savings rate** beside it
+- A period switcher: This month, Last month, 3M, 6M, YTD, 12M
+- **Income vs spending** by month, with your selected period highlighted
+- **Where your money went** — your biggest categories for the period
+- **Budget** for the current month and your **recent activity**
+
+**Typical use:** Check how the month is going, then tap a card’s link (Past cashflow, Expenses, All transactions) for the detail.
+
+**Good to know:** Early in the month the figure can look negative until your salary arrives; the dashboard tells you when it normally lands.
+
+---
+
+### Financial Health
+
+**Purpose:** The bigger picture — what you own and owe, and how resilient your finances are.
+
+**You’ll see:**
+
+- **Net worth** and how it has changed, with or without CPF
+- Four indicators: **emergency runway**, **savings rate**, **debt repayments** and **recurring commitments**
+- **Assets** and **liabilities** broken down
+- **Savings goals** progress and what is **still to pay this month**
+
+**Typical use:** A monthly check-in. The Healthy / Watch / At risk labels follow common rules of thumb and are a guide only.
+
+---
+
 ### This Month
 
 **Purpose:** A calendar view of the current month with money-related dates.

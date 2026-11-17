@@ -6,6 +6,46 @@ Organized to match [webapp/lib/nav-config.ts](../webapp/lib/nav-config.ts). Each
 
 ## Overview
 
+### Dashboard (`/dashboard`)
+
+**Purpose:** Landing page. Answers, for a chosen period: how much came in, how much went out, what is left, where it went, and how that is trending. It summarises; the detail stays on Past Cashflow, Expenses and Transaction history, which each card links to.
+
+| Layer | Location |
+|-------|----------|
+| UI | [DashboardPage.tsx](../webapp/components/dashboard/DashboardPage.tsx), [CashflowTrendChart.tsx](../webapp/components/dashboard/CashflowTrendChart.tsx), [BudgetCard.tsx](../webapp/components/dashboard/BudgetCard.tsx), [RecentActivityCard.tsx](../webapp/components/dashboard/RecentActivityCard.tsx) |
+| Hook | [useCashflowAnalytics.ts](../webapp/hooks/useCashflowAnalytics.ts) |
+| APIs (existing, unchanged) | `/api/income/analytics`, `/api/spending/analytics?scope=all`, `/api/expenses/summary`, `/api/transactions` |
+| lib | [webapp/lib/dashboard/cashflow.ts](../webapp/lib/dashboard/cashflow.ts) |
+
+Metric definitions:
+
+- **Income** — deposits with an income category, excluding reimbursements (`analyticsTrueIncome`, the Past Cashflow default).
+- **Spending** — all recorded spending net of reimbursements (`scope=all`): budget categories plus recurring debt, insurance, ILP, subscription, instalment and investment payments.
+- **Net cash flow** — income − spending. **Savings rate** — net ÷ income (shown as "—" when there is no income).
+- **Date range** — This month, Last month, 3M, 6M, YTD, 12M. Each is compared with the equal-length period before it. Analytics are requested in fixed 6-month windows and cached, matching the size of the existing Past Cashflow requests.
+- **Budget** card is always the current month (budgets are monthly) and uses the same totals as the Expenses page.
+
+### Financial Health (`/financial-health`)
+
+**Purpose:** The balance-sheet and resilience view: what you own and owe, how long cash would last, how heavy commitments are, and progress towards goals. Deliberately does not repeat the Dashboard's period cash-flow figures.
+
+| Layer | Location |
+|-------|----------|
+| UI | [FinancialHealthPage.tsx](../webapp/components/health/FinancialHealthPage.tsx), [NetWorthTrendChart.tsx](../webapp/components/health/NetWorthTrendChart.tsx) |
+| Data | `useAppData` (profile, loans, holdings, net worth snapshots), `usePageSavings`, `useCardStatements`, `useOutstandingCardStatements`, `useCashflowAnalytics`, `GET /api/recurring?ym=` |
+| lib | [webapp/lib/dashboard/health.ts](../webapp/lib/dashboard/health.ts), [webapp/lib/finance/wealth.ts](../webapp/lib/finance/wealth.ts) |
+
+Metric definitions:
+
+- **Net worth** — `wealthSummary()` with personal cash only and every liability deducted, i.e. the Cash Accounts figure with all liabilities ticked. The trend uses month-end `net_worth_snapshots` plus today's live figure.
+- **Emergency runway** — personal cash ÷ average monthly spending over the last three complete months.
+- **Savings rate** — net ÷ income over the same three months.
+- **Debt repayments** — `computedDebtMonthly()` ÷ `stableTakeHome()`.
+- **Recurring commitments** — this month's recurring rows excluding investments ÷ take-home.
+- **Still to pay this month** — unpaid recurring rows plus outstanding card statements.
+
+Status pills (Healthy / Watch / At risk) use rule-of-thumb thresholds defined in `lib/dashboard/health.ts`; they are a guide, not advice.
+
 ### This Month (`/this-month`)
 
 **Purpose:** Monthly calendar with statement due amounts, recurring events, and card cycle context.

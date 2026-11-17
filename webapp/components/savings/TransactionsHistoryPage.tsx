@@ -13,8 +13,21 @@ import { Snackbar } from "@/components/Snackbar";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { TransactionActionModal } from "@/components/savings/TransactionActionModal";
 import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
+import { Icon } from "@/components/ui/Icon";
+import { EmptyState, SkeletonLines } from "@/components/ui/States";
 
 const PAGE_SIZE = 50;
+
+function ReimbursedTag({ tx }: { tx: UnifiedTransaction }) {
+  const full = reimbursementStatus(Math.abs(tx.amount), tx.reimbursedAmount) === "full";
+  return (
+    <span className={`tag ${full ? "t-ok" : "t-soon"}`}>
+      {full
+        ? "Reimbursed"
+        : `Partial · ${fmt2(tx.reimbursedAmount)} of ${fmt2(Math.abs(tx.amount))}`}
+    </span>
+  );
+}
 
 type PeriodPreset = "" | "this_month" | "last_30" | "last_90" | "custom";
 
@@ -397,13 +410,87 @@ export function TransactionsHistoryPage() {
 
       <section className="panel on">
         {loading ? (
-          <p className="note">Loading transactions…</p>
+          <div className="card">
+            <SkeletonLines lines={8} label="Loading transactions" />
+          </div>
         ) : items.length === 0 ? (
-          <p className="note">
-            No transactions found. Record savings on Cash Accounts, or log expenses and recurring
-            payments.
-          </p>
+          <div className="card">
+            <EmptyState
+              icon="list"
+              title={hasFilters ? "No matching transactions" : "No transactions yet"}
+              action={
+                hasFilters ? (
+                  <button type="button" className="btn ghost sm" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                ) : undefined
+              }
+            >
+              {hasFilters
+                ? "Try a wider period or fewer filters."
+                : "Record savings on Cash Accounts, or log expenses and recurring payments."}
+            </EmptyState>
+          </div>
         ) : (
+          <>
+          {/* Small screens: a tappable list instead of an eight-column table. */}
+          <div className="card tx-list" role="list">
+            {items.map((tx) => {
+              const incoming = tx.amount > 0;
+              const title = tx.note?.trim() || tx.category || tx.typeLabel;
+              const meta = [
+                tx.category && tx.category !== title ? tx.category : null,
+                tx.accountName,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <button
+                  type="button"
+                  role="listitem"
+                  className="list-row tx-list-row"
+                  key={`m-${tx.recordType}-${tx.id}`}
+                  onClick={() => setSelectedTx(tx)}
+                >
+                  <span className={`list-row-icon ${incoming ? "in" : ""}`}>
+                    <Icon name={incoming ? "arrow-down-left" : "arrow-up-right"} />
+                  </span>
+                  <span className="list-row-main">
+                    <span className="list-row-title">{title}</span>
+                    <span className="list-row-sub">
+                      {tx.date}
+                      {tx.time ? ` ${tx.time}` : ""} ·{" "}
+                      <span style={{ textTransform: "capitalize" }}>{tx.typeLabel}</span>
+                    </span>
+                    {meta ? <span className="list-row-sub">{meta}</span> : null}
+                    {tx.reimbursedAmount > 0 ? (
+                      <span className="list-row-sub">
+                        <ReimbursedTag tx={tx} />
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="list-row-end">
+                    <span className={`list-row-amount ${incoming ? "in" : ""}`}>
+                      {fmtSigned2(tx.amount)}
+                    </span>
+                    {tx.balanceAfter != null ? (
+                      <span className="list-row-sub">Bal {fmt2(tx.balanceAfter)}</span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+            {hasFilters && amountTotal != null ? (
+              <div className="list-row tx-list-total">
+                <span className="list-row-main">
+                  <span className="list-row-title">Total ({total})</span>
+                </span>
+                <span className="list-row-end list-row-amount">{fmtSigned2(amountTotal)}</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="card tx-table">
           <div className="table-scroll">
             <table>
               <thead>
@@ -429,26 +516,16 @@ export function TransactionsHistoryPage() {
                     <td>{tx.time || "—"}</td>
                     <td>{tx.category || "—"}</td>
                     <td style={{ textTransform: "capitalize" }}>{tx.typeLabel}</td>
-                    <td className="num">{fmtSigned2(tx.amount)}</td>
+                    <td className={`num ${tx.amount > 0 ? "pos" : ""}`}>
+                      {fmtSigned2(tx.amount)}
+                    </td>
                     <td>{tx.accountName ?? "—"}</td>
                     <td>
                       {tx.note || "—"}
                       {tx.reimbursedAmount > 0 ? (
                         <>
                           {" "}
-                          <span
-                            className={`tag ${
-                              reimbursementStatus(Math.abs(tx.amount), tx.reimbursedAmount) ===
-                              "full"
-                                ? "t-ok"
-                                : "t-soon"
-                            }`}
-                          >
-                            {reimbursementStatus(Math.abs(tx.amount), tx.reimbursedAmount) ===
-                            "full"
-                              ? "Reimbursed"
-                              : `Partial · ${fmt2(tx.reimbursedAmount)} of ${fmt2(Math.abs(tx.amount))}`}
-                          </span>
+                          <ReimbursedTag tx={tx} />
                         </>
                       ) : null}
                     </td>
@@ -469,6 +546,8 @@ export function TransactionsHistoryPage() {
               ) : null}
             </table>
           </div>
+          </div>
+          </>
         )}
 
         {items.length < total ? (
