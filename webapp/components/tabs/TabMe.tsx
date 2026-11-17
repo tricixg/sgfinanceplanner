@@ -1,5 +1,6 @@
 "use client";
 
+import { canReplaceLocalState } from "@/lib/me/local-data-actions";
 import { useContext, useEffect, useRef, useState } from "react";
 import type { DashboardState, InsurancePolicy } from "@/lib/types";
 import { AppDataContext } from "@/contexts/app-data-contexts";
@@ -217,6 +218,18 @@ export function TabMe({
     }
   };
 
+  // Reset / dummy / import only replace in-memory state — never offered when signed in.
+  const localMode = canReplaceLocalState(authEnabled);
+
+  const resetAll = () => {
+    if (!localMode) return;
+    if (!confirm("Reset ALL data in this browser to zero? This can't be undone.")) {
+      console.info("[TabMe] reset cancelled");
+      return;
+    }
+    onReset();
+  };
+
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -226,6 +239,7 @@ export function TabMe({
   };
 
   const loadDummyData = () => {
+    if (!localMode) return;
     if (
       !confirm(
         "Replace all current data with sample dummy data? You can still Reset or Import JSON to undo."
@@ -241,6 +255,7 @@ export function TabMe({
   };
 
   const importJSON = (file: File) => {
+    if (!localMode) return;
     const r = new FileReader();
     r.onload = () => {
       try {
@@ -579,41 +594,49 @@ export function TabMe({
         </div>
       ) : null}
       <div className="card">
-        <p className="note" style={{ marginTop: 0 }}>
-          Export or import your full dashboard JSON. Dummy data fills every tab — salary,
-          accounts, budget, goals, loans, cards (with catalog rewards), holdings (SGX + US),
-          portfolio history, CPF, BTO planner, and more.
-        </p>
+        {localMode ? (
+          <p className="note" style={{ marginTop: 0 }}>
+            Export or import your full dashboard JSON. Dummy data fills every tab — salary,
+            accounts, budget, goals, loans, cards (with catalog rewards), holdings (SGX + US),
+            portfolio history, CPF, BTO planner, and more.
+          </p>
+        ) : null}
         <div className="toolbar">
           <button type="button" className="btn" onClick={onApply}>
             Apply &amp; refresh
           </button>
-          <button type="button" className="btn ghost" onClick={onSaveNow}>
-            Save now
-          </button>
+          {localMode ? (
+            <button type="button" className="btn ghost" onClick={onSaveNow}>
+              Save now
+            </button>
+          ) : null}
           <button type="button" className="btn ghost" onClick={exportJSON}>
             Export JSON
           </button>
-          <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
-            Import JSON
-          </button>
-          <button type="button" className="btn ghost" onClick={loadDummyData}>
-            Add dummy data
-          </button>
-          <button type="button" className="btn del" onClick={onReset}>
-            Reset all to zero
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".json"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) importJSON(f);
-              e.target.value = "";
-            }}
-          />
+          {localMode ? (
+            <>
+              <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
+                Import JSON
+              </button>
+              <button type="button" className="btn ghost" onClick={loadDummyData}>
+                Add dummy data
+              </button>
+              <button type="button" className="btn del" onClick={resetAll}>
+                Reset all to zero
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".json"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) importJSON(f);
+                  e.target.value = "";
+                }}
+              />
+            </>
+          ) : null}
           <span className="save-status">{saveMsg}</span>
         </div>
       </div>

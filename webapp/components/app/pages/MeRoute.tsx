@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { createEmptyState } from "@/lib/finance/defaults";
 import { DomainPage } from "@/components/app/DomainPage";
 import { TabMe } from "@/components/tabs/TabMe";
+import { canReplaceLocalState } from "@/lib/me/local-data-actions";
 import { useAppSession } from "@/contexts/AppSessionContext";
 import { useHousehold } from "@/hooks/useHousehold";
 import { usePageSavings } from "@/hooks/usePageSavings";
@@ -31,6 +32,10 @@ function MeContent({
   }, []);
 
   const handleReset = () => {
+    if (!canReplaceLocalState(Boolean(user))) {
+      flashError("Reset is only available in browser-only mode");
+      return;
+    }
     setState(createEmptyState());
     flash("Reset to blank (all zeros)");
     console.info("[MeRoute] reset to empty state");
