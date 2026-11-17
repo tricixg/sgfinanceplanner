@@ -14,6 +14,8 @@ import {
 } from "@/lib/savings/ledger";
 import { mapCardStatement, type DbCardStatement } from "./mappers";
 import { recomputeInterestForStatement } from "./interest";
+import { isSupersededStatement } from "./latest";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 export function cardPaymentNote(cardName: string, closeDate: string): string {
   return `Card payment: ${cardName} (${closeDate})`;
@@ -266,6 +268,30 @@ async function resolveCardForStatement(
   return card;
 }
 
+/** Reject a statement that a newer closed statement of the same card has superseded. */
+async function assertStatementNotSuperseded(
+  supabase: SupabaseClient,
+  userId: string,
+  card: DbCreditCard,
+  statementId: string
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("card_statements")
+    .select("id, statement_close_date")
+    .eq("user_id", userId)
+    .eq("credit_card_id", card.id);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []).map((r) => ({
+    id: String(r.id),
+    statementCloseDate: String(r.statement_close_date),
+  }));
+  const target = rows.find((r) => r.id === statementId);
+  if (!target) throw new Error("Statement not found");
+  if (isSupersededStatement(rows, sgtTodayYmd(), target.statementCloseDate)) {
+    throw new Error("Statement has been superseded by a newer statement");
+  }
+}
+
 /** Read-only preview of a statement's outstanding balance, for validating before a mutation. */
 export async function previewStatementOutstanding(
   supabase: SupabaseClient,
@@ -273,6 +299,7 @@ export async function previewStatementOutstanding(
   statementId: string
 ): Promise<{ card: DbCreditCard; outstanding: number }> {
   const card = await resolveCardForStatement(supabase, userId, statementId);
+  await assertStatementNotSuperseded(supabase, userId, card, statementId);
   const ctx = await loadStatementOutstandingContext(supabase, userId, card, statementId);
   return { card, outstanding: roundMoney(ctx.outstanding) };
 }
@@ -408,6 +435,7 @@ export async function applyReimbursementCreditToStatement(
   }
 
   const card = await resolveCardForStatement(supabase, userId, statementId);
+  await assertStatementNotSuperseded(supabase, userId, card, statementId);
   const ctx = await loadStatementOutstandingContext(supabase, userId, card, statementId);
 
   const updated = await applyPaymentGivenContext(supabase, userId, statementId, ctx, amount);

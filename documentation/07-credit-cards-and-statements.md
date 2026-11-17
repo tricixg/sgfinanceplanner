@@ -114,6 +114,14 @@ Body: `{ amount, financialAccountId }` (cash financial account)
 
 ---
 
+## Only the latest statement is outstanding
+
+Once a newer statement closes, its amount already includes anything left unpaid (and any carried balance transfer) from earlier statements. Per card, only the **latest closed statement** can be paid or credited:
+
+- `loadOutstandingStatements` returns at most one statement per card (the latest closed one, if unpaid). This feeds the reimbursement "Apply to statement" picker and Financial Health.
+- `previewStatementOutstanding` / `applyReimbursementCreditToStatement` reject older statements ("superseded by a newer statement"). Reversing an existing credit is still allowed.
+- Financial Health "Still to pay this month" (`cardUpcomingItems`) counts the latest statement per card, minus its balance-transfer portion, and only if it is due this month or overdue.
+
 ## User actions on statements
 
 | Action | API | Effect |

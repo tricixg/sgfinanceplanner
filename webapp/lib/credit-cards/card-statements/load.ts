@@ -11,6 +11,7 @@ import {
 } from "@/lib/cards/interest-accrual";
 import { interestFreeBalanceTransferPrincipal } from "@/lib/other-loans/interest-free";
 import { recomputeInterestForStatement } from "./interest";
+import { latestClosedOf } from "./latest";
 import {
   canViewOlderStatementBatch,
   findStatementForBatchOffset,
@@ -419,10 +420,9 @@ export async function loadCardStatementsBundle(
   return { configured: true, statements, openCycles, navigation };
 }
 
-/** Every statement across a card's history (up to HISTORY_CYCLES back) that still has an
- * outstanding balance — unlike loadCardStatementsBundle, not limited to the currently
- * viewed cycle batch. Used where a user needs to pick any unpaid statement regardless of
- * month, e.g. applying a reimbursement to an older carried-forward balance. */
+/** Each card's latest closed statement, if it still has an outstanding balance. Older
+ * unpaid statements are superseded (the newer statement already includes what carried
+ * over), so they are never returned. Used for reimbursement targets and "still to pay". */
 export async function loadOutstandingStatements(
   supabase: SupabaseClient,
   userId: string,
@@ -458,11 +458,12 @@ export async function loadOutstandingStatements(
   // cleared again on undo), so a paid statement can never be outstanding — skip the
   // interest recompute/enrich work for it entirely. Most of a card's history (up to
   // HISTORY_CYCLES back) is paid, so this keeps this call fast regardless of history depth.
-  const perStatement = cards.flatMap((card, i) =>
-    (rowsByCard[i] ?? [])
-      .filter((row) => !row.paidAt)
-      .map((row) => ({ card, row }))
-  );
+  // Only a card's latest closed statement can be outstanding: a newer statement's amount
+  // already carries any unpaid remainder of earlier ones, so those are superseded.
+  const perStatement = cards.flatMap((card, i) => {
+    const latest = latestClosedOf(rowsByCard[i] ?? [], today);
+    return latest && !latest.paidAt ? [{ card, row: latest }] : [];
+  });
 
   const btFreeByCardId = new Map<string, number>();
   await Promise.all(
