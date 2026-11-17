@@ -71,12 +71,18 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 
 | Method | Path | Handler | Primary lib |
 |--------|------|---------|-------------|
-| GET, PUT | `/api/budget-lines` | `app/api/budget-lines/route.ts` | `lib/budget/load` |
+| GET, PUT | `/api/budget-lines` | `app/api/budget-lines/route.ts` | `lib/budget/load`, `lib/budget/monthly`, `lib/budget/save-plan` |
 | GET, PUT | `/api/loans` | `app/api/loans/route.ts` | `lib/loans/load` |
 | GET, PUT | `/api/other-loans` | `app/api/other-loans/route.ts` | `lib/other-loans/load` |
 | POST | `/api/other-loans/[id]/pay` | `app/api/other-loans/[id]/pay/route.ts` | `lib/other-loans/pay` |
 | GET, PUT | `/api/income-categories` | `app/api/income-categories/route.ts` | `lib/income/*` |
 | GET | `/api/cashflow/additive-income` | `app/api/cashflow/additive-income/route.ts` | `startYm`, `count` query params |
+
+**`/api/budget-lines` (monthly budgets)**
+
+- `GET` → `{ configured, currentYm, months, budget }`. `months` maps `YYYY-MM` to the budget lines saved for that month (configured months only); `budget` is the budget resolved for `currentYm` (kept for older clients).
+- `PUT { month?, budget }` saves one month's budget (`month` defaults to the current month) and returns the same shape. Errors: `400 Invalid month (use YYYY-MM)`; `400 Budgets can only be edited for the current or next month` (Singapore time); `400 budget must be an array` / `Too many budget lines` (max 200).
+- A month with no snapshot of its own uses the latest earlier snapshot, else the earliest one.
 
 ### Savings & cash accounts
 

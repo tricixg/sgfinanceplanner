@@ -258,6 +258,8 @@ export type DashboardState = {
   holdings: Holding[];
   portfolioHistory: PortfolioSnapshot[];
   budget: BudgetItem[];
+  /** Configured monthly budget snapshots (key YYYY-MM). `budget` is the current month's resolved budget. */
+  budgetMonths?: Record<string, BudgetItem[]>;
   goals: Goal[];
   loans: Loan[];
   otherLoans: import("./other-loans/types").OtherLoan[];

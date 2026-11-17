@@ -75,6 +75,8 @@ What each page is for, in sidebar order. Page names match the sidebar labels.
 **You’ll see:**
 
 - Take-home pay vs total budget
+- A **month stepper** at the top: use Prev / Next to look at any past month (read-only) or next month; "This month" jumps back
+- You can **edit only the current month and next month**. A month you haven't set up yet shows the most recent earlier budget, and says which month it comes from; saving it gives that month its own budget
 - Lines grouped as fixed spend, variable spend, savings, invest
 - Amounts that may be **linked** from loans, insurance, or ILP you configured elsewhere
 

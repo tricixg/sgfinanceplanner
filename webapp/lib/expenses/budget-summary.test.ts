@@ -297,3 +297,31 @@ describe("partitionBudgetLines", () => {
     expect(zeroAllocated).toHaveLength(1);
   });
 });
+
+describe("inactive budget lines", () => {
+  const withInactive: BudgetLineRow[] = [
+    ...lines,
+    { id: "z1", category: "Old", amount: 0, lineType: "spend", sortOrder: 4, inactive: true },
+  ];
+
+  it("hides inactive lines with no spend", () => {
+    const s = buildBudgetExpenseSummary("2025-05", withInactive, [], []);
+    expect(s.categories.find((c) => c.budgetLineId === "z1")).toBeUndefined();
+    expect(s.zeroAllocated.find((c) => c.budgetLineId === "z1")).toBeUndefined();
+  });
+
+  it("keeps inactive lines that have spend, allocation 0", () => {
+    const base = buildBudgetExpenseSummary("2025-05", withInactive, [], []);
+    const s = buildBudgetExpenseSummary(
+      "2025-05",
+      withInactive,
+      [expense({ id: "e9", amount: 40, budgetLineId: "z1" })],
+      []
+    );
+    const row = s.zeroAllocated.find((c) => c.budgetLineId === "z1");
+    expect(row?.allocated).toBe(0);
+    expect(row?.spent).toBe(40);
+    expect(s.totals.spent).toBe(base.totals.spent + 40);
+    expect(s.totals.allocated).toBe(base.totals.allocated);
+  });
+});

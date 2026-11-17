@@ -1,27 +1,86 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BudgetItem } from "@/lib/types";
 import { recurringFloorsByBudgetLine, stripSaveBudgetLines } from "@/lib/finance/budget";
+import { mapDbBudgetLine, type BudgetLineRow } from "@/lib/expenses/budget-match";
+import { budgetLineRowsForMonth, resolveBudgetMonth, type BudgetMonthMap } from "@/lib/budget/monthly";
+import { classifyRemovedLines, planBudgetMonthSave } from "@/lib/budget/save-plan";
 import { currentYm } from "@/lib/finance/helpers";
 import { loadRecurringInvestments, loadRecurringSubscriptions } from "@/lib/recurring/load";
 
-const UUID_RE = /^[0-9a-f-]{36}$/i;
+export type BudgetData = { catalog: BudgetLineRow[]; months: BudgetMonthMap };
+
+/** Catalog (ids, names, types) plus every configured month snapshot. */
+export async function loadBudgetData(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<BudgetData> {
+  const [linesRes, monthsRes, lineMonthsRes] = await Promise.all([
+    supabase
+      .from("budget_lines")
+      .select("id, category, line_type, sort_order")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true }),
+    supabase.from("budget_months").select("month").eq("user_id", userId),
+    supabase
+      .from("budget_line_months")
+      .select("budget_line_id, month, amount, sort_order")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true }),
+  ]);
+  if (linesRes.error) throw new Error(linesRes.error.message);
+  if (monthsRes.error) throw new Error(monthsRes.error.message);
+  if (lineMonthsRes.error) throw new Error(lineMonthsRes.error.message);
+
+  const catalog: BudgetLineRow[] = (linesRes.data ?? []).map((row) => ({
+    ...mapDbBudgetLine({ ...row, amount: 0 }),
+    amount: 0,
+  }));
+  const byId = new Map(catalog.map((c) => [c.id, c]));
+  const months: BudgetMonthMap = {};
+  for (const m of monthsRes.data ?? []) months[String(m.month)] = [];
+  for (const r of lineMonthsRes.data ?? []) {
+    const month = String(r.month);
+    const line = byId.get(String(r.budget_line_id));
+    if (!line || line.lineType === "save" || !months[month]) continue;
+    months[month].push({
+      id: line.id,
+      cat: line.category,
+      amt: Number(r.amount ?? 0),
+      type: line.lineType,
+    });
+  }
+  return { catalog, months };
+}
+
+export async function loadBudgetMonths(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<BudgetMonthMap> {
+  return (await loadBudgetData(supabase, userId)).months;
+}
+
+export async function loadBudgetCatalog(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<BudgetLineRow[]> {
+  return (await loadBudgetData(supabase, userId)).catalog;
+}
 
 export async function loadBudgetLines(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  ym: string = currentYm()
 ): Promise<BudgetItem[]> {
-  const { data, error } = await supabase
-    .from("budget_lines")
-    .select("*")
-    .eq("user_id", userId)
-    .order("sort_order", { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
-    id: String(row.id),
-    cat: String(row.category ?? ""),
-    amt: Number(row.amount ?? 0),
-    type: (row.line_type ?? "fixed") as BudgetItem["type"],
-  }));
+  return resolveBudgetMonth(await loadBudgetMonths(supabase, userId), ym).lines;
+}
+
+export async function loadBudgetLineRowsForMonth(
+  supabase: SupabaseClient,
+  userId: string,
+  ym: string
+): Promise<BudgetLineRow[]> {
+  const { catalog, months } = await loadBudgetData(supabase, userId);
+  return budgetLineRowsForMonth(catalog, months, ym);
 }
 
 /**
@@ -47,74 +106,130 @@ async function renameLinkedExpenses(
   console.info("[budget] renamed linked expenses", { budgetLineId, count });
 }
 
+function check(error: { message: string } | null, step: string): void {
+  if (error) throw new Error(`${step}: ${error.message}`);
+}
+
+/** Save one month's snapshot. Touches only that month; returns all snapshots. */
+export async function saveBudgetMonth(
+  supabase: SupabaseClient,
+  userId: string,
+  ym: string,
+  incoming: BudgetItem[]
+): Promise<BudgetMonthMap> {
+  const [{ catalog, months }, subscriptions, investments] = await Promise.all([
+    loadBudgetData(supabase, userId),
+    loadRecurringSubscriptions(supabase, userId),
+    loadRecurringInvestments(supabase, userId),
+  ]);
+  const floors = recurringFloorsByBudgetLine([...subscriptions, ...investments], ym);
+  const plan = planBudgetMonthSave({ ym, incoming, catalog, months, floors });
+  const catalogById = new Map(catalog.map((c) => [c.id, c]));
+  const now = new Date().toISOString();
+
+  // Additive steps first.
+  const savedIds: string[] = [];
+  const savedLines: BudgetItem[] = [];
+  const lineMonthRows: Record<string, unknown>[] = [];
+  for (const l of plan.lines) {
+    let id = l.matchId;
+    if (id) {
+      const { error } = await supabase
+        .from("budget_lines")
+        .update({ category: l.category, line_type: l.lineType, sort_order: l.sortOrder, updated_at: now })
+        .eq("id", id)
+        .eq("user_id", userId);
+      check(error, "update budget line");
+      if (catalogById.get(id)?.category !== l.category) {
+        await renameLinkedExpenses(supabase, userId, id, l.category);
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("budget_lines")
+        .insert({ user_id: userId, category: l.category, line_type: l.lineType, sort_order: l.sortOrder })
+        .select("id")
+        .single();
+      check(error, "insert budget line");
+      id = String(data?.id);
+    }
+    savedIds.push(id);
+    savedLines.push({ id, cat: l.category, amt: l.amount, type: l.lineType });
+    lineMonthRows.push({
+      user_id: userId,
+      budget_line_id: id,
+      month: ym,
+      amount: l.amount,
+      sort_order: l.sortOrder,
+      updated_at: now,
+    });
+  }
+
+  const { error: monthErr } = await supabase
+    .from("budget_months")
+    .upsert({ user_id: userId, month: ym, updated_at: now }, { onConflict: "user_id,month" });
+  check(monthErr, "upsert budget month");
+
+  if (lineMonthRows.length) {
+    const { error } = await supabase
+      .from("budget_line_months")
+      .upsert(lineMonthRows, { onConflict: "budget_line_id,month" });
+    check(error, "upsert budget line months");
+  }
+
+  // Destructive steps.
+  const { data: existingRows, error: selErr } = await supabase
+    .from("budget_line_months")
+    .select("id, budget_line_id")
+    .eq("user_id", userId)
+    .eq("month", ym);
+  check(selErr, "select budget line months");
+  const keep = new Set(savedIds);
+  const staleRowIds = (existingRows ?? [])
+    .filter((r) => !keep.has(String(r.budget_line_id)))
+    .map((r) => r.id);
+  if (staleRowIds.length) {
+    const { error } = await supabase.from("budget_line_months").delete().in("id", staleRowIds);
+    check(error, "delete stale budget line months");
+  }
+
+  const monthsAfter: BudgetMonthMap = { ...months, [ym]: savedLines };
+  const { hardDelete, unlinkRecurring } = classifyRemovedLines({
+    removedIds: plan.removedIds,
+    monthsAfter,
+    currentYm: currentYm(),
+  });
+  if (hardDelete.length) {
+    const { error } = await supabase
+      .from("budget_lines")
+      .delete()
+      .eq("user_id", userId)
+      .in("id", hardDelete);
+    check(error, "delete budget lines");
+  }
+  if (unlinkRecurring.length) {
+    for (const table of ["recurring_subscriptions", "recurring_investments"]) {
+      const { error } = await supabase
+        .from(table)
+        .update({ budget_line_id: null })
+        .eq("user_id", userId)
+        .in("budget_line_id", unlinkRecurring);
+      check(error, `unlink ${table}`);
+    }
+  }
+
+  console.info("[budget] saved month", { userId, ym, count: plan.lines.length });
+  return loadBudgetMonths(supabase, userId);
+}
+
+/** Save the current month's budget (used by the legacy migration). */
 export async function saveBudgetLines(
   supabase: SupabaseClient,
   userId: string,
   incoming: BudgetItem[]
 ): Promise<BudgetItem[]> {
-  const lines = stripSaveBudgetLines(incoming);
-  const { data: existing } = await supabase
-    .from("budget_lines")
-    .select("id, category, line_type")
-    .eq("user_id", userId);
-
-  const [subscriptions, investments] = await Promise.all([
-    loadRecurringSubscriptions(supabase, userId),
-    loadRecurringInvestments(supabase, userId),
-  ]);
-  const floors = recurringFloorsByBudgetLine([...subscriptions, ...investments], currentYm());
-
-  const keepIds = new Set<string>();
-
-  for (let i = 0; i < lines.length; i++) {
-    const b = lines[i];
-
-    const matchById =
-      b.id && UUID_RE.test(b.id)
-        ? (existing ?? []).find((e) => String(e.id) === b.id && !keepIds.has(String(e.id)))
-        : undefined;
-    const match =
-      matchById ??
-      (existing ?? []).find(
-        (e) =>
-          e.category === b.cat &&
-          e.line_type === b.type &&
-          !keepIds.has(String(e.id))
-      );
-
-    const floor = match?.id ? floors.get(String(match.id)) ?? 0 : 0;
-    const payload = {
-      user_id: userId,
-      category: b.cat ?? "",
-      amount: Math.max(b.amt ?? 0, floor),
-      line_type: b.type ?? "fixed",
-      sort_order: i,
-      updated_at: new Date().toISOString(),
-    };
-    if (match?.id && UUID_RE.test(String(match.id))) {
-      keepIds.add(String(match.id));
-      await supabase.from("budget_lines").update(payload).eq("id", match.id);
-      if (match.category !== payload.category) {
-        await renameLinkedExpenses(supabase, userId, String(match.id), payload.category);
-      }
-    } else {
-      const { data: ins } = await supabase
-        .from("budget_lines")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (ins?.id) keepIds.add(String(ins.id));
-    }
-  }
-
-  for (const row of existing ?? []) {
-    if (!keepIds.has(String(row.id))) {
-      await supabase.from("budget_lines").delete().eq("id", row.id);
-    }
-  }
-
-  console.info("[budget] saved", { userId, count: lines.length });
-  return loadBudgetLines(supabase, userId);
+  const ym = currentYm();
+  const months = await saveBudgetMonth(supabase, userId, ym, incoming);
+  return resolveBudgetMonth(months, ym).lines;
 }
 
 export async function migrateBudgetFromDashboard(

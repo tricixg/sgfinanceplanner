@@ -21,4 +21,15 @@ describe("cashflow", () => {
     expect(rows.every((r) => r.incomeBaseline === stableTakeHome(DEFAULTS))).toBe(true);
     expect(rows.every((r) => r.income === r.incomeBaseline)).toBe(true);
   });
+
+  it("buildMonths uses each month's own budget", () => {
+    const S = {
+      ...DEFAULTS,
+      budgetMonths: {
+        "2026-11": [{ id: "a", cat: "Rent", amt: 100, type: "fixed" as const }],
+        "2026-12": [{ id: "a", cat: "Rent", amt: 250, type: "fixed" as const }],
+      },
+    };
+    expect(buildMonths(S, "2026-11", 3).map((r) => r.fixed)).toEqual([100, 250, 250]);
+  });
 });

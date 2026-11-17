@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type {
   BudgetItem,
   DashboardState,
@@ -15,7 +15,13 @@ import {
 } from "@/lib/finance";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import { useSavings } from "@/hooks/useSavings";
-import { fmt, fmt2, currentYm } from "@/lib/finance/helpers";
+import { fmt, fmt2, currentYm, formatMonthLabel } from "@/lib/finance/helpers";
+import { addMonthsYm } from "@/lib/finance/calendar";
+import {
+  budgetMonthStatus,
+  isBudgetMonthEditable,
+  resolveBudgetMonth,
+} from "@/lib/budget/monthly";
 import { fetchJson } from "@/lib/fetch-json";
 import type { BudgetExpenseSummary, CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { normalizeCategoryKey } from "@/lib/expenses/budget-match";
@@ -117,33 +123,47 @@ export function TabBudgetSavings({
   const [budYrs, setBudYrs] = useState(10);
   const [editingAllocation, setEditingAllocation] = useState(false);
   const [budgetSaving, setBudgetSaving] = useState(false);
-  const [budgetDraft, setBudgetDraft] = useState<BudgetItem[]>(S.budget);
+  const [viewYm, setViewYm] = useState(currentYm);
+  const [saveError, setSaveError] = useState("");
+  const todayYm = currentYm();
+  const maxYm = addMonthsYm(todayYm, 1);
+  const resolved = resolveBudgetMonth(S.budgetMonths ?? {}, viewYm);
+  const viewBudget = resolved.sourceYm ? resolved.lines : S.budget;
+  const canEdit = isBudgetMonthEditable(viewYm, todayYm);
+  const monthStatus = budgetMonthStatus(viewYm, todayYm);
+  const [budgetDraft, setBudgetDraft] = useState<BudgetItem[]>(viewBudget);
+  const viewYmRef = useRef(viewYm);
+  viewYmRef.current = viewYm;
   const [expenseSummary, setExpenseSummary] = useState<BudgetExpenseSummary | null>(null);
   const [subscriptions, setSubscriptions] = useState<RecurringSubscription[]>([]);
   const [investments, setInvestments] = useState<RecurringInvestment[]>([]);
-  const activeBudget = editingAllocation ? budgetDraft : S.budget;
-  const budgetState = editingAllocation ? { ...S, budget: budgetDraft } : S;
+  const activeBudget = editingAllocation ? budgetDraft : viewBudget;
+  const budgetState = { ...S, budget: activeBudget };
   const floors = recurringFloorsByBudgetLine(
     [...subscriptions, ...investments],
-    currentYm()
+    viewYm
   );
 
   const loadExpenseSummary = useCallback(async () => {
     if (editingAllocation) return;
     try {
-      const ym = currentYm();
+      const ym = viewYm;
       const { res, data } = await fetchJson<BudgetExpenseSummary & { error?: string }>(
         `/api/expenses/summary?ym=${ym}`,
         { credentials: "include" }
       );
-      if (res.ok) {
+      if (res.ok && ym === viewYmRef.current) {
         setExpenseSummary(data);
         console.info("[TabBudgetSavings] expense summary loaded", { ym });
       }
     } catch (e) {
       console.warn("[TabBudgetSavings] expense summary failed", e);
     }
-  }, [editingAllocation]);
+  }, [editingAllocation, viewYm]);
+
+  useEffect(() => {
+    setExpenseSummary(null);
+  }, [viewYm]);
 
   const loadSubscriptions = useCallback(async () => {
     try {
@@ -177,7 +197,7 @@ export function TabBudgetSavings({
 
   useEffect(() => {
     void loadExpenseSummary();
-  }, [loadExpenseSummary, S.budget]);
+  }, [loadExpenseSummary, S.budgetMonths]);
 
   useEffect(() => {
     void loadSubscriptions();
@@ -194,14 +214,13 @@ export function TabBudgetSavings({
   );
 
   const income = stableTakeHome(S);
-  const ym = currentYm();
   const debt =
     lookupComputedSpend(expenseSummary, "debt")?.allocated ??
-    computedDebtMonthly(S, ym);
+    computedDebtMonthly(S, viewYm);
   const insurancePrem = computedInsuranceMonthly(S);
   const ilpPrem = computedIlpMonthly(S);
-  const savingsPrem = computedSavingsMonthly(savingsGoals, savingsBundle.myUserId);
-  const { alloc, left, invPct } = budgetVerdict(budgetState, ym, savingsPrem);
+  const savingsPrem = computedSavingsMonthly(savingsGoals, savingsBundle.myUserId, viewYm);
+  const { alloc, left, invPct } = budgetVerdict(budgetState, viewYm, savingsPrem);
   // Includes ILP premiums so the allocation projection grows them as investments.
   const monthlyInv = monthlyInvestContributionWithIlp(budgetState);
   const proj = budgetProjection(
@@ -378,27 +397,33 @@ export function TabBudgetSavings({
 
   const startBudgetEdit = () => {
     setBudgetDraft(
-      structuredClone(S.budget).map((b: BudgetItem) => {
+      structuredClone(viewBudget).map((b: BudgetItem) => {
         const floor = b.id ? floors.get(b.id) ?? 0 : 0;
         return floor > b.amt ? { ...b, amt: floor } : b;
       })
     );
+    setSaveError("");
     setEditingAllocation(true);
     console.info("[TabBudgetSavings] allocation edit on");
   };
 
   const saveBudget = async () => {
     setBudgetSaving(true);
+    setSaveError("");
     try {
       if (appData?.configured) {
-        await appData.saveBudget(budgetDraft);
+        await appData.saveBudgetMonth(viewYm, budgetDraft);
       } else {
-        setState((prev) => ({ ...prev, budget: budgetDraft }));
+        setState((prev) => ({
+          ...prev,
+          budgetMonths: { ...(prev.budgetMonths ?? {}), [viewYm]: budgetDraft },
+        }));
       }
       setEditingAllocation(false);
-      console.info("[TabBudgetSavings] budget saved", { lines: budgetDraft.length });
+      console.info("[TabBudgetSavings] budget saved", { viewYm, lines: budgetDraft.length });
     } catch (e) {
       console.error("[TabBudgetSavings] budget save failed", e);
+      setSaveError(e instanceof Error ? e.message : "Failed to save budget");
     } finally {
       setBudgetSaving(false);
     }
@@ -424,15 +449,30 @@ export function TabBudgetSavings({
     console.info("[TabBudgetSavings] removed budget draft line", i);
   };
 
+  const cancelBudgetEdit = () => {
+    setEditingAllocation(false);
+    setBudgetDraft(viewBudget);
+    setSaveError("");
+  };
+
   const initBudgetTemplate = () => {
+    if (!canEdit) return;
     const template = defaultBudgetTemplate();
     setBudgetDraft(template);
     if (!editingAllocation) {
       void (async () => {
-        if (appData?.configured) {
-          await appData.saveBudget(template);
-        } else {
-          setState((prev) => ({ ...prev, budget: template }));
+        try {
+          if (appData?.configured) {
+            await appData.saveBudgetMonth(viewYm, template);
+          } else {
+            setState((prev) => ({
+              ...prev,
+              budgetMonths: { ...(prev.budgetMonths ?? {}), [viewYm]: template },
+            }));
+          }
+        } catch (e) {
+          console.error("[TabBudgetSavings] template save failed", e);
+          setSaveError(e instanceof Error ? e.message : "Failed to save budget");
         }
       })();
     }
@@ -465,6 +505,20 @@ export function TabBudgetSavings({
     })),
   ].filter((row) => row.amount > 0);
 
+  const inherited = !!resolved.sourceYm && !resolved.isOwn;
+  const sourceLabel = resolved.sourceYm ? formatMonthLabel(resolved.sourceYm) : "";
+  const monthLabel = formatMonthLabel(viewYm);
+  let statusNote = "";
+  if (resolved.sourceYm) {
+    if (monthStatus === "past") {
+      statusNote = inherited ? `Showing the ${sourceLabel} budget, which applied to this month.` : "";
+    } else if (inherited) {
+      statusNote = `Using the ${sourceLabel} budget. Edit to set a budget for ${monthLabel}.`;
+    } else if (monthStatus === "next") {
+      statusNote = `Customised for ${monthLabel}. Later changes to this month's budget will not carry over.`;
+    }
+  }
+
   const allocationChart = allocationChartRows.length > 0 && (
     <ChartBox
       type="doughnut"
@@ -490,11 +544,73 @@ export function TabBudgetSavings({
 
   return (
     <section className="panel on">
+      <div className="cal-nav cal-nav--in-card" style={{ marginBottom: 16 }}>
+        <button
+          type="button"
+          className="btn ghost sm"
+          aria-label="Previous month"
+          disabled={editingAllocation}
+          title={editingAllocation ? "Save or cancel your changes first" : undefined}
+          onClick={() => setViewYm((v) => addMonthsYm(v, -1))}
+        >
+          Prev
+        </button>
+        <h2 aria-live="polite">{formatMonthLabel(viewYm)}</h2>
+        <button
+          type="button"
+          className="btn ghost sm"
+          aria-label="Next month"
+          disabled={editingAllocation || viewYm >= maxYm}
+          title={editingAllocation ? "Save or cancel your changes first" : undefined}
+          onClick={() => setViewYm((v) => addMonthsYm(v, 1))}
+        >
+          Next
+        </button>
+        {viewYm !== todayYm ? (
+          <button
+            type="button"
+            className="btn ghost sm"
+            disabled={editingAllocation}
+            title={editingAllocation ? "Save or cancel your changes first" : undefined}
+            onClick={() => setViewYm(todayYm)}
+          >
+            This month
+          </button>
+        ) : null}
+      </div>
+
+      <div
+        style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}
+      >
+        <span
+          className={`tag ${
+            monthStatus === "current" ? "t-live" : monthStatus === "next" ? "t-soon" : "t-end"
+          }`}
+        >
+          {monthStatus === "current"
+            ? "Current month"
+            : monthStatus === "next"
+              ? "Next month"
+              : "Past month · read-only"}
+        </span>
+        {statusNote ? <span className="note">{statusNote}</span> : null}
+      </div>
+
       <div className="callout tip">
         <span className="ico">Tip</span>
-        Click <b>Edit</b> to change categories. Savings accounts and goals live on{" "}
-        <b>Savings &amp; Goals</b>. Loans, insurance, and ILP premiums are auto from{" "}
-        <b>Debts &amp; Loans</b>, <b>ME</b>, and <b>Investment</b>.
+        {canEdit ? (
+          <>
+            Click <b>Edit</b> to change categories. Savings accounts and goals live on{" "}
+            <b>Savings &amp; Goals</b>. Loans, insurance, and ILP premiums are auto from{" "}
+            <b>Debts &amp; Loans</b>, <b>ME</b>, and <b>Investment</b>.
+          </>
+        ) : (
+          <>
+            Past months are read-only. You can edit the current month and next month. Loans,
+            insurance, and ILP premiums are auto from <b>Debts &amp; Loans</b>, <b>ME</b>, and{" "}
+            <b>Investment</b>.
+          </>
+        )}
       </div>
 
       <div className="grid g3">
@@ -527,7 +643,7 @@ export function TabBudgetSavings({
         {fmt(ilpPrem)}) − savings ({fmt(savingsPrem)}).
       </div>
 
-      {S.budget.length === 0 && !editingAllocation ? (
+      {viewBudget.length === 0 && !editingAllocation ? (
         <div className="card">
           <div className="table-scroll category-budget-table-scroll">
           <table>
@@ -569,11 +685,13 @@ export function TabBudgetSavings({
           </table>
           </div>
           <p style={{ color: "var(--muted)", fontStyle: "italic", margin: "12px 0" }}>
-            No editable categories yet.
+            {canEdit ? "No editable categories yet." : "No budget categories were set for this month."}
           </p>
-          <button type="button" className="btn ghost sm" onClick={initBudgetTemplate}>
-            Set up default categories
-          </button>
+          {canEdit ? (
+            <button type="button" className="btn ghost sm" onClick={initBudgetTemplate}>
+              Set up default categories
+            </button>
+          ) : null}
         </div>
       ) : editingAllocation ? (
         <div className="budget-stack">
@@ -592,7 +710,16 @@ export function TabBudgetSavings({
               >
                 {budgetSaving ? "Saving…" : "Save"}
               </button>
+              <button
+                type="button"
+                className="btn ghost sm"
+                disabled={budgetSaving}
+                onClick={cancelBudgetEdit}
+              >
+                Cancel
+              </button>
             </div>
+            {saveError ? <p className="note">{saveError}</p> : null}
             {activeBudget.length === 0 ? (
               <button
                 type="button"
@@ -660,13 +787,15 @@ export function TabBudgetSavings({
           <div className="card">
             <div className="section-head" style={{ marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: "1rem" }}>Categories</h3>
-              <button
-                type="button"
-                className="btn ghost sm"
-                onClick={startBudgetEdit}
-              >
-                Edit
-              </button>
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={startBudgetEdit}
+                >
+                  Edit
+                </button>
+              ) : null}
             </div>
             <div className="table-scroll category-budget-table-scroll">
             <table>
@@ -733,6 +862,7 @@ export function TabBudgetSavings({
       )}
 
       <h2>Allocation projection</h2>
+      <p className="note">Based on the {monthLabel} budget.</p>
       <div className="card">
         <div className="ctrl">
           <label>

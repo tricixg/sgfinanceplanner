@@ -31,7 +31,7 @@ export function SpendingBudgetVarianceTable({ analytics }: Props) {
         <thead>
           <tr>
             <th>Category</th>
-            <th className="num">Monthly budget</th>
+            <th className="num">Avg budget / mo</th>
             <th className="num">5-mo budget</th>
             <th className="num">5-mo spent</th>
             <th className="num">Avg / mo</th>

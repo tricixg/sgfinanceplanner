@@ -16,6 +16,7 @@ import {
   defaultRecurringSubscription,
 } from "@/lib/finance/budget";
 import { addMonthsYm } from "@/lib/finance/calendar";
+import { budgetLinesForMonth } from "@/lib/finance/budget";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { COMPUTED_ILP_LABEL } from "@/lib/finance/ilp";
 import { DecimalInput } from "@/components/DecimalInput";
@@ -64,7 +65,11 @@ export function TabRecurring({ enabled, onReload }: Props) {
   // funds:changed internally (see hooks/useFunds.ts).
   const { state } = useAppData();
   const { funds } = useFunds();
-  const budgetLines = state.budget;
+  const nextMonthLines = budgetLinesForMonth(state, addMonthsYm(currentYm(), 1));
+  const budgetLines = [
+    ...state.budget,
+    ...nextMonthLines.filter((n) => !n.id || !state.budget.some((b) => b.id === n.id)),
+  ];
 
   const categoryOptions = budgetLines.filter((b) => b.type === "fixed" || b.type === "spend");
   const categoryName = (id?: string) =>
