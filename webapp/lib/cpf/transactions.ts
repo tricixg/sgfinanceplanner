@@ -68,7 +68,13 @@ export function normalizeCpfTransactionInput(input: AddCpfTransactionInput) {
       throw new Error(`${meta.label} can't be tagged to that BTO stage`);
     }
   }
-  const fundingSource: CpfFundingSource = input.fundingSource === "cash" ? "cash" : "cpf_oa";
+  const fundingSource: CpfFundingSource = meta.cashOnly
+    ? "cash"
+    : meta.cpfOnly
+      ? "cpf_oa"
+      : input.fundingSource === "cash"
+        ? "cash"
+        : "cpf_oa";
   if (fundingSource === "cash" && (btoStage == null || meta.direction !== "debit")) {
     throw new Error("Only BTO payments can be logged as cash");
   }

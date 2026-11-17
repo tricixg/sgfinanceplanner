@@ -1,76 +1,35 @@
 "use client";
 
+import Link from "next/link";
 import { useContext, useState } from "react";
 import { DecimalInput } from "@/components/DecimalInput";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { AppDataContext } from "@/contexts/app-data-contexts";
-import {
-  CPF_BTO_STAGE_LABEL,
-  CPF_TXN_CATEGORIES,
-  isCpfTxnCategory,
-  type CpfBtoStage,
-  type CpfFundingSource,
-  type CpfTxnCategory,
-} from "@/lib/cpf/types";
+import { CPF_TXN_CATEGORIES, type CpfTxnCategory } from "@/lib/cpf/types";
 import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 
 type Direction = "out" | "in";
-type FormCategory = CpfTxnCategory | "contribution";
+type FormCategory = "contribution" | Extract<CpfTxnCategory, "refund" | "other_credit" | "other_withdrawal">;
 
-const OUT_CATEGORIES: CpfTxnCategory[] = [
-  "bto_downpayment",
-  "bto_bsd",
-  "bto_legal_fee",
-  "bto_option_fee",
-  "bto_loan_shortfall",
-  "bto_mortgage",
-  "other_withdrawal",
-];
-const IN_CATEGORIES: FormCategory[] = ["contribution", "housing_grant", "refund", "other_credit"];
+const IN_CATEGORIES: FormCategory[] = ["contribution", "refund", "other_credit"];
+const OUT_CATEGORIES: FormCategory[] = ["other_withdrawal"];
 
 function categoryLabel(c: FormCategory): string {
   return c === "contribution" ? "Monthly contribution" : CPF_TXN_CATEGORIES[c].label;
 }
 
-/** BTO planner deep link: /cpf?log=<category>&stage=<stage>&amount=<n>#log */
-type Prefill = { category: CpfTxnCategory; stage: CpfBtoStage | null; amount: number } | null;
-
-function readPrefill(): Prefill {
-  if (typeof window === "undefined") return null;
-  const q = new URLSearchParams(window.location.search);
-  const category = q.get("log");
-  if (!isCpfTxnCategory(category)) return null;
-  const stages = CPF_TXN_CATEGORIES[category].stages;
-  const stageParam = q.get("stage") as CpfBtoStage | null;
-  const stage = stageParam && stages.includes(stageParam) ? stageParam : (stages[0] ?? null);
-  const amount = Number(q.get("amount") ?? 0);
-  return { category, stage, amount: Number.isFinite(amount) && amount > 0 ? amount : 0 };
-}
-
-function clearPrefillFromUrl() {
-  if (typeof window === "undefined" || !window.location.search) return;
-  window.history.replaceState(null, "", window.location.pathname + window.location.hash);
-}
-
 /**
- * The single place to log CPF movements: monthly contributions (OA/SA/MA),
- * OA withdrawals and credits, and cash-paid BTO bills. BTO rows carry a stage
- * so they reconcile on the BTO planner.
+ * CPF Outlook's logging form: monthly contributions (OA/SA/MA) and other,
+ * non-BTO OA movements. BTO payments are logged on the BTO planner so they're
+ * checked against the plan's bills.
  */
 export function CpfTransactionForm() {
   const appData = useContext(AppDataContext);
-  const [prefill, setPrefill] = useState<Prefill>(readPrefill);
-  // Opens on Money in → Monthly contribution (the most common entry), unless
-  // the BTO planner linked here to log a specific payment.
-  const [direction, setDirection] = useState<Direction>(() =>
-    prefill && CPF_TXN_CATEGORIES[prefill.category].direction === "debit" ? "out" : "in"
-  );
-  const [category, setCategory] = useState<FormCategory>(prefill?.category ?? "contribution");
-  const [stage, setStage] = useState<CpfBtoStage | null>(prefill?.stage ?? null);
-  const [amount, setAmount] = useState(prefill?.amount ?? 0);
+  const [direction, setDirection] = useState<Direction>("in");
+  const [category, setCategory] = useState<FormCategory>("contribution");
+  const [amount, setAmount] = useState(0);
   const [txnDate, setTxnDate] = useState(() => sgtTodayYmd());
-  const [source, setSource] = useState<CpfFundingSource>("cpf_oa");
   const [note, setNote] = useState("");
   const [month, setMonth] = useState(() => sgtTodayYmd().slice(0, 7));
   const [oa, setOa] = useState(0);
@@ -81,24 +40,11 @@ export function CpfTransactionForm() {
   const [done, setDone] = useState("");
 
   const isContribution = category === "contribution";
-  const meta = isContribution ? null : CPF_TXN_CATEGORIES[category];
-  const stages = meta?.stages ?? [];
-  const cashAllowed = Boolean(meta && meta.direction === "debit" && stages.length > 0);
-
-  const pickCategory = (next: FormCategory) => {
-    setCategory(next);
-    const nextStages = next === "contribution" ? [] : CPF_TXN_CATEGORIES[next].stages;
-    setStage(nextStages[0] ?? null);
-    if (next === "contribution" || CPF_TXN_CATEGORIES[next].direction !== "debit" || nextStages.length === 0) {
-      setSource("cpf_oa");
-    }
-    setPrefill(null);
-    setError("");
-  };
 
   const pickDirection = (next: Direction) => {
     setDirection(next);
-    pickCategory(next === "in" ? "contribution" : "bto_downpayment");
+    setCategory(next === "in" ? "contribution" : "other_withdrawal");
+    setError("");
   };
 
   const submit = async () => {
@@ -107,7 +53,7 @@ export function CpfTransactionForm() {
     setDone("");
     setSaving(true);
     try {
-      if (isContribution) {
+      if (category === "contribution") {
         if (oa <= 0 && sa <= 0 && ma <= 0) throw new Error("Enter at least one non-zero contribution amount");
         await appData.addCpfContribution({ month: `${month}-01`, oa, sa, ma, note: note.trim() || undefined });
         setDone(`Logged ${formatMonthLabel(month)} contribution · ${fmt2(oa + sa + ma)}`);
@@ -116,22 +62,9 @@ export function CpfTransactionForm() {
         setMa(0);
       } else {
         if (amount <= 0) throw new Error("Enter an amount above $0");
-        await appData.addCpfTransaction({
-          txnDate,
-          category,
-          amount,
-          fundingSource: cashAllowed ? source : "cpf_oa",
-          btoStage: stage,
-          note,
-        });
-        setDone(
-          source === "cash" && cashAllowed
-            ? `Logged ${fmt2(amount)} cash · CPF OA unchanged`
-            : `Logged ${categoryLabel(category).toLowerCase()} · ${fmt2(amount)}`
-        );
+        await appData.addCpfTransaction({ txnDate, category, amount, note });
+        setDone(`Logged ${categoryLabel(category).toLowerCase()} · ${fmt2(amount)}`);
         setAmount(0);
-        setPrefill(null);
-        clearPrefillFromUrl();
       }
       setNote("");
       console.info("[CpfTransactionForm] logged", { category });
@@ -144,15 +77,9 @@ export function CpfTransactionForm() {
 
   const hint = isContribution
     ? "Adds to OA, SA and MediSave. One entry per month."
-    : prefill && prefill.category === category && prefill.amount > 0
-      ? `From your BTO planner: ${fmt2(prefill.amount)} still to pay for ${categoryLabel(category).toLowerCase()}${stage ? ` (${CPF_BTO_STAGE_LABEL[stage]})` : ""}.`
-      : source === "cash" && cashAllowed
-        ? "Cash payments count toward the BTO bill but don't change your CPF balance."
-        : meta?.direction === "credit"
-          ? "Adds to your OA balance."
-          : stages.length > 0
-            ? "Takes this off your OA balance and counts it toward the BTO bill."
-            : "Takes this off your OA balance.";
+    : direction === "in"
+      ? "Adds to your OA balance."
+      : "Takes this off your OA balance.";
 
   return (
     <div className="card cpf-txn-form" id="log">
@@ -163,8 +90,8 @@ export function CpfTransactionForm() {
           value={direction}
           onChange={pickDirection}
           options={[
-            { value: "out", label: "Money out" },
             { value: "in", label: "Money in" },
+            { value: "out", label: "Money out" },
           ]}
         />
       </div>
@@ -172,8 +99,8 @@ export function CpfTransactionForm() {
       <div className="cpf-txn-grid">
         <label className="bto-field">
           Category
-          <select value={category} onChange={(e) => pickCategory(e.target.value as FormCategory)}>
-            {(direction === "out" ? OUT_CATEGORIES : IN_CATEGORIES).map((c) => (
+          <select value={category} onChange={(e) => setCategory(e.target.value as FormCategory)}>
+            {(direction === "in" ? IN_CATEGORIES : OUT_CATEGORIES).map((c) => (
               <option key={c} value={c}>
                 {categoryLabel(c)}
               </option>
@@ -202,22 +129,6 @@ export function CpfTransactionForm() {
           </>
         ) : (
           <>
-            {stages.length > 0 && (
-              <label className="bto-field">
-                BTO stage
-                <select
-                  value={stage ?? ""}
-                  disabled={stages.length < 2}
-                  onChange={(e) => setStage(e.target.value as CpfBtoStage)}
-                >
-                  {stages.map((s) => (
-                    <option key={s} value={s}>
-                      {CPF_BTO_STAGE_LABEL[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
             <label className="bto-field">
               Amount
               <DecimalInput value={amount} onChange={setAmount} min={0} step={0.01} />
@@ -226,26 +137,12 @@ export function CpfTransactionForm() {
               Date
               <input type="date" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} />
             </label>
-            {cashAllowed && (
-              <label className="bto-field">
-                Paid from
-                <select value={source} onChange={(e) => setSource(e.target.value as CpfFundingSource)}>
-                  <option value="cpf_oa">CPF OA</option>
-                  <option value="cash">Cash</option>
-                </select>
-              </label>
-            )}
           </>
         )}
 
         <label className="bto-field cpf-txn-note">
           Note
-          <input
-            type="text"
-            placeholder="Optional"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
+          <input type="text" placeholder="Optional" value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
       </div>
 
@@ -263,6 +160,10 @@ export function CpfTransactionForm() {
           {done}
         </p>
       ) : null}
+      <p className="ui-hint" style={{ marginTop: 10, marginBottom: 0 }}>
+        Paying for your BTO? Log it on the{" "}
+        <Link href="/bto#payments">BTO Planner</Link> so it&rsquo;s checked against your bills.
+      </p>
     </div>
   );
 }

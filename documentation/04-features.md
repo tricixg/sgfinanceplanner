@@ -121,7 +121,7 @@ Status pills (Healthy / Watch / At risk) use rule-of-thumb thresholds defined in
 
 ### BTO Planner (`/bto`)
 
-**Purpose:** Flat price, grants, loan, downpayment, cash required. A **Payments** section reconciles logged payments (yours + linked partner's) against each stage's bills (Booking, Sign AFL, Key collection, Mortgage) at gross CPF-statement amounts, with a household payment history. Logged payments also feed the projection: bills already paid aren't drawn again, and grant credits still in OA aren't double-counted.
+**Purpose:** Flat price, grants, loan, downpayment, cash required. A **Payments** section is where BTO payments are logged (stage → item → amount → CPF OA or cash; the option fee is cash-only, grants are CPF-only), reconciled against each stage's bills (Booking, Sign AFL, Key collection, Mortgage) at gross CPF-statement amounts, and deleted from the household payment history (your own rows; your partner manages theirs). Logged payments also feed the projection: bills already paid aren't drawn again, and grant credits still in OA aren't double-counted.
 
 | Layer | Location |
 |-------|----------|
@@ -243,7 +243,7 @@ See [07-credit-cards-and-statements.md](./07-credit-cards-and-statements.md).
 
 ### CPF Outlook (`/cpf`)
 
-**Purpose:** OA/SA/MA balances for planning views, plus one **Log CPF transaction** form: Money in (monthly contribution, housing grant, refund, other) and Money out (BTO downpayment, BSD, legal fee, option fee, loan shortfall, mortgage, other). BTO categories carry a fixed HDB stage; BTO bills can be marked as paid in cash. The **OA history** merges contributions and transactions with a running OA balance. The BTO planner deep-links here pre-filled (`/cpf?log=<category>&stage=<stage>&amount=<n>#log`).
+**Purpose:** OA/SA/MA balances for planning views, plus a **Log CPF transaction** form for Money in (monthly contribution — the default — refund, other credit) and Money out (other withdrawal). BTO payments are logged on the BTO Planner instead. The **OA history** merges contributions and all OA transactions with a running OA balance; BTO rows link to the BTO Planner rather than being deleted here.
 
 | Layer | Location |
 |-------|----------|

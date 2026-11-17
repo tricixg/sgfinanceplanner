@@ -42,17 +42,21 @@ type CategoryMeta = {
   direction: CpfTxnDirection;
   /** BTO stages this category can be tagged to; first is the default. Empty = not a BTO row. */
   stages: CpfBtoStage[];
+  /** Always paid in cash (HDB takes the option fee by cash/NETS, never CPF). */
+  cashOnly?: boolean;
+  /** Always a CPF OA movement (grants are credited straight to OA). */
+  cpfOnly?: boolean;
 };
 
 export const CPF_TXN_CATEGORIES: Record<CpfTxnCategory, CategoryMeta> = {
-  bto_option_fee: { label: "Option fee", direction: "debit", stages: ["booking"] },
+  bto_option_fee: { label: "Option fee", direction: "debit", stages: ["booking"], cashOnly: true },
   bto_downpayment: { label: "Downpayment", direction: "debit", stages: ["afl", "keys"] },
   bto_bsd: { label: "Buyer's Stamp Duty", direction: "debit", stages: ["afl"] },
   bto_legal_fee: { label: "Legal fee", direction: "debit", stages: ["afl"] },
   bto_loan_shortfall: { label: "Loan shortfall top-up", direction: "debit", stages: ["keys"] },
   bto_mortgage: { label: "Mortgage instalment", direction: "debit", stages: ["mortgage"] },
   other_withdrawal: { label: "Other withdrawal", direction: "debit", stages: [] },
-  housing_grant: { label: "Housing grant", direction: "credit", stages: ["afl", "keys"] },
+  housing_grant: { label: "Housing grant", direction: "credit", stages: ["afl", "keys"], cpfOnly: true },
   refund: { label: "Refund to OA", direction: "credit", stages: [] },
   other_credit: { label: "Other credit", direction: "credit", stages: [] },
 };

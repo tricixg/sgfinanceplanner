@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { BtoLogPaymentForm, BTO_STAGE_ITEMS } from "@/components/bto/BtoLogPaymentForm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 import { CPF_BTO_STAGE_LABEL, CPF_TXN_CATEGORIES, type CpfBtoStage, type CpfTxnCategory } from "@/lib/cpf/types";
 import type { BtoPaymentRow, BtoReconcileStatus, BtoStageReconcile } from "@/lib/finance/bto-reconcile";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
@@ -11,12 +12,7 @@ const STAGES: CpfBtoStage[] = ["booking", "afl", "keys", "mortgage"];
 
 type HistoryFilter = "all" | "cpf" | "cash" | "self" | "partner";
 
-/** Deep link to the one logging form on CPF Outlook, pre-filled. */
-export function cpfLogHref(category: CpfTxnCategory, stage: CpfBtoStage, amount?: number): string {
-  const q = new URLSearchParams({ log: category, stage });
-  if (amount && amount > 0) q.set("amount", amount.toFixed(2));
-  return `/cpf?${q.toString()}#log`;
-}
+type LogTarget = { stage: CpfBtoStage; category: CpfTxnCategory; amount?: number; key: number };
 
 function statusLabel(status: BtoReconcileStatus, reached: boolean): string {
   if (status === "tallied") return "Tallied";
@@ -58,7 +54,33 @@ export function BtoPaymentsPanel({
   paired,
   tenureMonths,
 }: Props) {
+  const appData = useContext(AppDataContext);
   const [filter, setFilter] = useState<HistoryFilter>("all");
+  const [logTarget, setLogTarget] = useState<LogTarget | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+
+  const openLog = (stage: CpfBtoStage, category?: CpfTxnCategory, amount?: number) => {
+    setLogTarget({ stage, category: category ?? BTO_STAGE_ITEMS[stage][0]!, amount, key: Date.now() });
+    requestAnimationFrame(() =>
+      document.getElementById("bto-log")?.scrollIntoView({ behavior: "smooth", block: "center" })
+    );
+    console.info("[BtoPaymentsPanel] open log form", { stage, category });
+  };
+
+  const removeRow = async (id: string) => {
+    if (!appData) return;
+    setDeletingId(id);
+    setDeleteError("");
+    try {
+      await appData.deleteCpfTransaction(id);
+      console.info("[BtoPaymentsPanel] payment deleted", { id });
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Failed to delete payment");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const upfront = (["booking", "afl", "keys"] as const).map((s) => reconcile[s]);
   const expected = upfront.reduce((s, r) => s + r.expected, 0);
@@ -80,16 +102,27 @@ export function BtoPaymentsPanel({
     <>
       <div className="section-head" id="payments">
         <h2>Payments</h2>
-        <Link href={cpfLogHref(nextStage === "booking" ? "bto_option_fee" : nextStage === "mortgage" ? "bto_mortgage" : "bto_downpayment", nextStage)} className="btn ghost sm">
+        <button type="button" className="btn sm" onClick={() => openLog(nextStage)}>
           Log a payment
-        </Link>
+        </button>
       </div>
       <p className="ui-hint" style={{ marginTop: -4 }}>
-        Your logged payments, checked against each bill in your plan. Amounts match your CPF
-        statement: the grant is credited to OA, then withdrawn as part of the downpayment. Log
-        payments on CPF Outlook
-        {paired ? "; your partner logs theirs from their own account." : "."}
+        Log each BTO payment here as it happens and it&rsquo;s checked against the bills in your
+        plan. Use the amounts on your CPF statement: the grant is credited to OA, then withdrawn as
+        part of the downpayment.
       </p>
+
+      {logTarget && (
+        <BtoLogPaymentForm
+          key={logTarget.key}
+          reconcile={reconcile}
+          initialStage={logTarget.stage}
+          initialCategory={logTarget.category}
+          initialAmount={logTarget.amount}
+          paired={paired}
+          onClose={() => setLogTarget(null)}
+        />
+      )}
 
       <div className="card bto-pay-strip">
         <div>
@@ -140,9 +173,9 @@ export function BtoPaymentsPanel({
                   <span className="v">{fmt2(r.paid)}</span>
                 </div>
                 {reached && (
-                  <Link className="bto-pay-log" href={cpfLogHref("bto_mortgage", "mortgage", r.components[0]?.expected)}>
+                  <button type="button" className="btn ghost sm bto-pay-log" onClick={() => openLog("mortgage", "bto_mortgage")}>
                     Log this month
-                  </Link>
+                  </button>
                 )}
               </div>
             );
@@ -170,7 +203,9 @@ export function BtoPaymentsPanel({
                         ) : left < 0 ? (
                           <span className="neg">over {fmt2(-left)}</span>
                         ) : (
-                          <Link href={cpfLogHref(c.category, stage, left)}>Log {fmt2(left)}</Link>
+                          <button type="button" className="bto-pay-linkbtn" onClick={() => openLog(stage, c.category, left)}>
+                            Log {fmt2(left)}
+                          </button>
                         )}
                       </span>
                     </span>
@@ -189,7 +224,9 @@ export function BtoPaymentsPanel({
                       {Math.abs(r.grantCredited - r.grantPlanned) < 1 ? (
                         "✓ matches"
                       ) : r.grantCredited === 0 ? (
-                        <Link href={cpfLogHref("housing_grant", stage, r.grantPlanned)}>Log grant</Link>
+                        <button type="button" className="bto-pay-linkbtn" onClick={() => openLog(stage, "housing_grant")}>
+                          Log grant
+                        </button>
                       ) : (
                         <span className="neg">differs</span>
                       )}
@@ -213,6 +250,15 @@ export function BtoPaymentsPanel({
                   {fmt2(Math.abs(r.variance) < 1 ? 0 : Math.abs(r.variance))}
                 </span>
               </div>
+              {stage === "booking" && r.status !== "tallied" && r.status !== "over" && (
+                <button
+                  type="button"
+                  className="btn sm bto-pay-log"
+                  onClick={() => openLog("booking", "bto_option_fee")}
+                >
+                  Log option fee · {fmt(Math.max(0, r.expected - r.paid))}
+                </button>
+              )}
               {r.paid > 0 && (
                 <div className="bto-pay-split">
                   <span>You {fmt(r.bySelf)}</span>
@@ -247,8 +293,8 @@ export function BtoPaymentsPanel({
       <div className="card table-scroll">
         {rows.length === 0 ? (
           <p style={{ color: "var(--muted)", fontStyle: "italic" }}>
-            No BTO payments logged yet. When CPF deducts your option fee, downpayment, stamp duty or
-            legal fee, log it on CPF Outlook and it shows up here.
+            No BTO payments logged yet. Start with your option fee, then log each downpayment, stamp
+            duty and legal fee as CPF deducts it.
           </p>
         ) : (
           <table style={{ minWidth: "36rem" }}>
@@ -260,6 +306,7 @@ export function BtoPaymentsPanel({
                 {paired && <th>Who</th>}
                 <th>Source</th>
                 <th className="num">Amount</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -285,11 +332,25 @@ export function BtoPaymentsPanel({
                     {r.direction === "credit" ? "+" : "−"}
                     {fmt2(r.amount)}
                   </td>
+                  <td>
+                    {r.owner === "self" ? (
+                      <button
+                        type="button"
+                        className="btn ghost sm"
+                        disabled={deletingId === r.id}
+                        onClick={() => void removeRow(r.id)}
+                      >
+                        {deletingId === r.id ? "…" : "Delete"}
+                      </button>
+                    ) : (
+                      <span className="cpf-txn-sub">Partner&rsquo;s</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {shown.length === 0 ? (
                 <tr>
-                  <td colSpan={paired ? 6 : 5} style={{ color: "var(--muted)" }}>
+                  <td colSpan={paired ? 7 : 6} style={{ color: "var(--muted)" }}>
                     Nothing matches this filter.
                   </td>
                 </tr>
@@ -298,6 +359,11 @@ export function BtoPaymentsPanel({
           </table>
         )}
       </div>
+      {deleteError ? <p className="pin-error">{deleteError}</p> : null}
+      <p className="ui-hint">
+        Deleting a payment reverses its effect on your CPF OA. Your partner deletes their own
+        payments from their account.
+      </p>
     </>
   );
 }

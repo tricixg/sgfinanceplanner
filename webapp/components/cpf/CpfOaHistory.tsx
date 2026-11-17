@@ -174,16 +174,23 @@ export function CpfOaHistory({
                   </td>
                   <td className="num">{fmt2(Math.max(0, e.oaAfter))}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="btn ghost sm"
-                      disabled={deletingId === e.id}
-                      onClick={() =>
-                        e.kind === "contribution" ? onDeleteContribution(e.id) : onDeleteTransaction(e.id)
-                      }
-                    >
-                      {deletingId === e.id ? "…" : "Delete"}
-                    </button>
+                    {e.stage ? (
+                      // BTO payments are owned by the BTO planner, where they're logged.
+                      <Link href="/bto#payments" className="cpf-txn-manage">
+                        Manage on BTO Planner
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn ghost sm"
+                        disabled={deletingId === e.id}
+                        onClick={() =>
+                          e.kind === "contribution" ? onDeleteContribution(e.id) : onDeleteTransaction(e.id)
+                        }
+                      >
+                        {deletingId === e.id ? "…" : "Delete"}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -199,7 +206,8 @@ export function CpfOaHistory({
         )}
       </div>
       <p className="ui-hint">
-        Deleting a row reverses its effect on your balance. &ldquo;OA after&rdquo; counts back from
+        Deleting a row reverses its effect on your balance. BTO payments are logged and deleted on
+        the BTO Planner. &ldquo;OA after&rdquo; counts back from
         today&rsquo;s balance, so it&rsquo;s only exact if every OA change since is logged here.
       </p>
     </>
