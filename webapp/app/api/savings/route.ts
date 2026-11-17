@@ -6,6 +6,7 @@ import { loadSavingsBundle, mergeSavingsSnapshots } from "@/lib/savings/load-bun
 import { loadFundsBundle } from "@/lib/funds/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { SaveConfigError, saveGoalsConfig, savePoolsConfig } from "@/lib/savings/save-config";
 import type { SavingsGoal, SavingsPool } from "@/lib/savings/types";
 
 export async function GET() {
@@ -45,9 +46,16 @@ export async function GET() {
   }
 }
 
+/**
+ * Rows are matched by id and updated in place. Rows are only deleted when
+ * their id is listed in `deletedPoolIds` / `deletedGoalIds`; being absent from
+ * `pools` / `goals` never deletes anything.
+ */
 type PutBody = {
   pools?: Partial<SavingsPool>[];
   goals?: Partial<SavingsGoal>[];
+  deletedPoolIds?: string[];
+  deletedGoalIds?: string[];
 };
 
 export async function PUT(req: NextRequest) {
@@ -69,69 +77,18 @@ export async function PUT(req: NextRequest) {
   const supabase = await createAuthedSupabaseClient();
   const householdId = await ensureUserHousehold(supabase, user.id);
 
-  if (body.pools !== undefined) {
-    const pools = body.pools;
-    await supabase.from("savings_pools").delete().eq("household_id", householdId);
-    if (pools.length > 0) {
-      const { error } = await supabase.from("savings_pools").insert(
-        pools.map((p, i) => ({
-          household_id: householdId,
-          name: p.name ?? "",
-          balance: p.balance ?? 0,
-          notes: p.notes ?? "",
-          include_in_savings: p.includeInSavings !== false,
-          sort_order: p.sortOrder ?? i,
-          updated_at: new Date().toISOString(),
-        }))
-      );
-      if (error) {
-        console.error("[api/savings] pools upsert failed", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
+  try {
+    if (body.pools !== undefined) {
+      await savePoolsConfig(supabase, householdId, body.pools, body.deletedPoolIds);
     }
-  }
-
-  if (body.goals !== undefined) {
-    const goals = body.goals;
-    await supabase
-      .from("savings_goals")
-      .delete()
-      .eq("owner_user_id", user.id)
-      .eq("scope", "individual");
-    await supabase
-      .from("savings_goals")
-      .delete()
-      .eq("household_id", householdId)
-      .eq("scope", "shared");
-
-    if (goals.length > 0) {
-      const rows = goals.map((g, i) => {
-        const scope = g.scope === "shared" ? "shared" : "individual";
-        return {
-          scope,
-          owner_user_id: scope === "individual" ? user.id : null,
-          household_id: scope === "shared" ? householdId : null,
-          name: g.name ?? "",
-          target_amount: g.targetAmount ?? 0,
-          saved_amount: g.savedAmount ?? 0,
-          start_date: g.startDate ?? null,
-          target_date: g.targetDate ?? null,
-          monthly_contribution: g.monthlyContribution ?? 0,
-          splits: g.splits ?? null,
-          where_label: g.whereLabel ?? "",
-          linked_account_id: g.linkedAccountId ?? null,
-          linked_pool_id: g.linkedPoolId ?? null,
-          linked_fund_id: g.linkedFundId ?? null,
-          sort_order: g.sortOrder ?? i,
-          updated_at: new Date().toISOString(),
-        };
-      });
-      const { error } = await supabase.from("savings_goals").insert(rows);
-      if (error) {
-        console.error("[api/savings] goals upsert failed", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
+    if (body.goals !== undefined) {
+      await saveGoalsConfig(supabase, user.id, householdId, body.goals, body.deletedGoalIds);
     }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to save";
+    const status = e instanceof SaveConfigError ? e.status : 500;
+    console.error("[api/savings] PUT failed", msg);
+    return NextResponse.json({ error: msg }, { status });
   }
 
   console.info("[api/savings] PUT ok", {
