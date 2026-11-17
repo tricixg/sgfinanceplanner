@@ -53,7 +53,6 @@ export type AppDataContextValue = {
     ma: number;
     note?: string;
     creditedOn?: string | null;
-    creditedTime?: string | null;
   }) => Promise<void>;
   deleteCpfContribution: (id: string) => Promise<void>;
   /** Logged CPF OA withdrawals/credits and cash-paid BTO bills, newest first. */

@@ -56,7 +56,6 @@ export async function GET() {
     .eq("user_id", partnerId)
     .not("bto_stage", "is", null)
     .order("txn_date", { ascending: false })
-    .order("txn_time", { ascending: false, nullsFirst: false })
     .limit(500);
   if (error) {
     console.error("[api/household/partner-bto-payments] query failed", error.message);

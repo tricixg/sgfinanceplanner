@@ -8,8 +8,6 @@ export type CpfContribution = {
   note: string;
   /** Date the contribution was credited (YYYY-MM-DD, SGT); null for entries logged before migration 065. */
   creditedOn: string | null;
-  /** Time it was credited (HH:mm:ss, SGT); null when not recorded. */
-  creditedTime: string | null;
   createdAt: string;
 };
 
@@ -32,8 +30,6 @@ export type CpfTxnCategory =
 export type CpfTransaction = {
   id: string;
   txnDate: string;
-  /** Time of day (HH:mm:ss, SGT); null for rows logged before migration 065. */
-  txnTime: string | null;
   direction: CpfTxnDirection;
   fundingSource: CpfFundingSource;
   amount: number;
@@ -73,28 +69,6 @@ export const CPF_BTO_STAGE_LABEL: Record<CpfBtoStage, string> = {
   keys: "Key collection",
   mortgage: "Mortgage",
 };
-
-/** "17 Nov 2026, 3:42 pm" (or just the date when no time was recorded). */
-export function formatCpfDateTime(ymd: string, hms: string | null): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-  if (!hms) return date;
-  const [hh, mm] = hms.split(":").map(Number);
-  const h12 = hh % 12 === 0 ? 12 : hh % 12;
-  return `${date}, ${h12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "am" : "pm"}`;
-}
-
-/** Splits a datetime-local value ("YYYY-MM-DDTHH:mm") into SGT date and HH:mm:ss. */
-export function splitDateTimeInput(v: string): { date: string; time: string } | null {
-  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(:\d{2})?$/.exec(v.trim());
-  if (!m) return null;
-  return { date: m[1]!, time: `${m[2]}${m[3] ?? ":00"}` };
-}
 
 export function isCpfTxnCategory(v: unknown): v is CpfTxnCategory {
   return typeof v === "string" && v in CPF_TXN_CATEGORIES;

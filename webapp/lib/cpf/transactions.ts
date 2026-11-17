@@ -14,7 +14,6 @@ export function mapCpfTransaction(row: Record<string, unknown>): CpfTransaction 
   return {
     id: String(row.id),
     txnDate: String(row.txn_date).slice(0, 10),
-    txnTime: row.txn_time ? String(row.txn_time).slice(0, 8) : null,
     direction: row.direction === "credit" ? "credit" : "debit",
     fundingSource: row.funding_source === "cash" ? "cash" : "cpf_oa",
     amount: Number(row.amount ?? 0),
@@ -35,7 +34,6 @@ export async function listCpfTransactions(
     .select("*")
     .eq("user_id", userId)
     .order("txn_date", { ascending: false })
-    .order("txn_time", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
@@ -44,8 +42,6 @@ export async function listCpfTransactions(
 
 export type AddCpfTransactionInput = {
   txnDate: string;
-  /** HH:mm or HH:mm:ss (SGT). Optional for older clients. */
-  txnTime?: string | null;
   category: CpfTxnCategory;
   amount: number;
   fundingSource?: CpfFundingSource;
@@ -64,11 +60,6 @@ export function normalizeCpfTransactionInput(input: AddCpfTransactionInput) {
   const amount = Math.round(Number(input.amount) * 100) / 100;
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount must be above $0");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.txnDate ?? "")) throw new Error("Date must be YYYY-MM-DD");
-  let txnTime: string | null = null;
-  if (input.txnTime) {
-    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(input.txnTime)) throw new Error("Time must be HH:mm");
-    txnTime = input.txnTime.length === 5 ? `${input.txnTime}:00` : input.txnTime;
-  }
 
   let btoStage: CpfBtoStage | null = null;
   if (meta.stages.length > 0) {
@@ -89,7 +80,6 @@ export function normalizeCpfTransactionInput(input: AddCpfTransactionInput) {
   }
   return {
     txn_date: input.txnDate,
-    txn_time: txnTime,
     direction: meta.direction,
     funding_source: fundingSource,
     amount,

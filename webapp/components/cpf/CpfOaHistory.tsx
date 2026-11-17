@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { CpfContribution, CpfTransaction } from "@/lib/cpf/types";
-import { CPF_BTO_STAGE_LABEL, CPF_TXN_CATEGORIES, cpfTxnOaDelta, formatCpfDateTime } from "@/lib/cpf/types";
+import { CPF_BTO_STAGE_LABEL, CPF_TXN_CATEGORIES, cpfTxnOaDelta } from "@/lib/cpf/types";
 import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 
 type Filter = "all" | "contrib" | "out" | "in" | "bto";
@@ -14,7 +14,6 @@ type Entry = {
   id: string;
   kind: "contribution" | "transaction";
   sortDate: string;
-  sortTime: string;
   sortTie: string;
   dateLabel: string;
   title: string;
@@ -25,6 +24,16 @@ type Entry = {
   isCash: boolean;
   direction: "debit" | "credit";
 };
+
+function formatYmd(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 type Props = {
   contributions: CpfContribution[];
@@ -54,11 +63,8 @@ export function CpfOaHistory({
         id: c.id,
         kind: "contribution" as const,
         sortDate: c.creditedOn ?? c.month.slice(0, 10),
-        sortTime: c.creditedTime ?? "",
         sortTie: c.createdAt,
-        dateLabel: c.creditedOn
-          ? formatCpfDateTime(c.creditedOn, c.creditedTime)
-          : formatMonthLabel(c.month.slice(0, 7)),
+        dateLabel: c.creditedOn ? formatYmd(c.creditedOn) : formatMonthLabel(c.month.slice(0, 7)),
         title: "Monthly contribution",
         sub: `For ${formatMonthLabel(c.month.slice(0, 7))} · SA +${fmt2(c.sa)} · MediSave +${fmt2(c.ma)}`,
         oaDelta: c.oa,
@@ -72,9 +78,8 @@ export function CpfOaHistory({
         id: t.id,
         kind: "transaction" as const,
         sortDate: t.txnDate,
-        sortTime: t.txnTime ?? "",
         sortTie: t.createdAt,
-        dateLabel: formatCpfDateTime(t.txnDate, t.txnTime),
+        dateLabel: formatYmd(t.txnDate),
         title: CPF_TXN_CATEGORIES[t.category]?.label ?? t.category,
         sub: t.fundingSource === "cash" ? "Paid in cash · CPF OA not affected" : t.note,
         oaDelta: cpfTxnOaDelta(t),
@@ -84,12 +89,7 @@ export function CpfOaHistory({
         direction: t.direction,
       })),
     ];
-    list.sort(
-      (a, b) =>
-        b.sortDate.localeCompare(a.sortDate) ||
-        b.sortTime.localeCompare(a.sortTime) ||
-        b.sortTie.localeCompare(a.sortTie)
-    );
+    list.sort((a, b) => b.sortDate.localeCompare(a.sortDate) || b.sortTie.localeCompare(a.sortTie));
     // Running balance, counted back from today's OA (newest row first).
     let after = currentOa;
     return list.map((e) => {
@@ -134,7 +134,7 @@ export function CpfOaHistory({
           <table style={{ minWidth: "38rem" }}>
             <thead>
               <tr>
-                <th>Date &amp; time</th>
+                <th>Date</th>
                 <th>Item</th>
                 <th>Tag</th>
                 <th className="num">OA amount</th>

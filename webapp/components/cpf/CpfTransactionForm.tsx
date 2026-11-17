@@ -5,9 +5,9 @@ import { useContext, useState } from "react";
 import { DecimalInput } from "@/components/DecimalInput";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { AppDataContext } from "@/contexts/app-data-contexts";
-import { CPF_TXN_CATEGORIES, splitDateTimeInput, type CpfTxnCategory } from "@/lib/cpf/types";
+import { CPF_TXN_CATEGORIES, type CpfTxnCategory } from "@/lib/cpf/types";
 import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
-import { sgtNowInputDateTime, sgtTodayYmd } from "@/lib/time/sgt";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 type Direction = "out" | "in";
 type FormCategory = "contribution" | Extract<CpfTxnCategory, "refund" | "other_credit" | "other_withdrawal">;
@@ -29,7 +29,7 @@ export function CpfTransactionForm() {
   const [direction, setDirection] = useState<Direction>("in");
   const [category, setCategory] = useState<FormCategory>("contribution");
   const [amount, setAmount] = useState(0);
-  const [when, setWhen] = useState(() => sgtNowInputDateTime());
+  const [txnDate, setTxnDate] = useState(() => sgtTodayYmd());
   const [note, setNote] = useState("");
   const [month, setMonth] = useState(() => sgtTodayYmd().slice(0, 7));
   const [oa, setOa] = useState(0);
@@ -51,11 +51,6 @@ export function CpfTransactionForm() {
     if (!appData) return;
     setError("");
     setDone("");
-    const at = splitDateTimeInput(when);
-    if (!at) {
-      setError("Pick a date and time");
-      return;
-    }
     setSaving(true);
     try {
       if (category === "contribution") {
@@ -66,8 +61,7 @@ export function CpfTransactionForm() {
           sa,
           ma,
           note: note.trim() || undefined,
-          creditedOn: at.date,
-          creditedTime: at.time,
+          creditedOn: txnDate,
         });
         setDone(`Logged ${formatMonthLabel(month)} contribution · ${fmt2(oa + sa + ma)}`);
         setOa(0);
@@ -75,12 +69,12 @@ export function CpfTransactionForm() {
         setMa(0);
       } else {
         if (amount <= 0) throw new Error("Enter an amount above $0");
-        await appData.addCpfTransaction({ txnDate: at.date, txnTime: at.time, category, amount, note });
+        await appData.addCpfTransaction({ txnDate, category, amount, note });
         setDone(`Logged ${categoryLabel(category).toLowerCase()} · ${fmt2(amount)}`);
         setAmount(0);
       }
       setNote("");
-      setWhen(sgtNowInputDateTime());
+      setTxnDate(sgtTodayYmd());
       console.info("[CpfTransactionForm] logged", { category });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to log");
@@ -151,8 +145,8 @@ export function CpfTransactionForm() {
         )}
 
         <label className="bto-field">
-          {isContribution ? "Credited on" : "Date & time"}
-          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          {isContribution ? "Credited on" : "Date"}
+          <input type="date" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} />
         </label>
 
         <label className="bto-field cpf-txn-note">

@@ -9,11 +9,10 @@ import {
   type CpfBtoStage,
   type CpfFundingSource,
   type CpfTxnCategory,
-  splitDateTimeInput,
 } from "@/lib/cpf/types";
 import type { BtoStageReconcile } from "@/lib/finance/bto-reconcile";
 import { fmt2 } from "@/lib/finance/helpers";
-import { sgtNowInputDateTime } from "@/lib/time/sgt";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 
 /** What can be logged at each of HDB's fixed payment stages. */
 export const BTO_STAGE_ITEMS: Record<CpfBtoStage, CpfTxnCategory[]> = {
@@ -70,7 +69,7 @@ export function BtoLogPaymentForm({
   const [source, setSource] = useState<CpfFundingSource>(() =>
     CPF_TXN_CATEGORIES[initialCategory].cashOnly ? "cash" : "cpf_oa"
   );
-  const [when, setWhen] = useState(() => sgtNowInputDateTime());
+  const [txnDate, setTxnDate] = useState(() => sgtTodayYmd());
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -99,16 +98,10 @@ export function BtoLogPaymentForm({
       setError("Enter an amount above $0");
       return;
     }
-    const at = splitDateTimeInput(when);
-    if (!at) {
-      setError("Pick a date and time");
-      return;
-    }
     setSaving(true);
     try {
       await appData.addCpfTransaction({
-        txnDate: at.date,
-        txnTime: at.time,
+        txnDate,
         category,
         amount,
         fundingSource: effectiveSource,
@@ -124,7 +117,6 @@ export function BtoLogPaymentForm({
       );
       setAmount(0);
       setNote("");
-      setWhen(sgtNowInputDateTime());
       console.info("[BtoLogPaymentForm] logged", { stage, category, source: effectiveSource });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to log payment");
@@ -182,8 +174,8 @@ export function BtoLogPaymentForm({
           <DecimalInput value={amount} onChange={setAmount} min={0} step={0.01} />
         </label>
         <label className="bto-field">
-          Date &amp; time
-          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          Date
+          <input type="date" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} />
         </label>
         <label className="bto-field">
           Paid from

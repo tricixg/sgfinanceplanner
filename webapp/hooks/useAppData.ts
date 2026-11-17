@@ -481,7 +481,6 @@ export function useAppDataProvider(enabled: boolean) {
       ma: number;
       note?: string;
       creditedOn?: string | null;
-      creditedTime?: string | null;
     }) => {
       const { res, data } = await fetchJson<{
         item?: CpfContribution;
@@ -540,10 +539,7 @@ export function useAppDataProvider(enabled: boolean) {
     const item = data.item;
     setCpfTransactions((list) =>
       [item, ...list].sort(
-        (a, b) =>
-          b.txnDate.localeCompare(a.txnDate) ||
-          (b.txnTime ?? "").localeCompare(a.txnTime ?? "") ||
-          b.createdAt.localeCompare(a.createdAt)
+        (a, b) => b.txnDate.localeCompare(a.txnDate) || b.createdAt.localeCompare(a.createdAt)
       )
     );
     if (typeof data.oa === "number") {

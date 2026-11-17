@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
     ma?: number;
     note?: string;
     creditedOn?: string;
-    creditedTime?: string;
   };
   try {
     body = await req.json();
@@ -61,7 +60,6 @@ export async function POST(req: NextRequest) {
       ma: Number(body.ma ?? 0),
       note: body.note,
       creditedOn: body.creditedOn ?? null,
-      creditedTime: body.creditedTime ?? null,
     });
     console.info("[api/cpf/contributions] POST ok", {
       userId: auth.user.id,

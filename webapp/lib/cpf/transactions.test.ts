@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { formatCpfDateTime, splitDateTimeInput } from "./types";
 import { normalizeCpfTransactionInput } from "./transactions";
 
 const base = { txnDate: "2026-11-17", amount: 2000 };
@@ -37,24 +36,5 @@ describe("normalizeCpfTransactionInput", () => {
   it("rejects bad amounts and dates", () => {
     expect(() => normalizeCpfTransactionInput({ ...base, amount: 0, category: "refund" })).toThrow();
     expect(() => normalizeCpfTransactionInput({ ...base, txnDate: "17/11/2026", category: "refund" })).toThrow();
-  });
-});
-
-describe("CPF date & time", () => {
-  it("stores the time as HH:mm:ss and rejects bad times", () => {
-    expect(normalizeCpfTransactionInput({ ...base, category: "refund", txnTime: "15:42" }).txn_time).toBe("15:42:00");
-    expect(normalizeCpfTransactionInput({ ...base, category: "refund" }).txn_time).toBeNull();
-    expect(() => normalizeCpfTransactionInput({ ...base, category: "refund", txnTime: "3pm" })).toThrow(/Time/);
-  });
-
-  it("splits a datetime-local value", () => {
-    expect(splitDateTimeInput("2026-11-17T15:42")).toEqual({ date: "2026-11-17", time: "15:42:00" });
-    expect(splitDateTimeInput("2026-11-17")).toBeNull();
-  });
-
-  it("formats date with optional time", () => {
-    expect(formatCpfDateTime("2026-11-17", "15:42:00")).toBe("17 Nov 2026, 3:42 pm");
-    expect(formatCpfDateTime("2026-11-17", "00:05:00")).toBe("17 Nov 2026, 12:05 am");
-    expect(formatCpfDateTime("2026-11-17", null)).toBe("17 Nov 2026");
   });
 });

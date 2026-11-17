@@ -34,7 +34,6 @@ function row(p: Partial<CpfTransaction> & Pick<CpfTransaction, "category" | "amo
   return {
     id: String(++seq),
     txnDate: "2027-01-10",
-    txnTime: null,
     direction: p.category === "housing_grant" ? "credit" : "debit",
     fundingSource: "cpf_oa",
     btoStage: "afl",

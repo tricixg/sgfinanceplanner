@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
     const supabase = await createAuthedSupabaseClient();
     const result = await addCpfTransaction(supabase, auth.user.id, {
       txnDate: String(body.txnDate ?? ""),
-      txnTime: body.txnTime ?? null,
       category: body.category as AddCpfTransactionInput["category"],
       amount: Number(body.amount ?? 0),
       fundingSource: body.fundingSource,
