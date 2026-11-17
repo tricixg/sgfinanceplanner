@@ -155,3 +155,43 @@ export async function deleteCpfTransaction(
   console.info("[cpf/transactions] deleted", { userId, id, delta });
   return { oa };
 }
+
+/**
+ * Edits a transaction in place, then moves the OA balance by the difference
+ * between the old and new effect (e.g. CPF $1,000 → cash: OA goes back up $1,000).
+ */
+export async function updateCpfTransaction(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  input: AddCpfTransactionInput
+): Promise<{ transaction: CpfTransaction; oa: number }> {
+  const fields = normalizeCpfTransactionInput(input);
+  const { data: oldRow, error: readErr } = await supabase
+    .from("cpf_transactions")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (readErr || !oldRow) throw new Error(readErr?.message ?? "Transaction not found");
+
+  const { data: row, error } = await supabase
+    .from("cpf_transactions")
+    .update(fields)
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  const transaction = mapCpfTransaction(row);
+
+  const diff = cpfTxnOaDelta(transaction) - cpfTxnOaDelta(mapCpfTransaction(oldRow));
+  const current = await loadFinanceProfile(supabase, userId);
+  let oa = current.oa;
+  if (diff !== 0) {
+    const updated = await saveFinanceProfile(supabase, userId, { oa: Math.max(0, current.oa + diff) });
+    oa = updated.oa;
+  }
+  console.info("[cpf/transactions] updated", { userId, id, diff });
+  return { transaction, oa };
+}

@@ -34,9 +34,6 @@ export function TabCPF({ state: S, setState }: Props) {
     : simulateCPF(S, growth, sgtTodayYmd());
   const cpfNow = S.oa + S.sa + S.ma;
 
-  const [historyMsg, setHistoryMsg] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
   const startEdit = () => {
     setCpfDraft({ oa: S.oa, sa: S.sa, ma: S.ma });
     setEditing(true);
@@ -63,34 +60,6 @@ export function TabCPF({ state: S, setState }: Props) {
   const patchCpfDraft = (key: "oa" | "sa" | "ma", val: number) => {
     setCpfDraft((d) => ({ ...d, [key]: val }));
     console.info("[TabCPF] draft CPF balance", key, val);
-  };
-
-  const removeContribution = async (id: string) => {
-    if (!appData) return;
-    setDeletingId(id);
-    setHistoryMsg("");
-    try {
-      await appData.deleteCpfContribution(id);
-      console.info("[TabCPF] contribution deleted", { id });
-    } catch (e) {
-      setHistoryMsg(e instanceof Error ? e.message : "Failed to delete contribution");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const removeTransaction = async (id: string) => {
-    if (!appData) return;
-    setDeletingId(id);
-    setHistoryMsg("");
-    try {
-      await appData.deleteCpfTransaction(id);
-      console.info("[TabCPF] transaction deleted", { id });
-    } catch (e) {
-      setHistoryMsg(e instanceof Error ? e.message : "Failed to delete transaction");
-    } finally {
-      setDeletingId(null);
-    }
   };
 
   const chartData = {
@@ -215,11 +184,7 @@ export function TabCPF({ state: S, setState }: Props) {
             contributions={contributions}
             transactions={appData.cpfTransactions}
             currentOa={S.oa}
-            deletingId={deletingId}
-            onDeleteContribution={(id) => void removeContribution(id)}
-            onDeleteTransaction={(id) => void removeTransaction(id)}
           />
-          {historyMsg ? <p className="pin-error">{historyMsg}</p> : null}
         </>
       ) : null}
 

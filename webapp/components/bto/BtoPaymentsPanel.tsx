@@ -1,9 +1,9 @@
 "use client";
 
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { BtoLogPaymentForm, BTO_STAGE_ITEMS } from "@/components/bto/BtoLogPaymentForm";
+import { CpfEntryEditModal } from "@/components/cpf/CpfEntryEditModal";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { AppDataContext } from "@/contexts/app-data-contexts";
 import { CPF_BTO_STAGE_LABEL, CPF_TXN_CATEGORIES, type CpfBtoStage, type CpfTxnCategory } from "@/lib/cpf/types";
 import type { BtoPaymentRow, BtoReconcileStatus, BtoStageReconcile } from "@/lib/finance/bto-reconcile";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
@@ -54,11 +54,9 @@ export function BtoPaymentsPanel({
   paired,
   tenureMonths,
 }: Props) {
-  const appData = useContext(AppDataContext);
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [logTarget, setLogTarget] = useState<LogTarget | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState("");
+  const [editing, setEditing] = useState<BtoPaymentRow | null>(null);
 
   const openLog = (stage: CpfBtoStage, category?: CpfTxnCategory, amount?: number) => {
     setLogTarget({ stage, category: category ?? BTO_STAGE_ITEMS[stage][0]!, amount, key: Date.now() });
@@ -66,20 +64,6 @@ export function BtoPaymentsPanel({
       document.getElementById("bto-log")?.scrollIntoView({ behavior: "smooth", block: "center" })
     );
     console.info("[BtoPaymentsPanel] open log form", { stage, category });
-  };
-
-  const removeRow = async (id: string) => {
-    if (!appData) return;
-    setDeletingId(id);
-    setDeleteError("");
-    try {
-      await appData.deleteCpfTransaction(id);
-      console.info("[BtoPaymentsPanel] payment deleted", { id });
-    } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : "Failed to delete payment");
-    } finally {
-      setDeletingId(null);
-    }
   };
 
   const upfront = (["booking", "afl", "keys"] as const).map((s) => reconcile[s]);
@@ -311,7 +295,18 @@ export function BtoPaymentsPanel({
             </thead>
             <tbody>
               {shown.map((r) => (
-                <tr key={`${r.owner}-${r.id}`}>
+                <tr
+                  key={`${r.owner}-${r.id}`}
+                  className={r.owner === "self" ? "cpf-row-click" : ""}
+                  onClick={() => r.owner === "self" && setEditing(r)}
+                  onKeyDown={(ev) => {
+                    if (r.owner === "self" && (ev.key === "Enter" || ev.key === " ")) {
+                      ev.preventDefault();
+                      setEditing(r);
+                    }
+                  }}
+                  tabIndex={r.owner === "self" ? 0 : undefined}
+                >
                   <td>{formatYmd(r.txnDate)}</td>
                   <td>{r.btoStage ? CPF_BTO_STAGE_LABEL[r.btoStage] : "—"}</td>
                   <td>
@@ -334,14 +329,7 @@ export function BtoPaymentsPanel({
                   </td>
                   <td>
                     {r.owner === "self" ? (
-                      <button
-                        type="button"
-                        className="btn ghost sm"
-                        disabled={deletingId === r.id}
-                        onClick={() => void removeRow(r.id)}
-                      >
-                        {deletingId === r.id ? "…" : "Delete"}
-                      </button>
+                      <span className="cpf-row-edit">Edit</span>
                     ) : (
                       <span className="cpf-txn-sub">Partner&rsquo;s</span>
                     )}
@@ -359,11 +347,16 @@ export function BtoPaymentsPanel({
           </table>
         )}
       </div>
-      {deleteError ? <p className="pin-error">{deleteError}</p> : null}
       <p className="ui-hint">
-        Deleting a payment reverses its effect on your CPF OA. Your partner deletes their own
-        payments from their account.
+        Tap one of your payments to edit or delete it; your CPF OA adjusts to match. Your partner
+        edits their own payments from their account.
       </p>
+      {editing && (
+        <CpfEntryEditModal
+          target={{ kind: "transaction", item: editing }}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </>
   );
 }

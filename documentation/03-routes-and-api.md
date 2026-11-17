@@ -74,9 +74,9 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 | Method | Path | Handler | Primary lib |
 |--------|------|---------|-------------|
 | GET, POST | `/api/cpf/contributions` | `app/api/cpf/contributions/route.ts` | `lib/cpf/contributions` |
-| DELETE | `/api/cpf/contributions/[id]` | `app/api/cpf/contributions/[id]/route.ts` | same |
+| PATCH, DELETE | `/api/cpf/contributions/[id]` | `app/api/cpf/contributions/[id]/route.ts` | same |
 | GET, POST | `/api/cpf/transactions` | `app/api/cpf/transactions/route.ts` | `lib/cpf/transactions` |
-| DELETE | `/api/cpf/transactions/[id]` | `app/api/cpf/transactions/[id]/route.ts` | same |
+| PATCH, DELETE | `/api/cpf/transactions/[id]` | `app/api/cpf/transactions/[id]/route.ts` | same |
 
 ### Budget, loans, income
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { CpfEntryEditModal, type CpfEditTarget } from "@/components/cpf/CpfEntryEditModal";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { CpfContribution, CpfTransaction } from "@/lib/cpf/types";
 import { CPF_BTO_STAGE_LABEL, CPF_TXN_CATEGORIES, cpfTxnOaDelta } from "@/lib/cpf/types";
@@ -40,9 +41,6 @@ type Props = {
   transactions: CpfTransaction[];
   /** Today's OA balance — the running "OA after" column counts back from it. */
   currentOa: number;
-  deletingId: string | null;
-  onDeleteContribution: (id: string) => void;
-  onDeleteTransaction: (id: string) => void;
 };
 
 /** Contributions and OA transactions merged into one newest-first ledger. */
@@ -50,11 +48,20 @@ export function CpfOaHistory({
   contributions,
   transactions,
   currentOa,
-  deletingId,
-  onDeleteContribution,
-  onDeleteTransaction,
 }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [editing, setEditing] = useState<CpfEditTarget | null>(null);
+
+  const openEdit = (e: { kind: "contribution" | "transaction"; id: string; stage: CpfTransaction["btoStage"] }) => {
+    if (e.stage) return; // BTO payments are edited on the BTO planner
+    if (e.kind === "contribution") {
+      const item = contributions.find((c) => c.id === e.id);
+      if (item) setEditing({ kind: "contribution", item });
+    } else {
+      const item = transactions.find((t) => t.id === e.id);
+      if (item) setEditing({ kind: "transaction", item });
+    }
+  };
 
   const entries = useMemo(() => {
     const list: Entry[] = [
@@ -144,7 +151,19 @@ export function CpfOaHistory({
             </thead>
             <tbody>
               {shown.map((e) => (
-                <tr key={e.key}>
+                <tr
+                  key={e.key}
+                  className={e.stage ? "" : "cpf-row-click"}
+                  onClick={() => openEdit(e)}
+                  onKeyDown={(ev) => {
+                    if (!e.stage && (ev.key === "Enter" || ev.key === " ")) {
+                      ev.preventDefault();
+                      openEdit(e);
+                    }
+                  }}
+                  tabIndex={e.stage ? undefined : 0}
+                  aria-label={e.stage ? undefined : `Edit ${e.title}, ${e.dateLabel}`}
+                >
                   <td style={{ whiteSpace: "nowrap" }}>{e.dateLabel}</td>
                   <td>
                     <b>{e.title}</b>
@@ -180,16 +199,7 @@ export function CpfOaHistory({
                         Manage on BTO Planner
                       </Link>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn ghost sm"
-                        disabled={deletingId === e.id}
-                        onClick={() =>
-                          e.kind === "contribution" ? onDeleteContribution(e.id) : onDeleteTransaction(e.id)
-                        }
-                      >
-                        {deletingId === e.id ? "…" : "Delete"}
-                      </button>
+                      <span className="cpf-row-edit">Edit</span>
                     )}
                   </td>
                 </tr>
@@ -206,10 +216,11 @@ export function CpfOaHistory({
         )}
       </div>
       <p className="ui-hint">
-        Deleting a row reverses its effect on your balance. BTO payments are logged and deleted on
-        the BTO Planner. &ldquo;OA after&rdquo; counts back from
+        Tap a row to edit or delete it; your balance adjusts to match. BTO payments are edited on the
+        BTO Planner. &ldquo;OA after&rdquo; counts back from
         today&rsquo;s balance, so it&rsquo;s only exact if every OA change since is logged here.
       </p>
+      {editing && <CpfEntryEditModal target={editing} onClose={() => setEditing(null)} />}
     </>
   );
 }

@@ -7,6 +7,7 @@ import type { DashboardState, NetWorthSnapshot, PortfolioSnapshot } from "@/lib/
 import type { FinanceProfile } from "@/lib/profile/load";
 import type { CpfContribution, CpfTransaction } from "@/lib/cpf/types";
 import type { AddCpfTransactionInput } from "@/lib/cpf/transactions";
+import type { AddCpfContributionInput } from "@/lib/cpf/contributions";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { resolveBudgetMonth } from "@/lib/budget/monthly";
@@ -565,6 +566,55 @@ export function useAppDataProvider(enabled: boolean) {
     console.info("[useAppData] cpf transaction deleted", { id });
   }, []);
 
+  const updateCpfTransaction = useCallback(async (id: string, input: AddCpfTransactionInput) => {
+    const { res, data } = await fetchJson<{ item?: CpfTransaction; oa?: number; error?: string }>(
+      `/api/cpf/transactions/${id}`,
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      }
+    );
+    if (!res.ok || !data.item) throw new Error(data.error ?? "Failed to update CPF transaction");
+    const item = data.item;
+    setCpfTransactions((list) =>
+      list
+        .map((t) => (t.id === id ? item : t))
+        .sort((a, b) => b.txnDate.localeCompare(a.txnDate) || b.createdAt.localeCompare(a.createdAt))
+    );
+    if (typeof data.oa === "number") {
+      const oa = data.oa;
+      setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, oa } } : pb));
+    }
+    dispatchDomainEvent(["cpf:changed", "profile:changed"]);
+    console.info("[useAppData] cpf transaction updated", { id });
+  }, []);
+
+  const updateCpfContribution = useCallback(async (id: string, input: AddCpfContributionInput) => {
+    const { res, data } = await fetchJson<{
+      item?: CpfContribution;
+      profile?: { oa: number; sa: number; ma: number };
+      error?: string;
+    }>(`/api/cpf/contributions/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok || !data.item) throw new Error(data.error ?? "Failed to update CPF contribution");
+    const item = data.item;
+    setCpfContributions((list) =>
+      list.map((c) => (c.id === id ? item : c)).sort((a, b) => b.month.localeCompare(a.month))
+    );
+    if (data.profile) {
+      const profile = data.profile;
+      setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, ...profile } } : pb));
+    }
+    dispatchDomainEvent(["cpf:changed", "profile:changed"]);
+    console.info("[useAppData] cpf contribution updated", { id });
+  }, []);
+
   const savePrefs = useCallback(async (nextPrefs: DashboardState["prefs"]) => {
     const { res } = await fetchJson("/api/state", {
       method: "PUT",
@@ -710,10 +760,12 @@ export function useAppDataProvider(enabled: boolean) {
     reloadCpfContributions: loadCpfContributions,
     addCpfContribution,
     deleteCpfContribution,
+    updateCpfContribution,
     cpfTransactions,
     reloadCpfTransactions: loadCpfTransactions,
     addCpfTransaction,
     deleteCpfTransaction,
+    updateCpfTransaction,
     cardsApi: configured
       ? { cards: creditCards, saveCards, configured: true as const }
       : undefined,
