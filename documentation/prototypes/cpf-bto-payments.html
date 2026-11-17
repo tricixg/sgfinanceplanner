@@ -211,14 +211,14 @@ tr.flash td { animation: flash 1.6s ease-out; }
   <section id="view-cpf" class="view">
     <div class="stats">
       <div class="stat accent"><div class="lbl">Ordinary Account · now</div><div class="val" id="oaNow"></div><div class="note">Auto-adjusted by every CPF row</div></div>
-      <div class="stat"><div class="lbl">Special Account</div><div class="val num">$31,280.00</div></div>
-      <div class="stat"><div class="lbl">MediSave</div><div class="val num">$27,940.00</div></div>
+      <div class="stat"><div class="lbl">Special Account</div><div class="val num" id="saNow"></div></div>
+      <div class="stat"><div class="lbl">MediSave</div><div class="val num" id="maNow"></div></div>
       <div class="stat"><div class="lbl">OA used for BTO so far</div><div class="val" id="oaBtoUsed"></div><div class="note" id="oaBtoUsedNote"></div></div>
     </div>
 
     <div class="card">
       <div class="section-head" style="margin-bottom:12px">
-        <h2>Log OA transaction <span class="new-badge">New</span></h2>
+        <h2 id="logCard">Log CPF transaction <span class="new-badge">Updated</span></h2>
         <div class="dir" role="group" aria-label="Direction">
           <button type="button" id="dirOut" class="on-out">Money out</button>
           <button type="button" id="dirIn">Money in</button>
@@ -226,11 +226,14 @@ tr.flash td { animation: flash 1.6s ease-out; }
       </div>
       <form id="cpfForm" class="form-grid" autocomplete="off">
         <label class="field">Category<select id="fCat"></select></label>
-        <label class="field">BTO stage<select id="fStage"></select></label>
-        <label class="field">Amount<input id="fAmt" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required></label>
-        <label class="field">Date<input id="fDate" type="date" required></label>
-        <label class="field">Paid from<select id="fSrc"><option value="cpf_oa">CPF OA</option><option value="cash">Cash</option></select></label>
-        <label class="field">CPF reference<input id="fRef" type="text" placeholder="From your CPF statement"></label>
+        <label class="field" data-grp="contrib">Month<input id="fMonth" type="month"></label>
+        <label class="field" data-grp="contrib">OA<input id="fOa" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+        <label class="field" data-grp="contrib">SA<input id="fSa" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+        <label class="field" data-grp="contrib">MediSave<input id="fMa" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+        <label class="field" data-grp="txn">BTO stage<select id="fStage"></select></label>
+        <label class="field" data-grp="txn">Amount<input id="fAmt" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+        <label class="field" data-grp="txn">Date<input id="fDate" type="date"></label>
+        <label class="field" data-grp="txn">Paid from<select id="fSrc"><option value="cpf_oa">CPF OA</option><option value="cash">Cash</option></select></label>
         <label class="field wide">Note<input id="fNote" type="text" placeholder="Optional"></label>
       </form>
       <div class="form-foot">
@@ -245,11 +248,11 @@ tr.flash td { animation: flash 1.6s ease-out; }
     </div>
     <div class="card table-scroll">
       <table>
-        <thead><tr><th>Date</th><th>Item</th><th>Tag</th><th>Ref</th><th class="num">Amount</th><th class="num">OA after</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Item</th><th>Tag</th><th class="num">OA amount</th><th class="num">OA after</th><th></th></tr></thead>
         <tbody id="cpfRows"></tbody>
       </table>
     </div>
-    <p class="hint">Monthly contributions keep their existing form and show here as OA credits. Your partner's rows stay private to their own CPF page; only their BTO-tagged rows are shared, on the BTO planner.</p>
+    <p class="hint">Monthly contributions are logged from the same form (Money in) and still add to OA, SA and MediSave, one entry per month. Your partner's rows stay private to their own CPF page; only their BTO-tagged rows are shared, on the BTO planner.</p>
   </section>
 
   <!-- ========== BTO PLANNER ========== -->
@@ -264,28 +267,9 @@ tr.flash td { animation: flash 1.6s ease-out; }
 
     <div class="section-head" id="payments">
       <h2>Payments · reconciled against plan <span class="new-badge">New</span></h2>
-      <button type="button" class="btn" id="openLog">+ Log BTO payment</button>
+      <button type="button" class="btn ghost" id="openLog">Log a payment on CPF Outlook →</button>
     </div>
-
-    <div class="card" id="btoLogCard" hidden>
-      <div class="section-head" style="margin-bottom:12px">
-        <h2 style="font-size:17px">Log BTO payment</h2>
-        <button type="button" class="btn link" id="closeLog">Cancel</button>
-      </div>
-      <form class="form-grid" id="btoForm" autocomplete="off">
-        <label class="field">Stage<select id="bStage"></select></label>
-        <label class="field">Item<select id="bItem"></select></label>
-        <label class="field">Paid by<select id="bWho"><option value="self">You</option><option value="partner" disabled>Partner (logs from their own account)</option></select></label>
-        <label class="field">Paid from<select id="bSrc"><option value="cpf_oa">CPF OA</option><option value="cash">Cash</option></select></label>
-        <label class="field">Amount<input id="bAmt" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
-        <label class="field">Date<input id="bDate" type="date" required></label>
-        <label class="field wide">CPF reference<input id="bRef" type="text" placeholder="Optional"></label>
-      </form>
-      <div class="form-foot">
-        <p class="hint" id="btoFormHint"></p>
-        <button type="button" class="btn" id="btoLog">Log payment</button>
-      </div>
-    </div>
+    <p class="hint" style="margin-top:-12px">Payments are logged in one place, the CPF Outlook form. The BTO stages here are HDB's four fixed payment points, with amounts taken from your plan. Your partner logs their own payments from their account.</p>
 
     <div class="card paid-strip">
       <div>
@@ -308,7 +292,7 @@ tr.flash td { animation: flash 1.6s ease-out; }
     </div>
     <div class="card table-scroll">
       <table>
-        <thead><tr><th>Date</th><th>Stage</th><th>Item</th><th>Who</th><th>Source</th><th>Ref</th><th class="num">Amount</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Stage</th><th>Item</th><th>Who</th><th>Source</th><th class="num">Amount</th><th></th></tr></thead>
         <tbody id="btoRows"></tbody>
       </table>
     </div>
@@ -338,6 +322,7 @@ tr.flash td { animation: flash 1.6s ease-out; }
     bto_loan_shortfall: { label: "Loan shortfall top-up", dir: "debit", stage: "keys",   bto: true },
     bto_mortgage:       { label: "Mortgage instalment", dir: "debit",  stage: "mortgage", bto: true },
     other_withdrawal:   { label: "Other withdrawal",    dir: "debit",  stage: null,      bto: false },
+    contribution:       { label: "Monthly contribution", dir: "credit", stage: null,     bto: false, contrib: true },
     housing_grant:      { label: "Housing grant (EHG)", dir: "credit", stage: "afl",     bto: true },
     refund:             { label: "Refund to OA",        dir: "credit", stage: null,      bto: false },
     other_credit:       { label: "Other credit",        dir: "credit", stage: null,      bto: false }
@@ -348,12 +333,15 @@ tr.flash td { animation: flash 1.6s ease-out; }
     keys: ["bto_downpayment", "bto_loan_shortfall"],
     mortgage: ["bto_mortgage"]
   };
-  var OA_START = 48600; // OA on 1 Jun 2026, before the rows below
+  var OA_START = 48600, SA_START = 29360, MA_START = 25380; // balances on 1 Jun 2026, before the rows below
 
   // ---------- Example ledger ----------
   var seq = 100;
+  function makeContribution(m, oa, sa, ma) {
+    return { id: "c" + m, kind: "contribution", owner: "self", date: m + "-28", direction: "credit", source: "cpf_oa", amount: oa, oa: oa, sa: sa, ma: ma, category: "contribution", stage: null };
+  }
   var contributions = ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"].map(function (m) {
-    return { id: "c" + m, kind: "contribution", owner: "self", date: m + "-28", direction: "credit", source: "cpf_oa", amount: 1472, category: "contribution", stage: null, ref: "CON", note: "" };
+    return makeContribution(m, 1472, 384, 512);
   });
   var txns = [
     { id: "t1", owner: "self",    date: "2026-06-14", direction: "debit",  source: "cash",   amount: 2000,  category: "bto_option_fee",  stage: "booking", ref: "HDB-OPT-2231" },
@@ -450,13 +438,20 @@ tr.flash td { animation: flash 1.6s ease-out; }
   }
   function syncCategory() {
     var c = CAT[el("fCat").value];
+    document.querySelectorAll("[data-grp]").forEach(function (g) {
+      g.hidden = (g.dataset.grp === "contrib") !== Boolean(c.contrib);
+    });
+    if (c.contrib) {
+      el("cpfFormHint").textContent = "Adds to OA, SA and MediSave. One entry per month, same as today.";
+      return;
+    }
     var st = el("fStage");
     var stages = c.bto ? (c.stage === "afl" && el("fCat").value === "bto_downpayment" ? ["afl", "keys"] :
       el("fCat").value === "housing_grant" ? ["afl", "keys"] : [c.stage]) : [];
     st.innerHTML = c.bto
       ? stages.map(function (s) { return '<option value="' + s + '">' + STAGE_META[s].title + "</option>"; }).join("")
       : '<option value="">Not BTO</option>';
-    st.disabled = !c.bto;
+    st.disabled = stages.length < 2;
     var src = el("fSrc");
     src.querySelector('option[value="cash"]').disabled = !(c.bto && c.dir === "debit");
     if (src.value === "cash" && src.querySelector('option[value="cash"]').disabled) src.value = "cpf_oa";
@@ -491,6 +486,8 @@ tr.flash td { animation: flash 1.6s ease-out; }
     var bal = OA_START;
     rows.forEach(function (r) { if (r.source === "cpf_oa") bal += signed(r); r._after = r.source === "cpf_oa" ? bal : null; });
     el("oaNow").textContent = money(bal);
+    el("saNow").textContent = money(contributions.reduce(function (s, c) { return s + c.sa; }, SA_START));
+    el("maNow").textContent = money(contributions.reduce(function (s, c) { return s + c.ma; }, MA_START));
     var btoOut = txns.filter(function (r) { return r.owner === "self" && r.source === "cpf_oa" && r.direction === "debit" && CAT[r.category].bto; })
       .reduce(function (s, r) { return s + r.amount; }, 0);
     el("oaBtoUsed").textContent = money(btoOut);
@@ -515,11 +512,17 @@ tr.flash td { animation: flash 1.6s ease-out; }
         ? '<span class="muted">' + money(r.amount) + "</span>"
         : '<span class="' + (r.direction === "credit" ? "pos" : "neg") + '">' + (r.direction === "credit" ? "+" : "−") + money(r.amount) + "</span>";
       return '<tr class="' + (r.id === lastAdded ? "flash" : "") + '"><td>' + fmtDate(r.date) + "</td>" +
-        '<td><div class="item-main">' + esc(itemLabel(r)) + "</div>" + (r.source === "cash" ? '<div class="item-sub">Cash: OA not affected</div>' : "") + "</td>" +
-        "<td>" + tag + "</td><td class=\"muted\">" + esc(r.ref || "") + "</td>" +
+        '<td><div class="item-main">' + esc(r.kind === "contribution" ? "Contribution · " + fmtMonth(r.date) : itemLabel(r)) + "</div>" +
+        (r.source === "cash" ? '<div class="item-sub">Cash: OA not affected</div>' : "") +
+        (r.kind === "contribution" ? '<div class="item-sub">SA +' + money(r.sa) + " · MediSave +" + money(r.ma) + "</div>" : "") + "</td>" +
+        "<td>" + tag + "</td>" +
         '<td class="num">' + amt + '</td><td class="num">' + (r._after == null ? '<span class="muted">-</span>' : money(r._after)) + "</td>" +
-        "<td>" + (r.kind === "contribution" ? "" : '<button type="button" class="btn link" data-del="' + r.id + '">Delete</button>') + "</td></tr>";
-    }).join("") || '<tr><td colspan="7" class="muted">Nothing matches this filter.</td></tr>';
+        '<td><button type="button" class="btn link" data-del="' + r.id + '">Delete</button></td></tr>';
+    }).join("") || '<tr><td colspan="6" class="muted">Nothing matches this filter.</td></tr>';
+  }
+  function fmtMonth(ymd) {
+    var p = ymd.split("-").map(Number);
+    return new Date(Date.UTC(p[0], p[1] - 1, 1)).toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
   }
 
   // ---------- BTO Planner ----------
@@ -617,31 +620,20 @@ tr.flash td { animation: flash 1.6s ease-out; }
         '<td class="item-main">' + esc(itemLabel(r)) + "</td>" +
         '<td><span class="who ' + r.owner + '">' + (r.owner === "self" ? "You" : "Partner") + "</span></td>" +
         "<td>" + (r.source === "cash" ? '<span class="tag cash">Cash</span>' : '<span class="tag cpf">CPF OA</span>') + "</td>" +
-        '<td class="muted">' + esc(r.ref || "") + "</td>" +
         '<td class="num ' + (r.direction === "credit" ? "pos" : "neg") + '">' + (r.direction === "credit" ? "+" : "−") + money(r.amount) + "</td>" +
         "<td>" + (r.owner === "self" ? '<button type="button" class="btn link" data-del="' + r.id + '">Delete</button>' : '<span class="item-sub">Partner\'s row</span>') + "</td></tr>";
-    }).join("") || '<tr><td colspan="8" class="muted">Nothing matches this filter.</td></tr>';
+    }).join("") || '<tr><td colspan="7" class="muted">Nothing matches this filter.</td></tr>';
   }
 
-  // BTO log form
-  function fillBtoItems() {
-    var stage = el("bStage").value;
-    el("bItem").innerHTML = STAGE_ITEMS[stage].map(function (k) { return '<option value="' + k + '">' + CAT[k].label + "</option>"; }).join("");
-    prefillBto();
-  }
-  function prefillBto() {
-    var stage = el("bStage").value, cat = el("bItem").value;
-    var comp = reconcile()[stage].comps.filter(function (c) { return c.cat === cat; })[0];
-    var left = comp ? Math.max(0, comp.expected - comp.paid) : 0;
-    el("bAmt").value = left > 0 ? left.toFixed(2) : "";
-    el("btoFormHint").textContent = comp ? "Planner expects " + money(comp.expected) + " · " + money(left) + " left to log. Split it across rows if you and your partner share it." : "";
-  }
-  function openBtoLog(stage, cat) {
-    el("btoLogCard").hidden = false;
-    el("bStage").value = stage || "afl";
-    fillBtoItems();
-    if (cat) { el("bItem").value = cat; prefillBto(); }
-    el("bAmt").focus();
+  // BTO page buttons jump to the one CPF Outlook form, pre-filled.
+  function goLog(stage, cat) {
+    location.hash = "cpf";
+    setDir("debit");
+    el("fCat").value = cat || "bto_downpayment";
+    syncCategory();
+    if (stage && el("fStage").querySelector('option[value="' + stage + '"]')) { el("fStage").value = stage; prefillCpfAmount(); }
+    el("logCard").scrollIntoView({ behavior: "smooth", block: "start" });
+    el("fAmt").focus({ preventScroll: true });
   }
 
   function addTxn(t) {
@@ -683,49 +675,60 @@ tr.flash td { animation: flash 1.6s ease-out; }
   el("fCat").addEventListener("change", syncCategory);
   el("fStage").addEventListener("change", prefillCpfAmount);
   el("cpfLog").addEventListener("click", function () {
+    if (CAT[el("fCat").value].contrib) {
+      var m = el("fMonth").value;
+      var oa = parseFloat(el("fOa").value) || 0, sa = parseFloat(el("fSa").value) || 0, ma = parseFloat(el("fMa").value) || 0;
+      if (!m) { el("cpfFormHint").textContent = "Pick the month this contribution is for."; return; }
+      if (oa <= 0 && sa <= 0 && ma <= 0) { el("cpfFormHint").textContent = "Enter at least one non-zero contribution amount."; return; }
+      if (contributions.some(function (c) { return c.id === "c" + m; })) {
+        el("cpfFormHint").textContent = "Already logged a contribution for " + fmtMonth(m + "-01") + ". Delete it first to re-log.";
+        return;
+      }
+      var c = makeContribution(m, oa, sa, ma);
+      contributions.push(c);
+      lastAdded = c.id;
+      render();
+      toast("Logged " + fmtMonth(m + "-01") + " contribution · " + money(oa + sa + ma) + " total");
+      el("fOa").value = ""; el("fSa").value = ""; el("fMa").value = "";
+      return;
+    }
     var amt = parseFloat(el("fAmt").value);
     if (!(amt > 0) || !el("fDate").value) { el("cpfFormHint").textContent = "Enter an amount above $0 and a date."; return; }
     var cat = el("fCat").value;
     addTxn({ owner: "self", date: el("fDate").value, direction: CAT[cat].dir, source: el("fSrc").value, amount: amt, category: cat,
-      stage: CAT[cat].bto ? el("fStage").value : null, ref: el("fRef").value.trim() });
-    el("fRef").value = ""; el("fNote").value = "";
+      stage: CAT[cat].bto ? el("fStage").value : null });
+    el("fNote").value = "";
     prefillCpfAmount();
   });
-  el("openLog").addEventListener("click", function () { openBtoLog("afl"); });
-  el("closeLog").addEventListener("click", function () { el("btoLogCard").hidden = true; });
-  el("bStage").addEventListener("change", fillBtoItems);
-  el("bItem").addEventListener("change", prefillBto);
-  el("btoLog").addEventListener("click", function () {
-    var amt = parseFloat(el("bAmt").value);
-    if (!(amt > 0) || !el("bDate").value) { el("btoFormHint").textContent = "Enter an amount above $0 and a date."; return; }
-    addTxn({ owner: "self", date: el("bDate").value, direction: "debit", source: el("bSrc").value, amount: amt,
-      category: el("bItem").value, stage: el("bStage").value, ref: el("bRef").value.trim() });
-    el("bRef").value = "";
-    prefillBto();
-  });
+  el("openLog").addEventListener("click", function () { goLog("afl", "bto_downpayment"); });
   document.addEventListener("click", function (e) {
     var t = e.target.closest("[data-f],[data-bf],[data-del],[data-quick]");
     if (!t) return;
     if (t.dataset.f) { cpfFilter = t.dataset.f; renderCpf(); }
     else if (t.dataset.bf) { btoFilter = t.dataset.bf; renderBto(); }
     else if (t.dataset.del) {
-      var r = txns.filter(function (x) { return x.id === t.dataset.del; })[0];
-      txns = txns.filter(function (x) { return x.id !== t.dataset.del; });
+      var id = t.dataset.del;
+      var c = contributions.filter(function (x) { return x.id === id; })[0];
+      if (c) {
+        contributions = contributions.filter(function (x) { return x.id !== id; });
+        lastAdded = null; render();
+        toast("Deleted " + fmtMonth(c.date) + " contribution · balances reversed");
+        return;
+      }
+      var r = txns.filter(function (x) { return x.id === id; })[0];
+      txns = txns.filter(function (x) { return x.id !== id; });
       lastAdded = null; render();
       if (r) toast(r.source === "cash" ? "Deleted · OA unchanged" : "Deleted · " + (r.direction === "debit" ? money(r.amount) + " returned to OA" : money(r.amount) + " removed from OA"));
     } else if (t.dataset.quick) {
-      var p = t.dataset.quick.split("|"); openBtoLog(p[0], p[1]);
-      el("btoLogCard").scrollIntoView({ behavior: "smooth", block: "center" });
+      var p = t.dataset.quick.split("|"); goLog(p[0], p[1]);
     }
   });
 
   // ---------- Init ----------
-  el("bStage").innerHTML = Object.keys(STAGE_ITEMS).map(function (s) { return '<option value="' + s + '">' + STAGE_META[s].title + "</option>"; }).join("");
   el("fDate").value = "2026-11-17";
-  el("bDate").value = "2026-11-17";
+  el("fMonth").value = "2026-11";
   setDir("debit");
   el("fCat").value = "bto_legal_fee"; syncCategory();
-  fillBtoItems();
   render();
   showView();
 })();
