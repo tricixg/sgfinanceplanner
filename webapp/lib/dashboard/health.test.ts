@@ -154,4 +154,23 @@ describe("goalProgress", () => {
     expect(p.onTrack).toBeNull();
     expect(p.monthsLeft).toBeNull();
   });
+
+  it("does not call a goal on track before its start month", () => {
+    const p = goalProgress(goal({ startDate: "2027-01-01", savedAmount: 0 }), "2026-11");
+    expect(p.notStarted).toBe(true);
+    expect(p.startYm).toBe("2027-01");
+    expect(p.onTrack).toBeNull();
+    // Planned window Jan→May 2027 = 4 months.
+    expect(p.neededPerMonth).toBe(3000);
+  });
+
+  it("tracks normally once the start month arrives", () => {
+    const p = goalProgress(goal({ startDate: "2026-11-01" }), "2026-11");
+    expect(p.notStarted).toBe(false);
+    expect(p.onTrack).toBe(true);
+  });
+
+  it("passes through the planned monthly contribution", () => {
+    expect(goalProgress(goal({ monthlyContribution: 742 }), "2026-11").monthlyContribution).toBe(742);
+  });
 });

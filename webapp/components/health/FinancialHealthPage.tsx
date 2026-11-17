@@ -480,7 +480,9 @@ export function FinancialHealthPage({ state: S }: Props) {
                       }}
                     >
                       <span className="list-row-title">{g.name}</span>
-                      {g.onTrack == null ? null : (
+                      {g.notStarted && g.startYm ? (
+                        <span className="status-pill neutral">Starts {monthYear(g.startYm)}</span>
+                      ) : g.onTrack == null ? null : (
                         <span className={`status-pill ${g.onTrack ? "good" : "watch"}`}>
                           {g.progress >= 1 ? "Reached" : g.onTrack ? "On track" : "Behind"}
                         </span>
@@ -497,7 +499,9 @@ export function FinancialHealthPage({ state: S }: Props) {
                       <span>
                         {g.progress >= 1
                           ? "Complete"
-                          : g.neededPerMonth != null && g.targetYm
+                          : g.monthlyContribution > 0 && g.targetYm
+                            ? `${fmt(g.monthlyContribution)}/mo to ${monthYear(g.targetYm)}`
+                            : g.neededPerMonth != null && g.targetYm
                             ? `${fmt(g.neededPerMonth)}/mo to ${monthYear(g.targetYm)}`
                             : g.targetYm
                               ? `Due ${monthYear(g.targetYm)}`
