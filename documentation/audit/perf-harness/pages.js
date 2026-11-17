@@ -3,6 +3,7 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
+const zlib = require("zlib");
 
 const BASE = "http://localhost:3100";
 const cookieStr = fs.readFileSync(path.join(__dirname, "cookie.txt"), "utf8");
@@ -10,6 +11,21 @@ const [cName, ...rest] = cookieStr.split("=");
 const cValue = rest.join("=");
 const ROUTES = (process.env.ROUTES || "").split(",").filter(Boolean);
 const CPU = Number(process.env.CPU_THROTTLE || 4);
+const MOCK = "http://127.0.0.1:54321";
+
+const mockStats = async (reset) => (await fetch(`${MOCK}/__stats${reset ? "?reset=1" : ""}`)).json();
+
+// Gzipped size of the JS referenced by the page's own HTML (what the browser must load before
+// the page can run), as opposed to `jsKB`, which also counts route chunks fetched by prefetch.
+async function initialJsGzKB(html) {
+  const srcs = [...new Set([...html.matchAll(/<script[^>]+src="([^"]+\.js[^"]*)"/g)].map((m) => m[1]))];
+  let total = 0;
+  for (const src of srcs) {
+    const buf = Buffer.from(await (await fetch(new URL(src, BASE))).arrayBuffer());
+    total += zlib.gzipSync(buf, { level: 6 }).length;
+  }
+  return Math.round(total / 1024);
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -30,7 +46,9 @@ const CPU = Number(process.env.CPU_THROTTLE || 4);
       const r = reqs.get(e.requestId);
       if (r) { r.end = Date.now() - t0; r.bytes = e.encodedDataLength; }
     });
-    await page.goto(BASE + route, { waitUntil: "load" });
+    await mockStats(true);
+    const resp = await page.goto(BASE + route, { waitUntil: "load" });
+    const initialJsKB = await initialJsGzKB(await resp.text());
     // usable = no loading placeholders for 500ms and network quiet
     let usableAt = null;
     const deadline = Date.now() + 9000;
@@ -49,6 +67,8 @@ const CPU = Number(process.env.CPU_THROTTLE || 4);
       } else quietSince = null;
       await page.waitForTimeout(50);
     }
+    const stats = await mockStats(true);
+    const authCalls = stats.calls.filter((c) => c.path.startsWith("/auth/")).length;
     const nav = await page.evaluate(() => {
       const n = performance.getEntriesByType("navigation")[0];
       const fcp = performance.getEntriesByName("first-contentful-paint")[0];
@@ -72,6 +92,10 @@ const CPU = Number(process.env.CPU_THROTTLE || 4);
       apiRequests: api.length,
       firstApiStart: Math.min(...api.map((a) => a.start)),
       lastApiEnd: Math.max(...api.map((a) => a.end || 0)),
+      dataReadyMs: Math.max(...api.map((a) => a.end || 0)),
+      supabaseCalls: stats.calls.length,
+      authCalls,
+      initialJsGzKB: initialJsKB,
       jsCount: js.length,
       jsKB: Math.round(js.reduce((s, r) => s + r.bytes, 0) / 1024),
       cssKB: Math.round(css.reduce((s, r) => s + r.bytes, 0) / 1024),
@@ -82,11 +106,11 @@ const CPU = Number(process.env.CPU_THROTTLE || 4);
     await ctx.close();
   }
   await browser.close();
-  fs.writeFileSync(path.join(__dirname, process.env.OUT || "pages.json"), JSON.stringify(out, null, 2));
+  fs.writeFileSync(path.resolve(__dirname, process.env.OUT || "pages.json"), JSON.stringify(out, null, 2));
   for (const r of out) {
     console.log(
       [r.route, "fcp", r.fcp, "usable", r.usable, "req", r.requests, "api", r.apiRequests,
-       "api1st", r.firstApiStart, "apiLast", r.lastApiEnd, "js", r.jsCount + "/" + r.jsKB + "KB",
+       "dataReady", r.dataReadyMs, "sb", r.supabaseCalls, "auth", r.authCalls, "initJS", r.initialJsGzKB + "KB", "api1st", r.firstApiStart, "apiLast", r.lastApiEnd, "js", r.jsCount + "/" + r.jsKB + "KB",
        "css", r.cssKB + "KB", "tot", r.totalKB + "KB", "dupes", JSON.stringify(r.dupes)].join(" ")
     );
   }

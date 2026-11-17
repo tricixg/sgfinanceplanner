@@ -5,7 +5,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 
 const LATENCY = Number(process.env.MOCK_LATENCY_MS || 100);
-const LOG = process.env.MOCK_LOG || require("path").join(__dirname, "mock.log");
+const LOG = process.env.MOCK_LOG || "/dev/null";
 const USER = {
   id: "00000000-0000-4000-8000-000000000001",
   aud: "authenticated",
@@ -20,12 +20,15 @@ const store = {};
 const STATEFUL = new Set(["income_categories"]);
 let inflight = 0;
 let maxInflight = 0;
+// Every call (start time, method, path) since the last reset, so a client can compute the
+// number of Auth calls, DB calls and the sequential depth of a request.
+let calls = [];
 
 const server = http.createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
   req.on("end", () => {
-    counter++;
+    if (!req.url.startsWith("/__stats")) counter++;
     inflight++;
     maxInflight = Math.max(maxInflight, inflight);
     const t0 = Date.now();
@@ -35,10 +38,11 @@ const server = http.createServer((req, res) => {
       fs.appendFileSync(LOG, `${t0} ${req.method} ${url.pathname}${url.search.slice(0, 120)}\n`);
       res.setHeader("Content-Type", "application/json");
       if (url.pathname === "/__stats") {
-        const out = { counter, maxInflight };
-        if (url.searchParams.get("reset")) { counter = 0; maxInflight = 0; }
+        const out = { counter, maxInflight, calls };
+        if (url.searchParams.get("reset")) { counter = 0; maxInflight = 0; calls = []; }
         return res.end(JSON.stringify(out));
       }
+      if (!url.pathname.startsWith("/__")) calls.push({ t0, method: req.method, path: url.pathname });
       if (url.pathname.startsWith("/auth/v1/user")) return res.end(JSON.stringify(USER));
       if (url.pathname.startsWith("/auth/v1/")) return res.end(JSON.stringify({}));
       const accept = String(req.headers["accept"] || "");
