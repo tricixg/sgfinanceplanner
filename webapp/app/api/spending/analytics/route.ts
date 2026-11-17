@@ -17,7 +17,26 @@ import type {
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+
+type ExpenseDbRow = {
+  id: unknown;
+  amount: unknown;
+  spent_at: unknown;
+  category: unknown;
+  budget_line_id: unknown;
+  financial_account_id: unknown;
+  auto_category: unknown;
+};
+type ImportDbRow = {
+  id: unknown;
+  amount: unknown;
+  spent_at: unknown;
+  category: unknown;
+  transaction_type: unknown;
+  financial_account_id: unknown;
+};
 
 function parseScope(value: string | null): SpendingScope {
   return value === "all" ? "all" : "discretionary";
@@ -50,24 +69,35 @@ export async function GET(req: NextRequest) {
 
   const [budgetData, expensesRes, importsRes, cards, reimbursements] = await Promise.all([
     loadBudgetData(supabase, user.id).catch((e: unknown) => e as Error),
-    supabase
-      .from("expenses")
-      .select(
-        "id, amount, spent_at, category, budget_line_id, financial_account_id, auto_category"
-      )
-      .eq("user_id", user.id)
-      .gte("spent_at", window.from)
-      .lte("spent_at", window.to),
-    supabase
-      .from("budget_transactions")
-      .select(
-        "id, amount, spent_at, category, transaction_type, financial_account_id"
-      )
-      .eq("user_id", user.id)
-      .is("expense_id", null)
-      .neq("transaction_type", "income")
-      .gte("spent_at", window.from)
-      .lte("spent_at", window.to),
+    // Paged: a 6–24 month window easily exceeds PostgREST's 1,000-row cap (DATA-004).
+    fetchAllRows<ExpenseDbRow>((from, to) =>
+      supabase
+        .from("expenses")
+        .select(
+          "id, amount, spent_at, category, budget_line_id, financial_account_id, auto_category"
+        )
+        .eq("user_id", user.id)
+        .gte("spent_at", window.from)
+        .lte("spent_at", window.to)
+        .order("spent_at")
+        .order("id")
+        .range(from, to)
+    ).catch((e: unknown) => e as Error),
+    fetchAllRows<ImportDbRow>((from, to) =>
+      supabase
+        .from("budget_transactions")
+        .select(
+          "id, amount, spent_at, category, transaction_type, financial_account_id"
+        )
+        .eq("user_id", user.id)
+        .is("expense_id", null)
+        .neq("transaction_type", "income")
+        .gte("spent_at", window.from)
+        .lte("spent_at", window.to)
+        .order("spent_at")
+        .order("id")
+        .range(from, to)
+    ).catch((e: unknown) => e as Error),
     loadCreditCards(supabase, user.id),
     loadReimbursementTotals(supabase, user.id),
   ]);
@@ -76,13 +106,13 @@ export async function GET(req: NextRequest) {
     console.error("[api/spending/analytics] budget load failed", budgetData.message);
     return NextResponse.json({ error: budgetData.message }, { status: 500 });
   }
-  if (expensesRes.error) {
-    console.error("[api/spending/analytics] expenses load failed", expensesRes.error.message);
-    return NextResponse.json({ error: expensesRes.error.message }, { status: 500 });
+  if (expensesRes instanceof Error) {
+    console.error("[api/spending/analytics] expenses load failed", expensesRes.message);
+    return NextResponse.json({ error: expensesRes.message }, { status: 500 });
   }
-  if (importsRes.error) {
-    console.error("[api/spending/analytics] imports load failed", importsRes.error.message);
-    return NextResponse.json({ error: importsRes.error.message }, { status: 500 });
+  if (importsRes instanceof Error) {
+    console.error("[api/spending/analytics] imports load failed", importsRes.message);
+    return NextResponse.json({ error: importsRes.message }, { status: 500 });
   }
 
   const budgetLines = budgetData.catalog;
@@ -92,7 +122,7 @@ export async function GET(req: NextRequest) {
       budgetLineRowsForMonth(budgetData.catalog, budgetData.months, ym).filter((r) => !r.inactive),
     ])
   );
-  const expenses: LeanExpenseRow[] = (expensesRes.data ?? []).map((row) => ({
+  const expenses: LeanExpenseRow[] = expensesRes.map((row) => ({
     id: String(row.id),
     amount: Number(row.amount ?? 0),
     spentAt: String(row.spent_at ?? "").slice(0, 10),
@@ -103,7 +133,7 @@ export async function GET(req: NextRequest) {
       : null,
     autoCategory: (row.auto_category as AutoCategory | null) ?? null,
   }));
-  const imports: LeanImportRow[] = (importsRes.data ?? []).map((row) => ({
+  const imports: LeanImportRow[] = importsRes.map((row) => ({
     id: String(row.id),
     amount: Number(row.amount ?? 0),
     spentAt: String(row.spent_at ?? "").slice(0, 10),

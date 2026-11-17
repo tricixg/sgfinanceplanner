@@ -10,7 +10,16 @@ import {
   savingsOccurredAtUpperBoundExclusive,
 } from "@/lib/transactions/date-range";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+
+type DepositDbRow = {
+  amount: unknown;
+  occurred_at: unknown;
+  income_category_id: unknown;
+  account_id: unknown;
+  source_record_id: unknown;
+};
 
 export async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
@@ -37,24 +46,30 @@ export async function GET(req: NextRequest) {
   const supabase = await createAuthedSupabaseClient();
 
   const [depositsRes, categories, accountsBundle] = await Promise.all([
-    supabase
-      .from("savings_transactions")
-      .select("amount, occurred_at, income_category_id, account_id, source_record_id")
-      .eq("user_id", user.id)
-      .eq("kind", "deposit")
-      .not("income_category_id", "is", null)
-      .gte("occurred_at", savingsOccurredAtLowerBound(window.from))
-      .lt("occurred_at", savingsOccurredAtUpperBoundExclusive(window.to)),
+    // Paged: PostgREST silently truncates at 1,000 rows (DATA-004).
+    fetchAllRows<DepositDbRow>((from, to) =>
+      supabase
+        .from("savings_transactions")
+        .select("amount, occurred_at, income_category_id, account_id, source_record_id")
+        .eq("user_id", user.id)
+        .eq("kind", "deposit")
+        .not("income_category_id", "is", null)
+        .gte("occurred_at", savingsOccurredAtLowerBound(window.from))
+        .lt("occurred_at", savingsOccurredAtUpperBoundExclusive(window.to))
+        .order("occurred_at")
+        .order("id")
+        .range(from, to)
+    ).catch((e: unknown) => e as Error),
     loadIncomeCategories(supabase, user.id),
     loadAccountsBundle(supabase, user.id),
   ]);
 
-  if (depositsRes.error) {
-    console.error("[api/income/analytics] deposits load failed", depositsRes.error.message);
-    return NextResponse.json({ error: depositsRes.error.message }, { status: 500 });
+  if (depositsRes instanceof Error) {
+    console.error("[api/income/analytics] deposits load failed", depositsRes.message);
+    return NextResponse.json({ error: depositsRes.message }, { status: 500 });
   }
 
-  const deposits: LeanDepositRow[] = (depositsRes.data ?? []).map((row) => ({
+  const deposits: LeanDepositRow[] = depositsRes.map((row) => ({
     amount: Number(row.amount ?? 0),
     occurredAt: String(row.occurred_at ?? ""),
     incomeCategoryId: row.income_category_id ? String(row.income_category_id) : null,

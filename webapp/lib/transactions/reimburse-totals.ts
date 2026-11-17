@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 export type ReimbursementTotalsBySource = {
   expense: Map<string, number>;
@@ -33,27 +34,40 @@ export async function loadReimbursementTotals(
   const expense = new Map<string, number>();
   const budget = new Map<string, number>();
 
-  const [savingsRes, budgetRes] = await Promise.all([
-    supabase
-      .from("savings_transactions")
-      .select("source_record_type, source_record_id, amount")
-      .eq("user_id", userId)
-      .eq("kind", "deposit")
-      .not("source_record_type", "is", null)
-      .not("source_record_id", "is", null),
-    supabase
-      .from("budget_transactions")
-      .select("source_record_type, source_record_id, amount")
-      .eq("user_id", userId)
-      .eq("transaction_type", "income")
-      .not("source_record_type", "is", null)
-      .not("source_record_id", "is", null),
+  type SourceRow = {
+    source_record_type: unknown;
+    source_record_id: unknown;
+    amount: unknown;
+  };
+  // Paged: PostgREST silently truncates at 1,000 rows (DATA-004).
+  const [savingsRows, budgetRows] = await Promise.all([
+    fetchAllRows<SourceRow>((from, to) =>
+      supabase
+        .from("savings_transactions")
+        .select("source_record_type, source_record_id, amount")
+        .eq("user_id", userId)
+        .eq("kind", "deposit")
+        .not("source_record_type", "is", null)
+        .not("source_record_id", "is", null)
+        .order("occurred_at")
+        .order("id")
+        .range(from, to)
+    ),
+    fetchAllRows<SourceRow>((from, to) =>
+      supabase
+        .from("budget_transactions")
+        .select("source_record_type, source_record_id, amount")
+        .eq("user_id", userId)
+        .eq("transaction_type", "income")
+        .not("source_record_type", "is", null)
+        .not("source_record_id", "is", null)
+        .order("spent_at")
+        .order("id")
+        .range(from, to)
+    ),
   ]);
 
-  if (savingsRes.error) throw new Error(savingsRes.error.message);
-  if (budgetRes.error) throw new Error(budgetRes.error.message);
-
-  for (const row of savingsRes.data ?? []) {
+  for (const row of savingsRows) {
     const type = String(row.source_record_type);
     const id = String(row.source_record_id);
     const amt = Math.abs(Number(row.amount ?? 0));
@@ -61,7 +75,7 @@ export async function loadReimbursementTotals(
     else if (type === "budget") addToMap(budget, id, amt);
   }
 
-  for (const row of budgetRes.data ?? []) {
+  for (const row of budgetRows) {
     const type = String(row.source_record_type);
     const id = String(row.source_record_id);
     const amt = Math.abs(Number(row.amount ?? 0));

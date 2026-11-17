@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { eachDayYmd } from "./interest-accrual";
 import type { DailySpendMap } from "./interest-accrual";
 import { loadStatementCreditedBudgetTransactionIds } from "./statement-spend-index";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 export function sumAmounts(rows: { amount: number }[]): number {
   return rows.reduce((s, r) => s + Number(r.amount ?? 0), 0);
@@ -37,37 +38,50 @@ export async function sumCardSpendByDay(
     map[day] = 0;
   }
 
-  const { data: expenses, error: expErr } = await supabase
-    .from("expenses")
-    .select("amount, spent_at")
-    .eq("user_id", userId)
-    .eq("financial_account_id", financialAccountId)
-    .gte("spent_at", from)
-    .lte("spent_at", to);
+  // Paged: PostgREST silently truncates at 1,000 rows (DATA-004).
+  const expenses = await fetchAllRows<{ amount: unknown; spent_at: unknown }>(
+    (rFrom, rTo) =>
+      supabase
+        .from("expenses")
+        .select("amount, spent_at")
+        .eq("user_id", userId)
+        .eq("financial_account_id", financialAccountId)
+        .gte("spent_at", from)
+        .lte("spent_at", to)
+        .order("spent_at")
+        .order("id")
+        .range(rFrom, rTo)
+  );
 
-  if (expErr) throw new Error(expErr.message);
-
-  for (const row of expenses ?? []) {
+  for (const row of expenses) {
     const day = String(row.spent_at).slice(0, 10);
     map[day] = (map[day] ?? 0) + Number(row.amount ?? 0);
   }
 
-  const { data: budgetRows, error: budErr } = await supabase
-    .from("budget_transactions")
-    .select("id, amount, spent_at, transaction_type")
-    .eq("user_id", userId)
-    .eq("financial_account_id", financialAccountId)
-    .is("expense_id", null)
-    .gte("spent_at", from)
-    .lte("spent_at", to);
-
-  if (budErr) throw new Error(budErr.message);
+  const budgetRows = await fetchAllRows<{
+    id: unknown;
+    amount: unknown;
+    spent_at: unknown;
+    transaction_type: unknown;
+  }>((rFrom, rTo) =>
+    supabase
+      .from("budget_transactions")
+      .select("id, amount, spent_at, transaction_type")
+      .eq("user_id", userId)
+      .eq("financial_account_id", financialAccountId)
+      .is("expense_id", null)
+      .gte("spent_at", from)
+      .lte("spent_at", to)
+      .order("spent_at")
+      .order("id")
+      .range(rFrom, rTo)
+  );
 
   // Excluded for the same reason as buildCardSpendIndexMap: already captured via the
   // credited statement's amount_paid, not spend/anti-spend in any billing cycle.
   const excludedIds = await loadStatementCreditedBudgetTransactionIds(supabase, userId);
 
-  for (const row of budgetRows ?? []) {
+  for (const row of budgetRows) {
     if (excludedIds.has(String(row.id))) continue;
     const day = String(row.spent_at).slice(0, 10);
     const signed =

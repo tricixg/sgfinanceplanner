@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 function addMonthsYm(ym: string, n: number): string {
   const [y, m] = ym.split("-").map(Number);
@@ -67,18 +68,27 @@ async function loadIncomeByYmForFlag(
     return result;
   }
 
-  const { data: rows, error } = await supabase
-    .from("savings_transactions")
-    .select("amount, occurred_at, income_category_id, source_record_id")
-    .eq("user_id", userId)
-    .eq("kind", "deposit")
-    .in("income_category_id", categoryIds)
-    .gte("occurred_at", `${from}T00:00:00`)
-    .lte("occurred_at", `${to}T23:59:59`);
+  // Paged: PostgREST silently truncates at 1,000 rows (DATA-004).
+  const rows = await fetchAllRows<{
+    amount: unknown;
+    occurred_at: unknown;
+    income_category_id: unknown;
+    source_record_id: unknown;
+  }>((rFrom, rTo) =>
+    supabase
+      .from("savings_transactions")
+      .select("amount, occurred_at, income_category_id, source_record_id")
+      .eq("user_id", userId)
+      .eq("kind", "deposit")
+      .in("income_category_id", categoryIds)
+      .gte("occurred_at", `${from}T00:00:00`)
+      .lte("occurred_at", `${to}T23:59:59`)
+      .order("occurred_at")
+      .order("id")
+      .range(rFrom, rTo)
+  );
 
-  if (error) throw new Error(error.message);
-
-  addAdditiveRowsToMonths(result, rows ?? [], flagColumn === "counts_as_additive");
+  addAdditiveRowsToMonths(result, rows, flagColumn === "counts_as_additive");
 
   console.info("[income] deposits by month", { userId, startYm, count, flagColumn, result });
   return result;

@@ -8,9 +8,19 @@ import { loadOtherLoans } from "@/lib/other-loans/load";
 import { totalLoanLoadForMonth } from "@/lib/finance/loanLoad";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
+
+type ImportDbRow = {
+  id: unknown;
+  amount: unknown;
+  spent_at: unknown;
+  category: unknown;
+  note: unknown;
+  transaction_type: unknown;
+};
 
 export async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
@@ -45,23 +55,31 @@ export async function GET(req: NextRequest) {
     reimbursements,
   ] = await Promise.all([
     loadBudgetLineRowsForMonth(supabase, user.id, ym).catch((e: unknown) => e as Error),
-    supabase
-      .from("expenses")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("spent_at", from)
-      .lte("spent_at", to)
-      .order("spent_at", { ascending: false })
-      .order("id", { ascending: false }),
-    supabase
-      .from("budget_transactions")
-      .select("id, amount, spent_at, category, note, transaction_type")
-      .eq("user_id", user.id)
-      .is("expense_id", null)
-      .gte("spent_at", from)
-      .lte("spent_at", to)
-      .in("transaction_type", ["expense", "subscription", "income"])
-      .order("spent_at", { ascending: false }),
+    // Paged: PostgREST silently truncates at 1,000 rows (DATA-004).
+    fetchAllRows<Parameters<typeof mapExpense>[0]>((rFrom, rTo) =>
+      supabase
+        .from("expenses")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("spent_at", from)
+        .lte("spent_at", to)
+        .order("spent_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(rFrom, rTo)
+    ).catch((e: unknown) => e as Error),
+    fetchAllRows<ImportDbRow>((rFrom, rTo) =>
+      supabase
+        .from("budget_transactions")
+        .select("id, amount, spent_at, category, note, transaction_type")
+        .eq("user_id", user.id)
+        .is("expense_id", null)
+        .gte("spent_at", from)
+        .lte("spent_at", to)
+        .in("transaction_type", ["expense", "subscription", "income"])
+        .order("spent_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(rFrom, rTo)
+    ).catch((e: unknown) => e as Error),
     loadLoans(supabase, user.id),
     loadOtherLoans(supabase, user.id),
     loadInsurancePolicies(supabase, user.id),
@@ -73,17 +91,17 @@ export async function GET(req: NextRequest) {
     console.error("[api/expenses/summary] budget load failed", budgetLines.message);
     return NextResponse.json({ error: budgetLines.message }, { status: 500 });
   }
-  if (expensesRes.error) {
-    console.error("[api/expenses/summary] expenses load failed", expensesRes.error.message);
-    return NextResponse.json({ error: expensesRes.error.message }, { status: 500 });
+  if (expensesRes instanceof Error) {
+    console.error("[api/expenses/summary] expenses load failed", expensesRes.message);
+    return NextResponse.json({ error: expensesRes.message }, { status: 500 });
   }
-  if (importsRes.error) {
-    console.error("[api/expenses/summary] imports load failed", importsRes.error.message);
-    return NextResponse.json({ error: importsRes.error.message }, { status: 500 });
+  if (importsRes instanceof Error) {
+    console.error("[api/expenses/summary] imports load failed", importsRes.message);
+    return NextResponse.json({ error: importsRes.message }, { status: 500 });
   }
 
-  const expenses = (expensesRes.data ?? []).map((r) => mapExpense(r));
-  const imports = (importsRes.data ?? []).map((r) => ({
+  const expenses = expensesRes.map((r) => mapExpense(r));
+  const imports = importsRes.map((r) => ({
     id: String(r.id),
     amount: Number(r.amount ?? 0),
     spentAt: String(r.spent_at),
