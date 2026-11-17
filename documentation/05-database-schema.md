@@ -36,6 +36,7 @@ All application tables use **Row Level Security (RLS)** unless noted.
 | 024 | `024_expenses_spent_time.sql` | `spent_time` on `expenses` |
 | 025 | `025_transactions_source_links.sql` | `source_record_type` / `source_record_id` on ledger tables |
 | 066 | `066_household_membership_hardening.sql` | SEC-001: drops client insert/update policies on `household_members`; adds `create_solo_household()`, `accept_partner_invite(invite_id)` and a 2-members-per-household trigger |
+| 067 | `067_profile_date_of_birth.sql` | FIN-003: nullable `date_of_birth` on `user_finance_profile`; picks age-based CPF rates (null = assume ≤35) |
 
 ---
 
@@ -151,7 +152,7 @@ Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboar
 |-------|-------------|---------|
 | `holdings` | `ticker`, `market`, `qty`, `avg_cost` | Stocks |
 | `portfolio_snapshots` | `total_value`, `recorded_at` | History |
-| `user_finance_profile` | salary, CPF, `bto_planner` jsonb | Planning inputs |
+| `user_finance_profile` | salary, CPF, `date_of_birth` (067), `bto_planner` jsonb | Planning inputs |
 | `insurance_policies` | `monthly_premium`, `deduction_day` | Insurance |
 | `ilp_policies` | premiums, funds json | ILP |
 

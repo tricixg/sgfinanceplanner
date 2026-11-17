@@ -15,6 +15,7 @@ import {
   resolveBTOMonthOffsets,
   totalLoanLoadForMonth,
   resolveBtoOAMonthly,
+  cpfAgeForMonth,
   schemeComputedAmount,
   type BTOSchemeId,
   type BTOStage,
@@ -217,7 +218,8 @@ export function TabBTO({ state: S, setState }: Props) {
   // OA growth projection: self and partner each pick their own mode independently.
   const { tOAMonthly: tOAMonthlyResolved, pOAMonthly: pOAMonthlyResolved } = resolveBtoOAMonthly(
     p,
-    { self: selfMonthlyFromContrib, partner: partnerMonthlyFromContrib }
+    { self: selfMonthlyFromContrib, partner: partnerMonthlyFromContrib },
+    cpfAgeForMonth(S.dateOfBirth, sgtTodayYmd().slice(0, 7))
   );
 
   const todayYmd = useMemo(() => sgtTodayYmd(), []);

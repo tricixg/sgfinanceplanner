@@ -219,17 +219,24 @@ export function resolveBtoOAMonthly(
     BtoPlannerPrefs,
     "tOaGrowthMode" | "pOaGrowthMode" | "tOAMonthly" | "pOAMonthly" | "tSal" | "pSal"
   >,
-  fromContrib: { self: number | null; partner: number | null }
+  fromContrib: { self: number | null; partner: number | null },
+  /** CPF age of the user (partner's age isn't captured, so they use the ≤35 rates). */
+  selfAge?: number | null
 ): { tOAMonthly: number; pOAMonthly: number } {
   const resolve = (
     mode: BtoOAGrowthMode,
     manual: number,
     contrib: number | null,
-    sal: number
+    sal: number,
+    age?: number | null
   ) =>
-    mode === "manual" ? manual : mode === "contributions" ? (contrib ?? manual) : cpfOAmonthly(sal);
+    mode === "manual"
+      ? manual
+      : mode === "contributions"
+        ? (contrib ?? manual)
+        : cpfOAmonthly(sal, age);
   return {
-    tOAMonthly: resolve(p.tOaGrowthMode, p.tOAMonthly, fromContrib.self, p.tSal),
+    tOAMonthly: resolve(p.tOaGrowthMode, p.tOAMonthly, fromContrib.self, p.tSal, selfAge),
     pOAMonthly: resolve(p.pOaGrowthMode, p.pOAMonthly, fromContrib.partner, p.pSal),
   };
 }

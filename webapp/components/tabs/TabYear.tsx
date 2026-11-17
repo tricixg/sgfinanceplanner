@@ -8,6 +8,7 @@ import { monthlyInvestContributionWithIlp, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import { ChartBox } from "@/components/ChartBox";
+import { CpfAssumptions } from "@/components/cpf/CpfAssumptions";
 import { DecimalInput } from "@/components/DecimalInput";
 import type { ChartOptions } from "chart.js";
 
@@ -187,6 +188,8 @@ export function TabYear({ state: S, savings, openCycles }: Props) {
         balance-transfer loans and card balances are held flat. Insurance
         premiums stay constant. Income tax is not modelled.
       </div>
+
+      <CpfAssumptions state={S} />
 
       <div className="card table-scroll projection-table-scroll">
         <table>

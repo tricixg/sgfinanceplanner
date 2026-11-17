@@ -10,6 +10,7 @@ import {
 } from "@/lib/finance";
 import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { sgtTodayYmd } from "@/lib/time/sgt";
 import { PartnerCard } from "@/components/PartnerCard";
 import { TelegramLinkCard } from "@/components/integrations/TelegramLinkCard";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
@@ -63,6 +64,7 @@ export function TabMe({
   const [salaryDraft, setSalaryDraft] = useState({
     monthlySal: S.monthlySal,
     salaryCreditDay: S.salaryCreditDay,
+    dateOfBirth: S.dateOfBirth ?? "",
   });
   const insurancePolicies = editingInsurance ? insuranceDraft : S.insurancePolicies;
   const insuranceTotal = computedInsuranceMonthly({
@@ -75,14 +77,16 @@ export function TabMe({
       setSalaryDraft({
         monthlySal: S.monthlySal,
         salaryCreditDay: S.salaryCreditDay,
+        dateOfBirth: S.dateOfBirth ?? "",
       });
     }
-  }, [S.monthlySal, S.salaryCreditDay, editingSalary]);
+  }, [S.monthlySal, S.salaryCreditDay, S.dateOfBirth, editingSalary]);
 
   const startSalaryEdit = () => {
     setSalaryDraft({
       monthlySal: S.monthlySal,
       salaryCreditDay: S.salaryCreditDay,
+      dateOfBirth: S.dateOfBirth ?? "",
     });
     setEditingSalary(true);
     console.info("[TabMe] salary edit on");
@@ -92,6 +96,7 @@ export function TabMe({
     setSalaryDraft({
       monthlySal: S.monthlySal,
       salaryCreditDay: S.salaryCreditDay,
+      dateOfBirth: S.dateOfBirth ?? "",
     });
     setEditingSalary(false);
     console.info("[TabMe] salary edit cancelled");
@@ -123,6 +128,7 @@ export function TabMe({
         await appData.saveProfile({
         monthlySal: salaryDraft.monthlySal,
         salaryCreditDay: salaryDraft.salaryCreditDay,
+        dateOfBirth: salaryDraft.dateOfBirth,
         });
         console.info("[TabMe] salary saved to profile", salaryDraft);
       } else {
@@ -346,6 +352,22 @@ export function TabMe({
               <span></span>
               <span></span>
             </div>
+            <div className="editrow">
+              <span>Date of birth</span>
+              <input
+                type="date"
+                value={salaryDraft.dateOfBirth}
+                max={sgtTodayYmd()}
+                onChange={(e) =>
+                  setSalaryDraft((d) => ({ ...d, dateOfBirth: e.target.value }))
+                }
+              />
+              <span className="note" style={{ gridColumn: "2 / -1" }}>
+                Sets your age-based CPF contribution and allocation rates.
+              </span>
+              <span></span>
+              <span></span>
+            </div>
             </div>
           </>
         ) : (
@@ -357,6 +379,10 @@ export function TabMe({
             <div className="minirow">
               <span className="k">Salary credit day</span>
               <span className="v">{S.salaryCreditDay || "—"}</span>
+            </div>
+            <div className="minirow">
+              <span className="k">Date of birth</span>
+              <span className="v">{S.dateOfBirth || "— (assumes CPF rates for age 35 and below)"}</span>
             </div>
             <p className="note" style={{ marginTop: 8, marginBottom: 0 }}>
               Feeds cashflow and budget take-home · click Edit to change

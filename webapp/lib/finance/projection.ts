@@ -1,5 +1,5 @@
 import type { DashboardState } from "@/lib/types";
-import { ALLOC_MA, ALLOC_OA, ALLOC_SA, cpfEmp, cpfTotal } from "./cpf";
+import { cpfAgeForMonth, cpfAllocate, cpfEmp } from "./cpf";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
 import type { SavingsSnapshot } from "@/lib/savings/types";
 import type { OpenCycleEstimate } from "@/lib/cards/types";
@@ -106,10 +106,11 @@ export function simulate5y(
   const startYear = Number(startYM.slice(0, 4));
   const endIdx = monIdx(`${startYear + 5}-12`);
   for (let i = curIdx; i <= endIdx; i++) {
-    const tot = cpfTotal(sal);
-    oa += tot * ALLOC_OA;
-    sa += tot * ALLOC_SA;
-    ma += tot * ALLOC_MA;
+    const age = cpfAgeForMonth(S.dateOfBirth, ymFromMonIdx(i));
+    const credit = cpfAllocate(sal, age);
+    oa += credit.oa;
+    sa += credit.sa;
+    ma += credit.ma;
     oa *= 1 + 0.025 / 12;
     sa *= 1 + 0.04 / 12;
     ma *= 1 + 0.04 / 12;
@@ -139,7 +140,7 @@ export function simulate5y(
       margin -= marginPay;
     }
 
-    const cashIncome = sal - cpfEmp(sal);
+    const cashIncome = sal - cpfEmp(sal, age);
     const fixed = budgetFixedTotal(S, ymFromMonIdx(i));
     const spend = budgetSpendTotal(S, ymFromMonIdx(i));
     const surplus =
@@ -206,10 +207,10 @@ export function simulateCPF(
   const endIdx = monIdx(`${startYear + 5}-12`);
 
   for (let i = curIdx; i <= endIdx; i++) {
-    const tot = cpfTotal(sal);
-    oa += tot * ALLOC_OA;
-    sa += tot * ALLOC_SA;
-    ma += tot * ALLOC_MA;
+    const credit = cpfAllocate(sal, cpfAgeForMonth(S.dateOfBirth, ymFromMonIdx(i)));
+    oa += credit.oa;
+    sa += credit.sa;
+    ma += credit.ma;
     oa *= 1 + 0.025 / 12;
     sa *= 1 + 0.04 / 12;
     ma *= 1 + 0.04 / 12;

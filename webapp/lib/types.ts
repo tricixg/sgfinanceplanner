@@ -244,6 +244,8 @@ export type DashboardState = {
   prefs?: DashboardPrefs;
   monthlySal: number;
   salaryCreditDay: number;
+  /** YYYY-MM-DD; drives age-based CPF rates. Empty/absent = unknown (≤35 rates assumed). */
+  dateOfBirth?: string;
   insurancePolicies: InsurancePolicy[];
   accounts: SavingsAccount[];
   oa: number;
