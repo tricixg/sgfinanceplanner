@@ -38,8 +38,18 @@ export function createFakeSupabase(
     let kind: FakeOp["kind"] = "select";
     let payload: unknown;
     let wantRows = false;
+    let single = false;
 
-    const exec = () => {
+    const exec = (): { data: unknown; error: { message: string } | null } => {
+      const r = run();
+      if (single && !r.error) {
+        const rows = (r.data as Row[] | null) ?? [];
+        return { data: rows[0] ?? null, error: null };
+      }
+      return r;
+    };
+
+    const run = (): { data: unknown; error: { message: string } | null } => {
       const op: FakeOp = { table, kind, filters: [...filters], payload };
       ops.push(op);
       const failMsg = opts.failOn?.(op) ?? null;
@@ -84,6 +94,10 @@ export function createFakeSupabase(
         kind = "delete";
         return api;
       },
+      single: () => ((single = true), (wantRows = true), api),
+      maybeSingle: () => ((single = true), (wantRows = true), api),
+      order: () => api,
+      limit: () => api,
       eq: (col: string, val: unknown) => (filters.push({ col, op: "eq", val }), api),
       neq: (col: string, val: unknown) => (filters.push({ col, op: "neq", val }), api),
       in: (col: string, val: unknown[]) => (filters.push({ col, op: "in", val }), api),

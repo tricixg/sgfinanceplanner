@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadHoldings, saveHoldings } from "@/lib/holdings/load";
 import type { Holding } from "@/lib/types";
+import { saveErrorStatus } from "@/lib/sync/save-error";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -27,7 +28,7 @@ export async function PUT(req: NextRequest) {
   }
   const auth = await requireSessionUser();
   if ("response" in auth) return auth.response;
-  let body: { holdings?: Holding[] };
+  let body: { holdings?: Holding[]; deletedIds?: string[] };
   try {
     body = await req.json();
   } catch {
@@ -35,10 +36,15 @@ export async function PUT(req: NextRequest) {
   }
   try {
     const supabase = await createAuthedSupabaseClient();
-    const holdings = await saveHoldings(supabase, auth.user.id, body.holdings ?? []);
+    const holdings = await saveHoldings(
+      supabase,
+      auth.user.id,
+      body.holdings ?? [],
+      body.deletedIds
+    );
     return NextResponse.json({ configured: true, holdings });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save holdings";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: saveErrorStatus(e) });
   }
 }

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Holding, PortfolioSnapshot } from "@/lib/types";
 import { loadHoldingDividendTotals } from "@/lib/holdings/dividends";
 
-const UUID_RE = /^[0-9a-f-]{36}$/i;
+import { SaveError, cleanIdList, isPersistedId } from "@/lib/sync/save-error";
 
 export async function loadHoldings(
   supabase: SupabaseClient,
@@ -31,22 +31,21 @@ export async function loadHoldings(
   }));
 }
 
+/**
+ * Save holdings. Rows are matched by DB `id` (never by ticker, so editing a
+ * ticker updates the row instead of recreating it and losing its dividends).
+ * Rows without a persisted id are inserted. Rows are deleted only when their
+ * id is in `deletedIds`; being absent from `incoming` never deletes anything.
+ */
 export async function saveHoldings(
   supabase: SupabaseClient,
   userId: string,
-  incoming: Holding[]
+  incoming: Holding[],
+  deletedIds: unknown = []
 ): Promise<Holding[]> {
-  const { data: existing } = await supabase
-    .from("holdings")
-    .select("id, ticker")
-    .eq("user_id", userId);
-
-  const keepIds = new Set<string>();
-
   for (let i = 0; i < incoming.length; i++) {
     const h = incoming[i];
     const payload = {
-      user_id: userId,
       name: h.name ?? "",
       ticker: h.ticker ?? "",
       market: h.market ?? "SGX",
@@ -59,26 +58,38 @@ export async function saveHoldings(
       updated_at: new Date().toISOString(),
     };
 
-    const match = (existing ?? []).find(
-      (e) => e.ticker === h.ticker && !keepIds.has(String(e.id))
-    );
-    if (match?.id && UUID_RE.test(String(match.id))) {
-      keepIds.add(String(match.id));
-      await supabase.from("holdings").update(payload).eq("id", match.id);
-    } else {
-      const { data: ins } = await supabase
+    if (isPersistedId(h.id)) {
+      const { data, error } = await supabase
         .from("holdings")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (ins?.id) keepIds.add(String(ins.id));
+        .update(payload)
+        .eq("id", h.id)
+        .eq("user_id", userId)
+        .select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) {
+        throw new SaveError(
+          `Holding "${h.name || h.ticker}" no longer exists. Reload and try again.`,
+          409
+        );
+      }
+    } else {
+      const { error } = await supabase
+        .from("holdings")
+        .insert({ user_id: userId, ...payload });
+      if (error) throw new Error(error.message);
     }
   }
 
-  for (const row of existing ?? []) {
-    if (!keepIds.has(String(row.id))) {
-      await supabase.from("holdings").delete().eq("id", row.id);
-    }
+  const toDelete = cleanIdList(deletedIds).filter(
+    (id) => !incoming.some((h) => h.id === id)
+  );
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from("holdings")
+      .delete()
+      .in("id", toDelete)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
   }
 
   return loadHoldings(supabase, userId);

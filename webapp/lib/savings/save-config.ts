@@ -1,24 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SavingsGoal, SavingsPool } from "@/lib/savings/types";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { SaveError, cleanIdList, isPersistedId } from "@/lib/sync/save-error";
 
-export function isPersistedId(id: unknown): id is string {
-  return typeof id === "string" && UUID_RE.test(id);
-}
-
-function persistedIds(ids: unknown): string[] {
-  return Array.isArray(ids) ? ids.filter(isPersistedId) : [];
-}
-
-export class SaveConfigError extends Error {
-  constructor(
-    message: string,
-    readonly status: number
-  ) {
-    super(message);
-  }
-}
+export { SaveError as SaveConfigError };
+const persistedIds = (ids: unknown) => cleanIdList(ids);
 
 /**
  * Save the pool *configuration* (name / notes / flags / order) in place.
@@ -55,9 +41,9 @@ export async function savePoolsConfig(
         .eq("id", p.id)
         .eq("household_id", householdId)
         .select("id");
-      if (error) throw new SaveConfigError(error.message, 500);
+      if (error) throw new SaveError(error.message, 500);
       if (!data || data.length === 0) {
-        throw new SaveConfigError(
+        throw new SaveError(
           "A pool in this list no longer exists. Reload and try again.",
           409
         );
@@ -69,7 +55,7 @@ export async function savePoolsConfig(
 
   if (inserts.length > 0) {
     const { error } = await supabase.from("savings_pools").insert(inserts);
-    if (error) throw new SaveConfigError(error.message, 500);
+    if (error) throw new SaveError(error.message, 500);
   }
 
   const toDelete = persistedIds(deletedIds);
@@ -78,9 +64,9 @@ export async function savePoolsConfig(
       .from("savings_transactions")
       .select("pool_id")
       .in("pool_id", toDelete);
-    if (usedErr) throw new SaveConfigError(usedErr.message, 500);
+    if (usedErr) throw new SaveError(usedErr.message, 500);
     if (used && used.length > 0) {
-      throw new SaveConfigError(
+      throw new SaveError(
         "A pool with transaction history can't be removed — its ledger would be deleted.",
         409
       );
@@ -90,7 +76,7 @@ export async function savePoolsConfig(
       .delete()
       .in("id", toDelete)
       .eq("household_id", householdId);
-    if (error) throw new SaveConfigError(error.message, 500);
+    if (error) throw new SaveError(error.message, 500);
   }
 }
 
@@ -136,9 +122,9 @@ export async function saveGoalsConfig(
           ? q.eq("scope", "shared").eq("household_id", householdId)
           : q.eq("scope", "individual").eq("owner_user_id", userId);
       const { data, error } = await scoped.select("id");
-      if (error) throw new SaveConfigError(error.message, 500);
+      if (error) throw new SaveError(error.message, 500);
       if (!data || data.length === 0) {
-        throw new SaveConfigError(
+        throw new SaveError(
           "A goal in this list no longer exists. Reload and try again.",
           409
         );
@@ -157,7 +143,7 @@ export async function saveGoalsConfig(
 
   if (inserts.length > 0) {
     const { error } = await supabase.from("savings_goals").insert(inserts);
-    if (error) throw new SaveConfigError(error.message, 500);
+    if (error) throw new SaveError(error.message, 500);
   }
 
   const toDelete = persistedIds(deletedIds);
@@ -168,13 +154,13 @@ export async function saveGoalsConfig(
       .in("id", toDelete)
       .eq("scope", "individual")
       .eq("owner_user_id", userId);
-    if (mine.error) throw new SaveConfigError(mine.error.message, 500);
+    if (mine.error) throw new SaveError(mine.error.message, 500);
     const shared = await supabase
       .from("savings_goals")
       .delete()
       .in("id", toDelete)
       .eq("scope", "shared")
       .eq("household_id", householdId);
-    if (shared.error) throw new SaveConfigError(shared.error.message, 500);
+    if (shared.error) throw new SaveError(shared.error.message, 500);
   }
 }

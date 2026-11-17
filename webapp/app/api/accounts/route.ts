@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { applyTransaction } from "@/lib/savings/ledger";
+import { saveAccountsConfig } from "@/lib/savings/save-accounts";
+import { saveErrorStatus } from "@/lib/sync/save-error";
 import { loadAccountsBundle } from "@/lib/savings/load-accounts";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import type { UserSavingsAccount } from "@/lib/savings/types";
-
-const UUID_RE = /^[0-9a-f-]{36}$/i;
 
 export async function GET() {
   if (!isSupabaseAuthConfigured()) {
@@ -28,7 +27,8 @@ export async function GET() {
   }
 }
 
-type PutBody = { accounts?: Partial<UserSavingsAccount>[] };
+/** `deletedIds` are the only rows ever deleted; omission from `accounts` never deletes. */
+type PutBody = { accounts?: Partial<UserSavingsAccount>[]; deletedIds?: string[] };
 
 export async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
@@ -49,75 +49,12 @@ export async function PUT(req: NextRequest) {
   const supabase = await createAuthedSupabaseClient();
   const incoming = body.accounts ?? [];
 
-  const { data: existing } = await supabase
-    .from("user_savings_accounts")
-    .select("id")
-    .eq("user_id", user.id);
-
-  const keepIds = new Set(
-    incoming.map((a) => a.id).filter((id): id is string => Boolean(id && UUID_RE.test(id)))
-  );
-
-  for (const row of existing ?? []) {
-    if (!keepIds.has(row.id)) {
-      await supabase.from("user_savings_accounts").delete().eq("id", row.id);
-    }
-  }
-
-  for (let i = 0; i < incoming.length; i++) {
-    const a = incoming[i];
-    const id = a.id && UUID_RE.test(a.id) ? a.id : null;
-
-    if (id && keepIds.has(id)) {
-      const { error } = await supabase
-        .from("user_savings_accounts")
-        .update({
-          name: a.name ?? "",
-          notes: a.notes ?? "",
-          include_in_savings: a.includeInSavings !== false,
-          sort_order: a.sortOrder ?? i,
-          hidden: a.hidden === true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("[api/accounts] update failed", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-      continue;
-    }
-
-    const opening = typeof a.balance === "number" ? a.balance : 0;
-    const { data: row, error } = await supabase
-      .from("user_savings_accounts")
-      .insert({
-        user_id: user.id,
-        name: a.name ?? "New account",
-        balance: 0,
-        notes: a.notes ?? "",
-        include_in_savings: a.includeInSavings !== false,
-        sort_order: a.sortOrder ?? i,
-        updated_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.error("[api/accounts] insert failed", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    if (opening !== 0 && row?.id) {
-      await applyTransaction(supabase, {
-        userId: user.id,
-        accountId: row.id,
-        amount: opening,
-        kind: "adjustment",
-        note: "Opening balance",
-      });
-    }
+  try {
+    await saveAccountsConfig(supabase, user.id, incoming, body.deletedIds);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to save accounts";
+    console.error("[api/accounts] PUT failed", msg);
+    return NextResponse.json({ error: msg }, { status: saveErrorStatus(e) });
   }
 
   console.info("[api/accounts] PUT ok", { userId: user.id, count: incoming.length });

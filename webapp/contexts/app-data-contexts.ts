@@ -28,6 +28,8 @@ export type AppDataContextValue = {
   coreLoading: boolean;
   snapshotsLoading: boolean;
   configured: boolean;
+  /** Domains that failed to load. Editing them is blocked so an empty list can't overwrite real data. */
+  loadErrors: import("@/lib/sync/explicit-delete").LoadErrors;
   reload: () => Promise<void>;
   reloadLoans: () => Promise<void>;
   reloadOtherLoans: () => Promise<void>;
@@ -117,6 +119,8 @@ export type AccountsContextValue = {
   totals: AccountsBundle["totals"] | null;
   loading: boolean;
   configured: boolean;
+  /** Set when the last load failed; editing is blocked until a reload succeeds. */
+  loadError: string | null;
   reload: () => Promise<void>;
   ensureLoaded: () => void;
   saveAccounts: (next: UserSavingsAccount[]) => Promise<void>;

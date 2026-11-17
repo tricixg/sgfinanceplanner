@@ -9,7 +9,7 @@ import {
   type DbCreditCard,
 } from "@/lib/credit-cards/mappers";
 
-const UUID_RE = /^[0-9a-f-]{36}$/i;
+import { SaveError, cleanIdList } from "@/lib/sync/save-error";
 
 export async function loadCreditCards(
   supabase: SupabaseClient,
@@ -25,29 +25,46 @@ export async function loadCreditCards(
   return (data ?? []).map((r) => mapCreditCard(r));
 }
 
+/**
+ * Save the card list. Matches rows by `card_key` and updates in place.
+ *
+ * Cards are only deleted when their key is in `deletedCardKeys` (and not also
+ * present in `incoming`). Being absent from `incoming` NEVER deletes a card,
+ * because `card_statements.credit_card_id` is ON DELETE CASCADE. A card that
+ * has statements can't be deleted — hide it instead.
+ */
 export async function saveCreditCards(
   supabase: SupabaseClient,
   userId: string,
-  incoming: CreditCard[]
+  incoming: CreditCard[],
+  deletedCardKeys: unknown = []
 ): Promise<CreditCard[]> {
   const withIds = ensureCreditCardIds(incoming);
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingErr } = await supabase
     .from("credit_cards")
     .select("id, card_key")
     .eq("user_id", userId);
+  if (existingErr) throw new Error(existingErr.message);
 
-  const incomingKeys = withIds.map((c, i) => dbIdFromCard(c, i));
-  const keepIds = new Set(
-    (existing ?? [])
-      .filter((e) => incomingKeys.includes(String(e.card_key)))
-      .map((e) => String(e.id))
-      .filter((id) => UUID_RE.test(id))
+  const incomingKeys = new Set(withIds.map((c, i) => dbIdFromCard(c, i)));
+  const requested = new Set(cleanIdList(deletedCardKeys, () => true));
+  const toDelete = (existing ?? []).filter(
+    (e) => requested.has(String(e.card_key)) && !incomingKeys.has(String(e.card_key))
   );
 
-  for (const row of existing ?? []) {
-    if (!keepIds.has(row.id)) {
-      await supabase.from("credit_cards").delete().eq("id", row.id);
+  if (toDelete.length > 0) {
+    const ids = toDelete.map((e) => String(e.id));
+    const { data: used, error: usedErr } = await supabase
+      .from("card_statements")
+      .select("credit_card_id")
+      .in("credit_card_id", ids);
+    if (usedErr) throw new Error(usedErr.message);
+    if (used && used.length > 0) {
+      throw new SaveError(
+        "A card with statement history can't be deleted — hide it instead so its history is kept.",
+        409
+      );
     }
   }
 
@@ -95,6 +112,18 @@ export async function saveCreditCards(
       if (error) throw new Error(error.message);
       if (data) savedRows.push(mapCreditCard(data));
     }
+  }
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from("credit_cards")
+      .delete()
+      .in(
+        "id",
+        toDelete.map((e) => String(e.id))
+      )
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
   }
 
   await syncCreditCardFinancialAccountsFromRows(supabase, userId, savedRows);

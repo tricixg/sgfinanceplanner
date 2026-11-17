@@ -9,6 +9,7 @@ import {
   needsCreditCardsMigration,
 } from "@/lib/credit-cards/migrate-from-dashboard";
 import { toCreditCard } from "@/lib/credit-cards/mappers";
+import { saveErrorStatus } from "@/lib/sync/save-error";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
@@ -60,7 +61,7 @@ export async function PUT(req: NextRequest) {
   const auth = await requireSessionUser();
   if ("response" in auth) return auth.response;
 
-  let body: { cards?: CreditCard[] };
+  let body: { cards?: CreditCard[]; deletedCardKeys?: string[] };
   try {
     body = await req.json();
   } catch {
@@ -72,13 +73,14 @@ export async function PUT(req: NextRequest) {
     const cards = await saveCreditCards(
       supabase,
       auth.user.id,
-      body.cards ?? []
+      body.cards ?? [],
+      body.deletedCardKeys
     );
     console.info("[api/credit-cards] PUT", { userId: auth.user.id, count: cards.length });
     return NextResponse.json({ configured: true, cards });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save credit cards";
     console.error("[api/credit-cards] PUT failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: saveErrorStatus(e) });
   }
 }

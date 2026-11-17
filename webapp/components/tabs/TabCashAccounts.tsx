@@ -16,6 +16,8 @@ import {
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
+import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
+import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 import { IncludeCheckbox } from "@/components/IncludeCheckbox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
 import { NetWorthHistoryChart } from "@/components/savings/NetWorthHistoryChart";
@@ -97,6 +99,7 @@ export function TabCashAccounts({
   const [ledgerAccountId, setLedgerAccountId] = useState<string | null>(null);
   const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
   const useCloudAccounts = Boolean(accountsApi);
+  const accountsLoadError = useDomainLoadError("accounts").error;
 
   const personalOnlySavings = savings
     ? {
@@ -251,6 +254,7 @@ export function TabCashAccounts({
 
   return (
     <section className="panel on">
+      <DomainLoadErrorBanner domain="accounts" />
       <h2>Net worth</h2>
       <div className="card net-worth-card" style={{ marginBottom: 16 }}>
         <label className="ctrl">
@@ -407,6 +411,7 @@ export function TabCashAccounts({
             <button
               type="button"
               className="btn ghost sm"
+              disabled={Boolean(accountsLoadError)}
               onClick={() => {
                 setEditingAccounts(true);
                 console.info("[TabCashAccounts] accounts edit on");
