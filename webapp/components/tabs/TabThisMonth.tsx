@@ -299,9 +299,9 @@ export function TabThisMonth({ state: S }: Props) {
           <table className="cal-upcoming-table">
             <thead>
               <tr>
-                <th>Day</th>
+                <th className="num">Day</th>
                 <th>Event</th>
-                <th>Amount</th>
+                <th className="num">Amount</th>
               </tr>
             </thead>
             <tbody>

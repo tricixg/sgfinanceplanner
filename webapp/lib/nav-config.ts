@@ -1,4 +1,6 @@
 export type AppRouteId =
+  | "dashboard"
+  | "health"
   | "thisMonth"
   | "thisMonthCashflow"
   | "cashAccounts"
@@ -22,27 +24,74 @@ export type AppRouteId =
   | "oncall"
   | "me";
 
+/** Icon names resolve to `components/ui/Icon.tsx`. */
+export type NavIcon =
+  | "home"
+  | "pulse"
+  | "calendar"
+  | "flow"
+  | "wallet"
+  | "bars"
+  | "target"
+  | "trend"
+  | "growth"
+  | "building"
+  | "receipt"
+  | "repeat"
+  | "list"
+  | "plane"
+  | "star"
+  | "spade"
+  | "gift"
+  | "clock"
+  | "bank"
+  | "card"
+  | "pie"
+  | "shield"
+  | "coins"
+  | "user";
+
 export type NavTab = {
   id: AppRouteId;
   label: string;
   summary: string;
   href: string;
+  icon: NavIcon;
 };
+
+/** Landing page after sign-in. */
+export const HOME_HREF = "/dashboard";
 
 export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
   {
     category: "Overview",
     tabs: [
       {
+        id: "dashboard",
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: "home",
+        summary: "Income, spending and cash flow at a glance.",
+      },
+      {
+        id: "health",
+        label: "Financial Health",
+        href: "/financial-health",
+        icon: "pulse",
+        summary: "Net worth, resilience, commitments and progress towards your goals.",
+      },
+      {
         id: "thisMonth",
         label: "This Month",
         href: "/this-month",
+        icon: "calendar",
         summary: "Monthly calendar, statement totals, and upcoming events.",
       },
       {
         id: "thisMonthCashflow",
         label: "This Month Cashflow",
         href: "/this-month-cashflow",
+        icon: "flow",
         summary: "This month in/out with actual credit card statement bills due.",
       },
     ],
@@ -54,6 +103,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "budget",
         label: "Budget",
         href: "/budget",
+        icon: "wallet",
         summary:
           "Take-home pay vs budget categories; loans and insurance auto-linked from other tabs.",
       },
@@ -61,6 +111,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "pastCashflow",
         label: "Past Cashflow",
         href: "/past-cashflow",
+        icon: "bars",
         summary:
           "Five-month spending and income trends by category, card, and account.",
       },
@@ -68,6 +119,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "savings",
         label: "Savings & Goals",
         href: "/savings",
+        icon: "target",
         summary:
           "Personal and shared savings accounts, goals, and progress (separate from budget).",
       },
@@ -75,6 +127,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "now",
         label: "5-Month Cashflow",
         href: "/now",
+        icon: "trend",
         summary:
           "Five-month income vs fixed spend, loans, insurance, and where surplus goes.",
       },
@@ -82,6 +135,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "year",
         label: "5-Year Projection",
         href: "/year",
+        icon: "growth",
         summary:
           "Wealth growth scenarios using budget, CPF, and investment assumptions.",
       },
@@ -89,6 +143,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "bto",
         label: "BTO Planner",
         href: "/bto",
+        icon: "building",
         summary:
           "Purchase price, grants, loan, downpayment, and cash needed for your flat.",
       },
@@ -101,12 +156,14 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "expenses",
         label: "Expenses",
         href: "/expenses",
-        summary: "Private expense log — loaded separately, not with the main dashboard.",
+        icon: "receipt",
+        summary: "Log spending and track each budget category for the month.",
       },
       {
         id: "recurring",
         label: "Recurring",
         href: "/recurring",
+        icon: "repeat",
         summary:
           "Monthly debt, insurance, ILP, and subscription payments — mark paid and track pay-from account.",
       },
@@ -114,18 +171,21 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "transactions",
         label: "Transaction history",
         href: "/transactions",
+        icon: "list",
         summary: "Unified savings, budget, and expense transaction history.",
       },
       {
         id: "travel",
         label: "Travel",
         href: "/travel",
+        icon: "plane",
         summary: "Trip budgets and actual travel spending by category.",
       },
       {
         id: "miles",
         label: "Miles Tracker",
         href: "/miles",
+        icon: "star",
         summary:
           "Bank points converted to airline miles, expiry tracking, and a redemption estimator.",
       },
@@ -133,12 +193,14 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "poker",
         label: "Poker tracker",
         href: "/poker",
+        icon: "spade",
         summary: "Log buy-ins, cash-outs, and session P/L — private to you.",
       },
       {
         id: "benefits",
         label: "Benefits",
         href: "/benefits",
+        icon: "gift",
         summary:
           "Work/insurance benefit limits — dental, specialist medical, WFH allowance — with per-cycle or one-time utilization tracking.",
       },
@@ -146,6 +208,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "oncall",
         label: "On-call tracker",
         href: "/oncall",
+        icon: "clock",
         summary:
           "On-call days, extra take-home and CPF — record payslip payments into On-call allowance income.",
       },
@@ -158,12 +221,14 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "cashAccounts",
         label: "Cash Accounts",
         href: "/cash-accounts",
+        icon: "bank",
         summary: "Net worth breakdown and personal bank accounts, e-wallets, and cash jars.",
       },
       {
         id: "cards",
         label: "Credit Cards",
         href: "/cards",
+        icon: "card",
         summary:
           "Singapore card catalog, rewards snapshot, and spend advisor for which card to use.",
       },
@@ -171,12 +236,14 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "wealth",
         label: "Investment",
         href: "/wealth",
+        icon: "pie",
         summary: "Holdings with live prices and P&L, plus Manulife-style ILP policies.",
       },
       {
         id: "cpf",
         label: "CPF Outlook",
         href: "/cpf",
+        icon: "shield",
         summary:
           "OA, SA, and MediSave balances for BTO planning, net worth, and long-term projections.",
       },
@@ -184,6 +251,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         id: "debt",
         label: "Debts & Loans",
         href: "/debt",
+        icon: "coins",
         summary:
           "Instalment plans and card balances — feeds cashflow, calendar, and burn-down charts.",
       },
@@ -194,8 +262,9 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
     tabs: [
       {
         id: "me",
-        label: "ME",
+        label: "Me",
         href: "/me",
+        icon: "user",
         summary:
           "Salary, non-ILP insurance, partner linking, and import/export settings.",
       },

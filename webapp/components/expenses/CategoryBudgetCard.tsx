@@ -92,6 +92,9 @@ export function CategoryBudgetCard({
     })),
   ].sort((a, b) => b.date.localeCompare(a.date));
 
+  // Short lists stay visible; long ones start folded so the month fits on a screen.
+  const [entriesOpen, setEntriesOpen] = useState(rows.length <= 4);
+
   return (
     <div className={`card category-budget-card ${compact ? "category-budget-card--compact" : ""}`}>
       <div className="category-budget-head">
@@ -160,6 +163,14 @@ export function CategoryBudgetCard({
       </form>
 
       {rows.length > 0 ? (
+        <details
+          className="category-budget-entries"
+          open={entriesOpen}
+          onToggle={(e) => setEntriesOpen(e.currentTarget.open)}
+        >
+          <summary>
+            {rows.length} {rows.length === 1 ? "entry" : "entries"} this month
+          </summary>
         <div className="table-scroll category-budget-table-scroll">
         <table className="category-budget-table">
           <thead>
@@ -167,7 +178,7 @@ export function CategoryBudgetCard({
               <th>Date</th>
               <th>Source</th>
               <th>Note</th>
-              <th>Amount</th>
+              <th className="num">Amount</th>
               <th />
             </tr>
           </thead>
@@ -220,6 +231,7 @@ export function CategoryBudgetCard({
           </tbody>
         </table>
         </div>
+        </details>
       ) : (
         <p className="note category-budget-empty">No spending this month.</p>
       )}

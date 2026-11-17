@@ -165,7 +165,7 @@ export function PokerStatsLocationDetail({ detail, onBack }: Props) {
             <tr>
               <th>Date</th>
               <th>Type</th>
-              <th>Buy-in</th>
+              <th className="num">Buy-in</th>
               <th className="num">P/L</th>
             </tr>
           </thead>

@@ -74,11 +74,11 @@ export function CardStatementList({
             <th>Card</th>
             <th>Statement</th>
             <th>Due</th>
-            <th>Statement amt</th>
-            <th>Min due</th>
-            <th>Outstanding</th>
-            <th>Tracked</th>
-            <th>Untracked</th>
+            <th className="num">Statement amt</th>
+            <th className="num">Min due</th>
+            <th className="num">Outstanding</th>
+            <th className="num">Tracked</th>
+            <th className="num">Untracked</th>
             <th>Paid</th>
             <th></th>
           </tr>

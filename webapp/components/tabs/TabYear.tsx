@@ -179,12 +179,12 @@ export function TabYear({ state: S, savings }: Props) {
           <thead>
             <tr>
               <th>Year-end</th>
-              <th>Salary</th>
-              <th>CPF total</th>
-              <th>Investments</th>
-              <th>Cash</th>
-              <th>Debt</th>
-              <th>Net worth</th>
+              <th className="num">Salary</th>
+              <th className="num">CPF total</th>
+              <th className="num">Investments</th>
+              <th className="num">Cash</th>
+              <th className="num">Debt</th>
+              <th className="num">Net worth</th>
             </tr>
           </thead>
           <tbody>

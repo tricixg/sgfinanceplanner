@@ -905,10 +905,10 @@ export function TabWealth({
                 <tr>
                   <th>Insurer</th>
                   <th>Plan</th>
-                  <th>Premium / mo</th>
-                  <th>Premiums paid to date</th>
-                  <th>Account value</th>
-                  <th>Start bonus</th>
+                  <th className="num">Premium / mo</th>
+                  <th className="num">Premiums paid to date</th>
+                  <th className="num">Account value</th>
+                  <th className="num">Start bonus</th>
                   <th>Est. profit vs premiums</th>
                   <th>Loading</th>
                   <th>Lock-in</th>
@@ -1126,12 +1126,12 @@ export function TabWealth({
                 <thead>
                   <tr>
                     <th>Stock</th>
-                    <th>Ticker</th>
+                    <th className="num">Ticker</th>
                     <th>Mkt</th>
-                    <th>Qty</th>
-                    <th>Last</th>
-                    <th>Avg cost</th>
-                    <th>Value</th>
+                    <th className="num">Qty</th>
+                    <th className="num">Last</th>
+                    <th className="num">Avg cost</th>
+                    <th className="num">Value</th>
                     <th>Gain</th>
                     <th>%</th>
                     <th>Wt</th>
