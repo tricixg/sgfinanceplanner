@@ -2107,7 +2107,12 @@ footer {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin: 32px 0 14px;
+}
+.panel > .section-head:first-child,
+.card > .section-head:first-child,
+.modal-panel .section-head {
+  margin-top: 0;
 }
 .section-head h2 {
   flex: 1;
@@ -4210,6 +4215,7 @@ footer {
 
 .bto-pf-inputs {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   margin-bottom: 0;
 }
@@ -4227,7 +4233,7 @@ footer {
 }
 .bto-pf-pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .bto-pf-pair .bto-field input {
@@ -5550,7 +5556,7 @@ a.health-tile:hover {
   background: var(--moss-soft);
 }
 .status-pill.watch {
-  color: #8a6212;
+  color: color-mix(in srgb, var(--gold) 72%, var(--ink));
   background: color-mix(in srgb, var(--gold) 18%, transparent);
 }
 .status-pill.risk {
@@ -5710,9 +5716,24 @@ details > summary {
 .category-budget-add label:first-child {
   flex: 1.3 1 200px;
 }
-.category-budget-add .btn {
+.category-budget-add[hidden] {
+  display: none;
+}
+.category-budget-add {
+  padding: 12px;
+  border-radius: var(--r-sm);
+  background: var(--fill);
+}
+.category-budget-add-actions {
+  display: flex;
+  gap: 8px;
   flex: 0 0 auto;
+}
+.category-budget-add .btn {
   min-height: 36px;
+}
+.category-budget-add-toggle {
+  margin-bottom: 10px;
 }
 .category-budget-table td:first-child,
 .tx-table td:first-child,
@@ -5792,6 +5813,32 @@ details > summary {
   .tx-filters-actions .btn {
     width: 100%;
   }
+}
+
+/* Modal forms: label above field, consistent rhythm */
+.modal-panel fieldset > label:not([class]),
+.modal-panel fieldset > div > label:not([class]) {
+  display: block;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.modal-panel fieldset > label:not([class]) > input:not([type="checkbox"]):not([type="radio"]),
+.modal-panel fieldset > label:not([class]) > select,
+.modal-panel fieldset > label:not([class]) > textarea,
+.modal-panel fieldset > div > label:not([class]) > input:not([type="checkbox"]):not([type="radio"]),
+.modal-panel fieldset > div > label:not([class]) > select {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+}
+.modal-panel h3 {
+  font-size: 18px;
+}
+.modal-panel > .toolbar:last-child {
+  margin-top: 18px;
+  justify-content: flex-end;
 }
 
 /* Calendar */

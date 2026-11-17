@@ -38,6 +38,7 @@ Technical reference for the **webapp** (`webapp/`): architecture, routes, featur
 | [08-authentication-and-security.md](./08-authentication-and-security.md) | Magic link, middleware, RLS, env vars |
 | [09-development-guide.md](./09-development-guide.md) | Setup, scripts, conventions, adding features |
 | [09-telegram-bot-setup.md](./09-telegram-bot-setup.md) | Telegram bot: BotFather, webhook, account linking |
+| [10-design-system.md](./10-design-system.md) | Design tokens, layout breakpoints, shared UI components |
 
 ## Related
 

@@ -5,7 +5,7 @@
 1. Open the app and go to **Login**.
 2. Enter your email address.
 3. Open the **magic link** in the email from Supabase (check spam if needed).
-4. You land in the app, usually on **This Month**.
+4. You land in the app on the **Dashboard**.
 
 Your data is tied to your account and is private to you (protected in the database). Sign out from **ME** when using a shared computer.
 
@@ -63,7 +63,7 @@ It’s the best place to search, edit, or delete a specific entry — not the on
 5. **Budget** — Set category amounts for the month.
 6. **Expenses** — Start logging spending with **Pay from** set correctly.
 
-After that, use **This Month** and **This Month Cashflow** for a quick picture of the current month.
+After that, use the **Dashboard** for a quick picture of the current month, and **Financial Health** for the bigger picture.
 
 ## Next
 

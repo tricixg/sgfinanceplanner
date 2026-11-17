@@ -909,7 +909,7 @@ export function TabWealth({
                   <th className="num">Premiums paid to date</th>
                   <th className="num">Account value</th>
                   <th className="num">Start bonus</th>
-                  <th>Est. profit vs premiums</th>
+                  <th className="num">Est. profit vs premiums</th>
                   <th>Loading</th>
                   <th>Lock-in</th>
                 </tr>
@@ -1132,9 +1132,9 @@ export function TabWealth({
                     <th className="num">Last</th>
                     <th className="num">Avg cost</th>
                     <th className="num">Value</th>
-                    <th>Gain</th>
-                    <th>%</th>
-                    <th>Wt</th>
+                    <th className="num">Gain</th>
+                    <th className="num">%</th>
+                    <th className="num">Wt</th>
                     <th className="num">Realized P&amp;L</th>
                   </tr>
                 </thead>

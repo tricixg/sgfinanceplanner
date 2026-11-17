@@ -63,7 +63,8 @@ export function DashboardPage({ enabled }: Props) {
   }, []);
 
   const { state: profile } = useAppData();
-  const todayYmd = sgtTodayYmd();
+  // Fixed for the life of the page so every derived period uses the same "today".
+  const [todayYmd] = useState(() => sgtTodayYmd());
   const currentYm = todayYmd.slice(0, 7);
   const window_ = useMemo(() => rangeWindow(range, currentYm), [range, currentYm]);
   const plotMonths = useMemo(() => trendMonths(window_, currentYm), [window_, currentYm]);
@@ -342,10 +343,10 @@ export function DashboardPage({ enabled }: Props) {
               )}
             </div>
 
-            <div className="span-6">
+            <div className="span-6 span-sm-6">
               <BudgetCard ym={currentYm} todayYmd={todayYmd} />
             </div>
-            <div className="span-6">
+            <div className="span-6 span-sm-6">
               <RecentActivityCard />
             </div>
           </div>
