@@ -5,6 +5,7 @@ import { adjustBnplMonthsPaid } from "@/lib/recurring/load";
 import { restoreOtherLoanPayment } from "@/lib/other-loans/pay";
 import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
 import { applyFundTransaction } from "@/lib/funds/ledger";
+import { budgetLinePatchForCategoryEdit } from "@/lib/expenses/budget-line-link";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -37,6 +38,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (typeof body.note === "string") patch.note = body.note;
 
   const supabase = await createAuthedSupabaseClient();
+  if (typeof body.category === "string") {
+    try {
+      Object.assign(
+        patch,
+        await budgetLinePatchForCategoryEdit(supabase, user.id, id, body.category)
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to update category";
+      console.error("[api/expenses] PATCH budget line relink failed", msg);
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
+  }
   const { data: row, error } = await supabase
     .from("expenses")
     .update(patch)

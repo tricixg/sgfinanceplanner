@@ -24,6 +24,29 @@ export async function loadBudgetLines(
   }));
 }
 
+/**
+ * After a budget line is renamed, carry the new name onto the expenses linked
+ * to it, so their category text (what the transactions list filters by) still
+ * matches the line they are counted under.
+ */
+async function renameLinkedExpenses(
+  supabase: SupabaseClient,
+  userId: string,
+  budgetLineId: string,
+  category: string
+): Promise<void> {
+  const { error, count } = await supabase
+    .from("expenses")
+    .update({ category, updated_at: new Date().toISOString() }, { count: "exact" })
+    .eq("user_id", userId)
+    .eq("budget_line_id", budgetLineId);
+  if (error) {
+    console.error("[budget] rename linked expenses failed", { budgetLineId, error: error.message });
+    return;
+  }
+  console.info("[budget] renamed linked expenses", { budgetLineId, count });
+}
+
 export async function saveBudgetLines(
   supabase: SupabaseClient,
   userId: string,
@@ -71,6 +94,9 @@ export async function saveBudgetLines(
     if (match?.id && UUID_RE.test(String(match.id))) {
       keepIds.add(String(match.id));
       await supabase.from("budget_lines").update(payload).eq("id", match.id);
+      if (match.category !== payload.category) {
+        await renameLinkedExpenses(supabase, userId, String(match.id), payload.category);
+      }
     } else {
       const { data: ins } = await supabase
         .from("budget_lines")
