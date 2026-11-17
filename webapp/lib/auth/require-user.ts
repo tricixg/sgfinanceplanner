@@ -8,7 +8,11 @@ import {
 } from "@/lib/auth/dev-bypass";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { TRUSTED_USER_HEADER, decodeTrustedUser } from "@/lib/auth/trusted-header";
+import {
+  TRUSTED_USER_HEADER,
+  decodeTrustedUser,
+  getAuthHeaderSecret,
+} from "@/lib/auth/trusted-header";
 
 function devBypassUser(): User | null {
   const id = getDevBypassUserId();
@@ -26,7 +30,10 @@ function devBypassUser(): User | null {
 
 async function trustedHeaderUser(): Promise<User | null> {
   const headerStore = await headers();
-  const trusted = decodeTrustedUser(headerStore.get(TRUSTED_USER_HEADER));
+  const trusted = await decodeTrustedUser(
+    headerStore.get(TRUSTED_USER_HEADER),
+    getAuthHeaderSecret()
+  );
   if (!trusted) return null;
   return {
     id: trusted.id,
@@ -45,9 +52,9 @@ export async function getSessionUser(): Promise<User | null> {
   if (!isSupabaseAuthConfigured()) return null;
 
   // Middleware already verified this request's JWT against Supabase Auth and forwarded the
-  // result — trust it instead of paying for a second network round-trip here. Falls through
-  // to a live check only if the header is missing (a request that somehow bypassed
-  // middleware), so there's no security downgrade either way.
+  // result in an HMAC-signed header — trust it only if the signature verifies. A missing,
+  // unsigned or wrongly signed header (including a client-forged one on a path middleware
+  // skipped) and a missing AUTH_HEADER_SECRET all fall through to a live getUser().
   const fromHeader = await trustedHeaderUser();
   if (fromHeader) return fromHeader;
 

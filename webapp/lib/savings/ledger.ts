@@ -181,14 +181,12 @@ export async function applyTransaction(
   console.info("[ledger] transaction applied", {
     userId: input.userId,
     kind,
-    amount,
     accountId: input.accountId,
     poolId: input.poolId,
     goalId: input.goalId,
     expenseId: input.expenseId ?? null,
     incomeCategoryId: input.incomeCategoryId ?? null,
     excludeFromBudget: input.excludeFromBudget ?? false,
-    balanceAfter,
   });
 
   const mapped = mapTransaction(row);
@@ -662,7 +660,6 @@ export async function deleteSavingsTransaction(
   console.info("[ledger] transaction deleted with balance rollback", {
     userId,
     id,
-    amount: tx.amount,
     accountId: tx.accountId,
     poolId: tx.poolId,
     goalId: tx.goalId,

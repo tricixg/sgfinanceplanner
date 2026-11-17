@@ -249,7 +249,7 @@ export async function adjustBnplMonthsPaid(
     .eq("user_id", userId);
 
   if (updErr) return { ok: false, error: updErr.message };
-  console.info("[recurring] bnpl months_paid adjusted", { userId, bnplId, delta, monthsPaid: next });
+  console.info("[recurring] bnpl months_paid adjusted", { userId, bnplId, monthsPaid: next });
   return { ok: true, monthsPaid: next };
 }
 

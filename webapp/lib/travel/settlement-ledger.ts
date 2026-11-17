@@ -53,8 +53,6 @@ export async function applyReceivedSettlementDeposit(
     userId,
     financialAccountId: input.financialAccountId,
     savingsTransactionId: txn.id,
-    amount: input.amount,
-    note,
   });
 
   return { savingsTransactionId: txn.id, note };

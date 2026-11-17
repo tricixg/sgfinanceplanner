@@ -50,8 +50,6 @@ export async function restoreOtherLoanPayment(
 
   console.info("[other-loans] payment restored (expense deleted)", {
     loanId,
-    amount,
-    nextOutstanding,
   });
   return { ok: true };
 }
@@ -91,8 +89,6 @@ export async function restoreOtherLoanDrawDown(
 
   console.info("[other-loans] draw-down restored (transaction deleted)", {
     loanId,
-    amount,
-    nextOutstanding,
   });
   return { ok: true };
 }
@@ -218,8 +214,6 @@ export async function recordOtherLoanPayment(
 
   console.info("[other-loans] payment recorded", {
     loanId,
-    amount,
-    newOutstanding,
     fullyPaid,
     expenseId,
   });
@@ -309,8 +303,6 @@ export async function addToOtherLoan(
 
   console.info("[other-loans] draw-down recorded", {
     loanId,
-    amount,
-    newOutstanding,
   });
 
   const { loadOtherLoans } = await import("./load");

@@ -37,8 +37,6 @@ export async function applyReimbursementBudgetImpact(
     );
     console.info("[reimburse-budget] expense reimbursement allowed", {
       expenseId: id,
-      gross: expense.amount,
-      reimburseAmount,
     });
     return;
   }
@@ -60,8 +58,6 @@ export async function applyReimbursementBudgetImpact(
     );
     console.info("[reimburse-budget] budget row reimbursement allowed", {
       id,
-      gross: Math.abs(tx.amount),
-      reimburseAmount,
     });
     return;
   }

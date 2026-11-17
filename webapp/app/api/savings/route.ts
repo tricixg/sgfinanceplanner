@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
@@ -42,7 +43,7 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load savings";
     console.error("[api/savings] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/savings", msg, { fallback: "Failed to load savings" });
   }
 }
 
@@ -88,7 +89,7 @@ export async function PUT(req: NextRequest) {
     const msg = e instanceof Error ? e.message : "Failed to save";
     const status = e instanceof SaveConfigError ? e.status : 500;
     console.error("[api/savings] PUT failed", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/savings", msg, { status, fallback: "Failed to save" });
   }
 
   console.info("[api/savings] PUT ok", {

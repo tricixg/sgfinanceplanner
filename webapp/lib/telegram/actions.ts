@@ -96,7 +96,6 @@ export async function createManualExpense(
   console.info("[telegram] expense created", {
     userId,
     budgetLineId: input.budgetLineId,
-    amount: input.amount,
     financialAccountId,
   });
   if (financialAccountId) {
@@ -172,7 +171,6 @@ export async function createTravelExpense(
   console.info("[telegram] travel expense created", {
     userId,
     tripId,
-    amount: input.amount,
     subCategory: input.subCategory,
     financialAccountId,
   });

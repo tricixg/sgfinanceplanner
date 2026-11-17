@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
@@ -96,7 +97,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("[api/travel/trips/expenses] PATCH failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/travel/trips/[id]/expenses/[expenseId]", error);
   }
 
   const splitSave = await resolveAndSaveExpenseSplit(
@@ -117,7 +118,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     spentAt,
     spentTime,
     subCategory,
-    amount,
   });
 
   return NextResponse.json({ item: mapExpense(data) });

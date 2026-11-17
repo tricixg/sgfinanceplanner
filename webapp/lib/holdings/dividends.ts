@@ -74,9 +74,6 @@ export async function addHoldingDividend(
   console.info("[holdings/dividends] dividend recorded", {
     userId: input.userId,
     holdingId: input.holdingId,
-    perShare: input.perShare,
-    qty,
-    amount,
   });
 
   return mapHoldingDividend(row);

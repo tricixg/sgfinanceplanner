@@ -150,7 +150,7 @@ export function TabBenefits({ enabled }: Props) {
         note: form.note || undefined,
       });
       setClaimForms((prev) => ({ ...prev, [benefitId]: emptyClaimForm() }));
-      console.info("[TabBenefits] usage logged", { benefitId, amount });
+      console.info("[TabBenefits] usage logged", { benefitId });
     } catch (e) {
       setClaimMsg((prev) => ({
         ...prev,

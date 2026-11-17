@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { updateStatementFields } from "@/lib/credit-cards/card-statements/load";
@@ -82,6 +83,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to update statement";
     console.error("[api/credit-cards/statements] PATCH failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/credit-cards/statements/[id]", msg, { fallback: "Failed to update statement" });
   }
 }

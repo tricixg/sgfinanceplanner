@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOncallBundle } from "@/lib/oncall/load";
@@ -25,6 +26,6 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load on-call tracker";
     console.error("[api/oncall] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/oncall", msg, { fallback: "Failed to load on-call tracker" });
   }
 }

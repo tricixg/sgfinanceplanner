@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { createOncallEntry, loadOncallBundle } from "@/lib/oncall/load";
@@ -29,6 +30,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to log on-call days";
     console.error("[api/oncall/entries] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/oncall/entries", msg, { status: 400, fallback: "Failed to log on-call days" });
   }
 }

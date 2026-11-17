@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         .delete()
         .eq("id", item.id)
         .eq("user_id", auth.user.id);
-      return NextResponse.json({ error: message }, { status: 500 });
+      return apiError("api/travel/trips/[id]/settlements", message, { fallback: "Deposit failed" });
     }
   } else if (direction === "received") {
     console.info("[travel/settlements] received settlement recorded without ledger", {

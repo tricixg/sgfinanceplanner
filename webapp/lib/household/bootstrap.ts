@@ -86,9 +86,7 @@ export async function ensureUserHousehold(
       throw new Error(error.message);
     }
     if (error) {
-      console.warn("[household] create_solo_household unavailable — direct insert", {
-        code: error.code,
-      });
+      console.warn("[household] create_solo_household unavailable — direct insert");
     }
   }
 

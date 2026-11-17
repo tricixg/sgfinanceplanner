@@ -70,7 +70,7 @@ export function useHouseholdProvider(enabled: boolean) {
       if (!res.ok) {
         throw new Error(data.error ?? "Failed to send invite");
       }
-      console.info("[useHousehold] invite sent", { email });
+      console.info("[useHousehold] invite sent");
       await load();
     },
     [load]

@@ -359,8 +359,6 @@ export async function createOncallPayment(
   console.info("[oncall] payment recorded", {
     userId,
     id: payRow.id,
-    amount,
-    deposited,
     days: items.reduce((s, i) => s + Number(i.days), 0),
   });
   return mapOncallPayment(payRow, (itemRows ?? []).map(mapOncallPaymentItem));

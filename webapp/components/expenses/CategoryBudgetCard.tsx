@@ -69,7 +69,6 @@ export function CategoryBudgetCard({
       setNote("");
       console.info("[CategoryBudgetCard] expense added", {
         budgetLineId: category.budgetLineId,
-        amount: amt,
       });
     } finally {
       setSaving(false);

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadDistinctTransactionCategories } from "@/lib/transactions/category-filter";
@@ -19,6 +20,6 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load categories";
     console.error("[api/transactions/categories] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/transactions/categories", msg, { fallback: "Failed to load categories" });
   }
 }

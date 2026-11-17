@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadFinancialAccounts } from "@/lib/financial-accounts/sync";
@@ -24,6 +25,6 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load accounts";
     console.error("[api/financial-accounts] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/financial-accounts", msg, { fallback: "Failed to load accounts" });
   }
 }

@@ -190,7 +190,6 @@ export async function recordBenefitClaim(
   console.info("[benefits] claim recorded", {
     userId,
     benefitId: input.benefitId,
-    amount: input.amount,
   });
   return mapBenefitClaim(data);
 }

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { deletePokerLocation, updatePokerLocation } from "@/lib/poker/locations";
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to update location";
     const status = msg === "Location not found" ? 404 : 400;
     console.error("[api/poker/locations] PATCH failed", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/poker/locations/[id]", msg, { status, fallback: "Failed to update location" });
   }
 }
 
@@ -65,6 +66,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to delete location";
     const status = msg === "Location not found" ? 404 : 400;
     console.error("[api/poker/locations] DELETE failed", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/poker/locations/[id]", msg, { status, fallback: "Failed to delete location" });
   }
 }

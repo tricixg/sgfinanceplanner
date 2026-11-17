@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
@@ -83,13 +84,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
     console.info("[api/savings/goals/deposits] recorded", {
       goalId,
-      amount,
       userId: user.id,
     });
     return NextResponse.json({ item });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Deposit failed";
     console.error("[api/savings/goals/deposits] failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/savings/goals/[id]/deposits", msg, { fallback: "Deposit failed" });
   }
 }

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadMilesBundle } from "@/lib/miles/load";
@@ -23,7 +24,7 @@ export async function GET() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load miles";
     console.error("[api/miles] GET failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/miles", msg, { fallback: "Failed to load miles" });
   }
 }
 
@@ -87,7 +88,7 @@ export async function PUT(req: NextRequest) {
 
       if (error) {
         console.error("[api/miles] update failed", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return apiError("api/miles", error);
       }
       continue;
     }
@@ -98,7 +99,7 @@ export async function PUT(req: NextRequest) {
 
     if (error) {
       console.error("[api/miles] insert failed", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return apiError("api/miles", error);
     }
   }
 

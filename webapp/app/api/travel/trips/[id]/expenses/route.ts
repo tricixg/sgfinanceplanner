@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
     .select("*")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("api/travel/trips/[id]/expenses", error);
 
   const expense = mapExpense(data);
 
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
   if (!ledgerSync.ok) {
     await supabase.from("expenses").delete().eq("id", expense.id).eq("user_id", auth.user.id);
-    return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
+    return apiError("api/travel/trips/[id]/expenses", ledgerSync.error);
   }
 
   console.info("[api/travel/trips/[id]/expenses] added", {
@@ -127,7 +128,6 @@ export async function POST(req: NextRequest, { params }: Params) {
     spentAt,
     spentTime,
     subCategory,
-    amount,
   });
   return NextResponse.json({ item: data });
 }

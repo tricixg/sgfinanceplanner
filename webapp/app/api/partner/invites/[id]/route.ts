@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { acceptPartnerInvite } from "@/lib/household/accept-invite";
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to accept invite";
     console.error("[api/partner/invites] accept failed", msg);
-    return NextResponse.json({ error: msg }, { status: saveErrorStatus(e) });
+    return apiError("api/partner/invites/[id]", msg, { status: saveErrorStatus(e), fallback: "Failed to accept invite" });
   }
 
   console.info("[api/partner/invites] accepted", {

@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import {
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ configured: true, items });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load snapshots";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/portfolio/snapshots", msg, { fallback: "Failed to load snapshots" });
   }
 }
 
@@ -59,6 +60,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save snapshot";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/portfolio/snapshots", msg, { fallback: "Failed to save snapshot" });
   }
 }

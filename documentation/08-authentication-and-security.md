@@ -34,7 +34,7 @@ Configure redirect URLs in Supabase dashboard (local + production `/auth/callbac
 
 ## Session refresh
 
-[webapp/middleware.ts](../webapp/middleware.ts) runs on matched routes and calls [webapp/lib/supabase/middleware.ts](../webapp/lib/supabase/middleware.ts) to refresh the session from cookies before rendering.
+[webapp/proxy.ts](../webapp/proxy.ts) runs on matched routes and calls [webapp/lib/supabase/middleware.ts](../webapp/lib/supabase/middleware.ts) to refresh the session from cookies before rendering. It also forwards the verified user to API routes in an HMAC-signed `x-sgfp-verified-user` header (secret: `AUTH_HEADER_SECRET`); routes only trust a validly signed value and otherwise call `supabase.auth.getUser()` live. The matcher never skips `/api/**`.
 
 ---
 

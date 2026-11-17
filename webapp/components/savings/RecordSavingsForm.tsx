@@ -61,7 +61,7 @@ export function RecordSavingsForm({
         note: note.trim(),
         kind: allowWithdrawal ? kind : "deposit",
       });
-      console.info("[RecordSavingsForm] recorded", { kind, amount: n });
+      console.info("[RecordSavingsForm] recorded", { kind });
       close();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to record");

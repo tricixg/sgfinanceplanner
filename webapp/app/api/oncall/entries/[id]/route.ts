@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteOncallEntry, loadOncallBundle, updateOncallEntry } from "@/lib/oncall/load";
@@ -32,7 +33,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to update on-call stretch";
     console.error("[api/oncall/entries] PATCH failed", msg);
-    return NextResponse.json({ error: msg }, { status: msg === "Not found" ? 404 : 400 });
+    return apiError("api/oncall/entries/[id]", msg, { status: msg === "Not found" ? 404 : 400, fallback: "Failed to update on-call stretch" });
   }
 }
 
@@ -54,6 +55,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to delete on-call stretch";
     console.error("[api/oncall/entries] DELETE failed", msg);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/oncall/entries/[id]", msg, { status: 400, fallback: "Failed to delete on-call stretch" });
   }
 }

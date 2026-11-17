@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { createOncallPayment, loadOncallBundle } from "@/lib/oncall/load";
@@ -29,6 +30,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to record payment";
     console.error("[api/oncall/payments] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/oncall/payments", msg, { status: 400, fallback: "Failed to record payment" });
   }
 }

@@ -1,3 +1,4 @@
+import { publicErrorMessage } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { POKER_IMPORT_MAX_FILE_BYTES } from "@/lib/poker/import-template";
@@ -138,8 +139,7 @@ export async function POST(req: NextRequest) {
           ledgerSynced: result.ledgerSynced,
         });
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "Import failed";
-        console.error("[api/poker/import] stream error", { userId: user.id, msg });
+        const msg = publicErrorMessage("api/poker/import", e, "Import failed");
         send({
           type: "error",
           error: msg,

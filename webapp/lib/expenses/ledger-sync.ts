@@ -56,7 +56,6 @@ export async function createExpenseLedger(
     console.info("[ledger-sync] savings withdrawal created", {
       expenseId: expense.id,
       accountId: account.savingsAccountId,
-      amount: expense.amount,
     });
     return;
   }
@@ -87,7 +86,6 @@ export async function createExpenseLedger(
     console.info("[ledger-sync] budget transaction created", {
       expenseId: expense.id,
       financialAccountId: expense.financialAccountId,
-      amount: expense.amount,
     });
     return;
   }
@@ -154,7 +152,6 @@ export async function reverseExpenseLedger(
     console.info("[ledger-sync] savings reversal balance restored", {
       expenseId: expense.id,
       accountId,
-      amount: restoreAmount,
       removedTxId: row.id,
     });
   }

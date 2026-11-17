@@ -275,7 +275,6 @@ export function TabCashAccounts({
       console.info("[TabCashAccounts] transfer recorded", {
         from: transferFromId,
         to: transferToId,
-        amount: amt,
         goalId: transferGoalId || undefined,
       });
     } catch (e) {

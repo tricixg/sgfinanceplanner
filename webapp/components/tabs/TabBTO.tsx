@@ -314,7 +314,7 @@ export function TabBTO({ state: S, setState }: Props) {
         },
       };
     });
-    console.info("[TabBTO] scheme amount override", id, amount);
+    console.info("[TabBTO] scheme amount override", id);
   };
 
   const resetSchemeAmount = (id: BTOSchemeId) => {

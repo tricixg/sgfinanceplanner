@@ -259,7 +259,6 @@ export function SavingsLedgerModal({
       console.info("[SavingsLedgerModal] recorded", {
         variant: target.variant,
         kind,
-        amount: resolved,
         goalId: goalId || null,
         benefitId: benefitId || null,
         fromAccountId: fromAccountId || null,

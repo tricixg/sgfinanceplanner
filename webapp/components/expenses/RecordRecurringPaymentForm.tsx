@@ -85,7 +85,6 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
       console.info("[RecordRecurringPayment] ok", {
         kind: row.kind,
         sourceId: row.sourceId,
-        amt,
         spentAt,
       });
       dispatchDomainEvent([

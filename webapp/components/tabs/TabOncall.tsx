@@ -51,7 +51,7 @@ export function TabOncall({ enabled }: Props) {
       ? `, deposited to ${accounts.find((a) => a.id === input.accountId)?.name ?? "your account"}.`
       : ". No deposit was added.";
     onMessage(`Recorded ${fmt2(input.amount)} for ${plural(days, "day")} in ${fmtSalaryMonth(input.salaryMonth)}${where}`);
-    console.info("[TabOncall] payment recorded", { days, deposited: input.deposited });
+    console.info("[TabOncall] payment recorded", { days });
   };
 
   const deletePayment = async (p: OncallPayment) => {

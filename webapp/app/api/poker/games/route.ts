@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { createPokerGame, listPokerGames } from "@/lib/poker/games";
@@ -65,6 +66,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to create game";
     console.error("[api/poker/games] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/poker/games", msg, { status: 400, fallback: "Failed to create game" });
   }
 }

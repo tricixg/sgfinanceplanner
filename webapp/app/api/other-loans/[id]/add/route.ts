@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOtherLoans } from "@/lib/other-loans/load";
@@ -32,11 +33,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     const supabase = await createAuthedSupabaseClient();
     await addToOtherLoan(supabase, auth.user.id, id, amount, financialAccountId, note);
     const otherLoans = await loadOtherLoans(supabase, auth.user.id);
-    console.info("[api/other-loans] POST add", { id, amount });
+    console.info("[api/other-loans] POST add", { id });
     return NextResponse.json({ ok: true, otherLoans });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to record draw-down";
     console.error("[api/other-loans] POST add failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/other-loans/[id]/add", msg, { fallback: "Failed to record draw-down" });
   }
 }

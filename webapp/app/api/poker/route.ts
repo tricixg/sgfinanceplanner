@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[api/poker] GET failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/poker", error);
   }
 
   const page = rows ?? [];
@@ -109,7 +110,7 @@ export async function POST(req: NextRequest) {
   const result = await insertPokerSession(supabase, user.id, body);
   if ("error" in result) {
     const status = result.error === "Not found" ? 404 : 400;
-    return NextResponse.json({ error: result.error }, { status });
+    return apiError("api/poker", result.error, { status });
   }
 
   return NextResponse.json({ item: result.session });

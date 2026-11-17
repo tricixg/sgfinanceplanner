@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadBudgetData, saveBudgetMonth } from "@/lib/budget/load";
@@ -41,7 +42,7 @@ export async function GET() {
     return NextResponse.json(payload(data, computed));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load budget";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/budget-lines", msg, { fallback: "Failed to load budget" });
   }
 }
 
@@ -82,6 +83,6 @@ export async function PUT(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save budget";
     console.error("[api/budget-lines] PUT failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/budget-lines", msg, { fallback: "Failed to save budget" });
   }
 }

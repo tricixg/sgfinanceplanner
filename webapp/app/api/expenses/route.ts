@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import {
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[api/expenses] GET failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/expenses", error);
   }
 
   const page = rows ?? [];
@@ -244,14 +245,14 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("[api/expenses] auto payment POST failed", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return apiError("api/expenses", error);
     }
 
     if (validated.autoCategory === "debt" && body.loanId) {
       const adj = await adjustLoanOutstanding(supabase, user.id, body.loanId, -amount);
       if (!adj.ok) {
         await supabase.from("expenses").delete().eq("id", row.id);
-        return NextResponse.json({ error: adj.error }, { status: 500 });
+        return apiError("api/expenses", adj.error);
       }
     }
 
@@ -259,7 +260,7 @@ export async function POST(req: NextRequest) {
       const adj = await adjustBnplMonthsPaid(supabase, user.id, body.bnplId, 1);
       if (!adj.ok) {
         await supabase.from("expenses").delete().eq("id", row.id);
-        return NextResponse.json({ error: adj.error }, { status: 500 });
+        return apiError("api/expenses", adj.error);
       }
     }
 
@@ -280,7 +281,7 @@ export async function POST(req: NextRequest) {
         await supabase.from("expenses").delete().eq("id", row.id);
         const msg = e instanceof Error ? e.message : "Fund deposit failed";
         console.error("[api/expenses] auto payment fund deposit failed", msg);
-        return NextResponse.json({ error: msg }, { status: 500 });
+        return apiError("api/expenses", msg, { fallback: "Fund deposit failed" });
       }
     }
 
@@ -291,14 +292,13 @@ export async function POST(req: NextRequest) {
       occurredAt,
     });
     if (!ledgerSync.ok) {
-      return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
+      return apiError("api/expenses", ledgerSync.error);
     }
 
     console.info("[api/expenses] auto payment POST ok", {
       userId: user.id,
       autoCategory: validated.autoCategory,
       sourceId,
-      amount,
       spentAt,
       financialAccountId: body.financialAccountId ?? null,
     });
@@ -353,7 +353,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error("[api/expenses] POST failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/expenses", error);
   }
 
   const expense = mapExpense(row);
@@ -361,12 +361,11 @@ export async function POST(req: NextRequest) {
     occurredAt,
   });
   if (!ledgerSync.ok) {
-    return NextResponse.json({ error: ledgerSync.error }, { status: 500 });
+    return apiError("api/expenses", ledgerSync.error);
   }
 
   console.info("[api/expenses] POST ok", {
     userId: user.id,
-    amount,
     spentAt,
     budgetLineId,
     financialAccountId: body.financialAccountId ?? null,

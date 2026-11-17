@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { verifyFinancialAccount } from "@/lib/expenses/auto-payment";
@@ -29,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("[api/poker] GET failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/poker/[id]", error);
   }
   if (!data) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ("error" in result) {
     const status =
       result.error === "Not found" ? 404 : result.error.includes("Ledger") ? 500 : 400;
-    return NextResponse.json({ error: result.error }, { status });
+    return apiError("api/poker/[id]", result.error, { status });
   }
 
   console.info("[api/poker] PATCH ok", { id, userId: user.id });
@@ -101,7 +102,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   if (fetchErr) {
     console.error("[api/poker] DELETE fetch failed", fetchErr.message);
-    return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+    return apiError("api/poker/[id]", fetchErr);
   }
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -114,7 +115,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Ledger reversal failed";
     console.error("[api/poker] DELETE ledger reverse failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/poker/[id]", msg, { fallback: "Ledger reversal failed" });
   }
 
   const { error } = await supabase
@@ -125,7 +126,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   if (error) {
     console.error("[api/poker] DELETE failed", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("api/poker/[id]", error);
   }
 
   console.info("[api/poker] DELETE ok", { id, userId: user.id });

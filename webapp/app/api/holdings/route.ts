@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadHoldings, saveHoldings } from "@/lib/holdings/load";
@@ -18,7 +19,7 @@ export async function GET() {
     return NextResponse.json({ configured: true, holdings });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load holdings";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/holdings", msg, { fallback: "Failed to load holdings" });
   }
 }
 
@@ -45,6 +46,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ configured: true, holdings });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to save holdings";
-    return NextResponse.json({ error: msg }, { status: saveErrorStatus(e) });
+    return apiError("api/holdings", msg, { status: saveErrorStatus(e), fallback: "Failed to save holdings" });
   }
 }

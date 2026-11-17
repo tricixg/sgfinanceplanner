@@ -154,8 +154,6 @@ export async function adjustLoanOutstanding(
   console.info("[auto-payment] loan outstanding adjusted", {
     userId,
     loanId,
-    delta,
-    outstanding: next,
   });
   return { ok: true, outstanding: next };
 }

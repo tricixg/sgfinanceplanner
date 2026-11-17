@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { addHoldingDividend, listHoldingDividends } from "@/lib/holdings/dividends";
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ configured: true, items, total: page.total, nextOffset: page.nextOffset });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to load dividends";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/holdings/[id]/dividends", msg, { fallback: "Failed to load dividends" });
   }
 }
 
@@ -110,6 +111,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to record dividend";
     console.error("[api/holdings/dividends] POST failed", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return apiError("api/holdings/[id]/dividends", msg, { fallback: "Failed to record dividend" });
   }
 }

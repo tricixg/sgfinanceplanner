@@ -78,7 +78,6 @@ export async function insertPokerSession(
   console.info("[poker] session created", {
     userId,
     sessionId: session.id,
-    profit,
   });
   return { session };
 }
@@ -158,7 +157,6 @@ export async function updatePokerSession(
   console.info("[poker] session updated", {
     userId,
     sessionId,
-    profit: pokerProfitSgd(session),
     currency: session.currency,
   });
   return { session };

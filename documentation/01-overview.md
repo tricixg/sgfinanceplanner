@@ -42,7 +42,7 @@ sgfinanceplanner/
     ├── hooks/              # Data-fetching and state hooks
     ├── lib/                # Business logic (no React)
     ├── supabase/migrations/  # SQL schema 001–025
-    └── middleware.ts       # Session refresh on each request
+    └── proxy.ts            # Session refresh on each request
 ```
 
 **Business logic lives in `lib/`**, not in route handlers. Route files should delegate to `lib/*` modules for testability and reuse.
@@ -52,7 +52,7 @@ sgfinanceplanner/
 ### Supabase-backed (production / signed-in)
 
 1. User signs in via magic link ([webapp/app/login/page.tsx](../webapp/app/login/page.tsx)).
-2. Session stored in cookies; [webapp/middleware.ts](../webapp/middleware.ts) refreshes it.
+2. Session stored in cookies; [webapp/proxy.ts](../webapp/proxy.ts) refreshes it.
 3. API routes call [webapp/lib/auth/require-user.ts](../webapp/lib/auth/require-user.ts) and [webapp/lib/supabase/authed.ts](../webapp/lib/supabase/authed.ts).
 4. PostgreSQL enforces **Row Level Security (RLS)** per user (and household where applicable).
 

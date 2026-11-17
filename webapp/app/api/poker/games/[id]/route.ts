@@ -1,3 +1,4 @@
+import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { deletePokerGame, updatePokerGame } from "@/lib/poker/games";
@@ -55,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to update game";
     console.error("[api/poker/games] PATCH failed", msg);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return apiError("api/poker/games/[id]", msg, { status: 400, fallback: "Failed to update game" });
   }
 }
 
@@ -77,6 +78,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to delete game";
     const status = msg.includes("past sessions") ? 409 : 400;
     console.error("[api/poker/games] DELETE failed", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return apiError("api/poker/games/[id]", msg, { status, fallback: "Failed to delete game" });
   }
 }
