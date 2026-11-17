@@ -150,10 +150,19 @@ export function buildBudgetExpenseSummary(
     }
   }
 
-  const allCategories = [...categoryMap.values()].map((c) => ({
-    ...c,
-    remaining: c.allocated - c.spent,
-  }));
+  const inactiveIds = new Set(buckets.filter((l) => l.inactive).map((l) => l.id));
+  const allCategories = [...categoryMap.values()]
+    .filter(
+      (c) =>
+        !inactiveIds.has(c.budgetLineId) ||
+        c.spent !== 0 ||
+        c.expenses.length > 0 ||
+        c.imports.length > 0
+    )
+    .map((c) => ({
+      ...c,
+      remaining: c.allocated - c.spent,
+    }));
 
   allCategories.sort((a, b) => {
     const aOrder = buckets.find((l) => l.id === a.budgetLineId)?.sortOrder ?? 0;

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ParsedBudgetRow } from "@/lib/budget/parse-csv";
-import { loadBudgetLines } from "@/lib/budget/load";
-import { mapDbBudgetLine, resolveBudgetLineId } from "@/lib/expenses/budget-match";
+import { loadBudgetCatalog } from "@/lib/budget/load";
+import { resolveBudgetLineId } from "@/lib/expenses/budget-match";
 import {
   findOrCreateFinancialAccountByName,
   syncCashFinancialAccounts,
@@ -252,18 +252,7 @@ export async function importBudgetRows(
 
   await syncCashFinancialAccounts(supabase, userId);
 
-  const budgetItems = await loadBudgetLines(supabase, userId);
-  const budgetLines = budgetItems
-    .filter((b) => b.id)
-    .map((b, i) =>
-      mapDbBudgetLine({
-        id: b.id,
-        category: b.cat,
-        amount: b.amt,
-        line_type: b.type,
-        sort_order: i,
-      })
-    );
+  const budgetLines = await loadBudgetCatalog(supabase, userId);
 
   let inserted = 0;
   let skipped = 0;

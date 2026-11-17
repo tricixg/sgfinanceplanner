@@ -16,6 +16,7 @@ import {
   COMPUTED_INSURANCE_LABEL,
 } from "@/lib/finance";
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
+import { budgetLinesForMonth } from "@/lib/finance/budget";
 import { ChartBox } from "@/components/ChartBox";
 import type { ChartOptions } from "chart.js";
 import { fetchJson } from "@/lib/fetch-json";
@@ -180,7 +181,7 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
   const midYm = rows[2]?.ym ?? firstYm;
   const midLoans = totalLoanLoadForMonth(S.loans, S.otherLoans ?? [], midYm);
   const items: [string, number][] = [
-    ...S.budget
+    ...budgetLinesForMonth(S, midYm)
       .filter((b) => b.type !== "save" && b.type !== "invest")
       .map((b) => [b.cat, b.amt] as [string, number]),
     [COMPUTED_DEBT_LABEL, midLoans],
@@ -242,7 +243,11 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
         </div>
         <div className="stat">
           <div className="lbl">Budget outflows / mo</div>
-          <div className="val">{fmt(budgetFixedTotal(S) + budgetSpendTotal(S))}</div>
+          <div className="val">{fmt(
+              rows[0]
+                ? rows[0].fixed + rows[0].spend
+                : budgetFixedTotal(S) + budgetSpendTotal(S)
+            )}</div>
           <div className="note">Fixed + spend categories</div>
         </div>
         <div className="stat">

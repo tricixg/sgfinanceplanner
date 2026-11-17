@@ -5,7 +5,7 @@ import type { SavingsSnapshot } from "@/lib/savings/types";
 import { resolveDashboardCash } from "./wealth";
 import { ilpTotalValue } from "./ilp";
 import { portfolioInvestmentValue } from "./wealth";
-import { monIdx } from "./helpers";
+import { monIdx, ymFromMonIdx } from "./helpers";
 
 export type ProjectionRow = {
   label: string;
@@ -95,8 +95,8 @@ export function simulate5y(
     }
 
     const cashIncome = sal - cpfEmp(sal);
-    const fixed = budgetFixedTotal(S);
-    const spend = budgetSpendTotal(S);
+    const fixed = budgetFixedTotal(S, ymFromMonIdx(i));
+    const spend = budgetSpendTotal(S, ymFromMonIdx(i));
     const surplus =
       cashIncome - fixed - spend - loanPaid - invAdd - marginPay;
     cash += surplus;

@@ -264,3 +264,52 @@ describe("buildSpendingAnalytics", () => {
     expect(bundle.insights.momChangePct["2026-02"]).toBeNull();
   });
 });
+
+describe("budget variance with per-month budgets", () => {
+  const dining = (amount: number): BudgetLineRow => ({
+    id: "line-dining",
+    category: "Dining",
+    amount,
+    lineType: "spend",
+    sortOrder: 0,
+  });
+  const run = (budgetByYm?: Record<string, BudgetLineRow[]>) =>
+    buildSpendingAnalytics({
+      throughYm: "2026-03",
+      months: 3,
+      scope: "all",
+      budgetLines: [dining(0)],
+      budgetByYm,
+      expenses: [
+        {
+          id: "e1",
+          amount: 800,
+          spentAt: "2026-02-10",
+          category: "Dining",
+          budgetLineId: "line-dining",
+          financialAccountId: null,
+          autoCategory: null,
+        },
+      ],
+      imports: [],
+      reimbursements: { expense: new Map(), budget: new Map() },
+      cards: [],
+    });
+
+  it("sums each month's own allocation", () => {
+    const b = run({
+      "2026-01": [dining(500)],
+      "2026-02": [dining(500)],
+      "2026-03": [dining(600)],
+    });
+    const row = b.insights.budgetVariance.find((r) => r.id === "line-dining");
+    expect(row?.allocated).toBe(1600);
+    expect(row?.over).toBe(-800);
+    expect(b.budgetByCategory[0]?.monthlyAllocated).toBe(533.33);
+  });
+
+  it("counts a missing month as 0", () => {
+    const b = run({ "2026-01": [dining(500)], "2026-02": [], "2026-03": [dining(600)] });
+    expect(b.insights.budgetVariance.find((r) => r.id === "line-dining")?.allocated).toBe(1100);
+  });
+});

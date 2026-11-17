@@ -6,6 +6,8 @@ export type BudgetLineRow = {
   amount: number;
   lineType: BudgetItem["type"];
   sortOrder: number;
+  /** Catalog line not in the month's budget (allocation 0). */
+  inactive?: boolean;
 };
 
 export function normalizeCategoryKey(name: string): string {

@@ -8,6 +8,8 @@ import type { FinanceProfile } from "@/lib/profile/load";
 import type { CpfContribution } from "@/lib/cpf/types";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { resolveBudgetMonth } from "@/lib/budget/monthly";
+import { currentYm } from "@/lib/finance/helpers";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 
 export const PORTFOLIO_HISTORY_LIMIT = 30;
@@ -45,7 +47,8 @@ export function useAppDataProvider(enabled: boolean) {
   const [configured, setConfigured] = useState(false);
   const [profileBundle, setProfileBundle] = useState<ProfileBundle | null>(null);
   const [loans, setLoans] = useState<DashboardState["loans"]>([]);
-  const [budget, setBudget] = useState<DashboardState["budget"]>([]);
+  const [budgetMonths, setBudgetMonths] = useState<Record<string, DashboardState["budget"]>>({});
+  const [incomeMonths, setIncomeMonths] = useState<Record<string, number>>({});
   const [creditCards, setCreditCards] = useState<DashboardState["creditCards"]>([]);
   const [holdings, setHoldings] = useState<DashboardState["holdings"]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<
@@ -66,7 +69,9 @@ export function useAppDataProvider(enabled: boolean) {
       insurancePolicies: profileBundle?.insurancePolicies ?? [],
       ilpPolicies: profileBundle?.ilpPolicies ?? [],
       loans,
-      budget,
+      budget: resolveBudgetMonth(budgetMonths, currentYm()).lines,
+      budgetMonths,
+      incomeMonths,
       creditCards,
       holdings,
       portfolioHistory,
@@ -74,7 +79,7 @@ export function useAppDataProvider(enabled: boolean) {
       accounts: [],
       goals: [],
     });
-  }, [profileBundle, loans, budget, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
+  }, [profileBundle, loans, budgetMonths, incomeMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -170,7 +175,13 @@ export function useAppDataProvider(enabled: boolean) {
             "/api/other-loans",
             { credentials: "include" }
           ),
-          fetchJson<{ budget?: DashboardState["budget"]; configured?: boolean }>(
+          fetchJson<{
+            budget?: DashboardState["budget"];
+            months?: Record<string, DashboardState["budget"]>;
+            income?: Record<string, number>;
+            currentYm?: string;
+            configured?: boolean;
+          }>(
             "/api/budget-lines",
             { credentials: "include" }
           ),
@@ -197,7 +208,10 @@ export function useAppDataProvider(enabled: boolean) {
       }
       if (loansRes.res.ok) setLoans(loansRes.data.loans ?? []);
       if (otherLoansRes.res.ok) setOtherLoans(otherLoansRes.data.otherLoans ?? []);
-      if (budgetRes.res.ok) setBudget(budgetRes.data.budget ?? []);
+      if (budgetRes.res.ok) {
+        setBudgetMonths(budgetRes.data.months ?? {});
+        setIncomeMonths(budgetRes.data.income ?? {});
+      }
       if (cardsRes.res.ok) setCreditCards(cardsRes.data.cards ?? []);
       if (holdRes.res.ok) setHoldings(holdRes.data.holdings ?? []);
 
@@ -295,20 +309,29 @@ export function useAppDataProvider(enabled: boolean) {
     dispatchDomainEvent("loans:changed");
   }, []);
 
-  const saveBudget = useCallback(async (next: DashboardState["budget"]) => {
-    const { res, data } = await fetchJson<{ budget?: DashboardState["budget"] }>(
-      "/api/budget-lines",
-      {
+  const saveBudgetMonth = useCallback(
+    async (month: string, next: DashboardState["budget"]) => {
+      if (!configured) {
+        setBudgetMonths((prev) => ({ ...prev, [month]: next }));
+        return;
+      }
+      const { res, data } = await fetchJson<{
+        months?: Record<string, DashboardState["budget"]>;
+        income?: Record<string, number>;
+        error?: string;
+      }>("/api/budget-lines", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ budget: next }),
-      }
-    );
-    if (!res.ok) throw new Error("Failed to save budget");
-    setBudget(data.budget ?? next);
-    dispatchDomainEvent("budget:changed");
-  }, []);
+        body: JSON.stringify({ month, budget: next }),
+      });
+      if (!res.ok) throw new Error(data.error ?? "Failed to save budget");
+      setBudgetMonths(data.months ?? {});
+      setIncomeMonths(data.income ?? {});
+      dispatchDomainEvent("budget:changed");
+    },
+    [configured]
+  );
 
   const saveCards = useCallback(async (next: DashboardState["creditCards"]) => {
     const { res, data } = await fetchJson<{ cards?: DashboardState["creditCards"] }>(
@@ -524,7 +547,11 @@ export function useAppDataProvider(enabled: boolean) {
       const next = typeof updater === "function" ? updater(prev) : updater;
 
       if (next.loans !== prev.loans) setLoans(next.loans);
-      if (next.budget !== prev.budget) setBudget(next.budget);
+      if (next.budgetMonths !== prev.budgetMonths && next.budgetMonths) {
+        setBudgetMonths(next.budgetMonths);
+      } else if (next.budget !== prev.budget) {
+        setBudgetMonths((m) => ({ ...m, [currentYm()]: next.budget }));
+      }
       if (next.creditCards !== prev.creditCards) setCreditCards(next.creditCards);
       if (next.holdings !== prev.holdings) setHoldings(next.holdings);
       if (next.prefs !== prev.prefs) setPrefs(next.prefs);
@@ -604,7 +631,7 @@ export function useAppDataProvider(enabled: boolean) {
     saveProfile,
     saveProfilePolicies,
     saveLoans,
-    saveBudget,
+    saveBudgetMonth,
     saveCards,
     saveHoldings,
     recordHoldingDividend,

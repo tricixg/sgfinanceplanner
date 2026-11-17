@@ -9,10 +9,10 @@ import {
   verifyFinancialAccount,
   type AutoPaymentPayload,
 } from "@/lib/expenses/auto-payment";
+import { loadBudgetLineRowsForMonth } from "@/lib/budget/load";
 import { adjustBnplMonthsPaid } from "@/lib/recurring/load";
 import {
   isExpenseBudgetType,
-  mapDbBudgetLine,
   resolveBudgetLineId,
 } from "@/lib/expenses/budget-match";
 import { mapExpense } from "@/lib/savings/db-mappers";
@@ -305,12 +305,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ item: expense });
   }
 
-  const { data: budgetRows } = await supabase
-    .from("budget_lines")
-    .select("*")
-    .eq("user_id", user.id);
-
-  const budgetLines = (budgetRows ?? []).map((r) => mapDbBudgetLine(r));
+  const budgetLines = await loadBudgetLineRowsForMonth(supabase, user.id, spentAt.slice(0, 7));
 
   const budgetLineId = resolveBudgetLineId(
     budgetLines,

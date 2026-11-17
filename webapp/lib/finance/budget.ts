@@ -1,10 +1,11 @@
 import type { BudgetItem, DashboardState } from "@/lib/types";
+import { resolveBudgetMonth } from "@/lib/budget/monthly";
 import type { SavingsGoal, SavingsSnapshot } from "@/lib/savings/types";
 import { effectiveMonthlySave } from "./savings-totals";
 import { resolveDashboardCash } from "./wealth";
 import { isInsuranceBudgetCategory } from "./insurance";
 import { isIlpBudgetCategory } from "./ilp";
-import { stableTakeHome } from "./income";
+import { takeHomeForMonth } from "./income";
 import { totalLoanLoadForMonth } from "./loanLoad";
 import { budgetYm, currentYm, monIdx } from "./helpers";
 import { computedInsuranceMonthly } from "./insurance";
@@ -51,28 +52,35 @@ export function stripSaveBudgetLines(items: BudgetItem[]): BudgetItem[] {
   return items.filter((b) => b.type !== "save");
 }
 
-export function budgetFixedTotal(S: DashboardState): number {
-  return S.budget
+/** Budget lines that apply to `ym`; falls back to `S.budget` without month data. */
+export function budgetLinesForMonth(S: DashboardState, ym?: string): BudgetItem[] {
+  if (!ym || !S.budgetMonths) return S.budget;
+  const r = resolveBudgetMonth(S.budgetMonths, ym);
+  return r.sourceYm ? r.lines : S.budget;
+}
+
+export function budgetFixedTotal(S: DashboardState, ym?: string): number {
+  return budgetLinesForMonth(S, ym)
     .filter((b) => b.type === "fixed" && !isDebtBudgetCategory(b.cat))
     .reduce((s, b) => s + b.amt, 0);
 }
 
-export function budgetSpendTotal(S: DashboardState): number {
-  return S.budget
+export function budgetSpendTotal(S: DashboardState, ym?: string): number {
+  return budgetLinesForMonth(S, ym)
     .filter((b) => b.type === "spend")
     .reduce((s, b) => s + b.amt, 0);
 }
 
 /** Sum of budget lines with type invest — used on Budget & Savings and 5-year projection. */
-export function monthlyInvestContribution(S: DashboardState): number {
-  return S.budget
+export function monthlyInvestContribution(S: DashboardState, ym?: string): number {
+  return budgetLinesForMonth(S, ym)
     .filter((b) => b.type === "invest")
     .reduce((s, b) => s + b.amt, 0);
 }
 
 /** Invest-type budget lines plus ILP premiums (auto from Investment) — what projections invest each month. */
-export function monthlyInvestContributionWithIlp(S: DashboardState): number {
-  return monthlyInvestContribution(S) + computedIlpMonthly(S);
+export function monthlyInvestContributionWithIlp(S: DashboardState, ym?: string): number {
+  return monthlyInvestContribution(S, ym) + computedIlpMonthly(S);
 }
 
 export function monthlySaveContribution(S: DashboardState): number {
@@ -194,7 +202,7 @@ export function budgetVerdict(
   ym?: string,
   savingsMonthly?: number
 ) {
-  const income = stableTakeHome(S);
+  const income = takeHomeForMonth(S, ym);
   const alloc = S.budget.reduce((s, b) => s + b.amt, 0);
   const debt = computedDebtMonthly(S, ym);
   const ilp = computedIlpMonthly(S);

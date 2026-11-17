@@ -21,6 +21,11 @@ export const monIdx = (s: string) => {
   return y * 12 + (m - 1);
 };
 
+/** Inverse of `monIdx`: month index back to `YYYY-MM`. */
+export function ymFromMonIdx(idx: number): string {
+  return `${Math.floor(idx / 12)}-${String((idx % 12) + 1).padStart(2, "0")}`;
+}
+
 export function formatMonthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   const d = new Date(y, m - 1, 1);

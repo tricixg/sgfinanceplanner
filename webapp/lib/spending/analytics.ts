@@ -143,6 +143,8 @@ export function buildSpendingAnalytics(input: {
   months?: number;
   scope: SpendingScope;
   budgetLines: BudgetLineRow[];
+  /** Budget rows that applied in each window month; omit to use `budgetLines` amounts for every month. */
+  budgetByYm?: Record<string, BudgetLineRow[]>;
   expenses: LeanExpenseRow[];
   imports: LeanImportRow[];
   reimbursements: ReimbursementTotalsBySource;
@@ -171,12 +173,30 @@ export function buildSpendingAnalytics(input: {
     return { ym, total, byCategory, byCard };
   });
 
-  const budgetByCategory = expenseBudgetLines(input.budgetLines)
-    .filter((l) => l.lineType === "spend" && l.amount > 0)
+  const n = window.months.length;
+  const round2 = (x: number) => Math.round(x * 100) / 100;
+  const allocatedTotals = new Map<string, number>();
+  const spendCatalog = expenseBudgetLines(input.budgetLines).filter((l) => l.lineType === "spend");
+  for (const l of spendCatalog) {
+    let total = 0;
+    if (input.budgetByYm) {
+      for (const ym of window.months) {
+        const row = (input.budgetByYm[ym] ?? []).find((r) => r.id === l.id);
+        total += row && !row.inactive ? row.amount : 0;
+      }
+    } else {
+      total = l.amount * n;
+    }
+    allocatedTotals.set(l.id, total);
+  }
+  const budgetByCategory = spendCatalog
+    .filter((l) => (allocatedTotals.get(l.id) ?? 0) > 0)
     .map((l) => ({
       id: l.id,
       label: l.category,
-      monthlyAllocated: l.amount,
+      monthlyAllocated: input.budgetByYm
+        ? round2((allocatedTotals.get(l.id) ?? 0) / n)
+        : l.amount,
     }));
 
   const categoryTotals = new Map<string, { label: string; total: number }>();
@@ -207,7 +227,9 @@ export function buildSpendingAnalytics(input: {
   const budgetVariance = budgetByCategory
     .map((b) => {
       const spent = categoryTotals.get(b.id)?.total ?? 0;
-      const allocated = b.monthlyAllocated * window.months.length;
+      const allocated = input.budgetByYm
+        ? round2(allocatedTotals.get(b.id) ?? 0)
+        : b.monthlyAllocated * n;
       const over = Math.round((spent - allocated) * 100) / 100;
       return {
         id: b.id,

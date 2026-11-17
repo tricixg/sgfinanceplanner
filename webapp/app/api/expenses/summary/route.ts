@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
-import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
+import { loadBudgetLineRowsForMonth } from "@/lib/budget/load";
 import { loadIlpPolicies, loadInsurancePolicies } from "@/lib/profile/load";
 import { loadLoans } from "@/lib/loans/load";
 import { loadOtherLoans } from "@/lib/other-loans/load";
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createAuthedSupabaseClient();
 
   const [
-    budgetRes,
+    budgetLines,
     expensesRes,
     importsRes,
     loans,
@@ -44,11 +44,7 @@ export async function GET(req: NextRequest) {
     ilpPolicies,
     reimbursements,
   ] = await Promise.all([
-    supabase
-      .from("budget_lines")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("sort_order", { ascending: true }),
+    loadBudgetLineRowsForMonth(supabase, user.id, ym).catch((e: unknown) => e as Error),
     supabase
       .from("expenses")
       .select("*")
@@ -73,9 +69,9 @@ export async function GET(req: NextRequest) {
     loadReimbursementTotals(supabase, user.id),
   ]);
 
-  if (budgetRes.error) {
-    console.error("[api/expenses/summary] budget load failed", budgetRes.error.message);
-    return NextResponse.json({ error: budgetRes.error.message }, { status: 500 });
+  if (budgetLines instanceof Error) {
+    console.error("[api/expenses/summary] budget load failed", budgetLines.message);
+    return NextResponse.json({ error: budgetLines.message }, { status: 500 });
   }
   if (expensesRes.error) {
     console.error("[api/expenses/summary] expenses load failed", expensesRes.error.message);
@@ -86,7 +82,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: importsRes.error.message }, { status: 500 });
   }
 
-  const budgetLines = (budgetRes.data ?? []).map((r) => mapDbBudgetLine(r));
   const expenses = (expensesRes.data ?? []).map((r) => mapExpense(r));
   const imports = (importsRes.data ?? []).map((r) => ({
     id: String(r.id),

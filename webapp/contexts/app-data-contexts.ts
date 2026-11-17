@@ -54,7 +54,7 @@ export type AppDataContextValue = {
     note?: string;
   }) => Promise<void>;
   deleteCpfContribution: (id: string) => Promise<void>;
-  saveBudget: (next: DashboardState["budget"]) => Promise<void>;
+  saveBudgetMonth: (month: string, next: DashboardState["budget"]) => Promise<void>;
   saveCards: (next: DashboardState["creditCards"]) => Promise<void>;
   saveHoldings: (next: DashboardState["holdings"]) => Promise<void>;
   recordHoldingDividend: (

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildBudgetExpenseSummary } from "@/lib/expenses/budget-summary";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
-import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
+import { loadBudgetLineRowsForMonth } from "@/lib/budget/load";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { totalLoanLoadForMonth } from "@/lib/finance/loanLoad";
 import { loadLoans } from "@/lib/loans/load";
@@ -22,7 +22,7 @@ export async function loadMonthBudgetSummary(
   const to = `${ym}-${String(last).padStart(2, "0")}`;
 
   const [
-    budgetRes,
+    budgetLines,
     expensesRes,
     importsRes,
     loans,
@@ -30,11 +30,7 @@ export async function loadMonthBudgetSummary(
     insurancePolicies,
     ilpPolicies,
   ] = await Promise.all([
-    supabase
-      .from("budget_lines")
-      .select("*")
-      .eq("user_id", userId)
-      .order("sort_order", { ascending: true }),
+    loadBudgetLineRowsForMonth(supabase, userId, ym),
     supabase
       .from("expenses")
       .select("*")
@@ -55,11 +51,9 @@ export async function loadMonthBudgetSummary(
     loadIlpPolicies(supabase, userId),
   ]);
 
-  if (budgetRes.error) throw new Error(budgetRes.error.message);
   if (expensesRes.error) throw new Error(expensesRes.error.message);
   if (importsRes.error) throw new Error(importsRes.error.message);
 
-  const budgetLines = (budgetRes.data ?? []).map((r) => mapDbBudgetLine(r));
   const expenses = (expensesRes.data ?? []).map((r) => mapExpense(r));
   const imports = (importsRes.data ?? []).map((r) => ({
     id: String(r.id),

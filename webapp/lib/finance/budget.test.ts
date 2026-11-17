@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULTS } from "./defaults";
 import {
   budgetFixedTotal,
+  budgetLinesForMonth,
   COMPUTED_DEBT_LABEL,
   computedDebtMonthly,
   isDebtBudgetCategory,
@@ -11,7 +12,8 @@ import {
 } from "./budget";
 import { defaultIlpPolicy } from "./ilp";
 import { loanLoadForMonth } from "./loanLoad";
-import { currentYm } from "./helpers";
+import { currentYm, monIdx, ymFromMonIdx } from "./helpers";
+import { takeHomeForMonth } from "./income";
 
 describe("monthlyInvestContribution", () => {
   it("sums invest-type budget lines", () => {
@@ -65,5 +67,43 @@ describe("isDebtBudgetCategory", () => {
       ],
     };
     expect(budgetFixedTotal(withDup)).toBe(budgetFixedTotal(DEFAULTS));
+  });
+});
+
+describe("per-month budgets", () => {
+  const S = {
+    ...DEFAULTS,
+    budgetMonths: {
+      "2026-11": [{ id: "a", cat: "Rent", amt: 100, type: "fixed" as const }],
+      "2026-12": [{ id: "a", cat: "Rent", amt: 250, type: "fixed" as const }],
+    },
+  };
+  it("budgetFixedTotal resolves each month", () => {
+    expect(budgetFixedTotal(S, "2026-11")).toBe(100);
+    expect(budgetFixedTotal(S, "2026-12")).toBe(250);
+    expect(budgetFixedTotal(S, "2027-03")).toBe(250);
+  });
+  it("without a month it uses S.budget", () => {
+    const expected = DEFAULTS.budget
+      .filter((b) => b.type === "fixed" && !isDebtBudgetCategory(b.cat))
+      .reduce((s, b) => s + b.amt, 0);
+    expect(budgetFixedTotal(S)).toBe(expected);
+  });
+  it("budgetLinesForMonth falls back to S.budget without budgetMonths", () => {
+    expect(budgetLinesForMonth(DEFAULTS, "2026-12")).toBe(DEFAULTS.budget);
+  });
+  it("ymFromMonIdx inverts monIdx", () => {
+    expect(ymFromMonIdx(monIdx("2026-12"))).toBe("2026-12");
+    expect(ymFromMonIdx(monIdx("2027-01"))).toBe("2027-01");
+  });
+});
+
+describe("takeHomeForMonth", () => {
+  it("uses the month's recorded salary, else the profile salary", () => {
+    const S = { ...DEFAULTS, monthlySal: 8000, incomeMonths: { "2026-10": 5000 } };
+    expect(takeHomeForMonth(S, "2026-03")).toBe(takeHomeForMonth({ ...S, monthlySal: 5000 }));
+    expect(takeHomeForMonth({ ...S, incomeMonths: undefined }, "2026-03")).toBe(
+      takeHomeForMonth(S, undefined)
+    );
   });
 });

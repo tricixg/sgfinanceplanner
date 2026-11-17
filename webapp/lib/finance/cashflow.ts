@@ -49,12 +49,12 @@ export function buildMonths(
   additiveIncomeByYm: Record<string, number> = {},
   actualBaselineByYm: Record<string, number> = {}
 ): MonthRow[] {
-  const fixed = budgetFixedTotal(S);
-  const spend = budgetSpendTotal(S);
   const ilpPrem = computedIlpMonthly(S);
   const insurance = computedInsuranceMonthly(S);
   const months = Array.from({ length: count }, (_, i) => {
     const ym = addMonths(startYm, i);
+    const fixed = budgetFixedTotal(S, ym);
+    const spend = budgetSpendTotal(S, ym);
     const { baseline: b, additive, total, baselineIsActual } = monthCashIncome(
       S,
       ym,

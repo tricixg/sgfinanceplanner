@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { mapDbBudgetLine } from "@/lib/expenses/budget-match";
+import { loadBudgetData } from "@/lib/budget/load";
+import { budgetLineRowsForMonth } from "@/lib/budget/monthly";
 import { currentYm } from "@/lib/finance/helpers";
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import {
@@ -47,12 +48,8 @@ export async function GET(req: NextRequest) {
   const started = Date.now();
   const supabase = await createAuthedSupabaseClient();
 
-  const [budgetRes, expensesRes, importsRes, cards, reimbursements] = await Promise.all([
-    supabase
-      .from("budget_lines")
-      .select("id, category, amount, line_type, sort_order")
-      .eq("user_id", user.id)
-      .order("sort_order", { ascending: true }),
+  const [budgetData, expensesRes, importsRes, cards, reimbursements] = await Promise.all([
+    loadBudgetData(supabase, user.id).catch((e: unknown) => e as Error),
     supabase
       .from("expenses")
       .select(
@@ -75,9 +72,9 @@ export async function GET(req: NextRequest) {
     loadReimbursementTotals(supabase, user.id),
   ]);
 
-  if (budgetRes.error) {
-    console.error("[api/spending/analytics] budget load failed", budgetRes.error.message);
-    return NextResponse.json({ error: budgetRes.error.message }, { status: 500 });
+  if (budgetData instanceof Error) {
+    console.error("[api/spending/analytics] budget load failed", budgetData.message);
+    return NextResponse.json({ error: budgetData.message }, { status: 500 });
   }
   if (expensesRes.error) {
     console.error("[api/spending/analytics] expenses load failed", expensesRes.error.message);
@@ -88,7 +85,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: importsRes.error.message }, { status: 500 });
   }
 
-  const budgetLines = (budgetRes.data ?? []).map((r) => mapDbBudgetLine(r));
+  const budgetLines = budgetData.catalog;
+  const budgetByYm = Object.fromEntries(
+    window.months.map((ym) => [
+      ym,
+      budgetLineRowsForMonth(budgetData.catalog, budgetData.months, ym).filter((r) => !r.inactive),
+    ])
+  );
   const expenses: LeanExpenseRow[] = (expensesRes.data ?? []).map((row) => ({
     id: String(row.id),
     amount: Number(row.amount ?? 0),
@@ -116,6 +119,7 @@ export async function GET(req: NextRequest) {
     months,
     scope,
     budgetLines,
+    budgetByYm,
     expenses,
     imports,
     reimbursements,
