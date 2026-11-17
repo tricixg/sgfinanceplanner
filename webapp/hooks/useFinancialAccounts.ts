@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, useMemo } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import { FinancialAccountsContext } from "@/contexts/app-data-contexts";
@@ -51,13 +51,23 @@ export function useFinancialAccountsProvider(enabled: boolean) {
     void load();
   });
 
-  return {
-    accounts,
-    loading,
-    configured,
-    reload: load,
-    ensureLoaded,
-  };
+  // Stable identity: consumers of this context re-render only when a member changes (PERF-006).
+  return useMemo(
+    () => ({
+      accounts,
+      loading,
+      configured,
+      reload: load,
+      ensureLoaded,
+    }),
+    [
+      accounts,
+      configured,
+      ensureLoaded,
+      load,
+      loading,
+    ]
+  );
 }
 
 export function useFinancialAccounts() {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, useMemo } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { HouseholdMember, PartnerInvite } from "@/lib/savings/types";
 import { HouseholdContext } from "@/contexts/app-data-contexts";
@@ -108,20 +108,37 @@ export function useHouseholdProvider(enabled: boolean) {
     await load();
   }, [load]);
 
-  return {
-    householdId,
-    paired,
-    members,
-    sentInvites,
-    receivedInvites,
-    loading,
-    configured,
-    reload: load,
-    ensureLoaded,
-    sendInvite,
-    respondInvite,
-    unlinkPartner,
-  };
+  // Stable identity: consumers of this context re-render only when a member changes (PERF-006).
+  return useMemo(
+    () => ({
+      householdId,
+      paired,
+      members,
+      sentInvites,
+      receivedInvites,
+      loading,
+      configured,
+      reload: load,
+      ensureLoaded,
+      sendInvite,
+      respondInvite,
+      unlinkPartner,
+    }),
+    [
+      configured,
+      ensureLoaded,
+      householdId,
+      load,
+      loading,
+      members,
+      paired,
+      receivedInvites,
+      respondInvite,
+      sendInvite,
+      sentInvites,
+      unlinkPartner,
+    ]
+  );
 }
 
 export function useHousehold() {
