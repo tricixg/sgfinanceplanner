@@ -1,5 +1,5 @@
 import type { DashboardState, Loan } from "@/lib/types";
-import { currentYm, monIdx } from "./helpers";
+import { currentYm, formatMonthLabel, monIdx, ymFromMonIdx } from "./helpers";
 
 export type EnrichedLoan = Loan & {
   tag: string;
@@ -91,31 +91,52 @@ export function activeOtherLoansOutstanding(S: DashboardState): number {
   return activePersonalLoansOutstanding(S) + activeBtLoansOutstanding(S);
 }
 
-export function debtBurnDown(S: DashboardState) {
+/** Longest burn-down shown: a loan with an end date far in the future must not
+ *  produce an unbounded chart. */
+export const DEBT_BURN_DOWN_MAX_MONTHS = 120;
+
+/**
+ * Outstanding instalment-loan balance at the start of each month, from the
+ * current SGT month (`nowYm`) to the latest end month of any active loan.
+ *
+ * Meant to show: how today's balance (the same loans and total as
+ * `activeLoanOutstanding`) runs down, assuming each loan is paid by its
+ * monthly amount and its final month clears whatever remains. Only active
+ * loans (monthly > 0 and end month not yet passed) are included, so the first
+ * point equals `totalOut`. A trailing month at $0 is added so the chart shows
+ * the payoff; with no active loans it is a single $0 point. Capped at
+ * DEBT_BURN_DOWN_MAX_MONTHS months.
+ */
+export function debtBurnDown(S: DashboardState, nowYm?: string) {
+  const ym = nowYm ?? currentYm();
+  const nowIdx = monIdx(ym);
+  const loanState = S.loans
+    .filter((l) => l.monthly > 0 && monIdx(l.end) >= nowIdx)
+    .map((l) => ({ ...l, bal: l.out }));
+
+  const lastEndIdx = loanState.reduce((m, l) => Math.max(m, monIdx(l.end)), nowIdx);
+  // +1: one extra month so the chart ends on the $0 balance after the last payment.
+  const endIdx =
+    loanState.length === 0
+      ? nowIdx
+      : Math.min(lastEndIdx + 1, nowIdx + DEBT_BURN_DOWN_MAX_MONTHS - 1);
+
   const labels: string[] = [];
   const data: number[] = [];
-  const loanState = S.loans.map((l) => ({ ...l, bal: l.out }));
-
-  for (let i = monIdx("2026-06"); i <= monIdx("2027-12"); i++) {
-    labels.push(
-      new Date(Math.floor(i / 12), i % 12, 1).toLocaleDateString("en-GB", {
-        month: "short",
-        year: "2-digit",
-      })
-    );
-    const tot = loanState.reduce((s, l) => s + Math.max(0, l.bal), 0);
-    data.push(tot);
+  for (let i = nowIdx; i <= endIdx; i++) {
+    labels.push(formatMonthLabel(ymFromMonIdx(i)));
+    data.push(loanState.reduce((s, l) => s + Math.max(0, l.bal), 0));
     loanState.forEach((l) => {
       if (monIdx(l.end) >= i && l.bal > 0) {
         const isFinal = monIdx(l.end) === i;
-        l.bal -= isFinal ? l.bal : Math.min(l.monthly || l.bal, l.bal);
+        l.bal -= isFinal ? l.bal : Math.min(l.monthly, l.bal);
       }
     });
   }
   return {
     labels,
     data,
-    totalOut: activeLoanOutstanding(S),
+    totalOut: activeLoanOutstanding(S, ym),
   };
 }
 
