@@ -1,0 +1,732 @@
+<title>CPF &amp; BTO Payments</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: two app views (CPF Outlook, BTO Planner) switched by a segmented control; each is a single column of summary → action → ledger. Tokens mirror webapp/app/globals.css. */
+:root {
+  --ink: #11201a;
+  --paper: #f4f1e8;
+  --card: #fffdf6;
+  --wash: #faf7ec;
+  --moss: #2f5d3a;
+  --moss-soft: #e3ecdf;
+  --on-moss: #ffffff;
+  --sand: #d8cfb4;
+  --rust: #b5482e;
+  --rust-soft: #fbf0ec;
+  --gold: #c08a2e;
+  --gold-soft: #fbf6e8;
+  --sky: #3d6b8e;
+  --sky-soft: rgba(61, 107, 142, 0.12);
+  --line: #dcd4bd;
+  --muted: #7d7560;
+  --input: #ffffff;
+  --fill: rgba(17, 32, 26, 0.05);
+  --shadow: 0 1px 2px rgba(17, 32, 26, 0.04), 0 2px 10px rgba(17, 32, 26, 0.035);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #ece6d6; --paper: #131a15; --card: #1b231d; --wash: #18201a; --moss: #7fb08a;
+    --moss-soft: #22362a; --on-moss: #0f1a12; --sand: #333d35; --rust: #e2826a; --rust-soft: #3a2420;
+    --gold: #d9a54c; --gold-soft: #33291a; --sky: #7fa7c7; --sky-soft: rgba(127, 167, 199, 0.16);
+    --line: #2e3a31; --muted: #a39b85; --input: #111813; --fill: rgba(236, 230, 214, 0.06);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 10px rgba(0, 0, 0, 0.25); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #ece6d6; --paper: #131a15; --card: #1b231d; --wash: #18201a; --moss: #7fb08a;
+  --moss-soft: #22362a; --on-moss: #0f1a12; --sand: #333d35; --rust: #e2826a; --rust-soft: #3a2420;
+  --gold: #d9a54c; --gold-soft: #33291a; --sky: #7fa7c7; --sky-soft: rgba(127, 167, 199, 0.16);
+  --line: #2e3a31; --muted: #a39b85; --input: #111813; --fill: rgba(236, 230, 214, 0.06);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 10px rgba(0, 0, 0, 0.25); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.view { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding-block: 24px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.num { font-variant-numeric: tabular-nums; }
+.pos { color: var(--moss); }
+.neg { color: var(--rust); }
+.muted { color: var(--muted); }
+
+/* Header */
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 14px; border-bottom: 2px solid var(--ink); padding-bottom: 14px; }
+.eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--serif); font-size: 30px; line-height: 1.1; margin: 6px 0 4px; font-weight: 600; text-wrap: balance; }
+h2 { font-family: var(--serif); font-size: 20px; margin: 0; font-weight: 600; text-wrap: balance; }
+.sub { color: var(--muted); font-style: italic; margin: 0; max-width: 64ch; }
+.proto-note { font-family: var(--mono); font-size: 11px; color: var(--gold); background: var(--gold-soft); border: 1px dashed var(--gold); border-radius: 8px; padding: 8px 12px; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--card); gap: 2px; }
+.seg button { border: 0; background: none; padding: 7px 16px; border-radius: 999px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; }
+.seg button.active { background: var(--moss); color: var(--on-moss); }
+.seg button:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); min-width: 0; }
+.new-badge { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; background: var(--sky-soft); color: var(--sky); border-radius: 999px; padding: 2px 8px; vertical-align: middle; margin-left: 6px; }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.stat .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.stat .val { font-family: var(--serif); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.stat .note { font-size: 12px; color: var(--muted); }
+.stat.accent { background: var(--moss); border-color: var(--moss); color: var(--on-moss); }
+.stat.accent .lbl, .stat.accent .note { color: var(--on-moss); opacity: 0.8; }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+.field.wide { grid-column: span 2; }
+input, select { font: inherit; font-size: 14px; color: var(--ink); background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0; }
+.dir { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.dir button { flex: 1; border: 0; padding: 8px 12px; font: inherit; font-weight: 600; background: var(--input); color: var(--muted); cursor: pointer; }
+.dir button.on-out { background: var(--rust-soft); color: var(--rust); }
+.dir button.on-in { background: var(--moss-soft); color: var(--moss); }
+.form-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+.btn { border: 1px solid var(--moss); background: var(--moss); color: var(--on-moss); font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--moss); }
+.btn.sm { padding: 4px 10px; font-size: 12px; }
+.btn.link { border: 0; background: none; color: var(--muted); padding: 2px 6px; font-size: 12px; text-decoration: underline; cursor: pointer; }
+
+/* Chips & tags */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+.chip.active { border-color: var(--ink); color: var(--ink); font-weight: 600; background: var(--fill); }
+.tag { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+.tag.bto { background: var(--sky-soft); color: var(--sky); text-decoration: none; }
+.tag.contrib { background: var(--moss-soft); color: var(--moss); }
+.tag.cash { background: var(--gold-soft); color: var(--gold); }
+.tag.cpf { background: var(--fill); color: var(--ink); }
+.who { font-size: 12px; font-weight: 600; }
+.who.partner { color: var(--sky); }
+
+/* Tables */
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 640px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.flash td { animation: flash 1.6s ease-out; }
+@keyframes flash { from { background: var(--gold-soft); } to { background: transparent; } }
+.item-main { font-weight: 600; }
+.item-sub { font-size: 12px; color: var(--muted); }
+
+/* BTO payments */
+.paid-strip { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
+.bar { height: 10px; border-radius: 999px; background: var(--fill); overflow: hidden; display: flex; grid-column: 1 / -1; }
+.bar i { display: block; height: 100%; }
+.bar .self { background: var(--moss); }
+.bar .partner { background: var(--sky); }
+.bar .cash { background: var(--gold); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+
+.stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.stage { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; border-top: 4px solid var(--line); }
+.stage.tallied { border-top-color: var(--moss); }
+.stage.partial { border-top-color: var(--gold); }
+.stage.over { border-top-color: var(--rust); }
+.stage-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.stage-title { font-family: var(--serif); font-size: 17px; font-weight: 600; }
+.stage-date { font-size: 12px; color: var(--muted); }
+.pill { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.pill.tallied { background: var(--moss-soft); color: var(--moss); }
+.pill.partial { background: var(--gold-soft); color: var(--gold); }
+.pill.over { background: var(--rust-soft); color: var(--rust); }
+.pill.not_due, .pill.not_started { background: var(--fill); color: var(--muted); }
+.lines { display: flex; flex-direction: column; }
+.line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+.line:last-child { border-bottom: 0; }
+.line .k { min-width: 0; }
+.line .v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.line .meta { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.line.credit .v { color: var(--moss); }
+.tot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; border-top: 1.5px solid var(--ink); padding-top: 8px; font-size: 13px; }
+.tot .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.split { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); }
+.guard { font-size: 11.5px; color: var(--sky); background: var(--sky-soft); border-radius: 8px; padding: 6px 8px; margin: 0; }
+
+.timeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.tl { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--wash); min-width: 0; }
+.tl.done { background: var(--card); }
+.tl .t { font-weight: 700; font-size: 13px; }
+.tl .d { font-size: 12px; color: var(--muted); }
+.paid-chip { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 3px 7px; font-variant-numeric: tabular-nums; }
+.paid-chip.tallied { background: var(--moss-soft); color: var(--moss); }
+.paid-chip.partial { background: var(--gold-soft); color: var(--gold); }
+.paid-chip.not_due, .paid-chip.not_started { background: var(--fill); color: var(--muted); }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow); z-index: 20; max-width: calc(100% - 32px); }
+
+@media (max-width: 900px) {
+  .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .stats, .stages { grid-template-columns: minmax(0, 1fr); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .field.wide { grid-column: auto; }
+  h1 { font-size: 25px; }
+}
+@media (prefers-reduced-motion: reduce) { tr.flash td { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Prototype · Tengah Garden Vines · 4-room · $480,000</div>
+      <h1 id="viewTitle">CPF Outlook</h1>
+      <p class="sub" id="viewSub">Every movement in and out of your Ordinary Account, in one log. BTO withdrawals tag a stage and flow straight into the BTO planner.</p>
+    </div>
+    <div class="seg" role="tablist" aria-label="Page">
+      <button type="button" role="tab" id="tab-cpf" data-view="cpf">CPF Outlook</button>
+      <button type="button" role="tab" id="tab-bto" data-view="bto">BTO Planner</button>
+    </div>
+  </header>
+
+  <div class="proto-note">Example figures only. Log or delete rows and both pages update, the same way the real feature would.</div>
+
+  <!-- ========== CPF OUTLOOK ========== -->
+  <section id="view-cpf" class="view">
+    <div class="stats">
+      <div class="stat accent"><div class="lbl">Ordinary Account · now</div><div class="val" id="oaNow"></div><div class="note">Auto-adjusted by every CPF row</div></div>
+      <div class="stat"><div class="lbl">Special Account</div><div class="val num">$31,280.00</div></div>
+      <div class="stat"><div class="lbl">MediSave</div><div class="val num">$27,940.00</div></div>
+      <div class="stat"><div class="lbl">OA used for BTO so far</div><div class="val" id="oaBtoUsed"></div><div class="note" id="oaBtoUsedNote"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="section-head" style="margin-bottom:12px">
+        <h2>Log OA transaction <span class="new-badge">New</span></h2>
+        <div class="dir" role="group" aria-label="Direction">
+          <button type="button" id="dirOut" class="on-out">Money out</button>
+          <button type="button" id="dirIn">Money in</button>
+        </div>
+      </div>
+      <form id="cpfForm" class="form-grid" autocomplete="off">
+        <label class="field">Category<select id="fCat"></select></label>
+        <label class="field">BTO stage<select id="fStage"></select></label>
+        <label class="field">Amount<input id="fAmt" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required></label>
+        <label class="field">Date<input id="fDate" type="date" required></label>
+        <label class="field">Paid from<select id="fSrc"><option value="cpf_oa">CPF OA</option><option value="cash">Cash</option></select></label>
+        <label class="field">CPF reference<input id="fRef" type="text" placeholder="From your CPF statement"></label>
+        <label class="field wide">Note<input id="fNote" type="text" placeholder="Optional"></label>
+      </form>
+      <div class="form-foot">
+        <p class="hint" id="cpfFormHint"></p>
+        <button type="button" class="btn" id="cpfLog">Log transaction</button>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>OA history</h2>
+      <div class="chips" id="cpfFilters"></div>
+    </div>
+    <div class="card table-scroll">
+      <table>
+        <thead><tr><th>Date</th><th>Item</th><th>Tag</th><th>Ref</th><th class="num">Amount</th><th class="num">OA after</th><th></th></tr></thead>
+        <tbody id="cpfRows"></tbody>
+      </table>
+    </div>
+    <p class="hint">Monthly contributions keep their existing form and show here as OA credits. Your partner's rows stay private to their own CPF page; only their BTO-tagged rows are shared, on the BTO planner.</p>
+  </section>
+
+  <!-- ========== BTO PLANNER ========== -->
+  <section id="view-bto" class="view" hidden>
+    <div class="card">
+      <div class="section-head" style="margin-bottom:10px">
+        <h2>Timeline</h2>
+        <span class="hint">You are here: Agreement for Lease signed, waiting for key collection</span>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+
+    <div class="section-head" id="payments">
+      <h2>Payments · reconciled against plan <span class="new-badge">New</span></h2>
+      <button type="button" class="btn" id="openLog">+ Log BTO payment</button>
+    </div>
+
+    <div class="card" id="btoLogCard" hidden>
+      <div class="section-head" style="margin-bottom:12px">
+        <h2 style="font-size:17px">Log BTO payment</h2>
+        <button type="button" class="btn link" id="closeLog">Cancel</button>
+      </div>
+      <form class="form-grid" id="btoForm" autocomplete="off">
+        <label class="field">Stage<select id="bStage"></select></label>
+        <label class="field">Item<select id="bItem"></select></label>
+        <label class="field">Paid by<select id="bWho"><option value="self">You</option><option value="partner" disabled>Partner (logs from their own account)</option></select></label>
+        <label class="field">Paid from<select id="bSrc"><option value="cpf_oa">CPF OA</option><option value="cash">Cash</option></select></label>
+        <label class="field">Amount<input id="bAmt" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
+        <label class="field">Date<input id="bDate" type="date" required></label>
+        <label class="field wide">CPF reference<input id="bRef" type="text" placeholder="Optional"></label>
+      </form>
+      <div class="form-foot">
+        <p class="hint" id="btoFormHint"></p>
+        <button type="button" class="btn" id="btoLog">Log payment</button>
+      </div>
+    </div>
+
+    <div class="card paid-strip">
+      <div>
+        <div class="eyebrow">Upfront paid so far</div>
+        <div style="font-family:var(--serif);font-size:24px;font-weight:600" class="num" id="upfrontPaid"></div>
+      </div>
+      <div class="legend">
+        <span style="--c:var(--moss)" id="lgSelf"></span>
+        <span style="--c:var(--sky)" id="lgPartner"></span>
+        <span style="--c:var(--gold)" id="lgCash"></span>
+      </div>
+      <div class="bar" id="upfrontBar"></div>
+    </div>
+
+    <div class="stages" id="stages"></div>
+
+    <div class="section-head">
+      <h2>Payment history · household</h2>
+      <div class="chips" id="btoFilters"></div>
+    </div>
+    <div class="card table-scroll">
+      <table>
+        <thead><tr><th>Date</th><th>Stage</th><th>Item</th><th>Who</th><th>Source</th><th>Ref</th><th class="num">Amount</th><th></th></tr></thead>
+        <tbody id="btoRows"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  // ---------- Example plan (what computeBTO() would return) ----------
+  var PLAN = {
+    price: 480000, optionFee: 2000, dpAFL: 48000, grantAFL: 30000, bsd: 9000, legalFee: 300,
+    dpKC: 72000, grantKC: 0, loanShortfall: 0, mortgage: 1633.38, tenureMonths: 300,
+    grantsPlanned: 30000
+  };
+  var STAGE_META = {
+    booking:  { title: "Booking",        date: "14 Jun 2026", status: "done" },
+    afl:      { title: "Sign AFL",       date: "10 Nov 2026", status: "done" },
+    keys:     { title: "Key collection", date: "~Mar 2030 (est.)", status: "upcoming" },
+    mortgage: { title: "Mortgage",       date: "After keys", status: "upcoming" }
+  };
+  var CAT = {
+    bto_option_fee:     { label: "Option fee",          dir: "debit",  stage: "booking", bto: true },
+    bto_downpayment:    { label: "Downpayment",         dir: "debit",  stage: "afl",     bto: true },
+    bto_bsd:            { label: "Buyer's Stamp Duty",  dir: "debit",  stage: "afl",     bto: true },
+    bto_legal_fee:      { label: "Legal fee",           dir: "debit",  stage: "afl",     bto: true },
+    bto_loan_shortfall: { label: "Loan shortfall top-up", dir: "debit", stage: "keys",   bto: true },
+    bto_mortgage:       { label: "Mortgage instalment", dir: "debit",  stage: "mortgage", bto: true },
+    other_withdrawal:   { label: "Other withdrawal",    dir: "debit",  stage: null,      bto: false },
+    housing_grant:      { label: "Housing grant (EHG)", dir: "credit", stage: "afl",     bto: true },
+    refund:             { label: "Refund to OA",        dir: "credit", stage: null,      bto: false },
+    other_credit:       { label: "Other credit",        dir: "credit", stage: null,      bto: false }
+  };
+  var STAGE_ITEMS = {
+    booking: ["bto_option_fee"],
+    afl: ["bto_downpayment", "bto_bsd", "bto_legal_fee"],
+    keys: ["bto_downpayment", "bto_loan_shortfall"],
+    mortgage: ["bto_mortgage"]
+  };
+  var OA_START = 48600; // OA on 1 Jun 2026, before the rows below
+
+  // ---------- Example ledger ----------
+  var seq = 100;
+  var contributions = ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"].map(function (m) {
+    return { id: "c" + m, kind: "contribution", owner: "self", date: m + "-28", direction: "credit", source: "cpf_oa", amount: 1472, category: "contribution", stage: null, ref: "CON", note: "" };
+  });
+  var txns = [
+    { id: "t1", owner: "self",    date: "2026-06-14", direction: "debit",  source: "cash",   amount: 2000,  category: "bto_option_fee",  stage: "booking", ref: "HDB-OPT-2231" },
+    { id: "t2", owner: "self",    date: "2026-11-03", direction: "credit", source: "cpf_oa", amount: 15000, category: "housing_grant",   stage: "afl",     ref: "EHG" },
+    { id: "t3", owner: "partner", date: "2026-11-03", direction: "credit", source: "cpf_oa", amount: 15000, category: "housing_grant",   stage: "afl",     ref: "EHG" },
+    { id: "t4", owner: "self",    date: "2026-11-10", direction: "debit",  source: "cpf_oa", amount: 12000, category: "bto_downpayment", stage: "afl",     ref: "HSE-0091" },
+    { id: "t5", owner: "partner", date: "2026-11-10", direction: "debit",  source: "cpf_oa", amount: 4000,  category: "bto_downpayment", stage: "afl",     ref: "HSE-0092" },
+    { id: "t6", owner: "self",    date: "2026-11-10", direction: "debit",  source: "cpf_oa", amount: 9000,  category: "bto_bsd",         stage: "afl",     ref: "HSE-0093" }
+  ];
+  var lastAdded = null;
+
+  // ---------- Helpers ----------
+  function money(n) { return "$" + Math.abs(n).toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function money0(n) { return "$" + Math.round(Math.abs(n)).toLocaleString("en-SG"); }
+  function fmtDate(ymd) {
+    var p = ymd.split("-").map(Number);
+    return new Date(Date.UTC(p[0], p[1] - 1, p[2])).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function el(id) { return document.getElementById(id); }
+  function signed(r) { return r.direction === "credit" ? r.amount : -r.amount; }
+  var toastTimer;
+  function toast(msg) {
+    var t = el("toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+  function itemLabel(r) {
+    if (r.category === "contribution") return "Monthly contribution";
+    var l = CAT[r.category].label;
+    if (r.category === "bto_downpayment" && r.stage) l += r.stage === "afl" ? " (10%)" : " (15%)";
+    return l;
+  }
+
+  // ---------- Reconciliation (mirrors lib/finance/bto-reconcile.ts) ----------
+  function reconcile() {
+    var exp = {
+      booking: [{ cat: "bto_option_fee", label: "Option fee", expected: PLAN.optionFee }],
+      afl: [
+        { cat: "bto_downpayment", label: "Downpayment 10%", expected: PLAN.dpAFL - PLAN.optionFee - PLAN.grantAFL,
+          detail: money0(PLAN.dpAFL) + " − option fee " + money0(PLAN.optionFee) + " − grant " + money0(PLAN.grantAFL) },
+        { cat: "bto_bsd", label: "Buyer's Stamp Duty", expected: PLAN.bsd },
+        { cat: "bto_legal_fee", label: "Legal fee", expected: PLAN.legalFee }
+      ],
+      keys: [{ cat: "bto_downpayment", label: "Downpayment 15%", expected: PLAN.dpKC - PLAN.grantKC }],
+      mortgage: [{ cat: "bto_mortgage", label: "Monthly instalment", expected: PLAN.mortgage }]
+    };
+    var out = {};
+    Object.keys(exp).forEach(function (stage) {
+      var rows = txns.filter(function (r) { return r.stage === stage; });
+      var comps = exp[stage].map(function (c) {
+        var m = rows.filter(function (r) { return r.category === c.cat && r.direction === "debit"; });
+        var paid = m.reduce(function (s, r) { return s + r.amount; }, 0);
+        return Object.assign({}, c, { paid: paid, rows: m });
+      });
+      var debits = rows.filter(function (r) { return r.direction === "debit"; });
+      var grants = rows.filter(function (r) { return r.category === "housing_grant"; });
+      var sum = function (arr) { return arr.reduce(function (s, r) { return s + r.amount; }, 0); };
+      var expected = comps.reduce(function (s, c) { return s + c.expected; }, 0);
+      var paid = sum(debits);
+      if (stage === "mortgage") expected = PLAN.mortgage; // per month; paid shown as months
+      var variance = paid - expected;
+      var status;
+      if (stage === "mortgage") status = paid > 0 ? "partial" : "not_due";
+      else if (paid === 0) status = STAGE_META[stage].status === "done" ? "not_started" : "not_due";
+      else if (Math.abs(variance) < 1) status = "tallied";
+      else status = variance > 0 ? "over" : "partial";
+      out[stage] = {
+        comps: comps, expected: expected, paid: paid, variance: variance, status: status,
+        self: sum(debits.filter(function (r) { return r.owner === "self" && r.source === "cpf_oa"; })),
+        partner: sum(debits.filter(function (r) { return r.owner === "partner" && r.source === "cpf_oa"; })),
+        cash: sum(debits.filter(function (r) { return r.source === "cash"; })),
+        grants: sum(grants)
+      };
+    });
+    return out;
+  }
+  var STATUS_LABEL = { tallied: "Tallied", partial: "Partial", over: "Overpaid", not_due: "Not due", not_started: "Nothing logged" };
+
+  // ---------- CPF Outlook ----------
+  var dir = "debit";
+  var cpfFilter = "all";
+  var CPF_FILTERS = [["all", "All"], ["contrib", "Contributions"], ["out", "Withdrawals"], ["in", "Credits"], ["bto", "BTO"]];
+
+  function selfRows() {
+    return contributions.concat(txns.filter(function (r) { return r.owner === "self"; }))
+      .slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  }
+  function fillCategory() {
+    var sel = el("fCat"); var keep = sel.value;
+    sel.innerHTML = Object.keys(CAT).filter(function (k) { return CAT[k].dir === dir; })
+      .map(function (k) { return '<option value="' + k + '">' + CAT[k].label + "</option>"; }).join("");
+    if (CAT[keep] && CAT[keep].dir === dir) sel.value = keep;
+    syncCategory();
+  }
+  function syncCategory() {
+    var c = CAT[el("fCat").value];
+    var st = el("fStage");
+    var stages = c.bto ? (c.stage === "afl" && el("fCat").value === "bto_downpayment" ? ["afl", "keys"] :
+      el("fCat").value === "housing_grant" ? ["afl", "keys"] : [c.stage]) : [];
+    st.innerHTML = c.bto
+      ? stages.map(function (s) { return '<option value="' + s + '">' + STAGE_META[s].title + "</option>"; }).join("")
+      : '<option value="">Not BTO</option>';
+    st.disabled = !c.bto;
+    var src = el("fSrc");
+    src.querySelector('option[value="cash"]').disabled = !(c.bto && c.dir === "debit");
+    if (src.value === "cash" && src.querySelector('option[value="cash"]').disabled) src.value = "cpf_oa";
+    prefillCpfAmount();
+  }
+  function prefillCpfAmount() {
+    var cat = el("fCat").value, stage = el("fStage").value;
+    var hint = el("cpfFormHint");
+    if (!CAT[cat].bto || CAT[cat].dir !== "debit") {
+      hint.textContent = CAT[cat].dir === "credit" ? "Credits add to your OA balance." : "Withdrawals reduce your OA balance.";
+      return;
+    }
+    var rec = reconcile()[stage];
+    var comp = rec && rec.comps.filter(function (c) { return c.cat === cat; })[0];
+    if (comp) {
+      var left = Math.max(0, comp.expected - comp.paid);
+      el("fAmt").value = left > 0 ? left.toFixed(2) : "";
+      hint.textContent = "Planner expects " + money(comp.expected) + " for " + comp.label + " · " + money(left) + " still to log.";
+    } else {
+      hint.textContent = "Tagged to " + STAGE_META[stage].title + " on the BTO planner.";
+    }
+  }
+  function setDir(d) {
+    dir = d;
+    el("dirOut").className = d === "debit" ? "on-out" : "";
+    el("dirIn").className = d === "credit" ? "on-in" : "";
+    fillCategory();
+  }
+
+  function renderCpf() {
+    var rows = selfRows();
+    var bal = OA_START;
+    rows.forEach(function (r) { if (r.source === "cpf_oa") bal += signed(r); r._after = r.source === "cpf_oa" ? bal : null; });
+    el("oaNow").textContent = money(bal);
+    var btoOut = txns.filter(function (r) { return r.owner === "self" && r.source === "cpf_oa" && r.direction === "debit" && CAT[r.category].bto; })
+      .reduce(function (s, r) { return s + r.amount; }, 0);
+    el("oaBtoUsed").textContent = money(btoOut);
+    el("oaBtoUsedNote").innerHTML = '<a class="tag bto" href="#bto">Open BTO payments</a>';
+
+    el("cpfFilters").innerHTML = CPF_FILTERS.map(function (f) {
+      return '<button type="button" class="chip' + (cpfFilter === f[0] ? " active" : "") + '" data-f="' + f[0] + '">' + f[1] + "</button>";
+    }).join("");
+
+    var shown = rows.slice().reverse().filter(function (r) {
+      if (cpfFilter === "contrib") return r.kind === "contribution";
+      if (cpfFilter === "out") return r.direction === "debit";
+      if (cpfFilter === "in") return r.direction === "credit";
+      if (cpfFilter === "bto") return r.stage;
+      return true;
+    });
+    el("cpfRows").innerHTML = shown.map(function (r) {
+      var tag = r.kind === "contribution" ? '<span class="tag contrib">Contribution</span>'
+        : r.stage ? '<a class="tag bto" href="#bto">BTO · ' + STAGE_META[r.stage].title + "</a>" : '<span class="tag cpf">Other</span>';
+      if (r.source === "cash") tag += ' <span class="tag cash">Cash</span>';
+      var amt = r.source === "cash"
+        ? '<span class="muted">' + money(r.amount) + "</span>"
+        : '<span class="' + (r.direction === "credit" ? "pos" : "neg") + '">' + (r.direction === "credit" ? "+" : "−") + money(r.amount) + "</span>";
+      return '<tr class="' + (r.id === lastAdded ? "flash" : "") + '"><td>' + fmtDate(r.date) + "</td>" +
+        '<td><div class="item-main">' + esc(itemLabel(r)) + "</div>" + (r.source === "cash" ? '<div class="item-sub">Cash: OA not affected</div>' : "") + "</td>" +
+        "<td>" + tag + "</td><td class=\"muted\">" + esc(r.ref || "") + "</td>" +
+        '<td class="num">' + amt + '</td><td class="num">' + (r._after == null ? '<span class="muted">-</span>' : money(r._after)) + "</td>" +
+        "<td>" + (r.kind === "contribution" ? "" : '<button type="button" class="btn link" data-del="' + r.id + '">Delete</button>') + "</td></tr>";
+    }).join("") || '<tr><td colspan="7" class="muted">Nothing matches this filter.</td></tr>';
+  }
+
+  // ---------- BTO Planner ----------
+  var btoFilter = "all";
+  var BTO_FILTERS = [["all", "All"], ["cpf", "CPF OA"], ["cash", "Cash"], ["self", "You"], ["partner", "Partner"]];
+
+  function renderBto() {
+    var rec = reconcile();
+
+    // Timeline
+    var tl = [
+      { t: "Application", d: "Jun 2026 launch", cls: "done", chip: null },
+      { t: "Booking", d: STAGE_META.booking.date, cls: "done", stage: "booking" },
+      { t: "Sign AFL", d: STAGE_META.afl.date, cls: "done", stage: "afl" },
+      { t: "Key collection", d: STAGE_META.keys.date, cls: "", stage: "keys" },
+      { t: "Mortgage", d: "After keys", cls: "", stage: "mortgage" }
+    ];
+    el("timeline").innerHTML = tl.map(function (x) {
+      var chip = "";
+      if (x.stage === "mortgage") chip = '<span class="paid-chip not_due">' + money0(PLAN.mortgage) + "/mo</span>";
+      else if (x.stage) {
+        var r = rec[x.stage];
+        chip = '<span class="paid-chip ' + r.status + '">Paid ' + money0(r.paid) + " / " + money0(r.expected) + "</span>";
+      } else chip = '<span class="paid-chip not_due">Queue 312 / 1,044</span>';
+      return '<div class="tl ' + x.cls + '"><div class="t">' + x.t + '</div><div class="d">' + x.d + "</div>" + chip + "</div>";
+    }).join("");
+
+    // Upfront strip
+    var up = ["booking", "afl", "keys"];
+    var exp = up.reduce(function (s, k) { return s + rec[k].expected; }, 0);
+    var paid = up.reduce(function (s, k) { return s + rec[k].paid; }, 0);
+    var self = up.reduce(function (s, k) { return s + rec[k].self; }, 0);
+    var partner = up.reduce(function (s, k) { return s + rec[k].partner; }, 0);
+    var cash = up.reduce(function (s, k) { return s + rec[k].cash; }, 0);
+    el("upfrontPaid").innerHTML = money(paid) + ' <span class="muted" style="font-size:15px">of ' + money(exp) + "</span>";
+    el("lgSelf").textContent = "You · CPF " + money0(self);
+    el("lgPartner").textContent = "Partner · CPF " + money0(partner);
+    el("lgCash").textContent = "Cash " + money0(cash);
+    var pct = function (n) { return exp > 0 ? (n / exp * 100).toFixed(2) + "%" : "0"; };
+    el("upfrontBar").innerHTML = '<i class="self" style="width:' + pct(self) + '"></i><i class="partner" style="width:' + pct(partner) + '"></i><i class="cash" style="width:' + pct(cash) + '"></i>';
+
+    // Stage cards
+    el("stages").innerHTML = ["booking", "afl", "keys", "mortgage"].map(function (stage) {
+      var r = rec[stage], m = STAGE_META[stage];
+      var lines;
+      if (stage === "mortgage") {
+        lines = '<div class="line"><span class="k">Monthly instalment</span><span class="v">' + money(PLAN.mortgage) + '</span>' +
+          '<span class="meta"><span>HDB loan $360,000 · 2.6% · 25 yrs</span></span></div>' +
+          '<div class="line"><span class="k">Instalments logged</span><span class="v">0 of ' + PLAN.tenureMonths + "</span></div>";
+        return '<div class="stage ' + r.status + '"><div class="stage-head"><span class="stage-title">' + m.title + '</span><span class="pill ' + r.status + '">' + STATUS_LABEL[r.status] + "</span></div>" +
+          '<div class="stage-date">' + m.date + '</div><div class="lines">' + lines + "</div>" +
+          '<p class="hint">Starts once keys are collected. Log each month as it leaves OA, or log several months at once.</p></div>';
+      }
+      lines = r.comps.map(function (c) {
+        var left = c.expected - c.paid;
+        var state = Math.abs(left) < 1 ? '<span class="pos">✓ paid</span>'
+          : c.paid > c.expected ? '<span class="neg">over by ' + money(-left) + "</span>"
+          : '<button type="button" class="btn link" data-quick="' + stage + "|" + c.cat + '">Log ' + money(left) + "</button>";
+        return '<div class="line"><span class="k">' + c.label + '</span><span class="v">' + money(c.expected) + "</span>" +
+          '<span class="meta"><span>' + (c.detail ? c.detail : "Paid " + money(c.paid)) + "</span>" + state + "</span>" +
+          (c.detail ? '<span class="meta"><span>Paid ' + money(c.paid) + "</span></span>" : "") + "</div>";
+      }).join("");
+      if (stage === "afl") {
+        lines += '<div class="line credit"><span class="k">EHG credited to OA</span><span class="v">+' + money(r.grants) + "</span>" +
+          '<span class="meta"><span>Planned ' + money(PLAN.grantsPlanned) + "</span>" + (Math.abs(r.grants - PLAN.grantsPlanned) < 1 ? '<span class="pos">✓ matches</span>' : '<span class="neg">differs</span>') + "</span></div>";
+      }
+      var varLabel = r.status === "not_due" ? "Due ~" + m.date.replace("~", "").replace(" (est.)", "")
+        : Math.abs(r.variance) < 1 ? "Variance" : r.variance < 0 ? "Still to pay" : "Overpaid";
+      var guard = stage === "afl" && r.grants > 0
+        ? '<p class="guard">Grant credits are left out of projected OA, so the planner never counts them twice.</p>' : "";
+      return '<div class="stage ' + r.status + '">' +
+        '<div class="stage-head"><span class="stage-title">' + m.title + '</span><span class="pill ' + r.status + '">' + STATUS_LABEL[r.status] + "</span></div>" +
+        '<div class="stage-date">' + m.date + "</div>" +
+        '<div class="lines">' + lines + "</div>" +
+        '<div class="tot"><span>Expected</span><span class="v">' + money(r.expected) + "</span>" +
+        "<span>Paid</span><span class=\"v\">" + money(r.paid) + "</span>" +
+        "<span>" + varLabel + '</span><span class="v ' + (Math.abs(r.variance) < 1 ? "pos" : r.status === "not_due" ? "" : "neg") + '">' + (Math.abs(r.variance) < 1 ? "$0.00" : money(r.variance)) + "</span></div>" +
+        '<div class="split"><span>You ' + money0(r.self) + "</span><span>Partner " + money0(r.partner) + "</span><span>Cash " + money0(r.cash) + "</span></div>" +
+        guard + "</div>";
+    }).join("");
+
+    // History
+    el("btoFilters").innerHTML = BTO_FILTERS.map(function (f) {
+      return '<button type="button" class="chip' + (btoFilter === f[0] ? " active" : "") + '" data-bf="' + f[0] + '">' + f[1] + "</button>";
+    }).join("");
+    var rows = txns.filter(function (r) { return r.stage; }).filter(function (r) {
+      if (btoFilter === "cpf") return r.source === "cpf_oa";
+      if (btoFilter === "cash") return r.source === "cash";
+      if (btoFilter === "self") return r.owner === "self";
+      if (btoFilter === "partner") return r.owner === "partner";
+      return true;
+    }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    el("btoRows").innerHTML = rows.map(function (r) {
+      return '<tr class="' + (r.id === lastAdded ? "flash" : "") + '"><td>' + fmtDate(r.date) + "</td><td>" + STAGE_META[r.stage].title + "</td>" +
+        '<td class="item-main">' + esc(itemLabel(r)) + "</td>" +
+        '<td><span class="who ' + r.owner + '">' + (r.owner === "self" ? "You" : "Partner") + "</span></td>" +
+        "<td>" + (r.source === "cash" ? '<span class="tag cash">Cash</span>' : '<span class="tag cpf">CPF OA</span>') + "</td>" +
+        '<td class="muted">' + esc(r.ref || "") + "</td>" +
+        '<td class="num ' + (r.direction === "credit" ? "pos" : "neg") + '">' + (r.direction === "credit" ? "+" : "−") + money(r.amount) + "</td>" +
+        "<td>" + (r.owner === "self" ? '<button type="button" class="btn link" data-del="' + r.id + '">Delete</button>' : '<span class="item-sub">Partner\'s row</span>') + "</td></tr>";
+    }).join("") || '<tr><td colspan="8" class="muted">Nothing matches this filter.</td></tr>';
+  }
+
+  // BTO log form
+  function fillBtoItems() {
+    var stage = el("bStage").value;
+    el("bItem").innerHTML = STAGE_ITEMS[stage].map(function (k) { return '<option value="' + k + '">' + CAT[k].label + "</option>"; }).join("");
+    prefillBto();
+  }
+  function prefillBto() {
+    var stage = el("bStage").value, cat = el("bItem").value;
+    var comp = reconcile()[stage].comps.filter(function (c) { return c.cat === cat; })[0];
+    var left = comp ? Math.max(0, comp.expected - comp.paid) : 0;
+    el("bAmt").value = left > 0 ? left.toFixed(2) : "";
+    el("btoFormHint").textContent = comp ? "Planner expects " + money(comp.expected) + " · " + money(left) + " left to log. Split it across rows if you and your partner share it." : "";
+  }
+  function openBtoLog(stage, cat) {
+    el("btoLogCard").hidden = false;
+    el("bStage").value = stage || "afl";
+    fillBtoItems();
+    if (cat) { el("bItem").value = cat; prefillBto(); }
+    el("bAmt").focus();
+  }
+
+  function addTxn(t) {
+    t.id = "t" + (seq++);
+    txns.push(t);
+    lastAdded = t.id;
+    render();
+    var rows = selfRows(); var bal = OA_START;
+    rows.forEach(function (r) { if (r.source === "cpf_oa") bal += signed(r); });
+    toast(t.source === "cash" ? "Logged " + money(t.amount) + " cash · OA unchanged" : "Logged · OA now " + money(bal));
+  }
+
+  function render() { renderCpf(); renderBto(); }
+
+  // ---------- Views ----------
+  var COPY = {
+    cpf: ["CPF Outlook", "Every movement in and out of your Ordinary Account, in one log. BTO withdrawals tag a stage and flow straight into the BTO planner."],
+    bto: ["BTO Planner", "Expected bills from your plan, reconciled against what you and your partner have actually paid."]
+  };
+  function showView() {
+    var v = location.hash === "#bto" || location.hash === "#payments" ? "bto" : "cpf";
+    el("view-cpf").hidden = v !== "cpf";
+    el("view-bto").hidden = v !== "bto";
+    el("tab-cpf").className = v === "cpf" ? "active" : "";
+    el("tab-bto").className = v === "bto" ? "active" : "";
+    el("tab-cpf").setAttribute("aria-selected", v === "cpf");
+    el("tab-bto").setAttribute("aria-selected", v === "bto");
+    el("viewTitle").textContent = COPY[v][0];
+    el("viewSub").textContent = COPY[v][1];
+  }
+
+  // ---------- Events ----------
+  document.querySelectorAll(".seg button").forEach(function (b) {
+    b.addEventListener("click", function () { location.hash = b.dataset.view; });
+  });
+  window.addEventListener("hashchange", showView);
+  el("dirOut").addEventListener("click", function () { setDir("debit"); });
+  el("dirIn").addEventListener("click", function () { setDir("credit"); });
+  el("fCat").addEventListener("change", syncCategory);
+  el("fStage").addEventListener("change", prefillCpfAmount);
+  el("cpfLog").addEventListener("click", function () {
+    var amt = parseFloat(el("fAmt").value);
+    if (!(amt > 0) || !el("fDate").value) { el("cpfFormHint").textContent = "Enter an amount above $0 and a date."; return; }
+    var cat = el("fCat").value;
+    addTxn({ owner: "self", date: el("fDate").value, direction: CAT[cat].dir, source: el("fSrc").value, amount: amt, category: cat,
+      stage: CAT[cat].bto ? el("fStage").value : null, ref: el("fRef").value.trim() });
+    el("fRef").value = ""; el("fNote").value = "";
+    prefillCpfAmount();
+  });
+  el("openLog").addEventListener("click", function () { openBtoLog("afl"); });
+  el("closeLog").addEventListener("click", function () { el("btoLogCard").hidden = true; });
+  el("bStage").addEventListener("change", fillBtoItems);
+  el("bItem").addEventListener("change", prefillBto);
+  el("btoLog").addEventListener("click", function () {
+    var amt = parseFloat(el("bAmt").value);
+    if (!(amt > 0) || !el("bDate").value) { el("btoFormHint").textContent = "Enter an amount above $0 and a date."; return; }
+    addTxn({ owner: "self", date: el("bDate").value, direction: "debit", source: el("bSrc").value, amount: amt,
+      category: el("bItem").value, stage: el("bStage").value, ref: el("bRef").value.trim() });
+    el("bRef").value = "";
+    prefillBto();
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-f],[data-bf],[data-del],[data-quick]");
+    if (!t) return;
+    if (t.dataset.f) { cpfFilter = t.dataset.f; renderCpf(); }
+    else if (t.dataset.bf) { btoFilter = t.dataset.bf; renderBto(); }
+    else if (t.dataset.del) {
+      var r = txns.filter(function (x) { return x.id === t.dataset.del; })[0];
+      txns = txns.filter(function (x) { return x.id !== t.dataset.del; });
+      lastAdded = null; render();
+      if (r) toast(r.source === "cash" ? "Deleted · OA unchanged" : "Deleted · " + (r.direction === "debit" ? money(r.amount) + " returned to OA" : money(r.amount) + " removed from OA"));
+    } else if (t.dataset.quick) {
+      var p = t.dataset.quick.split("|"); openBtoLog(p[0], p[1]);
+      el("btoLogCard").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  });
+
+  // ---------- Init ----------
+  el("bStage").innerHTML = Object.keys(STAGE_ITEMS).map(function (s) { return '<option value="' + s + '">' + STAGE_META[s].title + "</option>"; }).join("");
+  el("fDate").value = "2026-11-17";
+  el("bDate").value = "2026-11-17";
+  setDir("debit");
+  el("fCat").value = "bto_legal_fee"; syncCategory();
+  fillBtoItems();
+  render();
+  showView();
+})();
+</script>
