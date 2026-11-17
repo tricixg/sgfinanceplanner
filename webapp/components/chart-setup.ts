@@ -4,7 +4,6 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  TimeScale,
   BarElement,
   LineElement,
   PointElement,
@@ -18,7 +17,6 @@ import {
   Legend,
   Filler,
 } from "chart.js";
-import "chartjs-adapter-date-fns";
 import { CHART_COLOR, CHART_FONT } from "@/lib/finance/helpers";
 
 let registered = false;
@@ -28,7 +26,6 @@ export function ensureChartsRegistered() {
   ChartJS.register(
     CategoryScale,
     LinearScale,
-    TimeScale,
     BarElement,
     LineElement,
     PointElement,

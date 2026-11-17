@@ -1,0 +1,150 @@
+▲ Next.js 16.4.6 (Turbopack)
+✓ Running next.config.ts took 30ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 420ms
+  Running TypeScript ...
+  Finished TypeScript in 2.7s ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/93) ...
+  Generating static pages using 3 workers (23/93) 
+  Generating static pages using 3 workers (46/93) 
+  Generating static pages using 3 workers (69/93) 
+✓ Generating static pages using 3 workers (93/93) in 684ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/accounts
+├ ƒ /api/accounts/[id]/transactions
+├ ƒ /api/auth/password
+├ ƒ /api/auth/session
+├ ƒ /api/auth/signout
+├ ƒ /api/benefits
+├ ƒ /api/benefits/[id]/claims
+├ ƒ /api/benefits/[id]/claims/[claimId]
+├ ƒ /api/bnpl-plans
+├ ƒ /api/budget-lines
+├ ƒ /api/cashflow/additive-income
+├ ƒ /api/cpf/contributions
+├ ƒ /api/cpf/contributions/[id]
+├ ƒ /api/cpf/transactions
+├ ƒ /api/cpf/transactions/[id]
+├ ƒ /api/credit-cards
+├ ƒ /api/credit-cards/calendar
+├ ƒ /api/credit-cards/statements
+├ ƒ /api/credit-cards/statements/[id]
+├ ƒ /api/credit-cards/statements/[id]/pay
+├ ƒ /api/credit-cards/statements/outstanding
+├ ƒ /api/cron/month-end
+├ ƒ /api/expenses
+├ ƒ /api/expenses/[id]
+├ ƒ /api/expenses/summary
+├ ƒ /api/financial-accounts
+├ ƒ /api/funds
+├ ƒ /api/funds/[id]/transactions
+├ ƒ /api/funds/[id]/transactions/[transactionId]
+├ ƒ /api/fx
+├ ƒ /api/holdings
+├ ƒ /api/holdings/[id]/dividends
+├ ƒ /api/holdings/[id]/dividends/[dividendId]
+├ ƒ /api/household
+├ ƒ /api/household/bto-planner
+├ ƒ /api/household/partner-bto-payments
+├ ƒ /api/household/partner-cpf
+├ ƒ /api/income-categories
+├ ƒ /api/income/analytics
+├ ƒ /api/integrations/telegram/link
+├ ƒ /api/loans
+├ ƒ /api/miles
+├ ƒ /api/net-worth/snapshots
+├ ƒ /api/oncall
+├ ƒ /api/oncall/entries
+├ ƒ /api/oncall/entries/[id]
+├ ƒ /api/oncall/entries/apply-rate
+├ ƒ /api/oncall/payments
+├ ƒ /api/oncall/payments/[id]
+├ ƒ /api/oncall/settings
+├ ƒ /api/other-loans
+├ ƒ /api/other-loans/[id]/add
+├ ƒ /api/other-loans/[id]/pay
+├ ƒ /api/other-loans/[id]/payments
+├ ƒ /api/partner/invites
+├ ƒ /api/partner/invites/[id]
+├ ƒ /api/partner/unlink
+├ ƒ /api/poker
+├ ƒ /api/poker/[id]
+├ ƒ /api/poker/games
+├ ƒ /api/poker/games/[id]
+├ ƒ /api/poker/import
+├ ƒ /api/poker/locations
+├ ƒ /api/poker/locations/[id]
+├ ƒ /api/poker/stats
+├ ƒ /api/portfolio/snapshots
+├ ƒ /api/profile
+├ ƒ /api/quotes
+├ ƒ /api/recurring
+├ ƒ /api/recurring-investments
+├ ƒ /api/recurring-subscriptions
+├ ƒ /api/recurring/deduction-day
+├ ƒ /api/savings
+├ ƒ /api/savings/goals/[id]/deposits
+├ ƒ /api/savings/goals/[id]/transactions
+├ ƒ /api/savings/pools/[id]/transactions
+├ ƒ /api/savings/shared-contributions
+├ ƒ /api/spending/analytics
+├ ƒ /api/state
+├ ƒ /api/summary
+├ ƒ /api/telegram/webhook
+├ ƒ /api/transactions
+├ ƒ /api/transactions/[recordType]/[id]
+├ ƒ /api/transactions/[recordType]/[id]/reimburse
+├ ƒ /api/transactions/categories
+├ ƒ /api/travel/trips
+├ ƒ /api/travel/trips/[id]
+├ ƒ /api/travel/trips/[id]/balances
+├ ƒ /api/travel/trips/[id]/budgets
+├ ƒ /api/travel/trips/[id]/companions
+├ ƒ /api/travel/trips/[id]/companions/[companionId]
+├ ƒ /api/travel/trips/[id]/expenses
+├ ƒ /api/travel/trips/[id]/expenses/[expenseId]
+├ ƒ /api/travel/trips/[id]/settlements
+├ ○ /apple-icon.png
+├ ƒ /auth/callback
+├ ○ /benefits
+├ ○ /bto
+├ ○ /bto/price-finder
+├ ○ /budget
+├ ○ /cards
+├ ○ /cash-accounts
+├ ○ /cpf
+├ ○ /dashboard
+├ ○ /debt
+├ ○ /expenses
+├ ○ /financial-health
+├ ○ /icon.png
+├ ○ /login
+├ ○ /me
+├ ○ /miles
+├ ○ /now
+├ ○ /oncall
+├ ○ /past-cashflow
+├ ○ /poker
+├ ○ /poker/stats
+├ ○ /recurring
+├ ○ /savings
+├ ○ /this-month
+├ ○ /this-month-cashflow
+├ ○ /transactions
+├ ○ /travel
+├ ƒ /travel/[id]
+├ ○ /wealth
+└ ○ /year
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
