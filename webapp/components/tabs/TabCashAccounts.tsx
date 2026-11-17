@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import type { DashboardState, NetWorthSnapshot, SavingsAccount } from "@/lib/types";
 import type { AccountsBundle, SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
 import type { TooltipItem } from "chart.js";
@@ -18,6 +18,8 @@ import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
 import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
 import { useDomainLoadError } from "@/hooks/useDomainLoadError";
+import { AppDataContext } from "@/contexts/app-data-contexts";
+import { netWorthSnapshotBlockers } from "@/lib/net-worth/snapshot-gate";
 import { IncludeCheckbox } from "@/components/IncludeCheckbox";
 import { AccountLedgerModal } from "@/components/savings/AccountLedgerModal";
 import { NetWorthHistoryChart } from "@/components/savings/NetWorthHistoryChart";
@@ -54,6 +56,15 @@ type Props = {
     appendSnapshot: (snap: NetWorthSnapshot) => Promise<void>;
   };
   openCycles?: OpenCycleEstimate[];
+  /**
+   * Whether the inputs the net-worth snapshot depends on beyond app data have
+   * loaded successfully. The snapshot is never written until all are true.
+   */
+  snapshotInputs?: {
+    accountsLoaded: boolean;
+    fundsLoaded: boolean;
+    cardStatementsLoaded: boolean;
+  };
 };
 
 // Matches the persist-on-settle debounce in hooks/usePersistedState.ts.
@@ -75,6 +86,7 @@ export function TabCashAccounts({
   savingsGoals = [],
   netWorthApi,
   openCycles,
+  snapshotInputs,
 }: Props) {
   const [includeCpf, setIncludeCpf] = useState(false);
   const [liabIncluded, setLiabIncluded] = useState<Record<LiabilityKey, boolean>>(
@@ -124,17 +136,38 @@ export function TabCashAccounts({
   const nwSlices = netWorthSlices(S, includeCpf, personalOnlySavings);
 
   const appendNwSnapshot = netWorthApi?.appendSnapshot;
+  const appCtx = useContext(AppDataContext);
+  const snapshotBlockers = netWorthSnapshotBlockers({
+    coreLoading: appCtx?.coreLoading ?? true,
+    loadErrors: appCtx?.loadErrors ?? {},
+    accountsLoaded: snapshotInputs?.accountsLoaded ?? false,
+    accountsError: accountsLoadError,
+    fundsLoaded: snapshotInputs?.fundsLoaded ?? false,
+    cardStatementsLoaded: snapshotInputs?.cardStatementsLoaded ?? false,
+  });
+  const snapshotReady = snapshotBlockers.length === 0;
   useEffect(() => {
     if (!appendNwSnapshot) return;
-    // baselineLnw/cpf can settle across a few renders as savings/openCycles
-    // resolve — debounce so one visit writes once, not once per intermediate
-    // value, while still always writing the latest figure on genuine visits.
+    // The monthly snapshot is a permanent record: only write once every input
+    // has loaded successfully, never after a load error (a missing domain reads
+    // as $0 and would be stored as that month's net worth).
+    if (!snapshotReady) {
+      console.info("[TabCashAccounts] net worth snapshot skipped", snapshotBlockers);
+      return;
+    }
+    // baselineLnw/cpf can still settle across a few renders — debounce so one
+    // visit writes once, not once per intermediate value. Writes are also
+    // serialised last-request-wins inside appendNetWorthSnapshot.
     const timer = setTimeout(() => {
       const month = `${sgtTodayYmd().slice(0, 7)}-01`;
-      void appendNwSnapshot({ month, lnw: baselineLnw, cpf });
+      appendNwSnapshot({ month, lnw: baselineLnw, cpf }).catch((e: unknown) => {
+        console.error("[TabCashAccounts] net worth snapshot save failed", e);
+      });
     }, NET_WORTH_SNAPSHOT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [appendNwSnapshot, baselineLnw, cpf]);
+    // snapshotBlockers is only read for the log line above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appendNwSnapshot, baselineLnw, cpf, snapshotReady]);
 
   const cashTotal = useCloudAccounts
     ? (accountsApi?.totals?.personalNetWorthCash ?? 0)

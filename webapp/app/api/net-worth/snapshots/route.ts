@@ -48,6 +48,18 @@ export async function POST(req: NextRequest) {
   if (!snap?.month) {
     return NextResponse.json({ error: "snapshot required" }, { status: 400 });
   }
+  // The stored month is a permanent record: reject anything that isn't a real
+  // first-of-month date with finite figures rather than persisting NaN/null.
+  if (
+    !/^\d{4}-\d{2}-01$/.test(snap.month) ||
+    !Number.isFinite(snap.lnw) ||
+    !Number.isFinite(snap.cpf)
+  ) {
+    return NextResponse.json(
+      { error: "snapshot needs month (YYYY-MM-01) and numeric lnw and cpf" },
+      { status: 400 }
+    );
+  }
 
   try {
     const supabase = await createAuthedSupabaseClient();
