@@ -7,6 +7,7 @@ import {
   getSavingsTransactionById,
 } from "@/lib/savings/ledger";
 import { mapExpense } from "@/lib/savings/db-mappers";
+import { budgetLinePatchForCategoryEdit } from "@/lib/expenses/budget-line-link";
 import { deleteTransactionWithLedger } from "@/lib/transactions/actions";
 
 type Params = { params: Promise<{ recordType: string; id: string }> };
@@ -61,6 +62,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (spentAt) patch.spent_at = spentAt;
     const spentTime = toTimeOrNull(body.spentTime);
     if (spentTime) patch.spent_time = spentTime;
+    if (typeof body.category === "string") {
+      try {
+        Object.assign(
+          patch,
+          await budgetLinePatchForCategoryEdit(supabase, user.id, id, body.category)
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Failed to update category";
+        console.error("[api/transactions] PATCH budget line relink failed", msg);
+        return NextResponse.json({ error: msg }, { status: 500 });
+      }
+    }
 
     const { data, error } = await supabase
       .from("expenses")

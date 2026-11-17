@@ -1,6 +1,7 @@
 import { addMonthsYm } from "@/lib/finance/calendar";
 import type { IncomeAnalyticsBundle } from "@/lib/income/analytics";
 import type { SpendingAnalyticsBundle } from "@/lib/spending/analytics";
+import { UNCATEGORIZED_CATEGORY_FILTER } from "@/lib/transactions/types";
 
 /**
  * Dashboard cash-flow maths. Pure functions over the monthly rows already
@@ -8,7 +9,7 @@ import type { SpendingAnalyticsBundle } from "@/lib/spending/analytics";
  * invents data; it only slices, sums and compares what those endpoints return.
  */
 
-export type RangeKey = "this-month" | "last-month" | "3m" | "6m" | "ytd" | "12m";
+export type RangeKey = "month" | "3m" | "6m" | "ytd" | "12m";
 
 export const RANGE_OPTIONS: {
   key: RangeKey;
@@ -17,8 +18,7 @@ export const RANGE_OPTIONS: {
   /** Narrow-screen label. */
   compact: string;
 }[] = [
-  { key: "this-month", label: "This month", short: "This month", compact: "Month" },
-  { key: "last-month", label: "Last month", short: "Last month", compact: "Last" },
+  { key: "month", label: "Month", short: "Month", compact: "Month" },
   { key: "3m", label: "3 months", short: "3M", compact: "3M" },
   { key: "6m", label: "6 months", short: "6M", compact: "6M" },
   { key: "ytd", label: "Year to date", short: "YTD", compact: "YTD" },
@@ -41,14 +41,35 @@ function monthsEnding(endYm: string, count: number): string[] {
   return list;
 }
 
-export function rangeWindow(key: RangeKey, currentYm: string): RangeWindow {
+/** How far back the month stepper may go (its comparison month must still load). */
+export const MAX_MONTHS_BACK = 24;
+
+const YM_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** A valid month the stepper can show, or null when out of range or malformed. */
+export function clampMonthYm(ym: string | null | undefined, currentYm: string): string | null {
+  if (!ym || !YM_RE.test(ym)) return null;
+  if (ym > currentYm) return null;
+  if (ym < addMonthsYm(currentYm, -MAX_MONTHS_BACK)) return null;
+  return ym;
+}
+
+/** Map a stored range (including retired keys) to a current one. */
+export function normaliseRangeKey(raw: string | null | undefined): RangeKey | null {
+  if (raw === "this-month" || raw === "last-month") return "month";
+  return RANGE_OPTIONS.some((o) => o.key === raw) ? (raw as RangeKey) : null;
+}
+
+/**
+ * The selected period. `monthYm` picks the month for the "month" range
+ * (defaults to the current month); other ranges always end at the current month.
+ */
+export function rangeWindow(key: RangeKey, currentYm: string, monthYm?: string): RangeWindow {
   let end = currentYm;
   let count = 1;
   switch (key) {
-    case "this-month":
-      break;
-    case "last-month":
-      end = addMonthsYm(currentYm, -1);
+    case "month":
+      end = monthYm ?? currentYm;
       break;
     case "3m":
       count = 3;
@@ -68,10 +89,47 @@ export function rangeWindow(key: RangeKey, currentYm: string): RangeWindow {
   return { key, months, prior, includesCurrentMonth: months.includes(currentYm) };
 }
 
-/** Months to plot for a range: the period itself, padded to at least six for context. */
+/**
+ * Months to plot for a range: the period itself, padded to at least six for
+ * context and ending now — unless the period is older than that view, in which
+ * case the plot ends at the period so its highlight stays visible.
+ */
 export function trendMonths(window: RangeWindow, currentYm: string): string[] {
   const count = Math.max(6, window.months.length);
-  return monthsEnding(currentYm, count);
+  const periodEnd = window.months[window.months.length - 1]!;
+  const viewStart = addMonthsYm(currentYm, -(count - 1));
+  return monthsEnding(periodEnd < viewStart ? periodEnd : currentYm, count);
+}
+
+/** Subtitle for the trend chart, e.g. "Last 6 months" or "Apr – Sep 2025". */
+export function trendSubtitle(months: string[], currentYm: string): string {
+  const first = months[0]!;
+  const last = months[months.length - 1]!;
+  if (last === currentYm) return `Last ${months.length} months`;
+  const from = first.slice(0, 4) === last.slice(0, 4) ? shortMonth(first) : monthYear(first);
+  return `${from} – ${monthYear(last)}`;
+}
+
+/** Calendar dates covered by a period: first of its first month to the end of its last. */
+export function windowDateRange(window: RangeWindow): { dateFrom: string; dateTo: string } {
+  const first = window.months[0]!;
+  const last = window.months[window.months.length - 1]!;
+  const [y, m] = last.split("-").map(Number);
+  const lastDay = new Date(y!, m!, 0).getDate();
+  return { dateFrom: `${first}-01`, dateTo: `${last}-${String(lastDay).padStart(2, "0")}` };
+}
+
+/** Transactions list filtered to one spending category over a dashboard period. */
+export function categoryTransactionsHref(
+  row: Pick<AmountRow, "id" | "label">,
+  window: RangeWindow,
+  backHref?: string
+): string {
+  const { dateFrom, dateTo } = windowDateRange(window);
+  const category = row.id === UNCATEGORIZED_CATEGORY_FILTER ? UNCATEGORIZED_CATEGORY_FILTER : row.label;
+  const qs = new URLSearchParams({ category, dateFrom, dateTo });
+  if (backHref) qs.set("back", backHref);
+  return `/transactions?${qs}`;
 }
 
 /** Size of one analytics request — matches the app's existing ~5-month fetches. */
@@ -87,8 +145,10 @@ export type AnalyticsChunk = { throughYm: string; months: number };
 export function chunksCovering(earliestYm: string, currentYm: string): AnalyticsChunk[] {
   const chunks: AnalyticsChunk[] = [];
   let through = currentYm;
-  // 24 months is the most any range needs (12 months plus its comparison period).
-  for (let i = 0; i < 4; i++) {
+  // Enough for 12 months plus its comparison period, or the oldest steppable
+  // month (MAX_MONTHS_BACK) plus the month before it.
+  const maxChunks = Math.ceil((MAX_MONTHS_BACK + 2) / CHUNK_MONTHS);
+  for (let i = 0; i < maxChunks; i++) {
     chunks.push({ throughYm: through, months: CHUNK_MONTHS });
     const start = addMonthsYm(through, -(CHUNK_MONTHS - 1));
     if (start <= earliestYm) break;
@@ -195,23 +255,33 @@ export function pctChange(current: number, previous: number): number | null {
   return ((current - previous) / previous) * 100;
 }
 
-export type RankedShare = AmountRow & { share: number };
+/** Id of the rolled-up "Other" row from `topWithOther`. */
+export const OTHER_ID = "__other__";
+
+export type RankedShare = AmountRow & {
+  share: number;
+  /** For the rolled-up "Other" row: the rows it groups, largest first. */
+  children?: RankedShare[];
+};
 
 /** Top `limit` rows with the remainder rolled into "Other"; shares are of the grand total. */
 export function topWithOther(rows: AmountRow[], limit: number): RankedShare[] {
   const total = rows.reduce((s, r) => s + r.amount, 0);
   if (total <= 0) return [];
   const sorted = [...rows].sort((a, b) => b.amount - a.amount);
-  const head = sorted.slice(0, limit);
-  const rest = sorted.slice(limit);
+  // A single leftover row is shown as itself rather than as a one-item "Other".
+  const cut = sorted.length === limit + 1 ? sorted.length : limit;
+  const head = sorted.slice(0, cut);
+  const rest = sorted.slice(cut);
   const out: RankedShare[] = head.map((r) => ({ ...r, share: r.amount / total }));
   if (rest.length > 0) {
     const other = round2(rest.reduce((s, r) => s + r.amount, 0));
     out.push({
-      id: "__other__",
-      label: rest.length === 1 ? rest[0]!.label : `Other (${rest.length})`,
+      id: OTHER_ID,
+      label: `Other (${rest.length})`,
       amount: other,
       share: other / total,
+      children: rest.map((r) => ({ ...r, share: r.amount / total })),
     });
   }
   return out;
