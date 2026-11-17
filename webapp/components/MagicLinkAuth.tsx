@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { appConfig } from "@/lib/config";
+import { SIGNUP_DISABLED_MESSAGE, isSignupDisabledError } from "@/lib/auth/signup-errors";
 
 type Props = {
   redirectNext?: string;
@@ -34,10 +35,10 @@ export function MagicLinkAuth({
       const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email: targetEmail.trim(),
-        options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
+        options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
       });
       if (signInError) {
-        setError(signInError.message);
+        setError(isSignupDisabledError(signInError) ? SIGNUP_DISABLED_MESSAGE : signInError.message);
         console.warn("[MagicLinkAuth] magic link failed", signInError.message);
         return;
       }
@@ -68,8 +69,7 @@ export function MagicLinkAuth({
               Check your email for a magic link to <strong>{email}</strong>.
             </p>
             <p className="note" style={{ marginBottom: 16 }}>
-              Open the link on this device to sign in. If you are new, your account and
-              dashboard are created automatically — no separate sign-up step.
+              Open the link on this device to sign in.
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button
@@ -92,8 +92,8 @@ export function MagicLinkAuth({
         ) : (
           <>
             <p className="sub" style={{ marginBottom: 20 }}>
-              Enter your email and we will send a magic link. No password needed. If you
-              do not have an account yet, one will be created when you open the link.
+              Enter your email and we will send a magic link. No password needed. Accounts
+              are invite-only; use the email address your account was created with.
             </p>
             <form onSubmit={handleSubmit}>
               <label className="pin-label auth-label">
