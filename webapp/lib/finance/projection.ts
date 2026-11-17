@@ -2,9 +2,9 @@ import type { DashboardState } from "@/lib/types";
 import { ALLOC_MA, ALLOC_OA, ALLOC_SA, cpfEmp, cpfTotal } from "./cpf";
 import { budgetFixedTotal, budgetSpendTotal } from "./budget";
 import type { SavingsSnapshot } from "@/lib/savings/types";
-import { resolveDashboardCash } from "./wealth";
-import { ilpTotalValue } from "./ilp";
-import { portfolioInvestmentValue } from "./wealth";
+import type { OpenCycleEstimate } from "@/lib/cards/types";
+import { wealthSummary } from "./wealth";
+import { computedInsuranceMonthly } from "./insurance";
 import { monIdx, ymFromMonIdx } from "./helpers";
 
 export type ProjectionRow = {
@@ -26,36 +26,73 @@ export type ProjectionParams = {
   useMargin: boolean;
 };
 
+/**
+ * Year-by-year net worth projection.
+ *
+ * Meant to calculate: CPF + investments + cash − debt at each year end, where
+ * "Now" is the SAME figure the Cash Accounts / Financial Health pages show
+ * (`netWorthTotal(S, true, savings, openCycles)`). The starting position is
+ * therefore seeded from `wealthSummary()` rather than re-derived here.
+ *
+ * Assumptions (also shown on the Year page):
+ *  - Instalment loans and personal loans are paid down 1:1 by their monthly
+ *    payment (a personal loan stops costing cash once its balance is 0).
+ *  - Balance-transfer loans and credit-card balances are held flat: card spend
+ *    is already inside the budget, and BTs have no repayment schedule.
+ *  - Insurance premiums are a flat monthly cash outflow.
+ *  - Funds are treated as investments (same return as the rest of the pot).
+ */
 export function simulate5y(
   S: DashboardState,
   params: ProjectionParams,
   todayYmd: string,
-  savings?: SavingsSnapshot | null
+  savings?: SavingsSnapshot | null,
+  openCycles?: OpenCycleEstimate[]
 ): ProjectionRow[] {
   const growth = params.growth / 100;
   const invAdd = params.invAdd;
   const invRet = params.invRet / 100;
   const useMargin = params.useMargin;
+  const start = wealthSummary(S, savings, openCycles);
   let oa = S.oa;
   let sa = S.sa;
   let ma = S.ma;
-  let inv = ilpTotalValue(S) + portfolioInvestmentValue(S);
-  let cash = resolveDashboardCash(S, savings).cash;
+  let inv = start.invTotal;
+  let cash = start.cash;
   let margin = useMargin ? S.margin : 0;
   let sal = S.monthlySal;
-  const loanState = S.loans.map((l) => ({ ...l, bal: l.out }));
+  const insuranceMonthly = computedInsuranceMonthly(S);
+  // Liabilities that stay constant over the projection (see assumptions).
+  const heldLiab = start.liabLines
+    .filter((l) => l.key === "btLoans" || l.key === "cardBalances")
+    .reduce((s, l) => s + l.amount, 0);
 
   const startYM = todayYmd.slice(0, 7);
   const curIdx = monIdx(startYM);
   const series: ProjectionRow[] = [];
 
-  loanState.forEach((l) => {
-    if (monIdx(l.end) < curIdx) l.bal = 0;
-  });
+  // Same inclusion rule as activeLoanOutstanding(): monthly > 0 and not yet ended.
+  const loanState = S.loans.map((l) => ({
+    ...l,
+    bal: l.monthly > 0 && monIdx(l.end) >= curIdx ? l.out : 0,
+  }));
+  // Same inclusion rule as activePersonalLoansOutstanding(), except that
+  // excludeFromNetWorth loans still cost cash (they are in the budget's debt
+  // load) while staying out of the net-worth debt figure.
+  const personalState = (S.otherLoans ?? [])
+    .filter((l) => l.loanType === "personal" && !l.paidAt && l.outstanding > 0)
+    .map((l) => ({
+      bal: l.outstanding,
+      monthly: l.monthly,
+      counted: !l.excludeFromNetWorth,
+    }));
 
   const snapshot = (label: string) => {
     const debt =
-      loanState.reduce((s, l) => s + Math.max(0, l.bal), 0) + Math.max(0, margin);
+      loanState.reduce((s, l) => s + Math.max(0, l.bal), 0) +
+      personalState.reduce((s, l) => s + (l.counted ? Math.max(0, l.bal) : 0), 0) +
+      heldLiab +
+      Math.max(0, margin);
     const cpf = oa + sa + ma;
     const nw = cpf + inv + cash - debt;
     series.push({ label, oa, sa, ma, inv, cash, debt, nw, sal });
@@ -81,9 +118,17 @@ export function simulate5y(
     loanState.forEach((l) => {
       if (monIdx(l.end) >= i && l.bal > 0) {
         const isFinal = monIdx(l.end) === i;
-        const p = isFinal ? l.bal : Math.min(l.monthly || l.bal, l.bal);
+        const p = isFinal ? l.bal : Math.min(l.monthly, l.bal);
         l.bal -= p;
         loanPaid += p;
+      }
+    });
+    let personalPaid = 0;
+    personalState.forEach((l) => {
+      if (l.bal > 0 && l.monthly > 0) {
+        const p = Math.min(l.monthly, l.bal);
+        l.bal -= p;
+        personalPaid += p;
       }
     });
     inv = inv * (1 + invRet / 12) + invAdd;
@@ -98,7 +143,14 @@ export function simulate5y(
     const fixed = budgetFixedTotal(S, ymFromMonIdx(i));
     const spend = budgetSpendTotal(S, ymFromMonIdx(i));
     const surplus =
-      cashIncome - fixed - spend - loanPaid - invAdd - marginPay;
+      cashIncome -
+      fixed -
+      spend -
+      insuranceMonthly -
+      loanPaid -
+      personalPaid -
+      invAdd -
+      marginPay;
     cash += surplus;
 
     if (i % 12 === 11) {
