@@ -6175,6 +6175,252 @@ details > summary {
   }
 }
 
+/* ---------- CPF transaction log (CPF Outlook) ---------- */
+.cpf-txn-form .section-head {
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.cpf-txn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.cpf-txn-note {
+  grid-column: span 2;
+}
+.cpf-txn-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.cpf-txn-sub {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.cpf-row-click {
+  cursor: pointer;
+}
+.cpf-row-click:hover td,
+.cpf-row-click:focus-visible td {
+  background: var(--fill);
+}
+.cpf-row-click:focus-visible {
+  outline: 2px solid var(--moss);
+  outline-offset: -2px;
+}
+.cpf-row-edit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--moss);
+}
+.cpf-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.cpf-edit-wide {
+  grid-column: 1 / -1;
+}
+.cpf-edit-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.cpf-edit-delete {
+  color: var(--rust);
+}
+.cpf-edit-confirm {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.btn.cpf-edit-danger {
+  background: var(--rust);
+  border-color: var(--rust);
+  color: #fff;
+}
+@media (max-width: 480px) {
+  .cpf-edit-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cpf-txn-manage {
+  font-size: 12px;
+  color: var(--moss);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tag.cpf-tag-bto {
+  color: var(--sky);
+  text-decoration: none;
+}
+@media (max-width: 760px) {
+  .cpf-txn-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .cpf-txn-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cpf-txn-note {
+    grid-column: auto;
+  }
+}
+
+/* ---------- BTO payments (BTO planner) ---------- */
+.bto-pay-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: end;
+}
+.bto-pay-total {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.bto-pay-total span {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.bto-pay-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.bto-pay-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 6px;
+  background: var(--c);
+}
+.bto-pay-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 10px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--fill);
+}
+.bto-pay-bar i {
+  display: block;
+  height: 100%;
+}
+.bto-pay-stages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.bto-pay-stage {
+  border-top: 4px solid var(--line);
+  min-width: 0;
+  margin-bottom: 0;
+}
+.bto-pay-stage.tallied { border-top-color: var(--moss); }
+.bto-pay-stage.partial { border-top-color: var(--gold); }
+.bto-pay-stage.over { border-top-color: var(--rust); }
+.bto-pay-stage-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.bto-pay-stage-date {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.bto-pay-pill,
+.bto-pay-chip {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--r-pill);
+  padding: 2px 9px;
+  white-space: nowrap;
+  background: var(--fill);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bto-pay-chip {
+  display: inline-block;
+  margin-top: 6px;
+  text-decoration: none;
+}
+.bto-pay-pill.tallied, .bto-pay-chip.tallied { background: var(--moss-soft); color: var(--moss); }
+.bto-pay-pill.partial, .bto-pay-chip.partial { background: var(--gold-soft); color: var(--gold); }
+.bto-pay-pill.over, .bto-pay-chip.over { background: var(--rust-soft); color: var(--rust); }
+.bto-pay-line .k,
+.bto-pay-line .v {
+  display: flex;
+  flex-direction: column;
+}
+.bto-pay-line .v {
+  align-items: flex-end;
+  white-space: nowrap;
+}
+.bto-pay-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.bto-pay-log {
+  margin-top: 10px;
+}
+.bto-pay-linkbtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--moss);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.bto-log-form {
+  border: 1.5px solid var(--moss);
+}
+.bto-pay-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.bto-pay-partner {
+  color: var(--sky);
+  font-weight: 600;
+}
+@media (max-width: 1440px) {
+  .bto-pay-stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .bto-pay-stages,
+  .bto-pay-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

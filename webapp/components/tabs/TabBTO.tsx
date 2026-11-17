@@ -6,7 +6,6 @@ import type { BtoOAGrowthMode, BtoPlannerPrefs, DashboardState } from "@/lib/typ
 import {
   BTO_SCHEME_DEFS,
   addMonthsYm,
-  calcEhgFamilyGrant,
   buildBTOStages,
   btoLoanTerms,
   computeBTO,
@@ -25,6 +24,9 @@ import {
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
 import { BtoOATimelineChart } from "@/components/bto/BtoOATimelineChart";
+import { BtoPaymentsPanel } from "@/components/bto/BtoPaymentsPanel";
+import { btoProjectionAdjustments, reconcileBtoPayments } from "@/lib/finance/bto-reconcile";
+import type { CpfBtoStage } from "@/lib/cpf/types";
 import { useBtoPlannerData } from "@/hooks/useBtoPlannerData";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 
@@ -104,8 +106,8 @@ export function TabBTO({ state: S, setState }: Props) {
     savePrefs,
     partnerOALive,
     selfMonthlyFromContrib,
-    selfLatestContribMonth,
     partnerMonthlyFromContrib,
+    btoPayments,
   } = useBtoPlannerData(S, setState);
   // Household pairing, the partner's live CPF, and the shared household plan
   // all load asynchronously after the page's core data — rendering before
@@ -121,18 +123,11 @@ export function TabBTO({ state: S, setState }: Props) {
     !partnerCpfLoading &&
     !sharedBtoLoading &&
     !(household.paired && partnerCpf == null);
-  const [editingSchemes, setEditingSchemes] = useState(false);
   const [editingCalc, setEditingCalc] = useState(false);
   const [saving, setSaving] = useState(false);
   const [prefsDraft, setPrefsDraft] = useState<BtoPlannerPrefs>(savedPrefs);
-  const editing = editingSchemes || editingCalc;
+  const editing = editingCalc;
   const p = editing ? prefsDraft : savedPrefs;
-
-  const startSchemesEdit = () => {
-    setPrefsDraft(savedPrefs);
-    setEditingSchemes(true);
-    console.info("[TabBTO] schemes edit on");
-  };
 
   const startCalcEdit = () => {
     setPrefsDraft(savedPrefs);
@@ -144,7 +139,6 @@ export function TabBTO({ state: S, setState }: Props) {
     setSaving(true);
     try {
       await savePrefs(prefsDraft);
-      setEditingSchemes(false);
       setEditingCalc(false);
       console.info("[TabBTO] planner prefs saved");
     } catch (e) {
@@ -163,6 +157,14 @@ export function TabBTO({ state: S, setState }: Props) {
   };
 
   const effectivePOA = partnerOALive ?? p.pOA;
+
+  // Logged BTO payments feed the projection: grant credits still sitting in
+  // OA are taken back out (the plan already credits them against the bills),
+  // and bills already paid aren't drawn again.
+  const payAdj = useMemo(() => btoProjectionAdjustments(btoPayments), [btoPayments]);
+  const projSelfOA = Math.max(0, S.oa - payAdj.unspentGrantSelf);
+  const projPartnerOA =
+    partnerOALive != null ? Math.max(0, effectivePOA - payAdj.unspentGrantPartner) : effectivePOA;
 
   // Status of the live partner-CPF pipeline, surfaced next to the growth-mode picker
   // so it's visible whether real data is actually coming in or it's falling back to manual.
@@ -252,20 +254,23 @@ export function TabBTO({ state: S, setState }: Props) {
         schemes: p.schemes,
         tSal: p.tSal,
         pSal: p.pSal,
-        pOA: effectivePOA,
-        tOA: S.oa,
+        pOA: projPartnerOA,
+        tOA: projSelfOA,
         tOAMonthly: tOAMonthlyResolved,
         pOAMonthly: pOAMonthlyResolved,
         bookingOffsetMonths,
         aflOffsetMonths,
         kcOffsetMonths,
         latestKcOffsetMonths,
+        alreadyPaidAFL: payAdj.alreadyPaidAFL,
+        alreadyPaidKC: payAdj.alreadyPaidKC,
       }),
     [
       p,
       loanTerms,
-      S.oa,
-      effectivePOA,
+      projSelfOA,
+      projPartnerOA,
+      payAdj,
       tOAMonthlyResolved,
       pOAMonthlyResolved,
       bookingOffsetMonths,
@@ -280,11 +285,9 @@ export function TabBTO({ state: S, setState }: Props) {
     [p.schemes, p.tSal, p.pSal]
   );
 
-  const householdIncome = p.tSal + p.pSal;
-
   const toggleScheme = (id: BTOSchemeId, enabled: boolean) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : savedPrefs;
+      const base = prev;
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -294,13 +297,12 @@ export function TabBTO({ state: S, setState }: Props) {
         },
       };
     });
-    if (!editingSchemes) setEditingSchemes(true);
     console.info("[TabBTO] scheme toggled", id, enabled);
   };
 
   const setSchemeOverride = (id: BTOSchemeId, amount: number | null) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : savedPrefs;
+      const base = prev;
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -310,13 +312,12 @@ export function TabBTO({ state: S, setState }: Props) {
         },
       };
     });
-    if (!editingSchemes) setEditingSchemes(true);
     console.info("[TabBTO] scheme amount override", id, amount);
   };
 
   const resetSchemeAmount = (id: BTOSchemeId) => {
     setPrefsDraft((prev) => {
-      const base = editingSchemes ? prev : savedPrefs;
+      const base = prev;
       const current = base.schemes[id] ?? { enabled: false, amountOverride: null };
       return {
         ...base,
@@ -330,6 +331,7 @@ export function TabBTO({ state: S, setState }: Props) {
   };
 
   const stages = useMemo(() => buildBTOStages(p, todayYmd), [p, todayYmd]);
+  const reconcile = useMemo(() => reconcileBtoPayments(b, btoPayments), [b, btoPayments]);
   const applicationStage = stages.find((s) => s.id === "application")!;
   const keysStage = stages.find((s) => s.id === "keys")!;
 
@@ -382,6 +384,24 @@ export function TabBTO({ state: S, setState }: Props) {
     },
   };
 
+  const stageById = (id: BTOStageId) => stages.find((s) => s.id === id)!;
+  const payStageDates: Record<CpfBtoStage, string> = {
+    booking: stageDateLabel(stageById("booking")),
+    afl: stageDateLabel(stageById("afl")),
+    keys: stageDateLabel(stageById("keys")),
+    mortgage: "After key collection",
+  };
+  const payStageReached: Record<CpfBtoStage, boolean> = {
+    booking: stageById("booking").status === "done",
+    afl: stageById("afl").status === "done",
+    keys: stageById("keys").status === "done",
+    mortgage: stageById("mortgage").status === "active",
+  };
+  const payNextStage: CpfBtoStage =
+    nextStage && nextStage.id !== "application" ? (nextStage.id as CpfBtoStage) : "mortgage";
+  const paidAFLLogged = b.neededAFL - b.dueAFL;
+  const paidKCLogged = b.neededKC - b.dueKC;
+
   if (!dataReady) {
     return <p className="loading">Loading your saved BTO plan…</p>;
   }
@@ -398,128 +418,10 @@ export function TabBTO({ state: S, setState }: Props) {
       </div>
 
       <div className="callout tip">
-        Grants (Enhanced Housing Grant) are disbursed to CPF OA before you sign the AFL and
-        credit straight against that downpayment bill — they don&apos;t reduce the loan, BSD, or
-        the downpayment percentages themselves, which are fixed shares of the full price
-        regardless of grants, and any amount left after AFL rolls over to credit key collection
-        too. Type the amount you expect, or leave it on auto from combined household income (
-        {fmt(householdIncome)}/mo). The Staggered Downpayment Scheme shifts more of the 25%
-        downpayment to key collection (5% + 20% instead of 10% + 15%). Projected CPF OA below is
-        your own savings only — starting from your real balance ({fmt(S.oa)}
-        {selfLatestContribMonth
-          ? ` — contributions logged through ${formatMonthLabel(selfLatestContribMonth)}`
-          : ", no contributions logged yet"}
-        ) and your partner&apos;s
-        {partnerOALive != null ? ` live balance (${fmt(partnerOALive)})` : " manually-entered balance"}
-        , then growing monthly using the projection mode you choose below — grants are kept
-        separate so they&apos;re never counted twice.
-      </div>
-
-      <div className="section-head">
-        <h2>Enhanced Housing Grant</h2>
-        {editingSchemes ? (
-          <button
-            type="button"
-            className="btn sm"
-            disabled={saving}
-            onClick={() => void saveBtoPrefs()}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        ) : (
-          <button type="button" className="btn ghost sm" onClick={startSchemesEdit}>
-            Edit amounts
-          </button>
-        )}
-      </div>
-
-      <div className="card bto-schemes-card">
-        {BTO_SCHEME_DEFS.map((def) => {
-          const sel = p.schemes[def.id] ?? { enabled: false, amountOverride: null };
-          const computed = schemeComputedAmount(def.id, { tSal: p.tSal, pSal: p.pSal });
-          const amount = sel.enabled
-            ? sel.amountOverride != null
-              ? sel.amountOverride
-              : computed
-            : 0;
-          return (
-            <div
-              key={def.id}
-              className={`bto-scheme-row ${sel.enabled ? "on" : ""}`}
-            >
-              <label className="bto-scheme-check">
-                <input
-                  type="checkbox"
-                  checked={sel.enabled}
-                  onChange={(e) => toggleScheme(def.id, e.target.checked)}
-                />
-                <span className="bto-scheme-title">{def.name}</span>
-              </label>
-              <p className="bto-scheme-summary">{def.summary}</p>
-              <p className="bto-scheme-eligibility">
-                <b>Eligibility:</b> {def.eligibility}
-              </p>
-              <a
-                href={def.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bto-scheme-link"
-              >
-                HDB / CPF reference
-              </a>
-              {sel.enabled && (
-                <div className="bto-scheme-amt">
-                  {editingSchemes ? (
-                    <label>
-                      Grant amount
-                      <DecimalInput
-                        value={amount}
-                        onChange={(v) => setSchemeOverride(def.id, v)}
-                      />
-                      <span className="note" style={{ display: "block", marginTop: 4 }}>
-                        Auto from income: {fmt(computed)} (≤$9k/mo ceiling) — type your own
-                        amount to override.
-                      </span>
-                      {sel.amountOverride != null && sel.amountOverride !== computed && (
-                        <button
-                          type="button"
-                          className="btn ghost sm"
-                          style={{ marginTop: 6 }}
-                          onClick={() => resetSchemeAmount(def.id)}
-                        >
-                          Reset to calculated
-                        </button>
-                      )}
-                    </label>
-                  ) : (
-                    <>
-                      <span className="k">Grant in scenario</span>
-                      <span className="v">{fmt(amount)}</span>
-                      <span className="note">
-                        {sel.amountOverride != null
-                          ? `Fixed at your HFE letter's amount — today's income (${fmt(householdIncome)}/mo) would give ${fmt(calcEhgFamilyGrant(householdIncome))}`
-                          : `From household income ${fmt(householdIncome)}/mo → auto ${fmt(calcEhgFamilyGrant(householdIncome))}`}
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        <div className="minirow tot">
-          <span className="k">Total grants — credited to CPF OA</span>
-          <span className="v">{fmt(b.totalGrants)}</span>
-        </div>
-        <div className="minirow" style={{ border: "none" }}>
-          <span className="k">If grants directly reduced price</span>
-          <span className="v">{fmt(b.netPrice)}</span>
-          <span className="note" style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-            List price {fmt(b.price)} − grants {fmt(b.totalGrants)} — shown for reference only;
-            the loan, BSD, and downpayment are based on the full list price, with grants
-            credited to CPF OA instead.
-          </span>
-        </div>
+        Grants are credited to CPF OA before AFL and go toward the downpayment; they don&apos;t
+        reduce the loan or BSD. Projected OA starts from your balance ({fmt(S.oa)}) and your
+        partner&apos;s{partnerOALive != null ? ` (${fmt(partnerOALive)}, live)` : ""}, growing as set
+        in Edit.
       </div>
 
       <div className="grid g4" style={{ marginBottom: 24 }}>
@@ -702,7 +604,7 @@ export function TabBTO({ state: S, setState }: Props) {
                 onChange={(e) => updatePrefs({ keysDateLatest: e.target.value })}
               />
               <span className="note">
-                HDB&apos;s latest possible date — checks if CPF OA catches up by then
+                HDB&apos;s latest date, to check if OA catches up
               </span>
             </label>
           </div>
@@ -717,9 +619,58 @@ export function TabBTO({ state: S, setState }: Props) {
               <span className="bto-scheme-title">Staggered Downpayment Scheme</span>
             </label>
             <p className="bto-scheme-summary">
-              5% at AFL / 20% at key collection instead of the usual 10% / 15% — needs a
-              first-timer applicant ≤30y at application with a valid HFE letter.
+              5% at AFL and 20% at keys, instead of 10% and 15%. First-timer aged 30 or under with
+              an HFE letter.
             </p>
+          </div>
+
+          <div className="card" style={{ marginTop: 16, marginBottom: 0 }}>
+            <div className="section-lbl">Housing grants</div>
+            {BTO_SCHEME_DEFS.map((def) => {
+              const sel = p.schemes[def.id] ?? { enabled: false, amountOverride: null };
+              const computed = schemeComputedAmount(def.id, { tSal: p.tSal, pSal: p.pSal });
+              const amount = sel.amountOverride != null ? sel.amountOverride : computed;
+              return (
+                <div key={def.id} style={{ marginTop: 8 }}>
+                  <label className="bto-scheme-check">
+                    <input
+                      type="checkbox"
+                      checked={sel.enabled}
+                      onChange={(e) => toggleScheme(def.id, e.target.checked)}
+                    />
+                    <span className="bto-scheme-title">{def.name}</span>
+                  </label>
+                  <a
+                    href={def.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bto-scheme-link"
+                    title={def.eligibility}
+                  >
+                    Eligibility
+                  </a>
+                  {sel.enabled && (
+                    <label className="bto-field" style={{ marginTop: 8, maxWidth: 320 }}>
+                      Grant amount
+                      <DecimalInput value={amount} onChange={(v) => setSchemeOverride(def.id, v)} />
+                      <span className="note">
+                        Auto from income: {fmt(computed)}. Type your HFE letter amount to override.
+                      </span>
+                      {sel.amountOverride != null && sel.amountOverride !== computed && (
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          style={{ marginTop: 6 }}
+                          onClick={() => resetSchemeAmount(def.id)}
+                        >
+                          Reset to calculated
+                        </button>
+                      )}
+                    </label>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="grid g2" style={{ marginTop: 16 }}>
@@ -828,10 +779,6 @@ export function TabBTO({ state: S, setState }: Props) {
             </div>
           </div>
 
-          <p style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic", marginTop: 12 }}>
-            Your OA ({fmt(S.oa)}) from dashboard · combined income {fmt(householdIncome)}/mo
-            drives the EHG grant when ticked
-          </p>
         </div>
       ) : (
         <div className="grid g4">
@@ -851,7 +798,7 @@ export function TabBTO({ state: S, setState }: Props) {
           <div className="stat">
             <div className="lbl">Grants credited to CPF</div>
             <div className="val">{fmt(b.totalGrants)}</div>
-            <div className="note">{activeSchemes.length} scheme(s) on</div>
+            <div className="note">{activeSchemes.length > 0 ? "Change in Edit" : "None set · add in Edit"}</div>
           </div>
         </div>
       )}
@@ -960,6 +907,18 @@ export function TabBTO({ state: S, setState }: Props) {
             <span className="k">Total due at AFL</span>
             <span className="v">{fmt(b.neededAFL)}</span>
           </div>
+          {paidAFLLogged > 0 && (
+            <>
+              <div className="minirow">
+                <span className="k">Already paid (logged)</span>
+                <span className="v pos">−{fmt(paidAFLLogged)}</span>
+              </div>
+              <div className="minirow tot">
+                <span className="k">Still to pay at AFL</span>
+                <span className="v">{fmt(b.dueAFL)}</span>
+              </div>
+            </>
+          )}
           <div className="minirow" style={{ marginTop: 10 }}>
             <span className="k">Pooled CPF OA projected</span>
             <span className="v">{fmt(b.cpfAvailAFL)}</span>
@@ -978,10 +937,7 @@ export function TabBTO({ state: S, setState }: Props) {
           </div>
           {b.grantAppliedAFL > 0 && (
             <p className="note" style={{ marginTop: 6 }}>
-              HDB disburses your CPF housing grant to your CPF OA before you sign the AFL,
-              specifically so it can go toward this downpayment — it&apos;s credited straight
-              against the bill above, not drawn from your projected CPF OA, so the balances
-              above are your own savings only.
+              The grant is credited against this bill, so projected OA above is your own savings.
             </p>
           )}
         </div>
@@ -1007,10 +963,21 @@ export function TabBTO({ state: S, setState }: Props) {
             <span className="k">Total due at key collection</span>
             <span className="v">{fmt(b.neededKC)}</span>
           </div>
+          {paidKCLogged > 0 && (
+            <>
+              <div className="minirow">
+                <span className="k">Already paid (logged)</span>
+                <span className="v pos">−{fmt(paidKCLogged)}</span>
+              </div>
+              <div className="minirow tot">
+                <span className="k">Still to pay at key collection</span>
+                <span className="v">{fmt(b.dueKC)}</span>
+              </div>
+            </>
+          )}
           {b.totalGrants > 0 && b.grantAppliedKC === 0 && (
             <p className="note" style={{ marginTop: 6 }}>
-              Your {fmt(b.totalGrants)} CPF housing grant was already fully used against the AFL
-              downpayment — none left over for this payment.
+              Grant fully used at AFL; none left for this payment.
             </p>
           )}
           <div className="minirow" style={{ marginTop: 10 }}>
@@ -1045,8 +1012,8 @@ export function TabBTO({ state: S, setState }: Props) {
                 {b.dpOK
                   ? "Already covered at the estimated date."
                   : b.latestKcOK
-                    ? `The ${fmt(b.cashKC)} shortfall is covered by CPF OA from ~${kcCoveredLabel} — before the latest key collection date.`
-                    : `Even at the latest key collection date, ${fmt(b.cashLatestKC)} would still need to come from cash.`}
+                    ? `OA covers the ${fmt(b.cashKC)} shortfall from ~${kcCoveredLabel}.`
+                    : `${fmt(b.cashLatestKC)} would still need cash.`}
               </p>
             </>
           )}
@@ -1127,6 +1094,15 @@ export function TabBTO({ state: S, setState }: Props) {
               <div className="bto-stage-due">{STAGE_DUE[stage.id]}</div>
               <div className="bto-stage-amt">{stageAmount[stage.id]}</div>
               <div className="bto-stage-paid">{stagePaidFrom[stage.id]}</div>
+              {(stage.id === "booking" || stage.id === "afl" || stage.id === "keys") &&
+                (() => {
+                  const r = reconcile[stage.id];
+                  return (
+                    <a href="#payments" className={`bto-pay-chip ${r.status === "not_started" ? "none" : r.status}`}>
+                      Paid {fmt(r.paid)} / {fmt(r.expected)}
+                    </a>
+                  );
+                })()}
               {progress && (
                 <>
                   <div className="bto-stage-progress-lbl">
@@ -1160,6 +1136,16 @@ export function TabBTO({ state: S, setState }: Props) {
           );
         })}
       </div>
+
+      <BtoPaymentsPanel
+        reconcile={reconcile}
+        rows={btoPayments}
+        stageDates={payStageDates}
+        stageReached={payStageReached}
+        nextStage={payNextStage}
+        paired={household.paired}
+        tenureMonths={Math.round(loanTerms.tenure * 12)}
+      />
     </section>
   );
 }

@@ -10,6 +10,7 @@ function mapCpfContribution(row: Record<string, unknown>): CpfContribution {
     sa: Number(row.sa ?? 0),
     ma: Number(row.ma ?? 0),
     note: String(row.note ?? ""),
+    creditedOn: row.credited_on ? String(row.credited_on).slice(0, 10) : null,
     createdAt: String(row.created_at),
   };
 }
@@ -35,6 +36,8 @@ export type AddCpfContributionInput = {
   sa: number;
   ma: number;
   note?: string;
+  /** Date it was credited (YYYY-MM-DD). Optional for older clients. */
+  creditedOn?: string | null;
 };
 
 export type CpfBalance = { oa: number; sa: number; ma: number };
@@ -62,6 +65,7 @@ export async function addCpfContribution(
       sa,
       ma,
       note: input.note ?? "",
+      credited_on: input.creditedOn && /^\d{4}-\d{2}-\d{2}$/.test(input.creditedOn) ? input.creditedOn : null,
     })
     .select("*")
     .single();
@@ -123,4 +127,64 @@ export async function deleteCpfContribution(
   console.info("[cpf/contributions] deleted", { userId, contributionId });
 
   return { oa: updated.oa, sa: updated.sa, ma: updated.ma };
+}
+
+/**
+ * Edits a contribution in place, then moves OA/SA/MA by the difference
+ * between the old and new amounts.
+ */
+export async function updateCpfContribution(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  input: AddCpfContributionInput
+): Promise<{ contribution: CpfContribution; profile: CpfBalance }> {
+  const { oa, sa, ma } = input;
+  if (![oa, sa, ma].every((n) => Number.isFinite(n) && n >= 0)) {
+    throw new Error("OA, SA, and MA must be non-negative numbers");
+  }
+  if (oa === 0 && sa === 0 && ma === 0) {
+    throw new Error("Enter at least one non-zero contribution amount");
+  }
+
+  const { data: oldRow, error: readErr } = await supabase
+    .from("cpf_contributions")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (readErr || !oldRow) throw new Error(readErr?.message ?? "Contribution not found");
+
+  const { data: row, error } = await supabase
+    .from("cpf_contributions")
+    .update({
+      month: input.month,
+      oa,
+      sa,
+      ma,
+      note: input.note ?? "",
+      credited_on: input.creditedOn && /^\d{4}-\d{2}-\d{2}$/.test(input.creditedOn) ? input.creditedOn : null,
+    })
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error(`Already logged a contribution for ${input.month.slice(0, 7)}`);
+    }
+    throw new Error(error.message);
+  }
+
+  const current = await loadFinanceProfile(supabase, userId);
+  const updated = await saveFinanceProfile(supabase, userId, {
+    oa: Math.max(0, current.oa + oa - Number(oldRow.oa ?? 0)),
+    sa: Math.max(0, current.sa + sa - Number(oldRow.sa ?? 0)),
+    ma: Math.max(0, current.ma + ma - Number(oldRow.ma ?? 0)),
+  });
+  console.info("[cpf/contributions] updated", { userId, id });
+  return {
+    contribution: mapCpfContribution(row),
+    profile: { oa: updated.oa, sa: updated.sa, ma: updated.ma },
+  };
 }

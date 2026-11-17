@@ -5,9 +5,11 @@ import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fetchJson } from "@/lib/fetch-json";
 import type { DashboardState, NetWorthSnapshot, PortfolioSnapshot } from "@/lib/types";
 import type { FinanceProfile } from "@/lib/profile/load";
-import type { CpfContribution } from "@/lib/cpf/types";
-import { AppDataContext } from "@/contexts/app-data-contexts";
+import type { CpfContribution, CpfTransaction } from "@/lib/cpf/types";
+import type { AddCpfTransactionInput } from "@/lib/cpf/transactions";
+import type { AddCpfContributionInput } from "@/lib/cpf/contributions";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { AppDataContext } from "@/contexts/app-data-contexts";
 import { resolveBudgetMonth } from "@/lib/budget/monthly";
 import { currentYm } from "@/lib/finance/helpers";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
@@ -58,6 +60,7 @@ export function useAppDataProvider(enabled: boolean) {
   const [otherLoans, setOtherLoans] = useState<DashboardState["otherLoans"]>([]);
   const [netWorthHistory, setNetWorthHistory] = useState<NetWorthSnapshot[]>([]);
   const [cpfContributions, setCpfContributions] = useState<CpfContribution[]>([]);
+  const [cpfTransactions, setCpfTransactions] = useState<CpfTransaction[]>([]);
 
   const state = useMemo((): DashboardState => {
     const base = createEmptyState();
@@ -147,6 +150,21 @@ export function useAppDataProvider(enabled: boolean) {
     }
   }, [enabled]);
 
+  const loadCpfTransactions = useCallback(async () => {
+    if (!enabled) return;
+    try {
+      const { res, data } = await fetchJson<{ items?: CpfTransaction[] }>("/api/cpf/transactions", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        setCpfTransactions(data.items ?? []);
+        console.info("[useAppData] cpf transactions loaded", { count: data.items?.length ?? 0 });
+      }
+    } catch (e) {
+      console.warn("[useAppData] cpf transactions load failed", e);
+    }
+  }, [enabled]);
+
   const load = useCallback(async () => {
     if (!enabled) {
       setCoreLoading(false);
@@ -157,6 +175,7 @@ export function useAppDataProvider(enabled: boolean) {
     void loadSnapshots();
     void loadNetWorthHistory();
     void loadCpfContributions();
+    void loadCpfTransactions();
     try {
       const [prefsRes, profRes, loansRes, otherLoansRes, budgetRes, cardsRes, holdRes] =
         await Promise.all([
@@ -221,7 +240,7 @@ export function useAppDataProvider(enabled: boolean) {
     } finally {
       setCoreLoading(false);
     }
-  }, [enabled, loadSnapshots, loadNetWorthHistory, loadCpfContributions]);
+  }, [enabled, loadSnapshots, loadNetWorthHistory, loadCpfContributions, loadCpfTransactions]);
 
   useEffect(() => {
     void load();
@@ -456,7 +475,14 @@ export function useAppDataProvider(enabled: boolean) {
   }, []);
 
   const addCpfContribution = useCallback(
-    async (input: { month: string; oa: number; sa: number; ma: number; note?: string }) => {
+    async (input: {
+      month: string;
+      oa: number;
+      sa: number;
+      ma: number;
+      note?: string;
+      creditedOn?: string | null;
+    }) => {
       const { res, data } = await fetchJson<{
         item?: CpfContribution;
         profile?: { oa: number; sa: number; ma: number };
@@ -498,6 +524,95 @@ export function useAppDataProvider(enabled: boolean) {
       setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, ...profile } } : pb));
     }
     console.info("[useAppData] cpf contribution deleted", { id });
+  }, []);
+
+  const addCpfTransaction = useCallback(async (input: AddCpfTransactionInput) => {
+    const { res, data } = await fetchJson<{ item?: CpfTransaction; oa?: number; error?: string }>(
+      "/api/cpf/transactions",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      }
+    );
+    if (!res.ok || !data.item) throw new Error(data.error ?? "Failed to log CPF transaction");
+    const item = data.item;
+    setCpfTransactions((list) =>
+      [item, ...list].sort(
+        (a, b) => b.txnDate.localeCompare(a.txnDate) || b.createdAt.localeCompare(a.createdAt)
+      )
+    );
+    if (typeof data.oa === "number") {
+      const oa = data.oa;
+      setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, oa } } : pb));
+    }
+    dispatchDomainEvent(["cpf:changed", "profile:changed"]);
+    console.info("[useAppData] cpf transaction logged", { category: input.category });
+  }, []);
+
+  const deleteCpfTransaction = useCallback(async (id: string) => {
+    const { res, data } = await fetchJson<{ oa?: number; error?: string }>(
+      `/api/cpf/transactions/${id}`,
+      { method: "DELETE", credentials: "include" }
+    );
+    if (!res.ok) throw new Error(data.error ?? "Failed to delete CPF transaction");
+    setCpfTransactions((list) => list.filter((t) => t.id !== id));
+    if (typeof data.oa === "number") {
+      const oa = data.oa;
+      setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, oa } } : pb));
+    }
+    dispatchDomainEvent(["cpf:changed", "profile:changed"]);
+    console.info("[useAppData] cpf transaction deleted", { id });
+  }, []);
+
+  const updateCpfTransaction = useCallback(async (id: string, input: AddCpfTransactionInput) => {
+    const { res, data } = await fetchJson<{ item?: CpfTransaction; oa?: number; error?: string }>(
+      `/api/cpf/transactions/${id}`,
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      }
+    );
+    if (!res.ok || !data.item) throw new Error(data.error ?? "Failed to update CPF transaction");
+    const item = data.item;
+    setCpfTransactions((list) =>
+      list
+        .map((t) => (t.id === id ? item : t))
+        .sort((a, b) => b.txnDate.localeCompare(a.txnDate) || b.createdAt.localeCompare(a.createdAt))
+    );
+    if (typeof data.oa === "number") {
+      const oa = data.oa;
+      setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, oa } } : pb));
+    }
+    dispatchDomainEvent(["cpf:changed", "profile:changed"]);
+    console.info("[useAppData] cpf transaction updated", { id });
+  }, []);
+
+  const updateCpfContribution = useCallback(async (id: string, input: AddCpfContributionInput) => {
+    const { res, data } = await fetchJson<{
+      item?: CpfContribution;
+      profile?: { oa: number; sa: number; ma: number };
+      error?: string;
+    }>(`/api/cpf/contributions/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok || !data.item) throw new Error(data.error ?? "Failed to update CPF contribution");
+    const item = data.item;
+    setCpfContributions((list) =>
+      list.map((c) => (c.id === id ? item : c)).sort((a, b) => b.month.localeCompare(a.month))
+    );
+    if (data.profile) {
+      const profile = data.profile;
+      setProfileBundle((pb) => (pb ? { ...pb, profile: { ...pb.profile, ...profile } } : pb));
+    }
+    dispatchDomainEvent(["cpf:changed", "profile:changed"]);
+    console.info("[useAppData] cpf contribution updated", { id });
   }, []);
 
   const savePrefs = useCallback(async (nextPrefs: DashboardState["prefs"]) => {
@@ -645,6 +760,12 @@ export function useAppDataProvider(enabled: boolean) {
     reloadCpfContributions: loadCpfContributions,
     addCpfContribution,
     deleteCpfContribution,
+    updateCpfContribution,
+    cpfTransactions,
+    reloadCpfTransactions: loadCpfTransactions,
+    addCpfTransaction,
+    deleteCpfTransaction,
+    updateCpfTransaction,
     cardsApi: configured
       ? { cards: creditCards, saveCards, configured: true as const }
       : undefined,

@@ -66,6 +66,17 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 | POST | `/api/partner/invites` | `app/api/partner/invites/route.ts` |
 | POST | `/api/partner/invites/[id]` | `app/api/partner/invites/[id]/route.ts` |
 | POST | `/api/partner/unlink` | `app/api/partner/unlink/route.ts` (admin client) |
+| GET | `/api/household/partner-cpf` | `app/api/household/partner-cpf/route.ts` (admin client; partner OA only) |
+| GET | `/api/household/partner-bto-payments` | `app/api/household/partner-bto-payments/route.ts` (admin client; partner's BTO-tagged `cpf_transactions` only) |
+
+### CPF
+
+| Method | Path | Handler | Primary lib |
+|--------|------|---------|-------------|
+| GET, POST | `/api/cpf/contributions` | `app/api/cpf/contributions/route.ts` | `lib/cpf/contributions` |
+| PATCH, DELETE | `/api/cpf/contributions/[id]` | `app/api/cpf/contributions/[id]/route.ts` | same |
+| GET, POST | `/api/cpf/transactions` | `app/api/cpf/transactions/route.ts` | `lib/cpf/transactions` |
+| PATCH, DELETE | `/api/cpf/transactions/[id]` | `app/api/cpf/transactions/[id]/route.ts` | same |
 
 ### Budget, loans, income
 

@@ -33,7 +33,14 @@ export async function POST(req: NextRequest) {
   const auth = await requireSessionUser();
   if ("response" in auth) return auth.response;
 
-  let body: { month?: string; oa?: number; sa?: number; ma?: number; note?: string };
+  let body: {
+    month?: string;
+    oa?: number;
+    sa?: number;
+    ma?: number;
+    note?: string;
+    creditedOn?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -52,6 +59,7 @@ export async function POST(req: NextRequest) {
       sa: Number(body.sa ?? 0),
       ma: Number(body.ma ?? 0),
       note: body.note,
+      creditedOn: body.creditedOn ?? null,
     });
     console.info("[api/cpf/contributions] POST ok", {
       userId: auth.user.id,

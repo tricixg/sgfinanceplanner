@@ -52,8 +52,22 @@ export type AppDataContextValue = {
     sa: number;
     ma: number;
     note?: string;
+    creditedOn?: string | null;
   }) => Promise<void>;
   deleteCpfContribution: (id: string) => Promise<void>;
+  updateCpfContribution: (
+    id: string,
+    input: import("@/lib/cpf/contributions").AddCpfContributionInput
+  ) => Promise<void>;
+  /** Logged CPF OA withdrawals/credits and cash-paid BTO bills, newest first. */
+  cpfTransactions: import("@/lib/cpf/types").CpfTransaction[];
+  reloadCpfTransactions: () => Promise<void>;
+  addCpfTransaction: (input: import("@/lib/cpf/transactions").AddCpfTransactionInput) => Promise<void>;
+  deleteCpfTransaction: (id: string) => Promise<void>;
+  updateCpfTransaction: (
+    id: string,
+    input: import("@/lib/cpf/transactions").AddCpfTransactionInput
+  ) => Promise<void>;
   saveBudgetMonth: (month: string, next: DashboardState["budget"]) => Promise<void>;
   saveCards: (next: DashboardState["creditCards"]) => Promise<void>;
   saveHoldings: (next: DashboardState["holdings"]) => Promise<void>;

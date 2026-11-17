@@ -121,13 +121,13 @@ Status pills (Healthy / Watch / At risk) use rule-of-thumb thresholds defined in
 
 ### BTO Planner (`/bto`)
 
-**Purpose:** Flat price, grants, loan, downpayment, cash required.
+**Purpose:** Flat price, grants, loan, downpayment, cash required. A **Payments** section is where BTO payments are logged (stage → item → amount → CPF OA or cash; the option fee is cash-only, grants are CPF-only), reconciled against each stage's bills (Booking, Sign AFL, Key collection, Mortgage) at gross CPF-statement amounts, and deleted from the household payment history (your own rows; your partner manages theirs). Logged payments also feed the projection: bills already paid aren't drawn again, and grant credits still in OA aren't double-counted.
 
 | Layer | Location |
 |-------|----------|
-| UI | [webapp/components/tabs/TabBTO.tsx](../webapp/components/tabs/TabBTO.tsx) |
-| lib | [webapp/lib/finance/bto.ts](../webapp/lib/finance/bto.ts) |
-| Storage | `user_finance_profile.bto_planner` (jsonb) |
+| UI | [webapp/components/tabs/TabBTO.tsx](../webapp/components/tabs/TabBTO.tsx), [BtoPaymentsPanel.tsx](../webapp/components/bto/BtoPaymentsPanel.tsx) |
+| lib | [webapp/lib/finance/bto.ts](../webapp/lib/finance/bto.ts), [bto-reconcile.ts](../webapp/lib/finance/bto-reconcile.ts) |
+| Storage | `user_finance_profile.bto_planner` (jsonb), `cpf_transactions` (BTO-tagged rows) |
 
 ---
 
@@ -243,13 +243,13 @@ See [07-credit-cards-and-statements.md](./07-credit-cards-and-statements.md).
 
 ### CPF Outlook (`/cpf`)
 
-**Purpose:** OA/SA/MA balances for planning views.
+**Purpose:** OA/SA/MA balances for planning views, plus a **Log CPF transaction** form for Money in (monthly contribution — the default — refund, other credit) and Money out (other withdrawal). BTO payments are logged on the BTO Planner instead. The **OA history** merges contributions and all OA transactions with a running OA balance; BTO rows link to the BTO Planner rather than being deleted here.
 
 | Layer | Location |
 |-------|----------|
-| UI | [webapp/components/tabs/TabCPF.tsx](../webapp/components/tabs/TabCPF.tsx) |
-| lib | [webapp/lib/finance/cpf.ts](../webapp/lib/finance/cpf.ts) |
-| Storage | `user_finance_profile` CPF fields |
+| UI | [webapp/components/tabs/TabCPF.tsx](../webapp/components/tabs/TabCPF.tsx), [components/cpf/](../webapp/components/cpf/) |
+| lib | [webapp/lib/finance/cpf.ts](../webapp/lib/finance/cpf.ts), [webapp/lib/cpf/](../webapp/lib/cpf/) |
+| Storage | `user_finance_profile` CPF fields, `cpf_contributions`, `cpf_transactions` |
 
 ### Debts & Loans (`/debt`)
 
