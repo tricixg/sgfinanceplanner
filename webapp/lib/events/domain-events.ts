@@ -14,7 +14,8 @@ export type DomainEventName =
   | "holdings:changed"
   | "profile:changed"
   | "benefits:changed"
-  | "oncall:changed";
+  | "oncall:changed"
+  | "cpf:changed";
 
 export function dispatchDomainEvent(name: DomainEventName | DomainEventName[]): void {
   if (typeof window === "undefined") return;

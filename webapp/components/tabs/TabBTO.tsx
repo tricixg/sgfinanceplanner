@@ -25,6 +25,9 @@ import {
 import { fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { DecimalInput } from "@/components/DecimalInput";
 import { BtoOATimelineChart } from "@/components/bto/BtoOATimelineChart";
+import { BtoPaymentsPanel } from "@/components/bto/BtoPaymentsPanel";
+import { btoProjectionAdjustments, reconcileBtoPayments } from "@/lib/finance/bto-reconcile";
+import type { CpfBtoStage } from "@/lib/cpf/types";
 import { useBtoPlannerData } from "@/hooks/useBtoPlannerData";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 
@@ -106,6 +109,7 @@ export function TabBTO({ state: S, setState }: Props) {
     selfMonthlyFromContrib,
     selfLatestContribMonth,
     partnerMonthlyFromContrib,
+    btoPayments,
   } = useBtoPlannerData(S, setState);
   // Household pairing, the partner's live CPF, and the shared household plan
   // all load asynchronously after the page's core data — rendering before
@@ -163,6 +167,14 @@ export function TabBTO({ state: S, setState }: Props) {
   };
 
   const effectivePOA = partnerOALive ?? p.pOA;
+
+  // Logged BTO payments feed the projection: grant credits still sitting in
+  // OA are taken back out (the plan already credits them against the bills),
+  // and bills already paid aren't drawn again.
+  const payAdj = useMemo(() => btoProjectionAdjustments(btoPayments), [btoPayments]);
+  const projSelfOA = Math.max(0, S.oa - payAdj.unspentGrantSelf);
+  const projPartnerOA =
+    partnerOALive != null ? Math.max(0, effectivePOA - payAdj.unspentGrantPartner) : effectivePOA;
 
   // Status of the live partner-CPF pipeline, surfaced next to the growth-mode picker
   // so it's visible whether real data is actually coming in or it's falling back to manual.
@@ -252,20 +264,23 @@ export function TabBTO({ state: S, setState }: Props) {
         schemes: p.schemes,
         tSal: p.tSal,
         pSal: p.pSal,
-        pOA: effectivePOA,
-        tOA: S.oa,
+        pOA: projPartnerOA,
+        tOA: projSelfOA,
         tOAMonthly: tOAMonthlyResolved,
         pOAMonthly: pOAMonthlyResolved,
         bookingOffsetMonths,
         aflOffsetMonths,
         kcOffsetMonths,
         latestKcOffsetMonths,
+        alreadyPaidAFL: payAdj.alreadyPaidAFL,
+        alreadyPaidKC: payAdj.alreadyPaidKC,
       }),
     [
       p,
       loanTerms,
-      S.oa,
-      effectivePOA,
+      projSelfOA,
+      projPartnerOA,
+      payAdj,
       tOAMonthlyResolved,
       pOAMonthlyResolved,
       bookingOffsetMonths,
@@ -330,6 +345,7 @@ export function TabBTO({ state: S, setState }: Props) {
   };
 
   const stages = useMemo(() => buildBTOStages(p, todayYmd), [p, todayYmd]);
+  const reconcile = useMemo(() => reconcileBtoPayments(b, btoPayments), [b, btoPayments]);
   const applicationStage = stages.find((s) => s.id === "application")!;
   const keysStage = stages.find((s) => s.id === "keys")!;
 
@@ -381,6 +397,24 @@ export function TabBTO({ state: S, setState }: Props) {
       projected: b.cpfAvailKC,
     },
   };
+
+  const stageById = (id: BTOStageId) => stages.find((s) => s.id === id)!;
+  const payStageDates: Record<CpfBtoStage, string> = {
+    booking: stageDateLabel(stageById("booking")),
+    afl: stageDateLabel(stageById("afl")),
+    keys: stageDateLabel(stageById("keys")),
+    mortgage: "After key collection",
+  };
+  const payStageReached: Record<CpfBtoStage, boolean> = {
+    booking: stageById("booking").status === "done",
+    afl: stageById("afl").status === "done",
+    keys: stageById("keys").status === "done",
+    mortgage: stageById("mortgage").status === "active",
+  };
+  const payNextStage: CpfBtoStage =
+    nextStage && nextStage.id !== "application" ? (nextStage.id as CpfBtoStage) : "mortgage";
+  const paidAFLLogged = b.neededAFL - b.dueAFL;
+  const paidKCLogged = b.neededKC - b.dueKC;
 
   if (!dataReady) {
     return <p className="loading">Loading your saved BTO plan…</p>;
@@ -960,6 +994,18 @@ export function TabBTO({ state: S, setState }: Props) {
             <span className="k">Total due at AFL</span>
             <span className="v">{fmt(b.neededAFL)}</span>
           </div>
+          {paidAFLLogged > 0 && (
+            <>
+              <div className="minirow">
+                <span className="k">Already paid (logged)</span>
+                <span className="v pos">−{fmt(paidAFLLogged)}</span>
+              </div>
+              <div className="minirow tot">
+                <span className="k">Still to pay at AFL</span>
+                <span className="v">{fmt(b.dueAFL)}</span>
+              </div>
+            </>
+          )}
           <div className="minirow" style={{ marginTop: 10 }}>
             <span className="k">Pooled CPF OA projected</span>
             <span className="v">{fmt(b.cpfAvailAFL)}</span>
@@ -1007,6 +1053,18 @@ export function TabBTO({ state: S, setState }: Props) {
             <span className="k">Total due at key collection</span>
             <span className="v">{fmt(b.neededKC)}</span>
           </div>
+          {paidKCLogged > 0 && (
+            <>
+              <div className="minirow">
+                <span className="k">Already paid (logged)</span>
+                <span className="v pos">−{fmt(paidKCLogged)}</span>
+              </div>
+              <div className="minirow tot">
+                <span className="k">Still to pay at key collection</span>
+                <span className="v">{fmt(b.dueKC)}</span>
+              </div>
+            </>
+          )}
           {b.totalGrants > 0 && b.grantAppliedKC === 0 && (
             <p className="note" style={{ marginTop: 6 }}>
               Your {fmt(b.totalGrants)} CPF housing grant was already fully used against the AFL
@@ -1127,6 +1185,15 @@ export function TabBTO({ state: S, setState }: Props) {
               <div className="bto-stage-due">{STAGE_DUE[stage.id]}</div>
               <div className="bto-stage-amt">{stageAmount[stage.id]}</div>
               <div className="bto-stage-paid">{stagePaidFrom[stage.id]}</div>
+              {(stage.id === "booking" || stage.id === "afl" || stage.id === "keys") &&
+                (() => {
+                  const r = reconcile[stage.id];
+                  return (
+                    <a href="#payments" className={`bto-pay-chip ${r.status === "not_started" ? "none" : r.status}`}>
+                      Paid {fmt(r.paid)} / {fmt(r.expected)}
+                    </a>
+                  );
+                })()}
               {progress && (
                 <>
                   <div className="bto-stage-progress-lbl">
@@ -1160,6 +1227,16 @@ export function TabBTO({ state: S, setState }: Props) {
           );
         })}
       </div>
+
+      <BtoPaymentsPanel
+        reconcile={reconcile}
+        rows={btoPayments}
+        stageDates={payStageDates}
+        stageReached={payStageReached}
+        nextStage={payNextStage}
+        paired={household.paired}
+        tenureMonths={Math.round(loanTerms.tenure * 12)}
+      />
     </section>
   );
 }
