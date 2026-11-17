@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeQuoteSymbols } from "@/app/api/quotes/route";
+import { normalizeQuoteSymbols } from "@/lib/holdings/quote-symbols";
 
 describe("normalizeQuoteSymbols", () => {
   it("uppercases, dedupes, and filters invalid symbols", () => {
