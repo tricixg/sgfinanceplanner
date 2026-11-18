@@ -68,3 +68,13 @@ export async function count(db: TestDb, sql: string, params: unknown[] = []): Pr
   const row = await one<{ n: string | number }>(db, sql, params);
   return Number(row.n);
 }
+
+export async function newFund(db: TestDb, userId: string, balance: number): Promise<string> {
+  return (
+    await one<{ id: string }>(
+      db,
+      "insert into investment_funds (user_id, name, balance) values ($1, 'Fund', $2) returning id",
+      [userId, balance]
+    )
+  ).id;
+}

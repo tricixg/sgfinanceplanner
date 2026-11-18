@@ -104,6 +104,10 @@ async function createPostgres(url: string): Promise<TestDb> {
   const dbUrl = new URL(url);
   dbUrl.pathname = `/${name}`;
   const pool = new pg.default.Pool({ connectionString: dbUrl.toString(), max: 20 });
+  // Idle clients are terminated when the test database is dropped at the end.
+  pool.on("error", (err: Error & { code?: string }) => {
+    if (err.code !== "57P01") console.error("[test-db] pool error", err.message);
+  });
   const setup = await pool.connect();
   try {
     await setup.query(shimSql());
