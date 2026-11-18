@@ -1,6 +1,6 @@
 /**
- * Naming/ordering rules for supabase/migrations, shared by the vitest check
- * and scripts/check-migrations.mjs (CI).
+ * Naming/ordering rules for supabase/migrations, checked by migrations.test.ts
+ * (part of `npm test`, so it runs in CI).
  */
 
 /** Migrations before this number predate the "must be re-runnable" rule. */
