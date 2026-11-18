@@ -3,10 +3,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteTripCompanion, loadTrip, updateTripCompanion } from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string; companionId: string }> };
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -28,9 +29,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!trip) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const item = await updateTripCompanion(supabase, auth.user.id, id, companionId, name);
   return NextResponse.json({ item });
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -42,4 +43,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!trip) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await deleteTripCompanion(supabase, auth.user.id, id, companionId);
   return NextResponse.json({ ok: true });
-}
+});

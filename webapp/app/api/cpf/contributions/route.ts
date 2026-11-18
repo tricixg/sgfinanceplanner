@@ -5,8 +5,9 @@ import { addCpfContribution, listCpfContributions } from "@/lib/cpf/contribution
 import { parseClientRequestId } from "@/lib/api/idempotency";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -26,9 +27,9 @@ export async function GET(req: NextRequest) {
     const msg = e instanceof Error ? e.message : "Failed to load CPF contributions";
     return apiError("api/cpf/contributions", msg, { fallback: "Failed to load CPF contributions" });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -80,4 +81,4 @@ export async function POST(req: NextRequest) {
     const msg = e instanceof Error ? e.message : "Failed to log CPF contribution";
     return apiError("api/cpf/contributions", msg, { status: 400, fallback: "Failed to log CPF contribution" });
   }
-}
+});

@@ -7,8 +7,9 @@ import { loadAccountsBundle } from "@/lib/savings/load-accounts";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import type { UserSavingsAccount } from "@/lib/savings/types";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, accounts: [], totals: null });
   }
@@ -26,12 +27,12 @@ export async function GET() {
     console.error("[api/accounts] GET failed", msg);
     return apiError("api/accounts", msg, { fallback: "Failed to load accounts" });
   }
-}
+});
 
 /** `deletedIds` are the only rows ever deleted; omission from `accounts` never deletes. */
 type PutBody = { accounts?: Partial<UserSavingsAccount>[]; deletedIds?: string[] };
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -61,4 +62,4 @@ export async function PUT(req: NextRequest) {
   console.info("[api/accounts] PUT ok", { userId: user.id, count: incoming.length });
   const bundle = await loadAccountsBundle(supabase, user.id);
   return NextResponse.json({ configured: true, ...bundle });
-}
+});

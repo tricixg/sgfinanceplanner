@@ -12,14 +12,24 @@ import {
   encodeTrustedUser,
   getAuthHeaderSecret,
 } from "@/lib/auth/trusted-header";
+import { REQUEST_ID_HEADER, assignRequestId } from "@/lib/observability/request-id";
 
 export async function updateSession(request: NextRequest) {
+  // OPS-002: every request gets an ID (Vercel's x-vercel-id when present, else generated). Route
+  // handlers read it from the forwarded request header; the browser from the response header.
+  // A client-supplied x-request-id is overwritten, never trusted.
+  const requestId = assignRequestId(request.headers);
+
   let supabaseResponse = NextResponse.next({ request });
 
   const url = getSupabaseUrl();
   const key = getSupabaseAnonKey();
   if (!url || !key) {
-    return supabaseResponse;
+    const headers = new Headers(request.headers);
+    headers.set(REQUEST_ID_HEADER, requestId);
+    const bare = NextResponse.next({ request: { headers } });
+    bare.headers.set(REQUEST_ID_HEADER, requestId);
+    return bare;
   }
 
   const supabase = createServerClient(url, key, {
@@ -59,6 +69,7 @@ export async function updateSession(request: NextRequest) {
   // secret is not configured nothing is forwarded, and handlers do a live getUser() instead.
   const headers = new Headers(request.headers);
   headers.delete(TRUSTED_USER_HEADER);
+  headers.set(REQUEST_ID_HEADER, requestId);
   const secret = getAuthHeaderSecret();
   if (user && secret) {
     headers.set(TRUSTED_USER_HEADER, await encodeTrustedUser(user, secret));
@@ -72,10 +83,12 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isDevAuthBypass() && requiresSignInRedirect(pathname)) {
     const redirect = NextResponse.redirect(new URL(loginRedirectPath(pathname, search), request.url));
     supabaseResponse.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    redirect.headers.set(REQUEST_ID_HEADER, requestId);
     return redirect;
   }
 
   const finalResponse = NextResponse.next({ request: { headers } });
   supabaseResponse.cookies.getAll().forEach((cookie) => finalResponse.cookies.set(cookie));
+  finalResponse.headers.set(REQUEST_ID_HEADER, requestId);
   return finalResponse;
 }

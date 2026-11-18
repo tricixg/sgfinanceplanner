@@ -11,10 +11,11 @@ import { formatTravelExpenseNote, TRAVEL_CATEGORY } from "@/lib/travel/notes";
 import { loadTrip, listTripExpenses } from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -26,9 +27,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!trip) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const items = await listTripExpenses(supabase, auth.user.id, trip);
   return NextResponse.json({ items });
-}
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -130,4 +131,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     subCategory,
   });
   return NextResponse.json({ item: data });
-}
+});

@@ -8,6 +8,7 @@ import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
 import type { DashboardState } from "@/lib/types";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type PrefsPayload = {
   prefs?: DashboardState["prefs"];
@@ -23,7 +24,7 @@ function prefsOnlyFromRaw(raw: unknown): PrefsPayload {
   };
 }
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     console.info("[api/state] GET — Supabase not configured, returning prefs defaults");
     return NextResponse.json({
@@ -111,9 +112,9 @@ export async function GET() {
     updatedAt: row?.updated_at ?? null,
     source: row ? "database" : "defaults",
   });
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     let body: unknown;
     try {
@@ -184,4 +185,4 @@ export async function PUT(req: NextRequest) {
     updatedAt: row.updated_at,
     source: "database",
   });
-}
+});

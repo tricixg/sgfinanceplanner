@@ -8,7 +8,12 @@ export function DomainLoadErrorBanner({ domain }: { domain: LoadErrorDomain }) {
   const { error, label, retry } = useDomainLoadError(domain);
   if (!error) return null;
   return (
-    <LoadErrorCallout title={`Couldn’t load your ${label}.`} onRetry={retry}>
+    <LoadErrorCallout
+      title={`Couldn’t load your ${label}.`}
+      onRetry={retry}
+      message={error}
+      channel={`domain:${domain}`}
+    >
       {blocksEditing(domain)
         ? "What you see below may be incomplete, so editing is turned off to protect your saved data."
         : "What you see below may be incomplete or out of date."}

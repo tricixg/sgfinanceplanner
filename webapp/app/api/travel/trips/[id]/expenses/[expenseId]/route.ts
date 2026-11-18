@@ -9,10 +9,11 @@ import { loadTrip, listTripExpenses } from "@/lib/travel/load";
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string; expenseId: string }> };
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -121,4 +122,4 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   });
 
   return NextResponse.json({ item: mapExpense(data) });
-}
+});

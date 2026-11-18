@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isPublicMessage } from "@/lib/api/public-messages";
 import { errorParts, logServerError } from "@/lib/observability/server-error";
+import { currentRequestId } from "@/lib/observability/request-context";
 
 export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
@@ -42,8 +43,11 @@ export function apiError(
   err: unknown,
   opts: { status?: number; fallback?: string } = {}
 ): NextResponse {
+  const error = publicErrorMessage(scope, err, opts.fallback);
+  // `requestId` lets a user quote the exact request; it is also in the server_error log line.
+  const requestId = currentRequestId();
   return NextResponse.json(
-    { error: publicErrorMessage(scope, err, opts.fallback) },
+    requestId ? { error, requestId } : { error },
     { status: opts.status ?? 500 }
   );
 }

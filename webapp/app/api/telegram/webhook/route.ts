@@ -1,10 +1,11 @@
 import { apiError } from "@/lib/api/api-error";
 import { getTelegramBot, isTelegramConfigured } from "@/lib/telegram/bot";
 import { verifyTelegramWebhookSecret } from "@/lib/telegram/config";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+export const POST = withRequestId(async function POST(req: Request) {
   if (!isTelegramConfigured()) {
     console.info("[telegram/webhook] not configured");
     return Response.json({ error: "Telegram bot not configured" }, { status: 503 });
@@ -27,4 +28,4 @@ export async function POST(req: Request) {
     console.error("[telegram/webhook] error", msg);
     return apiError("api/telegram/webhook", msg, { fallback: "Webhook failed" });
   }
-}
+});

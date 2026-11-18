@@ -14,6 +14,7 @@ import { resolveComputedLinesForMonth } from "@/lib/budget/computed-months-load"
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type ImportDbRow = {
   id: unknown;
@@ -24,7 +25,7 @@ type ImportDbRow = {
   transaction_type: unknown;
 };
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -149,4 +150,4 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ configured: true, ...summary });
-}
+});

@@ -7,8 +7,9 @@ import {
 } from "@/lib/income/deposits-by-month";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, byYm: {} });
   }
@@ -38,4 +39,4 @@ export async function GET(req: NextRequest) {
     console.error("[api/cashflow/additive-income] GET failed", msg);
     return apiError("api/cashflow/additive-income", msg, { fallback: "Failed to load additive income" });
   }
-}
+});

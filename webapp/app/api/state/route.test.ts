@@ -102,4 +102,27 @@ describe("GET /api/state", () => {
     expect(f.rpcCalls).toHaveLength(0);
     expect(f.ops.filter((o) => o.kind !== "select").map((o) => o.table)).toEqual(["dashboard_state"]);
   });
+
+  it("a failing read returns the request ID it logged (OPS-002)", async () => {
+    const ID = "hnd1::iad1::abcde-1700000000000-0123456789ab";
+    const f = createFakeSupabase({}, { failOn: (op) => (op.kind === "select" ? "connection refused" : null) });
+    client = f.client;
+    const logged: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => void logged.push(a));
+
+    // The wrapper reads the request's headers; GET itself takes no arguments.
+    const res = await (GET as unknown as (r: Request) => Promise<Response>)(
+      new Request("http://localhost/api/state", { headers: { "x-request-id": ID } })
+    );
+    const body = await res.json();
+    spy.mockRestore();
+
+    expect(res.status).toBe(500);
+    expect(body).toEqual({ error: "Something went wrong. Please try again.", requestId: ID });
+    expect(res.headers.get("x-request-id")).toBe(ID);
+    const serverLine = logged.map((a) => String(a[0])).find((l) => l.includes("server_error"))!;
+    expect(JSON.parse(serverLine).requestId).toBe(ID);
+    // The database's own text never reaches the browser.
+    expect(JSON.stringify(body)).not.toContain("connection refused");
+  });
 });

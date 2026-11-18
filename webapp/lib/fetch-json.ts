@@ -1,4 +1,5 @@
 import { handleUnauthorized, isAppApiRequest } from "@/lib/auth/unauthorized";
+import { noteResponse } from "@/lib/observability/client-request-ids";
 
 /** Parse a fetch Response as JSON; avoid opaque "<!DOCTYPE" errors when the API returns HTML. */
 export async function parseJsonResponse<T = unknown>(
@@ -93,6 +94,7 @@ export async function fetchJson<T = unknown>(
     // The browser's session is no good (expired, revoked, forged cookie): go sign in again.
     if (res.status === 401 && isAppApiRequest(input)) handleUnauthorized();
     const data = await parseJsonResponse<T>(res);
+    noteResponse(res, data);
     return { res, data };
   } catch (e) {
     if (timedOut) {

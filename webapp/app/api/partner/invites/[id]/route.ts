@@ -5,10 +5,11 @@ import { acceptPartnerInvite } from "@/lib/household/accept-invite";
 import { saveErrorStatus } from "@/lib/sync/save-error";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -96,4 +97,4 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
 
   return NextResponse.json({ ok: true, householdId });
-}
+});

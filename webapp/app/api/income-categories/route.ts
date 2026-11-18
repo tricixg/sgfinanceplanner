@@ -5,8 +5,9 @@ import { loadIncomeCategories, saveIncomeCategories } from "@/lib/income/load";
 import type { IncomeCategoryInput } from "@/lib/income/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, categories: [] });
   }
@@ -25,9 +26,9 @@ export async function GET() {
     console.error("[api/income-categories] GET failed", msg);
     return apiError("api/income-categories", msg, { fallback: "Failed to load income categories" });
   }
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -58,4 +59,4 @@ export async function PUT(req: NextRequest) {
     console.error("[api/income-categories] PUT failed", msg);
     return apiError("api/income-categories", msg, { fallback: "Failed to save income categories" });
   }
-}
+});

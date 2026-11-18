@@ -5,10 +5,11 @@ import { loadOtherLoans } from "@/lib/other-loans/load";
 import { recordOtherLoanPayment } from "@/lib/other-loans/pay";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -63,4 +64,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     console.error("[api/other-loans] POST pay failed", msg);
     return apiError("api/other-loans/[id]/pay", msg, { fallback: "Payment failed" });
   }
-}
+});

@@ -6,8 +6,9 @@ import { parseClientRequestId } from "@/lib/api/idempotency";
 import type { AddCpfTransactionInput } from "@/lib/cpf/transactions";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -22,9 +23,9 @@ export async function GET() {
     const msg = e instanceof Error ? e.message : "Failed to load CPF transactions";
     return apiError("api/cpf/transactions", msg, { fallback: "Failed to load CPF transactions" });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -60,4 +61,4 @@ export async function POST(req: NextRequest) {
     const msg = e instanceof Error ? e.message : "Failed to log CPF transaction";
     return apiError("api/cpf/transactions", msg, { status: 400, fallback: "Failed to log CPF transaction" });
   }
-}
+});

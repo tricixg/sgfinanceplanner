@@ -5,8 +5,9 @@ import { loadBenefitUsage, saveBenefits } from "@/lib/benefits/load";
 import type { BenefitInput } from "@/lib/benefits/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, benefits: [] });
   }
@@ -25,11 +26,11 @@ export async function GET() {
     console.error("[api/benefits] GET failed", msg);
     return apiError("api/benefits", msg, { fallback: "Failed to load benefits" });
   }
-}
+});
 
 type PutBody = { benefits?: BenefitInput[] };
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -61,4 +62,4 @@ export async function PUT(req: NextRequest) {
     console.error("[api/benefits] PUT failed", msg);
     return apiError("api/benefits", msg, { fallback: "Failed to save benefits" });
   }
-}
+});

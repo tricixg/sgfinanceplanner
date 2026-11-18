@@ -12,8 +12,9 @@ import {
 } from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   try {
     if (!isSupabaseAuthConfigured()) {
       return NextResponse.json({ configured: false, items: [], totals: { budgeted: 0, spent: 0 } });
@@ -73,9 +74,9 @@ export async function GET(req: NextRequest) {
     console.error("[api/travel/trips] GET failed", msg);
     return apiError("api/travel/trips", msg, { fallback: "Failed to load travel trips" });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   try {
     if (!isSupabaseAuthConfigured()) {
       return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
@@ -118,4 +119,4 @@ export async function POST(req: NextRequest) {
     console.error("[api/travel/trips] POST failed", msg);
     return apiError("api/travel/trips", msg, { fallback: "Failed to create trip" });
   }
-}
+});

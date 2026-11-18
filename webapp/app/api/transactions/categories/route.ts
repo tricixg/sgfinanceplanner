@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadDistinctTransactionCategories } from "@/lib/transactions/category-filter";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, categories: [] });
   }
@@ -22,4 +23,4 @@ export async function GET() {
     console.error("[api/transactions/categories] GET failed", msg);
     return apiError("api/transactions/categories", msg, { fallback: "Failed to load categories" });
   }
-}
+});

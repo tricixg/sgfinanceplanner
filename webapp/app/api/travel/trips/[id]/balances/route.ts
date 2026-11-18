@@ -9,10 +9,11 @@ import {
 } from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [], totalPending: 0 });
   }
@@ -33,4 +34,4 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const totalPending = totalPendingReimbursement(items);
 
   return NextResponse.json({ items, totalPending });
-}
+});

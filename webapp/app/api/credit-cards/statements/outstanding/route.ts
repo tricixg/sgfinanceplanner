@@ -5,8 +5,9 @@ import { loadOutstandingStatements } from "@/lib/credit-cards/card-statements/lo
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ statements: [] });
   }
@@ -30,4 +31,4 @@ export async function GET() {
     console.error("[api/credit-cards/statements/outstanding] GET failed", msg);
     return apiError("api/credit-cards/statements/outstanding", msg, { fallback: "Failed to load outstanding statements" });
   }
-}
+});

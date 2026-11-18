@@ -15,8 +15,9 @@ import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
 import type { CreditCard, DashboardState } from "@/lib/types";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, cards: [] });
   }
@@ -52,9 +53,9 @@ export async function GET() {
     console.error("[api/credit-cards] GET failed", msg);
     return apiError("api/credit-cards", msg, { fallback: "Failed to load credit cards" });
   }
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -84,4 +85,4 @@ export async function PUT(req: NextRequest) {
     console.error("[api/credit-cards] PUT failed", msg);
     return apiError("api/credit-cards", msg, { status: saveErrorStatus(e), fallback: "Failed to save credit cards" });
   }
-}
+});

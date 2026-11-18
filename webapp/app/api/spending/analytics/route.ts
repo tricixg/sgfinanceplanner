@@ -20,6 +20,7 @@ import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type ExpenseDbRow = {
   id: unknown;
@@ -43,7 +44,7 @@ function parseScope(value: string | null): SpendingScope {
   return value === "all" ? "all" : "discretionary";
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -171,4 +172,4 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({ configured: true, analytics });
-}
+});

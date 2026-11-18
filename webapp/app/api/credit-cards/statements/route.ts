@@ -5,8 +5,9 @@ import { loadCardStatementsBundle } from "@/lib/credit-cards/card-statements/loa
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({
       configured: false,
@@ -44,4 +45,4 @@ export async function GET(req: NextRequest) {
     console.error("[api/credit-cards/statements] GET failed", msg);
     return apiError("api/credit-cards/statements", msg, { fallback: "Failed to load statements" });
   }
-}
+});

@@ -3,10 +3,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { addTripCompanion, listTripCompanions, loadTrip } from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -18,9 +19,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!trip) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const items = await listTripCompanions(supabase, auth.user.id, id);
   return NextResponse.json({ items });
-}
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -42,4 +43,4 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!trip) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const item = await addTripCompanion(supabase, auth.user.id, id, name);
   return NextResponse.json({ item });
-}
+});

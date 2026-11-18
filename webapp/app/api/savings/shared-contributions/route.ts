@@ -5,8 +5,9 @@ import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { mapTransaction } from "@/lib/savings/db-mappers";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [], total: 0 });
   }
@@ -65,4 +66,4 @@ export async function GET(req: NextRequest) {
     total: count ?? 0,
     nextOffset: offset + items.length < (count ?? 0) ? offset + limit : null,
   });
-}
+});
