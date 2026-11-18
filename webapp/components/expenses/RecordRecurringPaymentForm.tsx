@@ -5,6 +5,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
+import { useSubmitKey } from "@/hooks/useSubmitKey";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { defaultRecurringNote } from "@/lib/recurring/prefill";
@@ -24,6 +25,7 @@ type Props = {
 };
 
 export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) {
+  const submitKey = useSubmitKey();
   const { accounts } = useFinancialAccounts();
   const [amount, setAmount] = useState(String(row.amount));
   const [spentAt, setSpentAt] = useState(row.suggestedSpentAt);
@@ -62,6 +64,8 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
       if (row.kind === "invest") body.investmentId = row.sourceId;
       if (row.kind === "bnpl") body.bnplId = row.sourceId;
       if (financialAccountId) body.financialAccountId = financialAccountId;
+      // Same key when this payment is re-submitted (double-click / retry).
+      body.clientRequestId = submitKey.keyFor(body);
 
       const { res, data } = await fetchJson<{ error?: string; item?: { id?: string } }>(
         "/api/expenses",
@@ -73,6 +77,7 @@ export function RecordRecurringPaymentForm({ row, onSuccess, onCancel }: Props) 
         }
       );
       if (!res.ok) throw new Error(data.error ?? "Failed to record payment");
+      submitKey.reset();
       const expenseId = data.item?.id ? String(data.item.id) : "";
       if (!expenseId) {
         throw new Error("Payment saved but response is missing expense id");

@@ -10,6 +10,7 @@ import {
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { budgetLinePatchForCategoryEdit } from "@/lib/expenses/budget-line-link";
 import { deleteTransactionWithLedger } from "@/lib/transactions/actions";
+import { isExpenseDeleteBlocked } from "@/lib/expenses/expense-write";
 
 type Params = { params: Promise<{ recordType: string; id: string }> };
 
@@ -148,7 +149,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
         ? 404
         : msg === "Insufficient balance" || msg === "Insufficient balance for reversal"
           ? 400
-          : 500;
+          : isExpenseDeleteBlocked(msg)
+            ? 409
+            : 500;
     console.error("[transactions-action] DELETE failed", {
       recordType,
       id,

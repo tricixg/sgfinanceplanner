@@ -9,10 +9,12 @@ import { addMonthsYm } from "@/lib/finance/calendar";
 import { currentYm, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
+import { useSubmitKey } from "@/hooks/useSubmitKey";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
 
 export function TabExpenses({ enabled }: { enabled: boolean }) {
+  const submitKey = useSubmitKey();
   const { accounts: financialAccounts } = useFinancialAccounts();
   const [viewYm, setViewYm] = useState(currentYm);
   const [summary, setSummary] = useState<BudgetExpenseSummary | null>(null);
@@ -77,10 +79,14 @@ export function TabExpenses({ enabled }: { enabled: boolean }) {
           ...(payload.financialAccountId
             ? { financialAccountId: payload.financialAccountId }
             : {}),
+          // Same key when the same entry is re-submitted (double-click or retry
+          // after an error), so the server records the expense once.
+          clientRequestId: submitKey.keyFor(payload),
         }),
       }
     );
     if (!res.ok) throw new Error(data.error ?? "Failed to add expense");
+    submitKey.reset();
     dispatchDomainEvent([
       "expense:changed",
       ...(payload.financialAccountId ? (["accounts:changed"] as const) : []),

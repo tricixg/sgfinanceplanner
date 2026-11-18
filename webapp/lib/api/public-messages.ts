@@ -28,6 +28,10 @@ export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
   "Benefits can only be applied to deposits",
   "Budget CSV import is disabled.",
   "Budgets can only be edited for the current or next month",
+  "Can't delete this payment: the BNPL plan it paid no longer exists.",
+  "Can't delete this payment: the fund it went into no longer exists.",
+  "Can't delete this payment: the loan it paid no longer exists.",
+  "Can't delete this payment: the personal loan it paid no longer exists.",
   "Cannot delete a game that is used by past sessions",
   "Cannot invite yourself",
   "Cannot link an account when a companion paid",
@@ -60,6 +64,7 @@ export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
   "Game (stakes) is required",
   "Game name is required",
   "Goal not found",
+  "Income categories could not be loaded",
   "Insufficient balance",
   "Insufficient balance for reversal",
   "Invalid JSON",
@@ -68,6 +73,7 @@ export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
   "Invalid actualAmount",
   "Invalid benefit",
   "Invalid budget category",
+  "Invalid clientRequestId",
   "Invalid cash account",
   "Invalid date (use YYYY-MM-DD)",
   "Invalid date of birth",
@@ -220,6 +226,12 @@ export const PUBLIC_MESSAGE_PATTERNS: readonly RegExp[] = [
   new RegExp("^This\\ stretch\\ has\\ .+?\\ paid\\ .+?\\.\\ Delete\\ those\\ payments\\ first$", "s"),
   new RegExp("^Unsupported\\ currency:\\ .+?$", "s"),
   new RegExp("^Unsupported\\ currency:\\ .+?$", "s"),
+  // supabase/migrations/076 — expense delete refused because the fund can't cover the reversal.
+  new RegExp("^Can't\\ delete\\ this\\ payment:\\ the\\ fund\\ no\\ longer\\ holds\\ enough\\ to\\ reverse\\ it\\ \\(it\\ has\\ \\$.+?,\\ this\\ payment\\ was\\ \\$.+?\\)\\.$", "s"),
+  // supabase/migrations/075 — CPF change that would take OA/SA/MA below $0.
+  new RegExp("^This\\ would\\ take\\ your\\ CPF\\ (OA|SA|MA)\\ below\\ \\$0\\ \\(it\\ is\\ \\$.+?\\ now\\)\\.\\ Correct\\ your\\ (OA|SA|MA)\\ balance\\ first,\\ or\\ change\\ this\\ entry\\.$", "s"),
+  // lib/supabase/rpc.ts — code deployed before its migration was run (shown to the app owner).
+  new RegExp("^The\\ database\\ is\\ missing\\ an\\ update\\.\\ Run\\ migration\\ .+?\\ in\\ the\\ Supabase\\ SQL\\ editor,\\ then\\ try\\ again\\.$", "s"),
 ];
 
 export function isPublicMessage(message: string): boolean {

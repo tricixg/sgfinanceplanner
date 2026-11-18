@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
+import { LOAN_LEDGER_MIGRATION, loadFinancialAccount } from "@/lib/expenses/auto-payment";
 import { roundMoney } from "@/lib/cards/interest-accrual";
-import { applyTransaction } from "@/lib/savings/ledger";
+import { callLedgerRpc } from "@/lib/supabase/rpc";
 import { COMPUTED_DEBT_LABEL } from "@/lib/finance/budget";
 import { sgtNowTimeHms, sgtTodayYmd } from "@/lib/time/sgt";
 import type { OtherLoan } from "./types";
@@ -22,35 +22,17 @@ export async function restoreOtherLoanPayment(
   loanId: string,
   amount: number
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { data: row, error } = await supabase
-    .from("other_loans")
-    .select("id, outstanding, amount_paid")
-    .eq("id", loanId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) return { ok: false, error: error.message };
-  if (!row) return { ok: false, error: "Loan not found" };
-
-  const nextOutstanding = roundMoney(Number(row.outstanding ?? 0) + amount);
-  const nextPaid = roundMoney(Math.max(0, Number(row.amount_paid ?? 0) - amount));
-
-  const { error: updErr } = await supabase
-    .from("other_loans")
-    .update({
-      outstanding: nextOutstanding,
-      amount_paid: nextPaid,
-      paid_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", loanId)
-    .eq("user_id", userId);
-
-  if (updErr) return { ok: false, error: updErr.message };
-
-  console.info("[other-loans] payment restored (expense deleted)", {
-    loanId,
-  });
+  try {
+    await callLedgerRpc(
+      supabase,
+      "other_loan_restore_payment",
+      { p_user_id: userId, p_loan_id: loanId, p_amount: amount },
+      LOAN_LEDGER_MIGRATION
+    );
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+  console.info("[other-loans] payment restored (expense deleted)", { loanId });
   return { ok: true };
 }
 
@@ -62,37 +44,41 @@ export async function restoreOtherLoanDrawDown(
   loanId: string,
   amount: number
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { data: row, error } = await supabase
-    .from("other_loans")
-    .select("id, outstanding, principal")
-    .eq("id", loanId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) return { ok: false, error: error.message };
-  if (!row) return { ok: false, error: "Loan not found" };
-
-  const nextOutstanding = roundMoney(Math.max(0, Number(row.outstanding ?? 0) - amount));
-  const nextPrincipal = roundMoney(Math.max(0, Number(row.principal ?? 0) - amount));
-
-  const { error: updErr } = await supabase
-    .from("other_loans")
-    .update({
-      outstanding: nextOutstanding,
-      principal: nextPrincipal,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", loanId)
-    .eq("user_id", userId);
-
-  if (updErr) return { ok: false, error: updErr.message };
-
-  console.info("[other-loans] draw-down restored (transaction deleted)", {
-    loanId,
-  });
+  try {
+    await callLedgerRpc(
+      supabase,
+      "other_loan_restore_draw_down",
+      { p_user_id: userId, p_loan_id: loanId, p_amount: amount },
+      LOAN_LEDGER_MIGRATION
+    );
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+  console.info("[other-loans] draw-down restored (transaction deleted)", { loanId });
   return { ok: true };
 }
 
+async function loadOtherLoanForWrite(
+  supabase: SupabaseClient,
+  userId: string,
+  loanId: string
+): Promise<Record<string, unknown>> {
+  const { data: row, error } = await supabase
+    .from("other_loans")
+    .select("*")
+    .eq("id", loanId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) throw new Error("Loan not found");
+  return row;
+}
+
+/**
+ * Records a payment: the "debt" expense, the cash withdrawal (or a
+ * record-only history row when no account is chosen) and the loan's
+ * amount_paid / outstanding — all in one database transaction.
+ */
 export async function recordOtherLoanPayment(
   supabase: SupabaseClient,
   userId: string,
@@ -105,116 +91,54 @@ export async function recordOtherLoanPayment(
     throw new Error("Payment amount must be positive");
   }
 
-  const { data: row, error } = await supabase
-    .from("other_loans")
-    .select("*")
-    .eq("id", loanId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  if (!row) throw new Error("Loan not found");
+  // Read for the note text and early, friendly validation; the database
+  // function re-checks type and outstanding under a row lock.
+  const row = await loadOtherLoanForWrite(supabase, userId, loanId);
   if (String(row.loan_type) === "balance_transfer") {
     throw new Error("Balance transfer is paid from Credit Cards statement payment");
   }
-
   const outstanding = Number(row.outstanding ?? 0);
   if (amount > outstanding + 0.01) {
     throw new Error(`Payment exceeds outstanding (${outstanding})`);
   }
 
-  const now = new Date();
-  const occurredAt = now.toISOString();
+  let savingsAccountId: string | null = null;
+  if (financialAccountId) {
+    const account = await loadFinancialAccount(supabase, userId, financialAccountId);
+    if (!account?.savingsAccountId || account.accountType !== "cash") {
+      throw new Error("Payment must come from a cash account");
+    }
+    savingsAccountId = account.savingsAccountId;
+  }
 
+  const now = new Date();
   const txNote = note?.trim()
     ? `${otherLoanPaymentNote({ name: String(row.name) })} — ${note.trim()}`
     : otherLoanPaymentNote({ name: String(row.name) });
 
   // Mirrors the instalment-loan auto-payment expense (auto_category: "debt")
   // so personal loan payments count as spend under the Debts & Loans budget category.
-  const { data: expenseRow, error: expenseErr } = await supabase
-    .from("expenses")
-    .insert({
-      user_id: userId,
-      amount,
-      category: COMPUTED_DEBT_LABEL,
-      auto_category: "debt",
-      other_loan_id: loanId,
-      spent_at: sgtTodayYmd(now),
-      spent_time: sgtNowTimeHms(now),
-      note: txNote,
-      financial_account_id: financialAccountId ?? null,
-      entry_source: "manual",
-    })
-    .select("id")
-    .single();
-  if (expenseErr) throw new Error(expenseErr.message);
-  const expenseId = String(expenseRow.id);
-
-  try {
-    if (financialAccountId) {
-      const account = await loadFinancialAccount(supabase, userId, financialAccountId);
-      if (!account?.savingsAccountId || account.accountType !== "cash") {
-        throw new Error("Payment must come from a cash account");
-      }
-
-      await applyTransaction(supabase, {
-        userId,
-        accountId: account.savingsAccountId,
-        amount: -amount,
-        kind: "withdrawal",
-        occurredAt,
-        note: txNote,
-        expenseId,
-        sourceRecordType: "other_loan",
-        sourceRecordId: loanId,
-      });
-    } else {
-      // No account selected — record in payment history without touching any balance.
-      // Requires migration 037 (savings_transactions_one_target constraint relaxed).
-      const { error: insErr } = await supabase
-        .from("savings_transactions")
-        .insert({
-          user_id: userId,
-          account_id: null,
-          pool_id: null,
-          kind: "withdrawal",
-          amount: -amount,
-          balance_after: 0,
-          note: txNote,
-          occurred_at: occurredAt,
-          expense_id: expenseId,
-          source_record_type: "other_loan",
-          source_record_id: loanId,
-        });
-      if (insErr) throw new Error(insErr.message);
-    }
-  } catch (err) {
-    await supabase.from("expenses").delete().eq("id", expenseId).eq("user_id", userId);
-    throw err;
-  }
-
-  const newPaid = roundMoney(Number(row.amount_paid ?? 0) + amount);
-  const newOutstanding = roundMoney(outstanding - amount);
-  const fullyPaid = newOutstanding <= 0;
-
-  const { error: updErr } = await supabase
-    .from("other_loans")
-    .update({
-      amount_paid: newPaid,
-      outstanding: newOutstanding,
-      paid_at: fullyPaid ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", loanId)
-    .select("*")
-    .single();
-
-  if (updErr) throw new Error(updErr.message);
+  const expenseId = await callLedgerRpc<string>(
+    supabase,
+    "other_loan_record_payment",
+    {
+      p_user_id: userId,
+      p_loan_id: loanId,
+      p_amount: amount,
+      p_savings_account_id: savingsAccountId,
+      p_financial_account_id: financialAccountId ?? null,
+      p_category: COMPUTED_DEBT_LABEL,
+      p_spent_at: sgtTodayYmd(now),
+      p_spent_time: sgtNowTimeHms(now),
+      p_occurred_at: now.toISOString(),
+      p_note: txNote,
+    },
+    LOAN_LEDGER_MIGRATION
+  );
 
   console.info("[other-loans] payment recorded", {
     loanId,
-    fullyPaid,
+    fullyPaid: roundMoney(outstanding - amount) <= 0,
     expenseId,
   });
 
@@ -222,6 +146,7 @@ export async function recordOtherLoanPayment(
   return (await loadOtherLoans(supabase, userId)).find((l) => l.id === loanId)!;
 }
 
+/** Draw-down: cash deposit (or record-only row) and loan outstanding/principal, atomically. */
 export async function addToOtherLoan(
   supabase: SupabaseClient,
   userId: string,
@@ -234,76 +159,39 @@ export async function addToOtherLoan(
     throw new Error("Amount must be positive");
   }
 
-  const { data: row, error } = await supabase
-    .from("other_loans")
-    .select("*")
-    .eq("id", loanId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  if (!row) throw new Error("Loan not found");
+  const row = await loadOtherLoanForWrite(supabase, userId, loanId);
   if (String(row.loan_type) === "balance_transfer") {
     throw new Error("Balance transfers cannot be topped up this way");
   }
 
-  const occurredAt = new Date().toISOString();
-  const txNote = note?.trim()
-    ? `${otherLoanDrawDownNote({ name: String(row.name) })} — ${note.trim()}`
-    : otherLoanDrawDownNote({ name: String(row.name) });
-
+  let savingsAccountId: string | null = null;
   if (financialAccountId) {
     const account = await loadFinancialAccount(supabase, userId, financialAccountId);
     if (!account?.savingsAccountId || account.accountType !== "cash") {
       throw new Error("Account must be a cash account");
     }
-
-    await applyTransaction(supabase, {
-      userId,
-      accountId: account.savingsAccountId,
-      amount: +amount,
-      kind: "deposit",
-      occurredAt,
-      note: txNote,
-      sourceRecordType: "other_loan",
-      sourceRecordId: loanId,
-    });
-  } else {
-    const { error: insErr } = await supabase
-      .from("savings_transactions")
-      .insert({
-        user_id: userId,
-        account_id: null,
-        pool_id: null,
-        kind: "deposit",
-        amount: +amount,
-        balance_after: 0,
-        note: txNote,
-        occurred_at: occurredAt,
-        source_record_type: "other_loan",
-        source_record_id: loanId,
-      });
-    if (insErr) throw new Error(insErr.message);
+    savingsAccountId = account.savingsAccountId;
   }
 
-  const newOutstanding = roundMoney(Number(row.outstanding ?? 0) + amount);
-  const newPrincipal = roundMoney(Number(row.principal ?? 0) + amount);
+  const txNote = note?.trim()
+    ? `${otherLoanDrawDownNote({ name: String(row.name) })} — ${note.trim()}`
+    : otherLoanDrawDownNote({ name: String(row.name) });
 
-  const { error: updErr } = await supabase
-    .from("other_loans")
-    .update({
-      outstanding: newOutstanding,
-      principal: newPrincipal,
-      paid_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", loanId);
+  await callLedgerRpc(
+    supabase,
+    "other_loan_add_draw_down",
+    {
+      p_user_id: userId,
+      p_loan_id: loanId,
+      p_amount: amount,
+      p_savings_account_id: savingsAccountId,
+      p_occurred_at: new Date().toISOString(),
+      p_note: txNote,
+    },
+    LOAN_LEDGER_MIGRATION
+  );
 
-  if (updErr) throw new Error(updErr.message);
-
-  console.info("[other-loans] draw-down recorded", {
-    loanId,
-  });
+  console.info("[other-loans] draw-down recorded", { loanId });
 
   const { loadOtherLoans } = await import("./load");
   return (await loadOtherLoans(supabase, userId)).find((l) => l.id === loanId)!;

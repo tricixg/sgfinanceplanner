@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SavingsTransaction, SavingsTransactionKind } from "@/lib/savings/types";
 import { mapTransaction } from "@/lib/savings/db-mappers";
 import { roundMoney } from "@/lib/cards/interest-accrual";
+import { callLedgerRpc } from "@/lib/supabase/rpc";
 import {
   accountIdInSavingsScope,
   loadSavingsVisibilityScope,
@@ -29,14 +30,33 @@ export type ApplyTransactionInput = {
   excludeFromBudget?: boolean;
   sourceRecordType?: "expense" | "savings" | "budget" | "other_loan" | null;
   sourceRecordId?: string | null;
+  /**
+   * Idempotency key (one per user action). A retry with the same key returns
+   * the original transaction instead of moving the balance again.
+   */
+  clientRequestId?: string | null;
 };
 
-export async function applyTransaction(
+/** Migration that adds the savings ledger functions used below. */
+export const SAVINGS_LEDGER_MIGRATION = "070_savings_ledger_functions.sql";
+
+type ApplySavingsRpcResult = {
+  transaction: Record<string, unknown>;
+  goal_name: string | null;
+  replayed: boolean;
+};
+
+/**
+ * Applies a savings transaction atomically (balance, goal saved amount and
+ * ledger row in one database transaction) and reports whether it was an
+ * idempotent replay of an earlier request with the same clientRequestId.
+ */
+export async function applyTransactionWithReplay(
   supabase: SupabaseClient,
   input: ApplyTransactionInput
-): Promise<SavingsTransaction> {
-  // Round here so float drift (e.g. 0.1 + 0.2) doesn't accumulate into the
-  // balanceAfter < 0 check below and cause spurious "Insufficient balance" errors.
+): Promise<{ transaction: SavingsTransaction; replayed: boolean }> {
+  // Round here so float drift (e.g. 0.1 + 0.2) doesn't reach the database's
+  // balance < 0 check and cause spurious "Insufficient balance" errors.
   const amount = roundMoney(input.amount);
   if (!Number.isFinite(amount) || amount === 0) {
     throw new Error("Transaction amount must be non-zero");
@@ -47,158 +67,63 @@ export async function applyTransaction(
   if (hasAccount === hasPool) {
     throw new Error("Specify exactly one of accountId or poolId");
   }
+  if (hasPool && !input.householdId) {
+    throw new Error("householdId required for pool transactions");
+  }
 
   const kind: SavingsTransactionKind =
     input.kind ?? (amount > 0 ? "deposit" : "withdrawal");
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
-  let balanceAfter = 0;
+  const result = await callLedgerRpc<ApplySavingsRpcResult>(
+    supabase,
+    "ledger_apply_savings_transaction",
+    {
+      p_user_id: input.userId,
+      p_amount: amount,
+      p_kind: kind,
+      p_occurred_at: occurredAt,
+      p_note: input.note ?? "",
+      p_goal_id: input.goalId ?? null,
+      p_account_id: input.accountId ?? null,
+      p_pool_id: input.poolId ?? null,
+      p_household_id: input.householdId ?? null,
+      p_expense_id: input.expenseId ?? null,
+      p_income_category_id: input.incomeCategoryId ?? null,
+      p_exclude_from_budget: input.excludeFromBudget ?? false,
+      p_source_record_type: input.sourceRecordType ?? null,
+      p_source_record_id: input.sourceRecordId ?? null,
+      p_client_request_id: input.clientRequestId ?? null,
+    },
+    SAVINGS_LEDGER_MIGRATION
+  );
 
-  if (input.accountId) {
-    const { data: acct, error: readErr } = await supabase
-      .from("user_savings_accounts")
-      .select("id, balance, user_id")
-      .eq("id", input.accountId)
-      .maybeSingle();
-
-    if (readErr || !acct) {
-      throw new Error(readErr?.message ?? "Account not found");
-    }
-    if (acct.user_id !== input.userId) {
-      throw new Error("Forbidden");
-    }
-
-    balanceAfter = roundMoney(Number(acct.balance) + amount);
-    if (balanceAfter < 0) {
-      throw new Error("Insufficient balance");
-    }
-
-    const { error: updErr } = await supabase
-      .from("user_savings_accounts")
-      .update({
-        balance: balanceAfter,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", input.accountId);
-
-    if (updErr) throw new Error(updErr.message);
-  } else if (input.poolId) {
-    if (!input.householdId) {
-      throw new Error("householdId required for pool transactions");
-    }
-
-    const { data: pool, error: readErr } = await supabase
-      .from("savings_pools")
-      .select("id, balance, household_id")
-      .eq("id", input.poolId)
-      .maybeSingle();
-
-    if (readErr || !pool) {
-      throw new Error(readErr?.message ?? "Pool not found");
-    }
-    if (pool.household_id !== input.householdId) {
-      throw new Error("Pool not in household");
-    }
-
-    balanceAfter = roundMoney(Number(pool.balance) + amount);
-    if (balanceAfter < 0) {
-      throw new Error("Insufficient balance");
-    }
-
-    const { error: updErr } = await supabase
-      .from("savings_pools")
-      .update({
-        balance: balanceAfter,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", input.poolId);
-
-    if (updErr) throw new Error(updErr.message);
-  }
-
-  if (input.goalId) {
-    const { data: goal, error: goalErr } = await supabase
-      .from("savings_goals")
-      .select("id, saved_amount, scope, owner_user_id, household_id")
-      .eq("id", input.goalId)
-      .maybeSingle();
-
-    if (goalErr || !goal) {
-      throw new Error(goalErr?.message ?? "Goal not found");
-    }
-
-    if (input.accountId) {
-      if (goal.scope !== "individual" || goal.owner_user_id !== input.userId) {
-        throw new Error("Choose a personal savings goal");
-      }
-    } else if (input.poolId) {
-      if (
-        goal.scope !== "shared" ||
-        goal.household_id !== input.householdId
-      ) {
-        throw new Error("Choose a shared savings goal");
-      }
-    }
-
-    const newSaved = Math.max(0, roundMoney(Number(goal.saved_amount) + amount));
-    const { error: goalUpdErr } = await supabase
-      .from("savings_goals")
-      .update({
-        saved_amount: newSaved,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", input.goalId);
-
-    if (goalUpdErr) throw new Error(goalUpdErr.message);
-  }
-
-  const { data: row, error: insErr } = await supabase
-    .from("savings_transactions")
-    .insert({
-      user_id: input.userId,
-      household_id: input.householdId ?? null,
-      account_id: input.accountId ?? null,
-      pool_id: input.poolId ?? null,
-      goal_id: input.goalId ?? null,
+  console.info(
+    result.replayed ? "[ledger] transaction replayed (idempotency key)" : "[ledger] transaction applied",
+    {
+      userId: input.userId,
       kind,
-      amount,
-      balance_after: balanceAfter,
-      note: input.note ?? "",
-      occurred_at: occurredAt,
-      expense_id: input.expenseId ?? null,
-      income_category_id: input.incomeCategoryId ?? null,
-      exclude_from_budget: input.excludeFromBudget ?? false,
-      source_record_type: input.sourceRecordType ?? null,
-      source_record_id: input.sourceRecordId ?? null,
-    })
-    .select("*")
-    .single();
+      accountId: input.accountId,
+      poolId: input.poolId,
+      goalId: input.goalId,
+      expenseId: input.expenseId ?? null,
+      incomeCategoryId: input.incomeCategoryId ?? null,
+      excludeFromBudget: input.excludeFromBudget ?? false,
+    }
+  );
 
-  if (insErr || !row) {
-    throw new Error(insErr?.message ?? "Failed to record transaction");
-  }
+  const mapped = mapTransaction(result.transaction);
+  const transaction = mapped.goalId
+    ? { ...mapped, goalName: result.goal_name ? String(result.goal_name) : null }
+    : mapped;
+  return { transaction, replayed: result.replayed };
+}
 
-  console.info("[ledger] transaction applied", {
-    userId: input.userId,
-    kind,
-    accountId: input.accountId,
-    poolId: input.poolId,
-    goalId: input.goalId,
-    expenseId: input.expenseId ?? null,
-    incomeCategoryId: input.incomeCategoryId ?? null,
-    excludeFromBudget: input.excludeFromBudget ?? false,
-  });
-
-  const mapped = mapTransaction(row);
-  if (input.goalId) {
-    const { data: goalRow } = await supabase
-      .from("savings_goals")
-      .select("name")
-      .eq("id", input.goalId)
-      .maybeSingle();
-    return { ...mapped, goalName: goalRow?.name ? String(goalRow.name) : null };
-  }
-  return mapped;
+export async function applyTransaction(
+  supabase: SupabaseClient,
+  input: ApplyTransactionInput
+): Promise<SavingsTransaction> {
+  return (await applyTransactionWithReplay(supabase, input)).transaction;
 }
 
 async function enrichTransactionsWithIncomeCategoryNames(
@@ -600,69 +525,16 @@ export async function deleteSavingsTransaction(
   userId: string,
   id: string
 ): Promise<boolean> {
-  const tx = await getSavingsTransactionById(supabase, userId, id);
-  if (!tx) return false;
+  // Reverses the account/pool balance and goal saved amount and deletes the
+  // row in one database transaction.
+  const deleted = await callLedgerRpc<boolean>(
+    supabase,
+    "ledger_delete_savings_transaction",
+    { p_user_id: userId, p_transaction_id: id },
+    SAVINGS_LEDGER_MIGRATION
+  );
+  if (!deleted) return false;
 
-  const reverse = -tx.amount;
-
-  if (tx.accountId) {
-    const { data: acct, error: readErr } = await supabase
-      .from("user_savings_accounts")
-      .select("balance")
-      .eq("id", tx.accountId)
-      .maybeSingle();
-    if (readErr || !acct) throw new Error(readErr?.message ?? "Account not found");
-    const nextBalance = roundMoney(Number(acct.balance ?? 0) + reverse);
-    if (nextBalance < 0) throw new Error("Insufficient balance");
-    const { error: updErr } = await supabase
-      .from("user_savings_accounts")
-      .update({ balance: nextBalance, updated_at: new Date().toISOString() })
-      .eq("id", tx.accountId);
-    if (updErr) throw new Error(updErr.message);
-  } else if (tx.poolId) {
-    const { data: pool, error: readErr } = await supabase
-      .from("savings_pools")
-      .select("balance")
-      .eq("id", tx.poolId)
-      .maybeSingle();
-    if (readErr || !pool) throw new Error(readErr?.message ?? "Pool not found");
-    const nextBalance = roundMoney(Number(pool.balance ?? 0) + reverse);
-    if (nextBalance < 0) throw new Error("Insufficient balance");
-    const { error: updErr } = await supabase
-      .from("savings_pools")
-      .update({ balance: nextBalance, updated_at: new Date().toISOString() })
-      .eq("id", tx.poolId);
-    if (updErr) throw new Error(updErr.message);
-  }
-
-  if (tx.goalId) {
-    const { data: goal, error: gErr } = await supabase
-      .from("savings_goals")
-      .select("saved_amount")
-      .eq("id", tx.goalId)
-      .maybeSingle();
-    if (gErr || !goal) throw new Error(gErr?.message ?? "Goal not found");
-    const nextSaved = Math.max(0, roundMoney(Number(goal.saved_amount ?? 0) + reverse));
-    const { error: upGoalErr } = await supabase
-      .from("savings_goals")
-      .update({ saved_amount: nextSaved, updated_at: new Date().toISOString() })
-      .eq("id", tx.goalId);
-    if (upGoalErr) throw new Error(upGoalErr.message);
-  }
-
-  const { error: delErr } = await supabase
-    .from("savings_transactions")
-    .delete()
-    .eq("user_id", userId)
-    .eq("id", id);
-  if (delErr) throw new Error(delErr.message);
-
-  console.info("[ledger] transaction deleted with balance rollback", {
-    userId,
-    id,
-    accountId: tx.accountId,
-    poolId: tx.poolId,
-    goalId: tx.goalId,
-  });
+  console.info("[ledger] transaction deleted with balance rollback", { userId, id });
   return true;
 }

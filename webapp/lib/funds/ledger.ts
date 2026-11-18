@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FundTransaction, FundTransactionKind } from "@/lib/funds/types";
 import { mapFundTransaction } from "@/lib/funds/db-mappers";
 import { roundMoney } from "@/lib/cards/interest-accrual";
+import { callLedgerRpc } from "@/lib/supabase/rpc";
 
 export type ApplyFundTransactionInput = {
   userId: string;
@@ -11,14 +12,29 @@ export type ApplyFundTransactionInput = {
   kind?: FundTransactionKind;
   note?: string;
   goalId?: string | null;
+  /** Idempotency key (one per user action); a retry returns the original row. */
+  clientRequestId?: string | null;
 };
 
-export async function applyFundTransaction(
+/** Migration that adds the fund ledger functions used below. */
+export const FUND_LEDGER_MIGRATION = "071_fund_ledger_functions.sql";
+
+type ApplyFundRpcResult = {
+  transaction: Record<string, unknown>;
+  goal_name: string | null;
+  replayed: boolean;
+};
+
+/**
+ * Fund balance, goal saved amount and fund_transactions row in one database
+ * transaction; reports whether this was a replay of an earlier request.
+ */
+export async function applyFundTransactionWithReplay(
   supabase: SupabaseClient,
   input: ApplyFundTransactionInput
-): Promise<FundTransaction> {
-  // Round here so float drift doesn't accumulate into the balanceAfter < 0
-  // check below and cause spurious "Insufficient balance" errors.
+): Promise<{ transaction: FundTransaction; replayed: boolean }> {
+  // Round here so float drift doesn't reach the database's balance < 0 check
+  // and cause spurious "Insufficient balance" errors.
   const amount = roundMoney(input.amount);
   if (!Number.isFinite(amount) || amount === 0) {
     throw new Error("Transaction amount must be non-zero");
@@ -27,109 +43,41 @@ export async function applyFundTransaction(
   const kind: FundTransactionKind = input.kind ?? (amount > 0 ? "deposit" : "withdrawal");
   const occurredAt = input.occurredAt ?? new Date().toISOString();
 
-  const { data: fund, error: readErr } = await supabase
-    .from("investment_funds")
-    .select("id, balance, user_id")
-    .eq("id", input.fundId)
-    .maybeSingle();
+  const result = await callLedgerRpc<ApplyFundRpcResult>(
+    supabase,
+    "ledger_apply_fund_transaction",
+    {
+      p_user_id: input.userId,
+      p_fund_id: input.fundId,
+      p_amount: amount,
+      p_kind: kind,
+      p_occurred_at: occurredAt,
+      p_note: input.note ?? "",
+      p_goal_id: input.goalId ?? null,
+      p_client_request_id: input.clientRequestId ?? null,
+    },
+    FUND_LEDGER_MIGRATION
+  );
 
-  if (readErr || !fund) {
-    throw new Error(readErr?.message ?? "Fund not found");
-  }
-  if (fund.user_id !== input.userId) {
-    throw new Error("Forbidden");
-  }
+  console.info(
+    result.replayed
+      ? "[funds/ledger] transaction replayed (idempotency key)"
+      : "[funds/ledger] transaction applied",
+    { userId: input.userId, fundId: input.fundId, kind, goalId: input.goalId ?? null }
+  );
 
-  const balanceAfter = roundMoney(Number(fund.balance) + amount);
-  if (balanceAfter < 0) {
-    throw new Error("Insufficient balance");
-  }
-
-  // Validate the goal (if any) *before* mutating anything — a validation
-  // failure here must not leave the fund balance decremented with no
-  // matching transaction row.
-  let goal: { id: string; saved_amount: number; name: string | null } | null = null;
-  if (input.goalId) {
-    const { data: goalRow, error: goalErr } = await supabase
-      .from("savings_goals")
-      .select("id, saved_amount, scope, owner_user_id, name")
-      .eq("id", input.goalId)
-      .maybeSingle();
-
-    if (goalErr || !goalRow) {
-      throw new Error(goalErr?.message ?? "Goal not found");
-    }
-    if (goalRow.scope !== "individual" || goalRow.owner_user_id !== input.userId) {
-      throw new Error("Choose a personal savings goal");
-    }
-    goal = { id: goalRow.id, saved_amount: Number(goalRow.saved_amount), name: goalRow.name };
-  }
-
-  const { error: updErr } = await supabase
-    .from("investment_funds")
-    .update({ balance: balanceAfter, updated_at: new Date().toISOString() })
-    .eq("id", input.fundId);
-
-  if (updErr) throw new Error(updErr.message);
-
-  const revertFundBalance = async () => {
-    await supabase
-      .from("investment_funds")
-      .update({ balance: fund.balance, updated_at: new Date().toISOString() })
-      .eq("id", input.fundId);
+  const mapped = mapFundTransaction(result.transaction);
+  return {
+    transaction: { ...mapped, goalName: result.goal_name ? String(result.goal_name) : null },
+    replayed: result.replayed,
   };
+}
 
-  if (goal) {
-    const newSaved = Math.max(0, roundMoney(goal.saved_amount + amount));
-    const { error: goalUpdErr } = await supabase
-      .from("savings_goals")
-      .update({ saved_amount: newSaved, updated_at: new Date().toISOString() })
-      .eq("id", goal.id);
-
-    if (goalUpdErr) {
-      await revertFundBalance();
-      throw new Error(goalUpdErr.message);
-    }
-  }
-
-  const revertGoalSaved = async () => {
-    if (!goal) return;
-    await supabase
-      .from("savings_goals")
-      .update({ saved_amount: goal.saved_amount, updated_at: new Date().toISOString() })
-      .eq("id", goal.id);
-  };
-
-  const { data: row, error: insErr } = await supabase
-    .from("fund_transactions")
-    .insert({
-      user_id: input.userId,
-      fund_id: input.fundId,
-      goal_id: input.goalId ?? null,
-      kind,
-      amount,
-      balance_after: balanceAfter,
-      note: input.note ?? "",
-      occurred_at: occurredAt,
-    })
-    .select("*")
-    .single();
-
-  if (insErr || !row) {
-    await revertGoalSaved();
-    await revertFundBalance();
-    throw new Error(insErr?.message ?? "Failed to record transaction");
-  }
-
-  console.info("[funds/ledger] transaction applied", {
-    userId: input.userId,
-    fundId: input.fundId,
-    kind,
-    goalId: input.goalId ?? null,
-  });
-
-  const mapped = mapFundTransaction(row);
-  return { ...mapped, goalName: goal?.name ? String(goal.name) : null };
+export async function applyFundTransaction(
+  supabase: SupabaseClient,
+  input: ApplyFundTransactionInput
+): Promise<FundTransaction> {
+  return (await applyFundTransactionWithReplay(supabase, input)).transaction;
 }
 
 export async function deleteFundTransaction(
@@ -138,63 +86,19 @@ export async function deleteFundTransaction(
   fundId: string,
   transactionId: string
 ): Promise<void> {
-  const { data: tx, error: readErr } = await supabase
-    .from("fund_transactions")
-    .select("id, amount, goal_id")
-    .eq("id", transactionId)
-    .eq("fund_id", fundId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (readErr) throw new Error(readErr.message);
-  if (!tx) throw new Error("Transaction not found");
-
-  const reverse = -Number(tx.amount);
-
-  const { data: fund, error: fundErr } = await supabase
-    .from("investment_funds")
-    .select("balance")
-    .eq("id", fundId)
-    .maybeSingle();
-  if (fundErr || !fund) throw new Error(fundErr?.message ?? "Fund not found");
-
-  const nextBalance = roundMoney(Number(fund.balance) + reverse);
-  if (nextBalance < 0) throw new Error("Insufficient balance");
-
-  const { error: updErr } = await supabase
-    .from("investment_funds")
-    .update({ balance: nextBalance, updated_at: new Date().toISOString() })
-    .eq("id", fundId);
-  if (updErr) throw new Error(updErr.message);
-
-  if (tx.goal_id) {
-    const { data: goal, error: goalErr } = await supabase
-      .from("savings_goals")
-      .select("saved_amount")
-      .eq("id", tx.goal_id)
-      .maybeSingle();
-    if (goalErr || !goal) throw new Error(goalErr?.message ?? "Goal not found");
-    const nextSaved = Math.max(0, roundMoney(Number(goal.saved_amount) + reverse));
-    const { error: goalUpdErr } = await supabase
-      .from("savings_goals")
-      .update({ saved_amount: nextSaved, updated_at: new Date().toISOString() })
-      .eq("id", tx.goal_id);
-    if (goalUpdErr) throw new Error(goalUpdErr.message);
-  }
-
-  const { error: delErr } = await supabase
-    .from("fund_transactions")
-    .delete()
-    .eq("id", transactionId)
-    .eq("fund_id", fundId)
-    .eq("user_id", userId);
-  if (delErr) throw new Error(delErr.message);
+  // Reverses the fund balance and goal saved amount and deletes the row in
+  // one database transaction ("Transaction not found" if it isn't yours).
+  await callLedgerRpc<null>(
+    supabase,
+    "ledger_delete_fund_transaction",
+    { p_user_id: userId, p_fund_id: fundId, p_transaction_id: transactionId },
+    FUND_LEDGER_MIGRATION
+  );
 
   console.info("[funds/ledger] transaction deleted with balance rollback", {
     userId,
     fundId,
     transactionId,
-    goalId: tx.goal_id ?? null,
   });
 }
 

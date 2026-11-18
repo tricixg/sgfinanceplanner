@@ -165,6 +165,8 @@ export function useSavingsProvider(enabled: boolean) {
         occurredAt?: string;
         note?: string;
         kind?: "deposit" | "withdrawal" | "adjustment";
+        /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+        clientRequestId?: string;
       }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(
@@ -193,6 +195,8 @@ export function useSavingsProvider(enabled: boolean) {
         kind?: "deposit" | "withdrawal" | "adjustment";
         note?: string;
         goalId?: string;
+        /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+        clientRequestId?: string;
       }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(

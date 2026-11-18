@@ -2,6 +2,7 @@ import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { addCpfTransaction, listCpfTransactions } from "@/lib/cpf/transactions";
+import { parseClientRequestId } from "@/lib/api/idempotency";
 import type { AddCpfTransactionInput } from "@/lib/cpf/transactions";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -37,6 +38,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const clientRequestId = parseClientRequestId(body.clientRequestId);
+  if (clientRequestId && typeof clientRequestId === "object") {
+    return NextResponse.json({ error: clientRequestId.error }, { status: 400 });
+  }
+
   try {
     const supabase = await createAuthedSupabaseClient();
     const result = await addCpfTransaction(supabase, auth.user.id, {
@@ -46,6 +52,7 @@ export async function POST(req: NextRequest) {
       fundingSource: body.fundingSource,
       btoStage: body.btoStage ?? null,
       note: body.note,
+      clientRequestId,
     });
     console.info("[api/cpf/transactions] POST ok", { userId: auth.user.id });
     return NextResponse.json({ item: result.transaction, oa: result.oa });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isPublicMessage } from "@/lib/api/public-messages";
+import { errorParts, logServerError } from "@/lib/observability/server-error";
 
 export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
@@ -25,7 +26,9 @@ export function publicErrorMessage(
 ): string {
   const raw = rawMessage(err);
   if (raw && isPublicMessage(raw)) return raw;
-  console.error(`[${scope}] internal error`, raw || err);
+  // One scrubbed JSON line per masked error (OPS-002, option B).
+  const { code } = errorParts(err);
+  logServerError({ scope, message: raw || String(err), code });
   return fallback;
 }
 

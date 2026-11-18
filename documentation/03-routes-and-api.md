@@ -47,6 +47,9 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 |--------|------|---------|------|-------|
 | GET | `/api/auth/session` | `app/api/auth/session/route.ts` | Optional | Current user; dev bypass |
 | POST | `/api/auth/signout` | `app/api/auth/signout/route.ts` | Session | Clears cookies |
+| GET | `/api/health` | `app/api/health/route.ts` | None | Uptime check: app up + Supabase reachable (anon HEAD query, 3 s timeout). 200 `{status:"ok"}` / 503 `{status:"error"}`; no user data, `no-store` |
+
+**Idempotency (DATA-003):** `POST` on `/api/expenses`, `/api/accounts/[id]/transactions`, `/api/savings/pools/[id]/transactions`, `/api/savings/goals/[id]/deposits`, `/api/funds/[id]/transactions`, `/api/cpf/contributions` and `/api/cpf/transactions` accept an optional `clientRequestId` (8–100 chars of `A-Za-z0-9._:-`). Repeating a request with the same key returns the original row and moves no balance again.
 
 ### State, summary, profile
 

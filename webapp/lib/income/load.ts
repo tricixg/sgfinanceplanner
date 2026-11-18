@@ -6,26 +6,45 @@ import { isSystemIncomeSlug } from "@/lib/income/types";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
-export async function loadIncomeCategories(
+async function selectIncomeCategoryRows(
   supabase: SupabaseClient,
   userId: string
-): Promise<IncomeCategory[]> {
+): Promise<Record<string, unknown>[]> {
   const { data, error } = await supabase
     .from("income_categories")
     .select("*")
     .eq("user_id", userId)
     .order("sort_order", { ascending: true });
-
   if (error) throw new Error(error.message);
-
-  if (!data?.length) {
-    await seedIncomeCategories(supabase, userId);
-    return loadIncomeCategories(supabase, userId);
-  }
-
-  return data.map((r) => mapIncomeCategory(r));
+  return data ?? [];
 }
 
+/**
+ * Loads the user's income categories, seeding the defaults on first use.
+ * Seeds at most once per call (no recursion): if the defaults were written
+ * but still can't be read back, this throws instead of looping.
+ */
+export async function loadIncomeCategories(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<IncomeCategory[]> {
+  const rows = await selectIncomeCategoryRows(supabase, userId);
+  if (rows.length) return rows.map((r) => mapIncomeCategory(r));
+
+  await seedIncomeCategories(supabase, userId);
+  const seeded = await selectIncomeCategoryRows(supabase, userId);
+  if (!seeded.length) {
+    console.error("[income] categories empty after seeding", { userId });
+    throw new Error("Income categories could not be loaded");
+  }
+  return seeded.map((r) => mapIncomeCategory(r));
+}
+
+/**
+ * Inserts the default categories. Safe to run concurrently (two tabs loading
+ * for the first time): rows that already exist for (user_id, slug) are left
+ * alone (ON CONFLICT DO NOTHING) instead of failing on the unique index.
+ */
 export async function seedIncomeCategories(
   supabase: SupabaseClient,
   userId: string
@@ -40,7 +59,9 @@ export async function seedIncomeCategories(
     updated_at: new Date().toISOString(),
   }));
 
-  const { error } = await supabase.from("income_categories").insert(rows);
+  const { error } = await supabase
+    .from("income_categories")
+    .upsert(rows, { onConflict: "user_id,slug", ignoreDuplicates: true });
   if (error) throw new Error(error.message);
   console.info("[income] seeded default categories", { userId, count: rows.length });
 }

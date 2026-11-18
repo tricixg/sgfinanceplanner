@@ -46,6 +46,7 @@ sequenceDiagram
 - API: [webapp/app/api/expenses/route.ts](../webapp/app/api/expenses/route.ts)
 - Sync: [webapp/lib/expenses/ledger-sync.ts](../webapp/lib/expenses/ledger-sync.ts), [webapp/lib/expenses/expense-ledger-api.ts](../webapp/lib/expenses/expense-ledger-api.ts)
 - Cash ledger: [webapp/lib/savings/ledger.ts](../webapp/lib/savings/ledger.ts) (`applyTransaction`)
+- Atomic create: `POST /api/expenses` resolves the ledger write with `planExpenseLedger` (reads only), then [webapp/lib/expenses/expense-write.ts](../webapp/lib/expenses/expense-write.ts) calls `expense_create_with_ledger` (073), which inserts the expense and applies the loan / BNPL / fund change and the cash withdrawal or card row in **one database transaction**. Travel and Telegram expenses still insert first and then call the (atomic) ledger step.
 
 **Timestamps:** Default `spent_time` uses SGT ([webapp/lib/time/sgt.ts](../webapp/lib/time/sgt.ts)). Ledger `occurred_at` uses `sgtSpentAtToIso` (+08:00).
 
@@ -53,11 +54,17 @@ sequenceDiagram
 
 ## Delete expense flow
 
-`DELETE /api/expenses/[id]`:
+`DELETE /api/expenses/[id]` calls `expense_delete_with_ledger` (073); all steps run in one database transaction:
 
-1. `reverseExpenseLedger` — restores cash balance, deletes linked `savings_transactions` and `budget_transactions` by `expense_id`
-2. Deletes `expenses` row
-3. If auto debt payment, may restore loan `outstanding`
+1. Reverse the ledger (`ledger_reverse_expense`): restore cash balance, delete linked `savings_transactions` and `budget_transactions` by `expense_id`. If a restore would overdraw, nothing is deleted
+2. Delete the `expenses` row
+3. Auto debt payment: restore loan / other-loan `outstanding`; BNPL: months paid −1; recurring invest: withdraw from the fund
+
+If any step can't be done, the whole delete is refused (HTTP 409) with a "Can't delete this payment: …" message and nothing changes (076). In practice that is a fund that no longer holds enough to reverse a recurring-invest payment: deleting a loan, BNPL plan or fund clears the expense's link (`ON DELETE SET NULL`), so that step is simply skipped.
+
+The unified transactions list uses the same function with the same steps.
+
+All balance-changing operations (savings, funds, loans, CPF) are database functions; see [05 → Ledger functions](./05-database-schema.md#ledger-functions-and-audit-log-069074).
 
 ---
 

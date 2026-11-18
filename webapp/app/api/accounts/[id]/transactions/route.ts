@@ -1,7 +1,8 @@
 import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { applyTransaction, listAccountTransactions } from "@/lib/savings/ledger";
+import { applyTransactionWithReplay, listAccountTransactions } from "@/lib/savings/ledger";
+import { parseClientRequestId } from "@/lib/api/idempotency";
 import { recordBenefitClaim, verifyBenefit } from "@/lib/benefits/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
@@ -65,6 +66,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     benefitId?: string;
     /** Date the claim counts toward the benefit's cycle (YYYY-MM-DD). Defaults to the deposit date. */
     benefitClaimDate?: string;
+    /** Idempotency key, one per submit; a retry returns the original transaction. */
+    clientRequestId?: string;
   };
   try {
     body = await req.json();
@@ -75,6 +78,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   const rawAmount = typeof body.amount === "number" ? body.amount : NaN;
   if (!Number.isFinite(rawAmount) || rawAmount === 0) {
     return NextResponse.json({ error: "Valid non-zero amount required" }, { status: 400 });
+  }
+
+  const clientRequestId = parseClientRequestId(body.clientRequestId);
+  if (clientRequestId && typeof clientRequestId === "object") {
+    return NextResponse.json({ error: clientRequestId.error }, { status: 400 });
   }
 
   const supabase = await createAuthedSupabaseClient();
@@ -126,7 +134,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const item = await applyTransaction(supabase, {
+    const { transaction: item, replayed } = await applyTransactionWithReplay(supabase, {
       userId: user.id,
       accountId,
       amount,
@@ -136,8 +144,10 @@ export async function POST(req: NextRequest, { params }: Params) {
       goalId: body.goalId ?? null,
       incomeCategoryId: body.incomeCategoryId ?? null,
       excludeFromBudget: body.excludeFromBudget ?? false,
+      clientRequestId,
     });
-    if (benefit) {
+    // A replayed request already recorded its benefit claim the first time.
+    if (benefit && !replayed) {
       await recordBenefitClaim(supabase, user.id, {
         benefitId: benefit.id,
         amount,

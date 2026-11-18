@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { callLedgerRpc } from "@/lib/supabase/rpc";
+import { LOAN_LEDGER_MIGRATION } from "@/lib/expenses/auto-payment";
 import type { BnplPlan, RecurringInvestment, RecurringSubscription } from "@/lib/types";
 
 function mapSubscription(row: Record<string, unknown>): RecurringSubscription {
@@ -224,33 +226,27 @@ export async function saveBnplPlans(
   return loadBnplPlans(supabase, userId);
 }
 
+/** months_paid = clamp(months_paid + delta, 0, tenure) in one atomic database update. */
 export async function adjustBnplMonthsPaid(
   supabase: SupabaseClient,
   userId: string,
   bnplId: string,
   delta: number
 ): Promise<{ ok: true; monthsPaid: number } | { ok: false; error: string }> {
-  const { data: plan, error } = await supabase
-    .from("bnpl_plans")
-    .select("id, months_paid, tenure_months")
-    .eq("id", bnplId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) return { ok: false, error: error.message };
-  if (!plan) return { ok: false, error: "BNPL plan not found" };
-
-  const tenure = Number(plan.tenure_months ?? 0);
-  const next = Math.max(0, Math.min(tenure, Number(plan.months_paid ?? 0) + delta));
-  const { error: updErr } = await supabase
-    .from("bnpl_plans")
-    .update({ months_paid: next, updated_at: new Date().toISOString() })
-    .eq("id", bnplId)
-    .eq("user_id", userId);
-
-  if (updErr) return { ok: false, error: updErr.message };
-  console.info("[recurring] bnpl months_paid adjusted", { userId, bnplId, monthsPaid: next });
-  return { ok: true, monthsPaid: next };
+  try {
+    const monthsPaid = Number(
+      await callLedgerRpc<number>(
+        supabase,
+        "ledger_adjust_bnpl_months_paid",
+        { p_user_id: userId, p_bnpl_id: bnplId, p_delta: delta },
+        LOAN_LEDGER_MIGRATION
+      )
+    );
+    console.info("[recurring] bnpl months_paid adjusted", { userId, bnplId, monthsPaid });
+    return { ok: true, monthsPaid };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 export async function updateRecurringDeductionDay(

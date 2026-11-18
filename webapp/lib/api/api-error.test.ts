@@ -19,8 +19,10 @@ describe("apiError / publicErrorMessage (SEC-006)", () => {
       expect(await res.json()).toEqual({ error: GENERIC_ERROR_MESSAGE });
     }
     expect(spy).toHaveBeenCalledTimes(dbMessages.length);
-    expect(String(spy.mock.calls[0][0])).toContain("[api/test]");
-    expect(spy.mock.calls[0][1]).toContain("row-level security");
+    // One JSON line per masked error (OPS-002): scope + the real (scrubbed) message.
+    const logged = JSON.parse(String(spy.mock.calls[0][0]));
+    expect(logged).toMatchObject({ event: "server_error", scope: "api/test" });
+    expect(logged.message).toContain("row-level security");
   });
 
   it("accepts PostgrestError-shaped objects and plain strings", async () => {

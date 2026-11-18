@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useMemo, useState } from "react";
+import { deriveClientRequestId } from "@/lib/api/client-request-id";
 import type {
   DashboardState,
   Holding,
@@ -49,6 +50,8 @@ type FundsApi = {
       kind?: "deposit" | "withdrawal" | "payout";
       note?: string;
       goalId?: string | null;
+      /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+      clientRequestId?: string;
     }
   ) => Promise<void>;
   deleteFundTransaction: (fundId: string, transactionId: string) => Promise<void>;
@@ -62,6 +65,8 @@ type AccountsApi = {
       amount: number;
       occurredAt?: string;
       kind?: "deposit" | "withdrawal" | "adjustment";
+      /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+      clientRequestId?: string;
       note?: string;
     }
   ) => Promise<void>;
@@ -649,6 +654,7 @@ export function TabWealth({
                 kind: "adjustment",
                 occurredAt: payload.occurredAt,
                 note: `Transfer to ${ledgerFund.name || "Fund"}`,
+                clientRequestId: deriveClientRequestId(payload.clientRequestId, "from"),
               });
               await fundsApi.recordFundTransaction(ledgerFund.id, {
                 ...payload,
@@ -669,6 +675,7 @@ export function TabWealth({
                 kind: "adjustment",
                 occurredAt: payload.occurredAt,
                 note: `Transfer from ${ledgerFund.name || "Fund"}`,
+                clientRequestId: deriveClientRequestId(payload.clientRequestId, "to"),
               });
             } else {
               await fundsApi.recordFundTransaction(ledgerFund.id, {

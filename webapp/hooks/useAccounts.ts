@@ -130,6 +130,8 @@ export function useAccountsProvider(enabled: boolean) {
       incomeCategoryId?: string;
       benefitId?: string;
       benefitClaimDate?: string;
+      /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+      clientRequestId?: string;
     }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(

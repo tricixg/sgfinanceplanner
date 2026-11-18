@@ -1,8 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadFinancialAccount } from "@/lib/expenses/auto-payment";
-import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
-import { restoreOtherLoanPayment, restoreOtherLoanDrawDown } from "@/lib/other-loans/pay";
-import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
+import { restoreOtherLoanDrawDown } from "@/lib/other-loans/pay";
+import { deleteExpenseWithLedger } from "@/lib/expenses/expense-write";
 import { createBudgetTransaction, deleteBudgetTransaction, getBudgetTransactionById } from "@/lib/budget/transactions";
 import {
   applyReimbursementCreditToStatement,
@@ -69,55 +68,11 @@ export async function deleteTransactionWithLedger(
   await deleteLinkedReimbursements(supabase, userId, recordType, id);
 
   if (recordType === "expense") {
-    const { data: row, error } = await supabase
-      .from("expenses")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!row) throw new Error("Not found");
-
-    const expense = mapExpense(row);
-    const rev = await syncExpenseLedgerBeforeDelete(supabase, userId, expense);
-    if (!rev.ok) throw new Error(rev.error);
-
-    const { error: delErr } = await supabase
-      .from("expenses")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
-    if (delErr) throw new Error(delErr.message);
-
-    if (row.auto_category === "debt" && row.loan_id) {
-      const adj = await adjustLoanOutstanding(
-        supabase,
-        userId,
-        String(row.loan_id),
-        Number(row.amount ?? 0)
-      );
-      if (!adj.ok) {
-        console.error("[tx-actions] expense delete loan restore failed", {
-          expenseId: id,
-          error: adj.error,
-        });
-      }
-    }
-
-    if (row.auto_category === "debt" && row.other_loan_id) {
-      const adj = await restoreOtherLoanPayment(
-        supabase,
-        userId,
-        String(row.other_loan_id),
-        Number(row.amount ?? 0)
-      );
-      if (!adj.ok) {
-        console.error("[tx-actions] expense delete other-loan restore failed", {
-          expenseId: id,
-          error: adj.error,
-        });
-      }
-    }
+    // Same steps as DELETE /api/expenses/[id]: reverse ledger rows, delete the
+    // expense, restore loan / other loan / BNPL / fund — one database
+    // transaction, refused as a whole if any step can't be done.
+    const result = await deleteExpenseWithLedger(supabase, userId, id);
+    if (!result) throw new Error("Not found");
     return;
   }
 

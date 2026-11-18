@@ -10,6 +10,7 @@ import { useBenefits } from "@/hooks/useBenefits";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { useSubmitKey } from "@/hooks/useSubmitKey";
 
 export type LedgerKind = "deposit" | "withdrawal" | "adjustment" | "payout";
 
@@ -44,6 +45,8 @@ type Props = {
     benefitId?: string;
     /** Date the claim counts toward the benefit's cycle (YYYY-MM-DD). */
     benefitClaimDate?: string;
+    /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+    clientRequestId?: string;
     fromAccountId?: string;
     toAccountId?: string;
   }) => Promise<void>;
@@ -110,6 +113,7 @@ export function SavingsLedgerModal({
   /** Empty = follow the deposit date. */
   const [benefitClaimDate, setBenefitClaimDate] = useState("");
   const [busy, setBusy] = useState(false);
+  const submitKey = useSubmitKey();
   const [error, setError] = useState("");
   const [historyKey, setHistoryKey] = useState(txRefresh);
 
@@ -232,19 +236,23 @@ export function SavingsLedgerModal({
     }
     setError("");
     setBusy(true);
+    const values = {
+      amount: resolved,
+      occurredAt: new Date(date).toISOString(),
+      kind,
+      note: note.trim() || undefined,
+      goalId: showGoalPicker && goalId ? goalId : undefined,
+      incomeCategoryId: showIncomeCategory ? incomeCategoryId : undefined,
+      benefitId: benefitId || undefined,
+      benefitClaimDate: benefitId ? effectiveClaimDate || undefined : undefined,
+      fromAccountId: showFromAccount && fromAccountId ? fromAccountId : undefined,
+      toAccountId: showToAccount && toAccountId ? toAccountId : undefined,
+    };
     try {
-      await onRecord({
-        amount: resolved,
-        occurredAt: new Date(date).toISOString(),
-        kind,
-        note: note.trim() || undefined,
-        goalId: showGoalPicker && goalId ? goalId : undefined,
-        incomeCategoryId: showIncomeCategory ? incomeCategoryId : undefined,
-        benefitId: benefitId || undefined,
-        benefitClaimDate: benefitId ? effectiveClaimDate || undefined : undefined,
-        fromAccountId: showFromAccount && fromAccountId ? fromAccountId : undefined,
-        toAccountId: showToAccount && toAccountId ? toAccountId : undefined,
-      });
+      // Same key if this exact entry is re-submitted (double-click, retry after
+      // an error), so the server records it once.
+      await onRecord({ ...values, clientRequestId: submitKey.keyFor({ target: target.variant, ...values }) });
+      submitKey.reset();
       setAmount("");
       setNote("");
       setGoalId("");
