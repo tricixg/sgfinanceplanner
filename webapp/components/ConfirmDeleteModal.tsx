@@ -8,6 +8,8 @@ type Props = {
   confirmLabel?: string;
   cancelLabel?: string;
   busy?: boolean;
+  /** Red destructive styling (default). Pass false for neutral confirmations. */
+  danger?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -19,6 +21,7 @@ export function ConfirmDeleteModal({
   confirmLabel = "Delete",
   cancelLabel = "Cancel",
   busy = false,
+  danger = true,
   onConfirm,
   onCancel,
 }: Props) {
@@ -53,8 +56,14 @@ export function ConfirmDeleteModal({
           <button type="button" className="btn ghost sm" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </button>
-          <button type="button" className="btn del sm" disabled={busy} onClick={onConfirm} autoFocus>
-            {busy ? "Deleting…" : confirmLabel}
+          <button
+            type="button"
+            className={danger ? "btn del sm" : "btn sm"}
+            disabled={busy}
+            onClick={onConfirm}
+            autoFocus
+          >
+            {busy ? (danger ? "Deleting…" : "Working…") : confirmLabel}
           </button>
         </div>
       </div>
