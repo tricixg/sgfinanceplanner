@@ -2,6 +2,7 @@ import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { addCpfContribution, listCpfContributions } from "@/lib/cpf/contributions";
+import { parseClientRequestId } from "@/lib/api/idempotency";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest) {
     ma?: number;
     note?: string;
     creditedOn?: string;
+    /** Idempotency key, one per submit; a retry returns the original row. */
+    clientRequestId?: string;
   };
   try {
     body = await req.json();
@@ -52,6 +55,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "month required" }, { status: 400 });
   }
 
+  const clientRequestId = parseClientRequestId(body.clientRequestId);
+  if (clientRequestId && typeof clientRequestId === "object") {
+    return NextResponse.json({ error: clientRequestId.error }, { status: 400 });
+  }
+
   try {
     const supabase = await createAuthedSupabaseClient();
     const result = await addCpfContribution(supabase, auth.user.id, {
@@ -61,6 +69,7 @@ export async function POST(req: NextRequest) {
       ma: Number(body.ma ?? 0),
       note: body.note,
       creditedOn: body.creditedOn ?? null,
+      clientRequestId,
     });
     console.info("[api/cpf/contributions] POST ok", {
       userId: auth.user.id,

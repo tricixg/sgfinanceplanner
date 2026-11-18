@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CpfContribution } from "@/lib/cpf/types";
-import { loadFinanceProfile, saveFinanceProfile } from "@/lib/profile/load";
+import { callLedgerRpc, RpcError } from "@/lib/supabase/rpc";
 
 function mapCpfContribution(row: Record<string, unknown>): CpfContribution {
   return {
@@ -38,16 +38,16 @@ export type AddCpfContributionInput = {
   note?: string;
   /** Date it was credited (YYYY-MM-DD). Optional for older clients. */
   creditedOn?: string | null;
+  /** Idempotency key (one per submit); a retry returns the original row. */
+  clientRequestId?: string | null;
 };
 
 export type CpfBalance = { oa: number; sa: number; ma: number };
 
-/** Inserts a contribution log row, then increments the user's current OA/SA/MA balances by the same amounts. */
-export async function addCpfContribution(
-  supabase: SupabaseClient,
-  userId: string,
-  input: AddCpfContributionInput
-): Promise<{ contribution: CpfContribution; profile: CpfBalance }> {
+/** Migration that adds the CPF functions used below. */
+export const CPF_LEDGER_MIGRATION = "074_cpf_ledger_functions.sql";
+
+function validateAmounts(input: AddCpfContributionInput) {
   const { oa, sa, ma } = input;
   if (![oa, sa, ma].every((n) => Number.isFinite(n) && n >= 0)) {
     throw new Error("OA, SA, and MA must be non-negative numbers");
@@ -55,83 +55,86 @@ export async function addCpfContribution(
   if (oa === 0 && sa === 0 && ma === 0) {
     throw new Error("Enter at least one non-zero contribution amount");
   }
+}
 
-  const { data: row, error: insErr } = await supabase
-    .from("cpf_contributions")
-    .insert({
-      user_id: userId,
-      month: input.month,
-      oa,
-      sa,
-      ma,
-      note: input.note ?? "",
-      credited_on: input.creditedOn && /^\d{4}-\d{2}-\d{2}$/.test(input.creditedOn) ? input.creditedOn : null,
-    })
-    .select("*")
-    .single();
+function creditedOnOrNull(value: string | null | undefined): string | null {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
 
-  if (insErr) {
-    if (insErr.code === "23505") {
+function toBalance(p: { oa: unknown; sa: unknown; ma: unknown }): CpfBalance {
+  return { oa: Number(p.oa ?? 0), sa: Number(p.sa ?? 0), ma: Number(p.ma ?? 0) };
+}
+
+type ContributionRpcResult = {
+  contribution: Record<string, unknown>;
+  profile: { oa: unknown; sa: unknown; ma: unknown };
+  replayed?: boolean;
+};
+
+/**
+ * Inserts a contribution log row and increments the user's current OA/SA/MA
+ * by the same amounts — one database transaction.
+ */
+export async function addCpfContribution(
+  supabase: SupabaseClient,
+  userId: string,
+  input: AddCpfContributionInput
+): Promise<{ contribution: CpfContribution; profile: CpfBalance }> {
+  validateAmounts(input);
+
+  let result: ContributionRpcResult;
+  try {
+    result = await callLedgerRpc<ContributionRpcResult>(
+      supabase,
+      "cpf_add_contribution",
+      {
+        p_user_id: userId,
+        p_month: input.month,
+        p_oa: input.oa,
+        p_sa: input.sa,
+        p_ma: input.ma,
+        p_note: input.note ?? "",
+        p_credited_on: creditedOnOrNull(input.creditedOn),
+        p_client_request_id: input.clientRequestId ?? null,
+      },
+      CPF_LEDGER_MIGRATION
+    );
+  } catch (e) {
+    if (e instanceof RpcError && e.code === "23505") {
       throw new Error(
         `Already logged a contribution for ${input.month} — delete it first to re-log.`
       );
     }
-    throw new Error(insErr.message);
+    throw e;
   }
 
-  const current = await loadFinanceProfile(supabase, userId);
-  const updated = await saveFinanceProfile(supabase, userId, {
-    oa: current.oa + oa,
-    sa: current.sa + sa,
-    ma: current.ma + ma,
-  });
+  console.info(
+    result.replayed ? "[cpf/contributions] replayed (idempotency key)" : "[cpf/contributions] added",
+    { userId, month: input.month }
+  );
 
-  console.info("[cpf/contributions] added", { userId, month: input.month });
-
-  return {
-    contribution: mapCpfContribution(row),
-    profile: { oa: updated.oa, sa: updated.sa, ma: updated.ma },
-  };
+  return { contribution: mapCpfContribution(result.contribution), profile: toBalance(result.profile) };
 }
 
-/** Deletes a contribution log row, then reverses its effect on the current OA/SA/MA balances. */
+/** Deletes a contribution log row and reverses its effect on OA/SA/MA — one database transaction. */
 export async function deleteCpfContribution(
   supabase: SupabaseClient,
   userId: string,
   contributionId: string
 ): Promise<CpfBalance> {
-  const { data: row, error: readErr } = await supabase
-    .from("cpf_contributions")
-    .select("*")
-    .eq("id", contributionId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (readErr || !row) {
-    throw new Error(readErr?.message ?? "Contribution not found");
-  }
-
-  const { error: delErr } = await supabase
-    .from("cpf_contributions")
-    .delete()
-    .eq("id", contributionId)
-    .eq("user_id", userId);
-  if (delErr) throw new Error(delErr.message);
-
-  const current = await loadFinanceProfile(supabase, userId);
-  const updated = await saveFinanceProfile(supabase, userId, {
-    oa: Math.max(0, current.oa - Number(row.oa ?? 0)),
-    sa: Math.max(0, current.sa - Number(row.sa ?? 0)),
-    ma: Math.max(0, current.ma - Number(row.ma ?? 0)),
-  });
-
+  const profile = await callLedgerRpc<{ oa: unknown; sa: unknown; ma: unknown }>(
+    supabase,
+    "cpf_delete_contribution",
+    { p_user_id: userId, p_contribution_id: contributionId },
+    CPF_LEDGER_MIGRATION
+  );
   console.info("[cpf/contributions] deleted", { userId, contributionId });
-
-  return { oa: updated.oa, sa: updated.sa, ma: updated.ma };
+  return toBalance(profile);
 }
 
 /**
- * Edits a contribution in place, then moves OA/SA/MA by the difference
- * between the old and new amounts.
+ * Edits a contribution in place and moves OA/SA/MA by the difference between
+ * the old and new amounts — one database transaction.
  */
 export async function updateCpfContribution(
   supabase: SupabaseClient,
@@ -139,52 +142,31 @@ export async function updateCpfContribution(
   id: string,
   input: AddCpfContributionInput
 ): Promise<{ contribution: CpfContribution; profile: CpfBalance }> {
-  const { oa, sa, ma } = input;
-  if (![oa, sa, ma].every((n) => Number.isFinite(n) && n >= 0)) {
-    throw new Error("OA, SA, and MA must be non-negative numbers");
-  }
-  if (oa === 0 && sa === 0 && ma === 0) {
-    throw new Error("Enter at least one non-zero contribution amount");
-  }
+  validateAmounts(input);
 
-  const { data: oldRow, error: readErr } = await supabase
-    .from("cpf_contributions")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (readErr || !oldRow) throw new Error(readErr?.message ?? "Contribution not found");
-
-  const { data: row, error } = await supabase
-    .from("cpf_contributions")
-    .update({
-      month: input.month,
-      oa,
-      sa,
-      ma,
-      note: input.note ?? "",
-      credited_on: input.creditedOn && /^\d{4}-\d{2}-\d{2}$/.test(input.creditedOn) ? input.creditedOn : null,
-    })
-    .eq("id", id)
-    .eq("user_id", userId)
-    .select("*")
-    .single();
-  if (error) {
-    if (error.code === "23505") {
+  let result: ContributionRpcResult;
+  try {
+    result = await callLedgerRpc<ContributionRpcResult>(
+      supabase,
+      "cpf_update_contribution",
+      {
+        p_user_id: userId,
+        p_contribution_id: id,
+        p_month: input.month,
+        p_oa: input.oa,
+        p_sa: input.sa,
+        p_ma: input.ma,
+        p_note: input.note ?? "",
+        p_credited_on: creditedOnOrNull(input.creditedOn),
+      },
+      CPF_LEDGER_MIGRATION
+    );
+  } catch (e) {
+    if (e instanceof RpcError && e.code === "23505") {
       throw new Error(`Already logged a contribution for ${input.month.slice(0, 7)}`);
     }
-    throw new Error(error.message);
+    throw e;
   }
-
-  const current = await loadFinanceProfile(supabase, userId);
-  const updated = await saveFinanceProfile(supabase, userId, {
-    oa: Math.max(0, current.oa + oa - Number(oldRow.oa ?? 0)),
-    sa: Math.max(0, current.sa + sa - Number(oldRow.sa ?? 0)),
-    ma: Math.max(0, current.ma + ma - Number(oldRow.ma ?? 0)),
-  });
   console.info("[cpf/contributions] updated", { userId, id });
-  return {
-    contribution: mapCpfContribution(row),
-    profile: { oa: updated.oa, sa: updated.sa, ma: updated.ma },
-  };
+  return { contribution: mapCpfContribution(result.contribution), profile: toBalance(result.profile) };
 }

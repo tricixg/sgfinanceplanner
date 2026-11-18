@@ -1,14 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   CPF_TXN_CATEGORIES,
-  cpfTxnOaDelta,
   isCpfTxnCategory,
   type CpfBtoStage,
   type CpfFundingSource,
   type CpfTransaction,
   type CpfTxnCategory,
 } from "@/lib/cpf/types";
-import { loadFinanceProfile, saveFinanceProfile } from "@/lib/profile/load";
+import { callLedgerRpc } from "@/lib/supabase/rpc";
+import { CPF_LEDGER_MIGRATION } from "@/lib/cpf/contributions";
 
 export function mapCpfTransaction(row: Record<string, unknown>): CpfTransaction {
   return {
@@ -47,6 +47,8 @@ export type AddCpfTransactionInput = {
   fundingSource?: CpfFundingSource;
   btoStage?: CpfBtoStage | null;
   note?: string;
+  /** Idempotency key (one per submit); a retry returns the original row. */
+  clientRequestId?: string | null;
 };
 
 /**
@@ -89,75 +91,64 @@ export function normalizeCpfTransactionInput(input: AddCpfTransactionInput) {
   };
 }
 
-/** Inserts a transaction, then applies its effect to the user's OA balance (cpf_oa rows only). */
+function rpcFields(fields: ReturnType<typeof normalizeCpfTransactionInput>) {
+  return {
+    p_txn_date: fields.txn_date,
+    p_direction: fields.direction,
+    p_funding_source: fields.funding_source,
+    p_amount: fields.amount,
+    p_category: fields.category,
+    p_bto_stage: fields.bto_stage,
+    p_note: fields.note,
+  };
+}
+
+/** Inserts a transaction and applies its effect to OA (cpf_oa rows only) — one database transaction. */
 export async function addCpfTransaction(
   supabase: SupabaseClient,
   userId: string,
   input: AddCpfTransactionInput
 ): Promise<{ transaction: CpfTransaction; oa: number }> {
   const fields = normalizeCpfTransactionInput(input);
-  const { data: row, error } = await supabase
-    .from("cpf_transactions")
-    .insert({ user_id: userId, ...fields })
-    .select("*")
-    .single();
-  if (error) throw new Error(error.message);
-  const transaction = mapCpfTransaction(row);
-
-  const current = await loadFinanceProfile(supabase, userId);
-  const delta = cpfTxnOaDelta(transaction);
-  let oa = current.oa;
-  if (delta !== 0) {
-    const updated = await saveFinanceProfile(supabase, userId, {
-      oa: Math.max(0, current.oa + delta),
-    });
-    oa = updated.oa;
-  }
-  console.info("[cpf/transactions] added", {
+  const result = await callLedgerRpc<{ transaction: Record<string, unknown>; oa: unknown; replayed: boolean }>(
+    supabase,
+    "cpf_add_transaction",
+    {
+      p_user_id: userId,
+      ...rpcFields(fields),
+      p_client_request_id: input.clientRequestId ?? null,
+    },
+    CPF_LEDGER_MIGRATION
+  );
+  const transaction = mapCpfTransaction(result.transaction);
+  console.info(result.replayed ? "[cpf/transactions] replayed (idempotency key)" : "[cpf/transactions] added", {
     userId,
     category: transaction.category,
     stage: transaction.btoStage,
   });
-  return { transaction, oa };
+  return { transaction, oa: Number(result.oa ?? 0) };
 }
 
-/** Deletes a transaction, then reverses its effect on the OA balance. */
+/** Deletes a transaction and reverses its effect on OA — one database transaction. */
 export async function deleteCpfTransaction(
   supabase: SupabaseClient,
   userId: string,
   id: string
 ): Promise<{ oa: number }> {
-  const { data: row, error: readErr } = await supabase
-    .from("cpf_transactions")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (readErr || !row) throw new Error(readErr?.message ?? "Transaction not found");
-
-  const { error: delErr } = await supabase
-    .from("cpf_transactions")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", userId);
-  if (delErr) throw new Error(delErr.message);
-
-  const current = await loadFinanceProfile(supabase, userId);
-  const delta = cpfTxnOaDelta(mapCpfTransaction(row));
-  let oa = current.oa;
-  if (delta !== 0) {
-    const updated = await saveFinanceProfile(supabase, userId, {
-      oa: Math.max(0, current.oa - delta),
-    });
-    oa = updated.oa;
-  }
+  const oa = await callLedgerRpc<number>(
+    supabase,
+    "cpf_delete_transaction",
+    { p_user_id: userId, p_transaction_id: id },
+    CPF_LEDGER_MIGRATION
+  );
   console.info("[cpf/transactions] deleted", { userId, id });
-  return { oa };
+  return { oa: Number(oa ?? 0) };
 }
 
 /**
- * Edits a transaction in place, then moves the OA balance by the difference
- * between the old and new effect (e.g. CPF $1,000 → cash: OA goes back up $1,000).
+ * Edits a transaction in place and moves OA by the difference between the
+ * old and new effect (e.g. CPF $1,000 → cash: OA goes back up $1,000) — one
+ * database transaction.
  */
 export async function updateCpfTransaction(
   supabase: SupabaseClient,
@@ -166,31 +157,13 @@ export async function updateCpfTransaction(
   input: AddCpfTransactionInput
 ): Promise<{ transaction: CpfTransaction; oa: number }> {
   const fields = normalizeCpfTransactionInput(input);
-  const { data: oldRow, error: readErr } = await supabase
-    .from("cpf_transactions")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (readErr || !oldRow) throw new Error(readErr?.message ?? "Transaction not found");
-
-  const { data: row, error } = await supabase
-    .from("cpf_transactions")
-    .update(fields)
-    .eq("id", id)
-    .eq("user_id", userId)
-    .select("*")
-    .single();
-  if (error) throw new Error(error.message);
-  const transaction = mapCpfTransaction(row);
-
-  const diff = cpfTxnOaDelta(transaction) - cpfTxnOaDelta(mapCpfTransaction(oldRow));
-  const current = await loadFinanceProfile(supabase, userId);
-  let oa = current.oa;
-  if (diff !== 0) {
-    const updated = await saveFinanceProfile(supabase, userId, { oa: Math.max(0, current.oa + diff) });
-    oa = updated.oa;
-  }
-  console.info("[cpf/transactions] updated", { userId, id, diff });
-  return { transaction, oa };
+  const result = await callLedgerRpc<{ transaction: Record<string, unknown>; oa: unknown }>(
+    supabase,
+    "cpf_update_transaction",
+    { p_user_id: userId, p_transaction_id: id, ...rpcFields(fields) },
+    CPF_LEDGER_MIGRATION
+  );
+  const transaction = mapCpfTransaction(result.transaction);
+  console.info("[cpf/transactions] updated", { userId, id });
+  return { transaction, oa: Number(result.oa ?? 0) };
 }
