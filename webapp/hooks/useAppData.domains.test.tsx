@@ -119,10 +119,22 @@ describe("domain-scoped loading (PERF-003)", () => {
     let release!: () => void;
     hold = new Promise<void>((r) => (release = r));
     await act(async () => void root.render(<Harness needs={["snapshots"]} />));
+    // The request was sent and is held open, so this state can't come from a later tick.
+    expect(gets()).toEqual(["/api/portfolio/snapshots"]);
+    expect(latest.domainStatus.snapshots).toBe("loading");
     expect(latest.loading).toBe(false);
     expect(latest.snapshotsLoading).toBe(true); // still in flight: the response is held
     release();
-    await act(async () => void (await new Promise((r) => setTimeout(r, 20))));
+    // Once it arrives, the placeholder clears.
+    await vi.waitFor(
+      async () => {
+        await act(async () => void (await new Promise((r) => setTimeout(r, 15))));
+        expect(latest.snapshotsLoading).toBe(false);
+      },
+      { timeout: 5000, interval: 20 }
+    );
+    expect(latest.state.portfolioHistory).toEqual([]);
+    act(() => root.unmount());
   });
 
   it("reading a field of a domain nobody requested loads it instead of showing a default as real data", async () => {
