@@ -132,30 +132,25 @@ describe("expense_delete_with_ledger", () => {
     });
     expect([await balanceOf(db, "user_savings_accounts", acct), await balanceOf(db, "loans", loan, "outstanding")]).toEqual([700, 1700]);
 
-    const res = await deleteExpenseWithLedger(sb, alice, expense.id, { restoreBnpl: true, reverseFund: true });
-    expect(res?.warnings).toEqual([]);
+    expect(await deleteExpenseWithLedger(sb, alice, expense.id)).not.toBeNull();
     expect([await balanceOf(db, "user_savings_accounts", acct), await balanceOf(db, "loans", loan, "outstanding")]).toEqual([1000, 2000]);
     expect(await count(db, "select count(*) n from expenses where id = $1", [expense.id])).toBe(0);
     expect(await count(db, "select count(*) n from savings_transactions where expense_id = $1", [expense.id])).toBe(0);
 
-    expect(await deleteExpenseWithLedger(sb, alice, expense.id, { restoreBnpl: true, reverseFund: true })).toBeNull();
+    expect(await deleteExpenseWithLedger(sb, alice, expense.id)).toBeNull();
     expect(await balanceOf(db, "loans", loan, "outstanding")).toBe(2000);
   });
 
-  it("restores BNPL only when asked (the unified-list path never did)", async () => {
+  it("restores BNPL months on delete (both delete paths now do)", async () => {
     const plan = await newBnpl(db, alice, 6, 0);
     const sb = rpcClientAs(db, alice);
-    const mk = () => createExpenseWithLedger(sb, alice, { row: row(100, { auto_category: "bnpl", bnpl_id: plan }), bnplId: plan });
-    const a = await mk();
-    const b = await mk();
-    expect(await balanceOf(db, "bnpl_plans", plan, "months_paid")).toBe(2);
-    await deleteExpenseWithLedger(sb, alice, a.expense.id, { restoreBnpl: false, reverseFund: false });
-    expect(await balanceOf(db, "bnpl_plans", plan, "months_paid")).toBe(2);
-    await deleteExpenseWithLedger(sb, alice, b.expense.id, { restoreBnpl: true, reverseFund: true });
+    const a = await createExpenseWithLedger(sb, alice, { row: row(100, { auto_category: "bnpl", bnpl_id: plan }), bnplId: plan });
     expect(await balanceOf(db, "bnpl_plans", plan, "months_paid")).toBe(1);
+    await deleteExpenseWithLedger(sb, alice, a.expense.id);
+    expect(await balanceOf(db, "bnpl_plans", plan, "months_paid")).toBe(0);
   });
 
-  it("a fund reversal the fund can't cover is skipped with a warning (as before); the expense is still deleted", async () => {
+  it("076: if the fund can't cover the reversal, the delete is refused and nothing changes", async () => {
     const fund = await newFund(db, alice, 0);
     const sb = rpcClientAs(db, alice);
     const { expense } = await createExpenseWithLedger(sb, alice, {
@@ -163,9 +158,27 @@ describe("expense_delete_with_ledger", () => {
       fund: { fundId: fund, note: "Recurring invest: ETF" },
     });
     await db.query("update investment_funds set balance = 100 where id = $1", [fund]); // spent elsewhere
-    const res = await deleteExpenseWithLedger(sb, alice, expense.id, { restoreBnpl: true, reverseFund: true });
-    expect(res?.warnings).toEqual(["fund reversal failed: Insufficient balance"]);
+    await expect(deleteExpenseWithLedger(sb, alice, expense.id)).rejects.toThrow(
+      "Can't delete this payment: the fund no longer holds enough to reverse it (it has $100.00, this payment was $250.00)."
+    );
     expect(await balanceOf(db, "investment_funds", fund)).toBe(100);
+    expect(await count(db, "select count(*) n from expenses where id = $1", [expense.id])).toBe(1);
+
+    await db.query("update investment_funds set balance = 300 where id = $1", [fund]);
+    await deleteExpenseWithLedger(sb, alice, expense.id);
+    expect(await balanceOf(db, "investment_funds", fund)).toBe(50);
+    expect(await count(db, "select count(*) n from expenses where id = $1", [expense.id])).toBe(0);
+  });
+
+  it("a deleted loan clears the expense's link (ON DELETE SET NULL), so its payment can still be deleted", async () => {
+    const loan = await newLoan(db, alice, 1000);
+    const sb = rpcClientAs(db, alice);
+    const { expense } = await createExpenseWithLedger(sb, alice, {
+      row: row(100, { auto_category: "debt", loan_id: loan }),
+      loanId: loan,
+    });
+    await db.query("delete from loans where id = $1", [loan]);
+    expect(await deleteExpenseWithLedger(sb, alice, expense.id)).not.toBeNull();
     expect(await count(db, "select count(*) n from expenses where id = $1", [expense.id])).toBe(0);
   });
 
@@ -180,7 +193,7 @@ describe("expense_delete_with_ledger", () => {
       [alice, acct, expense.id]
     );
     await expect(
-      deleteExpenseWithLedger(sb, alice, expense.id, { restoreBnpl: true, reverseFund: true })
+      deleteExpenseWithLedger(sb, alice, expense.id)
     ).rejects.toThrow("Insufficient balance for reversal");
     expect(await count(db, "select count(*) n from expenses where id = $1", [expense.id])).toBe(1);
   });

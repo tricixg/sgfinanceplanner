@@ -85,6 +85,7 @@ All application tables use **Row Level Security (RLS)** unless noted.
 | 073 | `073_expense_ledger_functions.sql` | DATA-003: expense create/delete with ledger effects in one transaction; `client_request_id` on `expenses` |
 | 074 | `074_cpf_ledger_functions.sql` | DATA-003: atomic CPF contribution/transaction logging; `client_request_id` on both CPF tables |
 | 075 | `075_cpf_reject_negative.sql` | CPF changes that would take OA/SA/MA below $0 are rejected with a clear message instead of floored at 0 (replaces `private.cpf_profile_apply`) |
+| 076 | `076_expense_delete_strict.sql` | Expense delete is refused ("Can't delete this payment: …") instead of skipping a restore it can't make; both delete paths restore BNPL and reverse funds (replaces `expense_delete_with_ledger`) |
 
 ---
 
@@ -268,7 +269,7 @@ Every operation that changes a stored balance runs as **one Postgres function** 
 | `ledger_adjust_loan_outstanding` / `ledger_adjust_bnpl_months_paid` (072) | `adjustLoanOutstanding` / `adjustBnplMonthsPaid` | Same clamps (outstanding ≥ 0; months 0..tenure) |
 | `other_loan_record_payment` / `other_loan_add_draw_down` / `other_loan_restore_*` (072) | `recordOtherLoanPayment` / `addToOtherLoan` / `restoreOtherLoan*` | Expense + withdrawal/deposit + loan totals in one transaction; loan row locked and re-checked |
 | `expense_create_with_ledger` (073) | `POST /api/expenses` multi-step | Expense + loan/BNPL/fund + cash withdrawal or card ledger row |
-| `expense_delete_with_ledger` (073) | `DELETE /api/expenses/[id]`, unified-list delete | Restores that used to be "log and continue" are still skipped and returned as `warnings` |
+| `expense_delete_with_ledger` (073, replaced by 076) | `DELETE /api/expenses/[id]`, unified-list delete | Both paths: reverse ledger, delete, restore loan / other loan / BNPL / fund. If a restore can't be made (e.g. the fund no longer holds enough) the delete is refused with "Can't delete this payment: …" (HTTP 409) and nothing changes |
 | `cpf_add/update/delete_contribution`, `cpf_add/update/delete_transaction` (074) | `lib/cpf/*` | Log row + OA/SA/MA, applied exactly. Since 075 a delete, edit or OA debit that would take a balance below $0 is **rejected** ("This would take your CPF OA below $0 …") and nothing is written, so add-then-delete always returns to the start. Credits and contributions are never blocked |
 
 **Security.** All are `SECURITY INVOKER`: they run as the caller, so RLS still decides what can be touched. Each also checks `p_user_id = auth.uid()` when there is a session (`private.ledger_assert_caller`); the Telegram bot (service role, no `auth.uid()`) passes the linked user's id. `execute` is granted to `authenticated` and `service_role`, revoked from `anon`. Helpers live in the `private` schema, which PostgREST does not expose. The single exception is `private.ledger_audit_append`, which is `SECURITY DEFINER` because API users have no insert right on the audit log; it always records `auth.uid()` when present.

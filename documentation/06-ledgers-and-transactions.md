@@ -58,9 +58,11 @@ sequenceDiagram
 
 1. Reverse the ledger (`ledger_reverse_expense`): restore cash balance, delete linked `savings_transactions` and `budget_transactions` by `expense_id`. If a restore would overdraw, nothing is deleted
 2. Delete the `expenses` row
-3. Auto debt payment: restore loan / other-loan `outstanding`; BNPL: months paid −1; recurring invest: withdraw from the fund. As before, a restore whose target is gone, or a fund that can't cover the reversal, is skipped and logged (returned as `warnings`)
+3. Auto debt payment: restore loan / other-loan `outstanding`; BNPL: months paid −1; recurring invest: withdraw from the fund
 
-The unified transactions list uses the same function without the BNPL / fund steps (it never did them).
+If any step can't be done, the whole delete is refused (HTTP 409) with a "Can't delete this payment: …" message and nothing changes (076). In practice that is a fund that no longer holds enough to reverse a recurring-invest payment: deleting a loan, BNPL plan or fund clears the expense's link (`ON DELETE SET NULL`), so that step is simply skipped.
+
+The unified transactions list uses the same function with the same steps.
 
 All balance-changing operations (savings, funds, loans, CPF) are database functions; see [05 → Ledger functions](./05-database-schema.md#ledger-functions-and-audit-log-069074).
 

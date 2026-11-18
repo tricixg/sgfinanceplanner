@@ -50,30 +50,39 @@ export async function createExpenseWithLedger(
   return { expense: mapExpense(result.expense), replayed: result.replayed };
 }
 
+/** Start of the message the database raises when an expense delete is refused. */
+export const EXPENSE_DELETE_BLOCKED_PREFIX = "Can't delete this payment:";
+
+/** True for the "Can't delete this payment: …" refusals from expense_delete_with_ledger. */
+export function isExpenseDeleteBlocked(message: string): boolean {
+  return message.startsWith(EXPENSE_DELETE_BLOCKED_PREFIX);
+}
+
 /**
- * Reverses an expense's ledger entries, deletes it, and restores the loan /
- * other loan (and optionally BNPL plan and fund) it paid — in one database
- * transaction. Restores whose target is gone, or a fund reversal the fund
- * can't cover, are skipped (as before) and returned as warnings.
+ * Reverses an expense's ledger entries, deletes it, and restores what it paid
+ * (loan / personal loan outstanding, BNPL months, fund deposit) — one database
+ * transaction. If any of that can't be done (e.g. the fund no longer holds
+ * enough to reverse a recurring-invest payment) the delete is refused with a
+ * "Can't delete this payment: …" message and nothing changes (migration 076).
  * Returns null when the expense doesn't exist.
  */
 export async function deleteExpenseWithLedger(
   supabase: SupabaseClient,
   userId: string,
-  expenseId: string,
-  opts: { restoreBnpl: boolean; reverseFund: boolean }
-): Promise<{ expense: Record<string, unknown>; warnings: string[] } | null> {
-  const result = await callLedgerRpc<{ expense: Record<string, unknown>; warnings: string[] } | null>(
+  expenseId: string
+): Promise<{ expense: Record<string, unknown> } | null> {
+  const result = await callLedgerRpc<{ expense: Record<string, unknown> } | null>(
     supabase,
     "expense_delete_with_ledger",
     {
       p_user_id: userId,
       p_expense_id: expenseId,
-      p_restore_bnpl: opts.restoreBnpl,
-      p_reverse_fund: opts.reverseFund,
+      p_restore_bnpl: true,
+      p_reverse_fund: true,
     },
+    // The function exists since 073; 076 replaced it with the refusing version.
     EXPENSE_LEDGER_MIGRATION
   );
   if (!result) return null;
-  return { expense: result.expense, warnings: result.warnings ?? [] };
+  return { expense: result.expense };
 }

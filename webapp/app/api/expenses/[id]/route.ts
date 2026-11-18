@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { budgetLinePatchForCategoryEdit } from "@/lib/expenses/budget-line-link";
 import { mapExpense } from "@/lib/savings/db-mappers";
-import { deleteExpenseWithLedger } from "@/lib/expenses/expense-write";
+import { deleteExpenseWithLedger, isExpenseDeleteBlocked } from "@/lib/expenses/expense-write";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -80,25 +80,20 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const supabase = await createAuthedSupabaseClient();
 
   // Reverse ledger rows, delete the expense, restore loan / other loan /
-  // BNPL / fund — one database transaction.
+  // BNPL / fund — one database transaction; refused as a whole if any step
+  // can't be done.
   let result: Awaited<ReturnType<typeof deleteExpenseWithLedger>>;
   try {
-    result = await deleteExpenseWithLedger(supabase, user.id, id, {
-      restoreBnpl: true,
-      reverseFund: true,
-    });
+    result = await deleteExpenseWithLedger(supabase, user.id, id);
   } catch (e) {
-    console.error("[api/expenses] DELETE failed", e instanceof Error ? e.message : e);
-    return apiError("api/expenses/[id]", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[api/expenses] DELETE failed", msg);
+    return apiError("api/expenses/[id]", e, { status: isExpenseDeleteBlocked(msg) ? 409 : 500 });
   }
   if (!result) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const existing = result.expense;
-  for (const warning of result.warnings) {
-    // Same best-effort semantics as before: these restores are skipped, not fatal.
-    console.error("[api/expenses] DELETE", warning);
-  }
 
   console.info("[api/expenses] DELETE ok", {
     id,

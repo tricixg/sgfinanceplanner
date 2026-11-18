@@ -68,17 +68,11 @@ export async function deleteTransactionWithLedger(
   await deleteLinkedReimbursements(supabase, userId, recordType, id);
 
   if (recordType === "expense") {
-    // Reverse ledger rows, delete the expense and restore the (other) loan it
-    // paid in one database transaction. This path has never restored BNPL
-    // months or reversed fund deposits; that is kept as is.
-    const result = await deleteExpenseWithLedger(supabase, userId, id, {
-      restoreBnpl: false,
-      reverseFund: false,
-    });
+    // Same steps as DELETE /api/expenses/[id]: reverse ledger rows, delete the
+    // expense, restore loan / other loan / BNPL / fund — one database
+    // transaction, refused as a whole if any step can't be done.
+    const result = await deleteExpenseWithLedger(supabase, userId, id);
     if (!result) throw new Error("Not found");
-    for (const warning of result.warnings) {
-      console.error("[tx-actions] expense delete", { expenseId: id, warning });
-    }
     return;
   }
 
