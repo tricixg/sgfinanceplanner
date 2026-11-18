@@ -60,6 +60,7 @@ export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
   "Game (stakes) is required",
   "Game name is required",
   "Goal not found",
+  "Income categories could not be loaded",
   "Insufficient balance",
   "Insufficient balance for reversal",
   "Invalid JSON",
