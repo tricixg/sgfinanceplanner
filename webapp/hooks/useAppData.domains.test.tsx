@@ -96,8 +96,14 @@ describe("domain-scoped loading (PERF-003)", () => {
     const root = createRoot(document.createElement("div"));
     await act(async () => void root.render(<Harness needs={["loans"]} />));
     expect(latest.loading).toBe(true); // before the fetch resolves
-    for (let i = 0; i < 10; i++) await act(async () => void (await new Promise((r) => setTimeout(r, 15))));
-    expect(latest.loading).toBe(false);
+    // Wait for the condition, not a fixed delay: a busy CI machine can take longer than 150 ms.
+    await vi.waitFor(
+      async () => {
+        await act(async () => void (await new Promise((r) => setTimeout(r, 15))));
+        expect(latest.loading).toBe(false);
+      },
+      { timeout: 5000, interval: 20 }
+    );
     expect(latest.state.loans).toEqual([expect.objectContaining({ id: "l1" })]);
   });
 

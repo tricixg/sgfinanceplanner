@@ -6,6 +6,8 @@ import { formatTransactionWhen } from "@/lib/savings/format-transaction-when";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
 import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
+import { errorMessage, notifyError } from "@/lib/ui/notify";
+import { ErrorState } from "@/components/ui/States";
 
 /** Structural shape shared by SavingsTransaction and FundTransaction — this list only reads these fields. */
 type LedgerHistoryItem = {
@@ -35,11 +37,13 @@ export function TransactionList({
   const [items, setItems] = useState<LedgerHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const { res, data } = await fetchJson<{
         items?: LedgerHistoryItem[];
@@ -49,9 +53,12 @@ export function TransactionList({
       if (res.ok) {
         setItems(data.items ?? []);
         setTotal(data.total ?? data.items?.length ?? 0);
+      } else {
+        setLoadError(data.error ?? "Couldn't load transaction history.");
       }
     } catch (e) {
       console.warn("[TransactionList] load failed", e);
+      setLoadError(errorMessage(e, "Couldn't load transaction history."));
     } finally {
       setLoading(false);
     }
@@ -70,6 +77,7 @@ export function TransactionList({
       console.info("[TransactionList] deleted", { id });
     } catch (e) {
       console.warn("[TransactionList] delete failed", e);
+      notifyError(errorMessage(e, "Couldn't delete this transaction. Please try again."));
     } finally {
       setDeletingId(null);
     }
@@ -77,6 +85,9 @@ export function TransactionList({
 
   if (loading) {
     return <p className="note">Loading history…</p>;
+  }
+  if (loadError && !items.length) {
+    return <ErrorState message={loadError} onRetry={() => void load()} />;
   }
   if (!items.length) {
     return <p className="note">No transactions yet.</p>;

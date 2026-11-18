@@ -1,20 +1,17 @@
 "use client";
 
-import { useDomainLoadError } from "@/hooks/useDomainLoadError";
-import type { GuardedDomain } from "@/lib/sync/explicit-delete";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
+import { blocksEditing, useDomainLoadError, type LoadErrorDomain } from "@/hooks/useDomainLoadError";
 
-/** Shown when a domain failed to load; editing is disabled until a retry succeeds. */
-export function DomainLoadErrorBanner({ domain }: { domain: GuardedDomain }) {
+/** Shown when a domain failed to load; where it applies, editing is disabled until a retry succeeds. */
+export function DomainLoadErrorBanner({ domain }: { domain: LoadErrorDomain }) {
   const { error, label, retry } = useDomainLoadError(domain);
   if (!error) return null;
   return (
-    <div className="callout urgent" role="alert">
-      <span className="ico">Warning</span>
-      <b>Couldn&apos;t load your {label}.</b> What you see below may be incomplete, so
-      editing is turned off to protect your saved data.{" "}
-      <button type="button" className="btn ghost sm" onClick={retry}>
-        Retry
-      </button>
-    </div>
+    <LoadErrorCallout title={`Couldn’t load your ${label}.`} onRetry={retry}>
+      {blocksEditing(domain)
+        ? "What you see below may be incomplete, so editing is turned off to protect your saved data."
+        : "What you see below may be incomplete or out of date."}
+    </LoadErrorCallout>
   );
 }

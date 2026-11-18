@@ -14,6 +14,7 @@ import { paidDaysByEntry, owedDays, summarizeOncall, type OncallScope } from "@/
 import { fmtSalaryMonth, plural } from "@/lib/oncall/format";
 import type { OncallPayment, OncallPaymentInput } from "@/lib/oncall/types";
 import { sgtTodayYmd } from "@/lib/time/sgt";
+import { ErrorState } from "@/components/ui/States";
 
 type Props = { enabled: boolean };
 
@@ -66,6 +67,14 @@ export function TabOncall({ enabled }: Props) {
       onMessage(e instanceof Error ? e.message : "Failed to delete payment", "err");
     }
   };
+
+  if (enabled && !oncall.loading && oncall.loadError) {
+    return (
+      <section className="panel on">
+        <ErrorState message={oncall.loadError} onRetry={() => void oncall.reload()} />
+      </section>
+    );
+  }
 
   if (!enabled || (!oncall.loading && !oncall.configured)) {
     return (

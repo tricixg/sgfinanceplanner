@@ -73,6 +73,8 @@ export function useLiveQuotes(
       }>("/api/quotes", {
         method: "POST",
         credentials: "include",
+        // Quotes come from an outside provider, so allow more than the default.
+        timeoutMs: 30_000,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbols }),
       });

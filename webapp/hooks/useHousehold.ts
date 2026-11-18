@@ -2,6 +2,7 @@
 
 import { useCallback, useContext, useEffect, useRef, useState, useMemo } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import { errorMessage } from "@/lib/ui/notify";
 import type { HouseholdMember, PartnerInvite } from "@/lib/savings/types";
 import { HouseholdContext } from "@/contexts/app-data-contexts";
 
@@ -13,6 +14,7 @@ export function useHouseholdProvider(enabled: boolean) {
   const [receivedInvites, setReceivedInvites] = useState<PartnerInvite[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!enabled) {
@@ -20,6 +22,7 @@ export function useHouseholdProvider(enabled: boolean) {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const { res, data } = await fetchJson<{
         configured?: boolean;
@@ -30,7 +33,12 @@ export function useHouseholdProvider(enabled: boolean) {
         receivedInvites?: PartnerInvite[];
         error?: string;
       }>("/api/household", { credentials: "include" });
-      if (!res.ok || !data.configured) {
+      if (!res.ok) {
+        setConfigured(false);
+        setLoadError(data.error ?? "Couldn't load your household.");
+        return;
+      }
+      if (!data.configured) {
         setConfigured(false);
         return;
       }
@@ -44,6 +52,7 @@ export function useHouseholdProvider(enabled: boolean) {
     } catch (e) {
       console.error("[useHousehold] load failed", e);
       setConfigured(false);
+      setLoadError(errorMessage(e, "Couldn't load your household."));
     } finally {
       setLoading(false);
     }
@@ -118,6 +127,7 @@ export function useHouseholdProvider(enabled: boolean) {
       receivedInvites,
       loading,
       configured,
+      loadError,
       reload: load,
       ensureLoaded,
       sendInvite,
@@ -126,6 +136,7 @@ export function useHouseholdProvider(enabled: boolean) {
     }),
     [
       configured,
+      loadError,
       ensureLoaded,
       householdId,
       load,

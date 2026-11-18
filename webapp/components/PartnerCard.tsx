@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { useHousehold } from "@/hooks/useHousehold";
+import { ErrorState } from "@/components/ui/States";
 
 type HouseholdApi = ReturnType<typeof useHousehold>;
 
@@ -28,6 +29,15 @@ export function PartnerCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmUnlink, setConfirmUnlink] = useState(false);
+
+  if (household.loadError) {
+    return (
+      <div className="card settings-account">
+        <h3 className="settings-account-title">Partner</h3>
+        <ErrorState message={household.loadError} onRetry={() => void household.reload()} />
+      </div>
+    );
+  }
 
   if (!household.configured) {
     return null;

@@ -406,52 +406,76 @@ export function useAppDataProvider(
   const snapshotsLoading = enabled ? !settled("snapshots") : false;
 
   const reloadLoans = useCallback(async () => {
-    const { res, data } = await fetchJson<{ loans?: DashboardState["loans"] }>(
-      "/api/loans",
-      { credentials: "include" }
-    );
-    if (res.ok) {
-      setLoans(data.loans ?? []);
-      setDomainError("loans", null);
-      setDomainStatus("loans", "ready");
-      console.info("[useAppData] reloadLoans ok", { count: data.loans?.length ?? 0 });
-    } else {
+    try {
+      const { res, data } = await fetchJson<{ loans?: DashboardState["loans"] }>(
+        "/api/loans",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setLoans(data.loans ?? []);
+        setDomainError("loans", null);
+        setDomainStatus("loans", "ready");
+        console.info("[useAppData] reloadLoans ok", { count: data.loans?.length ?? 0 });
+      } else {
+        setDomainError("loans", "Couldn't load instalment plans");
+        setDomainStatus("loans", "error");
+      }
+    } catch (e) {
+      // Timeout, offline or a dropped connection: the list on screen is stale, so mark it failed
+      // (banner + editing off) rather than leaving the rejection unhandled.
+      console.warn("[useAppData] reloadLoans failed", e);
       setDomainError("loans", "Couldn't load instalment plans");
       setDomainStatus("loans", "error");
     }
   }, [setDomainError, setDomainStatus]);
 
   const reloadHoldings = useCallback(async () => {
-    const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
-      "/api/holdings",
-      { credentials: "include" }
-    );
-    if (res.ok) {
-      setHoldings(data.holdings ?? []);
-      setDomainError("holdings", null);
-      setDomainStatus("holdings", "ready");
-      console.info("[useAppData] reloadHoldings ok", {
-        count: data.holdings?.length ?? 0,
-      });
-    } else {
+    try {
+      const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
+        "/api/holdings",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setHoldings(data.holdings ?? []);
+        setDomainError("holdings", null);
+        setDomainStatus("holdings", "ready");
+        console.info("[useAppData] reloadHoldings ok", {
+          count: data.holdings?.length ?? 0,
+        });
+      } else {
+        setDomainError("holdings", "Couldn't load holdings");
+        setDomainStatus("holdings", "error");
+      }
+    } catch (e) {
+      // Timeout, offline or a dropped connection: the list on screen is stale, so mark it failed
+      // (banner + editing off) rather than leaving the rejection unhandled.
+      console.warn("[useAppData] reloadHoldings failed", e);
       setDomainError("holdings", "Couldn't load holdings");
       setDomainStatus("holdings", "error");
     }
   }, [setDomainError, setDomainStatus]);
 
   const reloadOtherLoans = useCallback(async () => {
-    const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
-      "/api/other-loans",
-      { credentials: "include" }
-    );
-    if (res.ok) {
-      setOtherLoans(data.otherLoans ?? []);
-      setDomainError("otherLoans", null);
-      setDomainStatus("otherLoans", "ready");
-      console.info("[useAppData] reloadOtherLoans ok", {
-        count: data.otherLoans?.length ?? 0,
-      });
-    } else {
+    try {
+      const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
+        "/api/other-loans",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setOtherLoans(data.otherLoans ?? []);
+        setDomainError("otherLoans", null);
+        setDomainStatus("otherLoans", "ready");
+        console.info("[useAppData] reloadOtherLoans ok", {
+          count: data.otherLoans?.length ?? 0,
+        });
+      } else {
+        setDomainError("otherLoans", "Couldn't load personal and balance-transfer loans");
+        setDomainStatus("otherLoans", "error");
+      }
+    } catch (e) {
+      // Timeout, offline or a dropped connection: the list on screen is stale, so mark it failed
+      // (banner + editing off) rather than leaving the rejection unhandled.
+      console.warn("[useAppData] reloadOtherLoans failed", e);
       setDomainError("otherLoans", "Couldn't load personal and balance-transfer loans");
       setDomainStatus("otherLoans", "error");
     }
