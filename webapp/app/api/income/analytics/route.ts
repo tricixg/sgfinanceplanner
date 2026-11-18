@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     throughYm,
     months,
     deposits,
-    categories: categories.map((c) => ({ id: c.id, name: c.name })),
+    categories: categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
     accounts: accountsBundle.accounts.map((a) => ({ id: a.id, name: a.name })),
   };
 

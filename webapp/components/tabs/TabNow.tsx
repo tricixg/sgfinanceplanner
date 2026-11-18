@@ -18,6 +18,7 @@ import {
 import { currentYm, fmt, fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import { budgetLinesForMonth } from "@/lib/finance/budget";
 import { ChartBox } from "@/components/ChartBox";
+import { FLOW_COLORS } from "@/lib/finance/category-colors";
 import type { ChartOptions } from "chart.js";
 import { fetchJson } from "@/lib/fetch-json";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
@@ -92,49 +93,49 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
         {
           label: "Baseline (salary)",
           data: rows.map((r) => r.incomeBaseline),
-          backgroundColor: "#2f5d3a",
+          backgroundColor: FLOW_COLORS.salary,
           stack: "inflows",
           order: 2,
         },
         {
           label: "Additional income",
           data: rows.map((r) => r.incomeAdditive),
-          backgroundColor: "#4a8055",
+          backgroundColor: FLOW_COLORS.additionalIncome,
           stack: "inflows",
           order: 2,
         },
         {
           label: "Fixed obligations",
           data: rows.map((r) => -r.fixed),
-          backgroundColor: "#d8cfb4",
+          backgroundColor: FLOW_COLORS.fixed,
           stack: "outflows",
           order: 2,
         },
         {
           label: "Loan instalments",
           data: rows.map((r) => -r.loans),
-          backgroundColor: "#c08a2e",
+          backgroundColor: FLOW_COLORS.loans,
           stack: "outflows",
           order: 2,
         },
         {
           label: "Variable spend",
           data: rows.map((r) => -r.spend),
-          backgroundColor: "#a89a76",
+          backgroundColor: FLOW_COLORS.variable,
           stack: "outflows",
           order: 2,
         },
         {
           label: "ILP premiums",
           data: rows.map((r) => -r.ilp),
-          backgroundColor: "#7a9eb5",
+          backgroundColor: FLOW_COLORS.ilp,
           stack: "outflows",
           order: 2,
         },
         {
           label: "Insurance premiums",
           data: rows.map((r) => -r.insurance),
-          backgroundColor: "#6b7d6a",
+          backgroundColor: FLOW_COLORS.insurance,
           stack: "outflows",
           order: 2,
         },
@@ -142,8 +143,8 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
           label: "Net",
           data: rows.map((r) => r.net),
           type: "line" as const,
-          borderColor: "#b5482e",
-          backgroundColor: "#b5482e",
+          borderColor: FLOW_COLORS.line,
+          backgroundColor: FLOW_COLORS.line,
           borderWidth: 2.5,
           pointRadius: 4,
           tension: 0.2,
@@ -261,13 +262,14 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
       <div className="card">
         <ChartBox type="bar" data={chartData} options={chartOpts} />
         <div className="legend">
-          <span><i className="dot" style={{ background: "var(--moss)" }} />Baseline income</span>
-          <span><i className="dot" style={{ background: "#4a8055" }} />Additional income</span>
-          <span><i className="dot" style={{ background: "var(--sand)" }} />Fixed obligations</span>
-          <span><i className="dot" style={{ background: "var(--gold)" }} />Loan instalments</span>
-          <span><i className="dot" style={{ background: "#7a9eb5" }} />ILP premiums</span>
-          <span><i className="dot" style={{ background: "#6b7d6a" }} />Insurance premiums</span>
-          <span><i className="dot" style={{ background: "var(--rust)" }} />Net position</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.salary }} />Baseline income (salary)</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.additionalIncome }} />Additional income</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.fixed }} />Fixed obligations</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.loans }} />Loan instalments</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.variable }} />Variable spend</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.ilp }} />ILP premiums</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.insurance }} />Insurance premiums</span>
+          <span><i className="dot" style={{ background: FLOW_COLORS.line }} />Net position</span>
         </div>
       </div>
 

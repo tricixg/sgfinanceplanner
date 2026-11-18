@@ -42,7 +42,7 @@ import {
   recurringFloorsByBudgetLine,
 } from "@/lib/finance/budget";
 import { computedLinesForMonth } from "@/lib/finance/computed-months";
-import { buildCategoryColors } from "@/lib/finance/category-colors";
+import { buildCategoryColors, FLOW_COLORS } from "@/lib/finance/category-colors";
 
 type Props = {
   state: DashboardState;
@@ -871,13 +871,13 @@ export function TabBudgetSavings({
           data={{
             labels: proj.labels,
             datasets: [
-              { label: "Invested", data: proj.invSeries, backgroundColor: "#3d6b8e", stack: "a" },
-              { label: "Cash", data: proj.cashSeries, backgroundColor: "#c08a2e", stack: "a" },
+              { label: "Invested", data: proj.invSeries, backgroundColor: FLOW_COLORS.investments, stack: "a" },
+              { label: "Cash", data: proj.cashSeries, backgroundColor: FLOW_COLORS.cash, stack: "a" },
               {
                 label: "LNW",
                 data: proj.nwSeries,
                 type: "line",
-                borderColor: "#11201a",
+                borderColor: FLOW_COLORS.line,
                 borderWidth: 2.5,
                 pointRadius: 3,
                 tension: 0.25,
