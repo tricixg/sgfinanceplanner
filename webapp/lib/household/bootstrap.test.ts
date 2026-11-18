@@ -29,10 +29,18 @@ describe("ensureUserHousehold", () => {
     expect(f.ops.filter((o) => o.kind === "insert")).toHaveLength(0);
   });
 
-  it("falls back to the legacy insert when the function isn't installed yet (migration 066 pending)", async () => {
+  it("fails loudly when create_solo_household() is missing (migration 066 is required), never inserting directly", async () => {
     const f = createFakeSupabase({});
+    await expect(ensureUserHousehold(f.client, USER)).rejects.toThrow();
+    expect(f.ops.filter((o) => o.kind === "insert")).toHaveLength(0);
+  });
+
+  it("inserts directly for a client with no signed-in user (service role / dev bypass)", async () => {
+    const f = createFakeSupabase(
+      {},
+      { rpc: { create_solo_household: () => ({ error: { message: "not_authenticated", code: "28000" } }) } }
+    );
     const id = await ensureUserHousehold(f.client, USER);
-    expect(f.table("household_members")).toHaveLength(1);
     expect(f.table("household_members")[0]).toMatchObject({ household_id: id, user_id: USER, role: "owner" });
   });
 

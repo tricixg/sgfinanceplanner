@@ -55,15 +55,9 @@ describe("GET /api/state", () => {
     expect(f.rpcCalls).toHaveLength(0);
   });
 
-  it("runs the legacy migration only for a full pre-v2 snapshot that is not yet migrated", async () => {
+  it("never migrates or rewrites an old full-snapshot row: it just returns its prefs", async () => {
     const legacy = {
-      monthlySal: 5000,
-      loans: [],
-      goals: [],
-      holdings: [],
-      budget: [],
-      accounts: [],
-      ilpPolicies: [],
+      monthlySal: 5000, loans: [], goals: [], holdings: [], budget: [], accounts: [], ilpPolicies: [],
       prefs: { theme: "dark" },
     };
     const f = createFakeSupabase(
@@ -71,20 +65,8 @@ describe("GET /api/state", () => {
       { rpc: { create_solo_household: () => ({ data: HH }) } }
     );
     client = f.client;
-    const first = await (await GET()).json();
-    expect(first.migrated).toBe(true);
-    expect(first.data).toEqual({ prefs: { theme: "dark" }, _migrated_v2: true });
-    // The household is created here because the migration needs it...
-    expect(f.rpcCalls.map((c) => c.name)).toEqual(["create_solo_household"]);
-    // ...and the row is now the slim v2 shape.
-    expect(f.table("dashboard_state")[0]!.data).toEqual({ prefs: { theme: "dark" }, _migrated_v2: true });
-
-    // Reading again is a plain read: no migration, no household, no writes.
-    f.ops.length = 0;
-    f.rpcCalls.length = 0;
-    const second = await (await GET()).json();
-    expect(second.migrated).toBeUndefined();
-    expect(second.data).toEqual({ prefs: { theme: "dark" }, _migrated_v2: true });
+    const body = await (await GET()).json();
+    expect(body.data.prefs).toEqual({ theme: "dark" });
     expect(f.ops.map((o) => `${o.kind}:${o.table}`)).toEqual(["select:dashboard_state"]);
     expect(f.rpcCalls).toHaveLength(0);
   });

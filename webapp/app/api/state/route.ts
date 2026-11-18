@@ -1,12 +1,8 @@
 import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { mergeWithDefaults } from "@/lib/finance/defaults";
-import { ensureUserHousehold } from "@/lib/household/bootstrap";
-import { migrateAllDomainsFromDashboard } from "@/lib/migrate-all-domains";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
 import type { DashboardState } from "@/lib/types";
 import { withRequestId } from "@/lib/api/with-request-id";
 
@@ -50,61 +46,9 @@ export const GET = withRequestId(async function GET() {
     return apiError("api/state", error);
   }
 
-  const raw = row?.data;
-  const rawObj =
-    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
-  const alreadyV2 = Boolean(rawObj?._migrated_v2);
-  const hasLegacyBlob = isPersistedDashboardSnapshot(raw);
-
-  // Reading prefs never writes. In particular it does not create the household: every endpoint
-  // that needs one (savings, household, BTO, transactions, ...) calls ensureUserHousehold()
-  // itself, so a household is created where it is first needed, not as a side effect of this
-  // GET. The only write left on this path is the one-time legacy migration below, which runs
-  // only for an account whose dashboard_state is still a full pre-v2 snapshot and has not been
-  // marked `_migrated_v2`; it writes the slim `{ prefs, _migrated_v2 }` row so it never runs again.
-  if (alreadyV2) {
-    const slim = prefsOnlyFromRaw(raw);
-    return NextResponse.json({
-      data: slim,
-      updatedAt: row?.updated_at ?? null,
-      source: "database",
-    });
-  }
-
-  if (hasLegacyBlob) {
-    // The legacy migration moves savings/household-scoped rows, so it needs the household.
-    await ensureUserHousehold(supabase, user.id);
-    const full = mergeWithDefaults(raw as Partial<DashboardState>);
-    const migrated = await migrateAllDomainsFromDashboard(
-      supabase,
-      user.id,
-      full,
-      raw
-    );
-    const slim: PrefsPayload = {
-      prefs: migrated.prefs ?? {},
-      _migrated_v2: true,
-    };
-    const { error: migErr } = await supabase.from("dashboard_state").upsert({
-      user_id: user.id,
-      data: slim,
-      updated_at: new Date().toISOString(),
-    });
-    if (migErr) {
-      console.error("[api/state] v2 migration persist failed", migErr.message);
-    } else {
-      console.info("[api/state] v2 migration persisted", { userId: user.id });
-    }
-
-    return NextResponse.json({
-      data: slim,
-      updatedAt: new Date().toISOString(),
-      source: "database",
-      migrated: true,
-    });
-  }
-
-  const slim = prefsOnlyFromRaw(raw);
+  // Reading prefs never writes, and never creates a household: every endpoint that needs one
+  // (savings, household, BTO, transactions, ...) calls ensureUserHousehold() itself.
+  const slim = prefsOnlyFromRaw(row?.data);
   console.info("[api/state] GET ok (prefs only)", { userId: user.id });
 
   return NextResponse.json({

@@ -5,16 +5,11 @@ import {
   loadCreditCards,
   saveCreditCards,
 } from "@/lib/credit-cards/load";
-import {
-  migrateCreditCardsFromDashboard,
-  needsCreditCardsMigration,
-} from "@/lib/credit-cards/migrate-from-dashboard";
 import { toCreditCard } from "@/lib/credit-cards/mappers";
 import { saveErrorStatus } from "@/lib/sync/save-error";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
-import type { CreditCard, DashboardState } from "@/lib/types";
+import type { CreditCard } from "@/lib/types";
 import { withRequestId } from "@/lib/api/with-request-id";
 
 export const GET = withRequestId(async function GET() {
@@ -28,21 +23,6 @@ export const GET = withRequestId(async function GET() {
 
   try {
     const supabase = await createAuthedSupabaseClient();
-
-    const { data: stateRow } = await supabase
-      .from("dashboard_state")
-      .select("data")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const raw = stateRow?.data;
-    if (isPersistedDashboardSnapshot(raw) && (await needsCreditCardsMigration(supabase, user.id, raw))) {
-      await migrateCreditCardsFromDashboard(
-        supabase,
-        user.id,
-        raw as DashboardState
-      );
-    }
 
     const rows = await loadCreditCards(supabase, user.id);
     const cards = rows.map(toCreditCard);

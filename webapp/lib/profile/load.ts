@@ -316,33 +316,3 @@ export async function saveIlpPolicies(
   }
   return loadIlpPolicies(supabase, userId);
 }
-
-export async function migrateProfileFromDashboard(
-  supabase: SupabaseClient,
-  userId: string,
-  state: DashboardState
-): Promise<void> {
-  const { data } = await supabase
-    .from("user_finance_profile")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!data) {
-    await saveFinanceProfile(supabase, userId, profileFromState(state));
-  }
-  const { count: insCount } = await supabase
-    .from("insurance_policies")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if ((insCount ?? 0) === 0 && state.insurancePolicies?.length) {
-    await saveInsurancePolicies(supabase, userId, state.insurancePolicies);
-  }
-  const { count: ilpCount } = await supabase
-    .from("ilp_policies")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if ((ilpCount ?? 0) === 0 && state.ilpPolicies?.length) {
-    await saveIlpPolicies(supabase, userId, state.ilpPolicies);
-  }
-  console.info("[migrate] profile bundle", { userId });
-}

@@ -8,13 +8,10 @@ import {
   saveFinanceProfile,
   saveIlpPolicies,
   saveInsurancePolicies,
-  migrateProfileFromDashboard,
   profileFromState,
 } from "@/lib/profile/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
-import { mergeWithDefaults } from "@/lib/finance/defaults";
 import type { DashboardState } from "@/lib/types";
 import { withRequestId } from "@/lib/api/with-request-id";
 
@@ -27,17 +24,6 @@ export const GET = withRequestId(async function GET() {
 
   try {
     const supabase = await createAuthedSupabaseClient();
-    const { data: stateRow } = await supabase
-      .from("dashboard_state")
-      .select("data")
-      .eq("user_id", auth.user.id)
-      .maybeSingle();
-
-    const raw = stateRow?.data;
-    if (isPersistedDashboardSnapshot(raw)) {
-      const state = mergeWithDefaults(raw as Partial<DashboardState>);
-      await migrateProfileFromDashboard(supabase, auth.user.id, state);
-    }
 
     const [profile, insurancePolicies, ilpPolicies] = await Promise.all([
       loadFinanceProfile(supabase, auth.user.id),

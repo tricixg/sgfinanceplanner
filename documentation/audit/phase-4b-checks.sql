@@ -1,7 +1,8 @@
 -- Phase 4B read-only checks. Run in the Supabase SQL editor. Nothing here changes data
 -- except the clearly marked, commented-out cleanup at the end.
 
--- 1) Accounts whose dashboard_state is still a full pre-v2 snapshot that has not been migrated.
+-- 1) (Historical: the code that acted on this was removed in Phase 4B once it returned 0 rows.)
+--    Accounts whose dashboard_state is still a full pre-v2 snapshot that has not been migrated.
 --    Mirrors isValidDashboardState() in webapp/lib/validate-state.ts and the `_migrated_v2` check
 --    in GET /api/state. 0 rows = the legacy migration code has nothing left to do.
 select user_id, updated_at, pg_column_size(data) as bytes

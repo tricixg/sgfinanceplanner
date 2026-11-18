@@ -96,17 +96,3 @@ export async function saveLoans(
   });
   return loadLoans(supabase, userId);
 }
-
-export async function migrateLoansFromDashboard(
-  supabase: SupabaseClient,
-  userId: string,
-  loans: Loan[]
-): Promise<void> {
-  const { count } = await supabase
-    .from("loans")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if ((count ?? 0) > 0 || !loans.length) return;
-  await saveLoans(supabase, userId, loans);
-  console.info("[migrate] loans", { userId, count: loans.length });
-}

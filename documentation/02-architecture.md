@@ -96,17 +96,13 @@ Key files:
 - Card statements — `/api/credit-cards/statements`
 - Travel, poker — respective APIs
 
-## Legacy migration path
+## Legacy migration (removed)
 
-On first `GET /api/state` after upgrade:
+Until Phase 4B, the first `GET /api/state` after the v2 upgrade moved a full pre-v2 `dashboard_state` snapshot into the normalized tables. A check on production showed no account still had one, so the code (`lib/migrate-all-domains.ts`, the `migrate*FromDashboard` functions, `isPersistedDashboardSnapshot`, and the legacy blocks in `/api/profile`, `/api/credit-cards`, `/api/state`) was deleted. It is in git history before that commit if ever needed.
 
-1. [webapp/app/api/state/route.ts](../webapp/app/api/state/route.ts) reads `dashboard_state.data`.
-2. If full legacy snapshot and not `_migrated_v2`, [webapp/lib/migrate-all-domains.ts](../webapp/lib/migrate-all-domains.ts) writes rows to normalized tables.
-3. Blob replaced with `{ prefs, _migrated_v2: true }`.
+`GET /api/state` is now a single read of `dashboard_state` (prefs only); `PUT` writes prefs only.
 
-Subsequent saves to `/api/state` only update **preferences**, not loans/cards/etc.
-
-`GET`/`PUT /api/state` never create a household. A household is created where it is first needed: every endpoint that uses one (`/api/household`, `/api/savings*`, `/api/transactions`, BTO planner, partner invites) calls `ensureUserHousehold()` itself (see [webapp/lib/household/bootstrap.ts](../webapp/lib/household/bootstrap.ts)). The only household creation on the `/api/state` path is inside the legacy migration above, because that migration moves household-scoped rows.
+`GET`/`PUT /api/state` never create a household. A household is created where it is first needed: every endpoint that uses one (`/api/household`, `/api/savings*`, `/api/transactions`, BTO planner, partner invites) calls `ensureUserHousehold()` itself (see [webapp/lib/household/bootstrap.ts](../webapp/lib/household/bootstrap.ts)), which requires migration 066's `create_solo_household()`.
 
 ## API route pattern
 

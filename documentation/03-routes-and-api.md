@@ -55,7 +55,7 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 
 | Method | Path | Handler | Primary lib |
 |--------|------|---------|-------------|
-| GET | `/api/state` | `app/api/state/route.ts` | `migrate-all-domains`, prefs |
+| GET | `/api/state` | `app/api/state/route.ts` | prefs only |
 | PUT | `/api/state` | same | Prefs only after migration |
 | GET | `/api/summary` | `app/api/summary/route.ts` | Profile, cards, holdings, savings totals |
 | GET | `/api/profile` | `app/api/profile/route.ts` | `lib/profile/load` |
