@@ -78,3 +78,39 @@ export async function newFund(db: TestDb, userId: string, balance: number): Prom
     )
   ).id;
 }
+
+export async function newOtherLoan(
+  db: TestDb,
+  userId: string,
+  opts: { outstanding: number; principal?: number; amountPaid?: number; type?: string }
+): Promise<string> {
+  return (
+    await one<{ id: string }>(
+      db,
+      `insert into other_loans (user_id, name, loan_type, principal, outstanding, amount_paid)
+       values ($1, 'Loan', $2, $3, $4, $5) returning id`,
+      [userId, opts.type ?? "personal", opts.principal ?? opts.outstanding, opts.outstanding, opts.amountPaid ?? 0]
+    )
+  ).id;
+}
+
+export async function newLoan(db: TestDb, userId: string, outstanding: number): Promise<string> {
+  return (
+    await one<{ id: string }>(
+      db,
+      "insert into loans (user_id, name, monthly, outstanding) values ($1, 'Car', 500, $2) returning id",
+      [userId, outstanding]
+    )
+  ).id;
+}
+
+export async function newBnpl(db: TestDb, userId: string, tenure: number, paid: number): Promise<string> {
+  return (
+    await one<{ id: string }>(
+      db,
+      `insert into bnpl_plans (user_id, name, total_amount, tenure_months, amount, months_paid)
+       values ($1, 'Phone', 1200, $2, 100, $3) returning id`,
+      [userId, tenure, paid]
+    )
+  ).id;
+}

@@ -7,7 +7,7 @@ import {
   COMPUTED_SUBSCRIPTION_LABEL,
 } from "@/lib/finance/budget";
 import type { AutoCategory } from "@/lib/expenses/auto-category-ids";
-import { roundMoney } from "@/lib/cards/interest-accrual";
+import { callLedgerRpc } from "@/lib/supabase/rpc";
 
 export type AutoPaymentPayload = {
   autoCategory: AutoCategory;
@@ -118,44 +118,32 @@ export async function loadFinancialAccount(
   };
 }
 
+/** Migration that adds the loan / BNPL / other-loan ledger functions. */
+export const LOAN_LEDGER_MIGRATION = "072_loan_ledger_functions.sql";
+
+/** outstanding = max(0, outstanding + delta) in one atomic database update. */
 export async function adjustLoanOutstanding(
   supabase: SupabaseClient,
   userId: string,
   loanId: string,
   delta: number
 ): Promise<{ ok: true; outstanding: number } | { ok: false; error: string }> {
-  const { data: loan, error } = await supabase
-    .from("loans")
-    .select("id, outstanding")
-    .eq("id", loanId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[auto-payment] loan fetch failed", error.message);
-    return { ok: false, error: error.message };
+  try {
+    const outstanding = await callLedgerRpc<number>(
+      supabase,
+      "ledger_adjust_loan_outstanding",
+      { p_user_id: userId, p_loan_id: loanId, p_delta: delta },
+      LOAN_LEDGER_MIGRATION
+    );
+    console.info("[auto-payment] loan outstanding adjusted", { userId, loanId });
+    return { ok: true, outstanding: Number(outstanding) };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message !== "Loan not found") {
+      console.error("[auto-payment] loan outstanding update failed", message);
+    }
+    return { ok: false, error: message };
   }
-  if (!loan) {
-    return { ok: false, error: "Loan not found" };
-  }
-
-  const next = Math.max(0, roundMoney(Number(loan.outstanding ?? 0) + delta));
-  const { error: updErr } = await supabase
-    .from("loans")
-    .update({ outstanding: next, updated_at: new Date().toISOString() })
-    .eq("id", loanId)
-    .eq("user_id", userId);
-
-  if (updErr) {
-    console.error("[auto-payment] loan outstanding update failed", updErr.message);
-    return { ok: false, error: updErr.message };
-  }
-
-  console.info("[auto-payment] loan outstanding adjusted", {
-    userId,
-    loanId,
-  });
-  return { ok: true, outstanding: next };
 }
 
 export async function verifyAutoPaymentSource(
