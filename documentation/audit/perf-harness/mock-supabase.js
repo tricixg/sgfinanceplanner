@@ -53,7 +53,14 @@ const server = http.createServer((req, res) => {
         return res.end(JSON.stringify(out));
       }
       if (!url.pathname.startsWith("/__")) calls.push({ t0, method: req.method, path: url.pathname });
-      if (url.pathname.startsWith("/auth/v1/user")) return res.end(JSON.stringify(USER));
+      if (url.pathname.startsWith("/auth/v1/user")) {
+        // MOCK_AUTH_REJECT=1: every token is rejected, like an expired/revoked/forged session.
+        if (process.env.MOCK_AUTH_REJECT) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ code: 401, error_code: "bad_jwt", msg: "invalid JWT" }));
+        }
+        return res.end(JSON.stringify(USER));
+      }
       if (url.pathname.startsWith("/auth/v1/")) return res.end(JSON.stringify({}));
       const accept = String(req.headers["accept"] || "");
       const wantsObject = accept.includes("vnd.pgrst.object");
