@@ -983,7 +983,30 @@ export function OtherLoansPanel({
                       <td>{l.dueDate ? fmtDate(l.dueDate) : "—"}</td>
                       <td className="num">{l.tenureMonths ? `${l.tenureMonths} mo` : "—"}</td>
                       <td className="num">{fmt2(l.principal)}</td>
-                      <td className="num">{fmt2(l.outstanding)}</td>
+                      <td className="num">
+                        <div>{fmt2(l.outstanding)}</div>
+                        {l.principal > 0 &&
+                          (() => {
+                            const pct = Math.min(
+                              100,
+                              Math.max(0, ((l.principal - l.outstanding) / l.principal) * 100)
+                            );
+                            return (
+                              <div
+                                className="progress sm"
+                                style={{ marginTop: 4, minWidth: 72 }}
+                                title={`${pct.toFixed(1)}% repaid`}
+                                role="progressbar"
+                                aria-label="Repaid"
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-valuenow={Math.round(pct)}
+                              >
+                                <i style={{ width: `${pct}%` }} />
+                              </div>
+                            );
+                          })()}
+                      </td>
                       <td className="num">{l.interestRateApr.toFixed(2)}</td>
                       <td className="num">{fmt2(l.feesPaid)}</td>
                       <td className="num">{l.monthly > 0 ? fmt2(l.monthly) : "—"}</td>
