@@ -250,6 +250,20 @@ describe("ensureStatementRows (PERF-007)", () => {
     for (const r of rows) expect(r.id.startsWith("pending:")).toBe(false);
   });
 
+  it("two loads at once (e.g. two tabs) both succeed and leave exactly one row per cycle", async () => {
+    const f = createFakeSupabase({ card_statements: [] });
+    const [a, b] = await Promise.all([
+      ensureStatementRows(f.client, USER, CARD),
+      ensureStatementRows(f.client, USER, CARD),
+    ]);
+    expect(a).toHaveLength(HISTORY_CYCLES);
+    expect(b).toHaveLength(HISTORY_CYCLES);
+    expect(f.table("card_statements")).toHaveLength(HISTORY_CYCLES);
+    expect(new Set(f.table("card_statements").map((r) => r.statement_close_date)).size).toBe(HISTORY_CYCLES);
+    // Whatever each caller got back refers to real rows, never a "pending:" placeholder.
+    for (const r of [...a, ...b]) expect(r.id.startsWith("pending:")).toBe(false);
+  });
+
   it("still surfaces a real database error", async () => {
     const f = createFakeSupabase({}, { failOn: (op) => (op.kind === "upsert" ? "db down" : null) });
     await expect(ensureStatementRows(f.client, USER, CARD)).rejects.toThrow("db down");

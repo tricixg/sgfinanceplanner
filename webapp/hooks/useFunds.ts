@@ -2,6 +2,7 @@
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import { errorMessage } from "@/lib/ui/notify";
 import type { Fund, FundsTotals } from "@/lib/funds/types";
 import { FundsContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
@@ -11,6 +12,7 @@ export function useFundsProvider(enabled: boolean) {
   const [totals, setTotals] = useState<FundsTotals | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!enabled) {
@@ -18,6 +20,7 @@ export function useFundsProvider(enabled: boolean) {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const { res, data } = await fetchJson<{
         configured?: boolean;
@@ -25,7 +28,12 @@ export function useFundsProvider(enabled: boolean) {
         totals?: FundsTotals;
         error?: string;
       }>("/api/funds", { credentials: "include" });
-      if (!res.ok || !data.configured) {
+      if (!res.ok) {
+        setConfigured(false);
+        setLoadError(data.error ?? "Couldn't load your investment funds.");
+        return;
+      }
+      if (!data.configured) {
         setConfigured(false);
         return;
       }
@@ -36,6 +44,7 @@ export function useFundsProvider(enabled: boolean) {
     } catch (e) {
       console.error("[useFunds] load failed", e);
       setConfigured(false);
+      setLoadError(errorMessage(e, "Couldn't load your investment funds."));
     } finally {
       setLoading(false);
     }
@@ -139,6 +148,7 @@ export function useFundsProvider(enabled: boolean) {
       totals,
       loading,
       configured,
+      loadError,
       reload: load,
       ensureLoaded,
       saveFunds,
@@ -150,6 +160,7 @@ export function useFundsProvider(enabled: boolean) {
       totals,
       loading,
       configured,
+      loadError,
       load,
       ensureLoaded,
       saveFunds,

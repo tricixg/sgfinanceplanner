@@ -29,6 +29,8 @@ import { useAppSession } from "@/contexts/AppSessionContext";
 import { useBtoPlannerData } from "@/hooks/useBtoPlannerData";
 import { usePageSavings } from "@/hooks/usePageSavings";
 import { sgtTodayYmd } from "@/lib/time/sgt";
+import { notifySaveFailed } from "@/lib/ui/notify";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 
 type Props = {
   state: DashboardState;
@@ -86,6 +88,8 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
     partnerOALive,
     selfMonthlyFromContrib,
     partnerMonthlyFromContrib,
+    loadError,
+    reloadFailed,
   } = useBtoPlannerData(S, setState);
   // Same staleness guard as the main BTO tab — household pairing, live
   // partner CPF, and the shared household plan all resolve after first
@@ -153,6 +157,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
       setDraft(null);
     } catch (e) {
       console.error("[BtoPriceFinder] save failed", e);
+      notifySaveFailed("your BTO plan", e);
     } finally {
       setSaving(false);
     }
@@ -326,6 +331,12 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
 
   return (
     <section className="panel on bto-pf">
+      {loadError ? (
+        <LoadErrorCallout title="Couldn’t load part of your BTO plan." onRetry={reloadFailed}>
+          Your shared plan or your partner&apos;s payments are missing, so saving is turned off
+          until they load.
+        </LoadErrorCallout>
+      ) : null}
       <div className="bto-page-head">
         <Link href="/bto" className="btn ghost sm">
           ← BTO planner
@@ -350,7 +361,7 @@ export function BtoPriceFinder({ state: S, setState }: Props) {
           <button
             type="button"
             className="btn sm"
-            disabled={!draft || saving}
+            disabled={!draft || saving || Boolean(loadError)}
             onClick={() => void saveToPlan()}
           >
             {saving ? "Saving…" : "Save to plan"}

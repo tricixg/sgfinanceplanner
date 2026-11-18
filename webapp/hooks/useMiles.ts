@@ -2,6 +2,7 @@
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import { errorMessage } from "@/lib/ui/notify";
 import type { MilesBalance, MilesTotals } from "@/lib/miles/types";
 import { MilesContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
@@ -11,6 +12,7 @@ export function useMilesProvider(enabled: boolean) {
   const [totals, setTotals] = useState<MilesTotals | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!enabled) {
@@ -18,6 +20,7 @@ export function useMilesProvider(enabled: boolean) {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const { res, data } = await fetchJson<{
         configured?: boolean;
@@ -25,7 +28,12 @@ export function useMilesProvider(enabled: boolean) {
         totals?: MilesTotals;
         error?: string;
       }>("/api/miles", { credentials: "include" });
-      if (!res.ok || !data.configured) {
+      if (!res.ok) {
+        setConfigured(false);
+        setLoadError(data.error ?? "Couldn't load your miles balances.");
+        return;
+      }
+      if (!data.configured) {
         setConfigured(false);
         return;
       }
@@ -36,6 +44,7 @@ export function useMilesProvider(enabled: boolean) {
     } catch (e) {
       console.error("[useMiles] load failed", e);
       setConfigured(false);
+      setLoadError(errorMessage(e, "Couldn't load your miles balances."));
     } finally {
       setLoading(false);
     }
@@ -91,11 +100,12 @@ export function useMilesProvider(enabled: boolean) {
       totals,
       loading,
       configured,
+      loadError,
       reload: load,
       ensureLoaded,
       saveBalances,
     }),
-    [balances, totals, loading, configured, load, ensureLoaded, saveBalances]
+    [balances, totals, loading, configured, loadError, load, ensureLoaded, saveBalances]
   );
 }
 

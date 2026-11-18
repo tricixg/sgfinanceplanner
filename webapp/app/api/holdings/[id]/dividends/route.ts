@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { addHoldingDividend, listHoldingDividends } from "@/lib/holdings/dividends";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -52,9 +53,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to load dividends";
     return apiError("api/holdings/[id]/dividends", msg, { fallback: "Failed to load dividends" });
   }
-}
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -113,4 +114,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     console.error("[api/holdings/dividends] POST failed", msg);
     return apiError("api/holdings/[id]/dividends", msg, { fallback: "Failed to record dividend" });
   }
-}
+});

@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteOncallPayment, loadOncallBundle } from "@/lib/oncall/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -27,4 +28,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     console.error("[api/oncall/payments] DELETE failed", msg);
     return apiError("api/oncall/payments/[id]", msg, { status: msg === "Not found" ? 404 : 400, fallback: "Failed to delete payment" });
   }
-}
+});

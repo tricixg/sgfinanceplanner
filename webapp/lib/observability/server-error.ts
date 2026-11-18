@@ -9,6 +9,9 @@
  * (amounts, balances) are replaced in the message and path.
  */
 
+import { currentRequestId } from "@/lib/observability/request-context";
+import { isValidRequestId } from "@/lib/observability/request-id";
+
 export type ServerErrorEvent = {
   /** Where it happened, e.g. "api/expenses" or "next/route". */
   scope: string;
@@ -21,6 +24,8 @@ export type ServerErrorEvent = {
   path?: string;
   routePath?: string;
   routeType?: string;
+  /** The request this belongs to (OPS-002). Defaults to the request currently being handled. */
+  requestId?: string;
 };
 
 const MAX_MESSAGE = 500;
@@ -58,6 +63,8 @@ export function serverErrorLine(event: ServerErrorEvent, now: Date = new Date())
   if (event.path) line.path = scrubPath(event.path);
   if (event.routePath) line.routePath = event.routePath.slice(0, 200);
   if (event.routeType) line.routeType = event.routeType.slice(0, 20);
+  const requestId = event.requestId ?? currentRequestId();
+  if (requestId && isValidRequestId(requestId)) line.requestId = requestId;
   const env = process.env.VERCEL_ENV;
   if (env) line.env = env;
   return JSON.stringify(line);

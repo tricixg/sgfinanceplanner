@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { applyRateToAllEntries, loadOncallBundle } from "@/lib/oncall/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -31,4 +32,4 @@ export async function POST(req: NextRequest) {
     console.error("[api/oncall/entries/apply-rate] POST failed", msg);
     return apiError("api/oncall/entries/apply-rate", msg, { status: 400, fallback: "Failed to update entries" });
   }
-}
+});

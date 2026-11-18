@@ -14,6 +14,7 @@ import {
   type DomainStatus,
 } from "@/lib/app/domains";
 import { fetchJson } from "@/lib/fetch-json";
+import { rememberFailure } from "@/lib/observability/client-request-ids";
 import type { DashboardState, NetWorthSnapshot, PortfolioSnapshot } from "@/lib/types";
 import type { FinanceProfile } from "@/lib/profile/load";
 import type { CpfContribution, CpfTransaction } from "@/lib/cpf/types";
@@ -209,11 +210,24 @@ export function useAppDataProvider(
   // A failed/throwing request resolves to `{ res.ok: false }` so one bad domain can't hide
   // behind (or break) the others.
   const safe = useCallback(
-    <T,>(p: Promise<{ res: Response; data: T }>) =>
-      p.catch((e: unknown) => {
-        console.warn("[useAppData] request failed", e);
-        return { res: { ok: false, status: 0 } as Response, data: {} as T };
-      }),
+    <T,>(p: Promise<{ res: Response; data: T }>, domain: DataDomain) =>
+      p
+        .then((r) => {
+          if (!r.res.ok) {
+            // The banner says "Couldn't load X" in the client's words; file the server's
+            // request ID under the domain so it can show a reference next to it (OPS-002).
+            const body = r.data as { requestId?: unknown } | null;
+            rememberFailure({
+              channel: `domain:${domain}`,
+              requestId: body?.requestId ?? r.res.headers?.get?.("x-request-id"),
+            });
+          }
+          return r;
+        })
+        .catch((e: unknown) => {
+          console.warn("[useAppData] request failed", e);
+          return { res: { ok: false, status: 0 } as Response, data: {} as T };
+        }),
     []
   );
 
@@ -228,7 +242,7 @@ export function useAppDataProvider(
         switch (d) {
           case "prefs": {
             const { res, data } = await safe(
-              fetchJson<{ data?: { prefs?: DashboardState["prefs"] } }>("/api/state", opts)
+              fetchJson<{ data?: { prefs?: DashboardState["prefs"] } }>("/api/state", opts), "prefs"
             );
             if (res.ok && data.data?.prefs) setPrefs(data.data.prefs);
             ok = res.ok;
@@ -236,7 +250,7 @@ export function useAppDataProvider(
           }
           case "profile": {
             const { res, data } = await safe(
-              fetchJson<ProfileBundle & { configured?: boolean }>("/api/profile", opts)
+              fetchJson<ProfileBundle & { configured?: boolean }>("/api/profile", opts), "profile"
             );
             setConfigured(data.configured !== false);
             ok = Boolean(res.ok && data.profile);
@@ -252,7 +266,7 @@ export function useAppDataProvider(
           }
           case "loans": {
             const { res, data } = await safe(
-              fetchJson<{ loans?: DashboardState["loans"]; configured?: boolean }>("/api/loans", opts)
+              fetchJson<{ loans?: DashboardState["loans"]; configured?: boolean }>("/api/loans", opts), "loans"
             );
             setConfigured(data.configured !== false);
             if (res.ok) setLoans(data.loans ?? []);
@@ -265,7 +279,8 @@ export function useAppDataProvider(
               fetchJson<{ otherLoans?: DashboardState["otherLoans"]; configured?: boolean }>(
                 "/api/other-loans",
                 opts
-              )
+              ),
+              "otherLoans"
             );
             setConfigured(data.configured !== false);
             if (res.ok) setOtherLoans(data.otherLoans ?? []);
@@ -280,7 +295,7 @@ export function useAppDataProvider(
                 income?: Record<string, number>;
                 computed?: DashboardState["computedMonths"];
                 configured?: boolean;
-              }>("/api/budget-lines", opts)
+              }>("/api/budget-lines", opts), "budget"
             );
             setConfigured(data.configured !== false);
             if (res.ok) {
@@ -296,7 +311,8 @@ export function useAppDataProvider(
               fetchJson<{ cards?: DashboardState["creditCards"]; configured?: boolean }>(
                 "/api/credit-cards",
                 opts
-              )
+              ),
+              "cards"
             );
             setConfigured(data.configured !== false);
             if (res.ok) setCreditCards(data.cards ?? []);
@@ -309,7 +325,8 @@ export function useAppDataProvider(
               fetchJson<{ holdings?: DashboardState["holdings"]; configured?: boolean }>(
                 "/api/holdings",
                 opts
-              )
+              ),
+              "holdings"
             );
             setConfigured(data.configured !== false);
             if (res.ok) setHoldings(data.holdings ?? []);
@@ -322,7 +339,8 @@ export function useAppDataProvider(
               fetchJson<{ items?: DashboardState["portfolioHistory"] }>(
                 `/api/portfolio/snapshots?limit=${PORTFOLIO_HISTORY_LIMIT}`,
                 opts
-              )
+              ),
+              "snapshots"
             );
             if (res.ok) setPortfolioHistory(data.items ?? []);
             ok = res.ok;
@@ -333,7 +351,8 @@ export function useAppDataProvider(
               fetchJson<{ items?: NetWorthSnapshot[] }>(
                 `/api/net-worth/snapshots?limit=${NET_WORTH_HISTORY_LIMIT}`,
                 opts
-              )
+              ),
+              "netWorth"
             );
             if (res.ok) setNetWorthHistory(data.items ?? []);
             ok = res.ok;
@@ -344,7 +363,8 @@ export function useAppDataProvider(
               fetchJson<{ items?: CpfContribution[] }>(
                 `/api/cpf/contributions?limit=${CPF_CONTRIBUTIONS_LIMIT}`,
                 opts
-              )
+              ),
+              "cpfContributions"
             );
             if (res.ok) setCpfContributions(data.items ?? []);
             ok = res.ok;
@@ -352,7 +372,7 @@ export function useAppDataProvider(
           }
           case "cpfTransactions": {
             const { res, data } = await safe(
-              fetchJson<{ items?: CpfTransaction[] }>("/api/cpf/transactions", opts)
+              fetchJson<{ items?: CpfTransaction[] }>("/api/cpf/transactions", opts), "cpfTransactions"
             );
             if (res.ok) setCpfTransactions(data.items ?? []);
             ok = res.ok;
@@ -406,52 +426,76 @@ export function useAppDataProvider(
   const snapshotsLoading = enabled ? !settled("snapshots") : false;
 
   const reloadLoans = useCallback(async () => {
-    const { res, data } = await fetchJson<{ loans?: DashboardState["loans"] }>(
-      "/api/loans",
-      { credentials: "include" }
-    );
-    if (res.ok) {
-      setLoans(data.loans ?? []);
-      setDomainError("loans", null);
-      setDomainStatus("loans", "ready");
-      console.info("[useAppData] reloadLoans ok", { count: data.loans?.length ?? 0 });
-    } else {
+    try {
+      const { res, data } = await fetchJson<{ loans?: DashboardState["loans"] }>(
+        "/api/loans",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setLoans(data.loans ?? []);
+        setDomainError("loans", null);
+        setDomainStatus("loans", "ready");
+        console.info("[useAppData] reloadLoans ok", { count: data.loans?.length ?? 0 });
+      } else {
+        setDomainError("loans", "Couldn't load instalment plans");
+        setDomainStatus("loans", "error");
+      }
+    } catch (e) {
+      // Timeout, offline or a dropped connection: the list on screen is stale, so mark it failed
+      // (banner + editing off) rather than leaving the rejection unhandled.
+      console.warn("[useAppData] reloadLoans failed", e);
       setDomainError("loans", "Couldn't load instalment plans");
       setDomainStatus("loans", "error");
     }
   }, [setDomainError, setDomainStatus]);
 
   const reloadHoldings = useCallback(async () => {
-    const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
-      "/api/holdings",
-      { credentials: "include" }
-    );
-    if (res.ok) {
-      setHoldings(data.holdings ?? []);
-      setDomainError("holdings", null);
-      setDomainStatus("holdings", "ready");
-      console.info("[useAppData] reloadHoldings ok", {
-        count: data.holdings?.length ?? 0,
-      });
-    } else {
+    try {
+      const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
+        "/api/holdings",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setHoldings(data.holdings ?? []);
+        setDomainError("holdings", null);
+        setDomainStatus("holdings", "ready");
+        console.info("[useAppData] reloadHoldings ok", {
+          count: data.holdings?.length ?? 0,
+        });
+      } else {
+        setDomainError("holdings", "Couldn't load holdings");
+        setDomainStatus("holdings", "error");
+      }
+    } catch (e) {
+      // Timeout, offline or a dropped connection: the list on screen is stale, so mark it failed
+      // (banner + editing off) rather than leaving the rejection unhandled.
+      console.warn("[useAppData] reloadHoldings failed", e);
       setDomainError("holdings", "Couldn't load holdings");
       setDomainStatus("holdings", "error");
     }
   }, [setDomainError, setDomainStatus]);
 
   const reloadOtherLoans = useCallback(async () => {
-    const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
-      "/api/other-loans",
-      { credentials: "include" }
-    );
-    if (res.ok) {
-      setOtherLoans(data.otherLoans ?? []);
-      setDomainError("otherLoans", null);
-      setDomainStatus("otherLoans", "ready");
-      console.info("[useAppData] reloadOtherLoans ok", {
-        count: data.otherLoans?.length ?? 0,
-      });
-    } else {
+    try {
+      const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
+        "/api/other-loans",
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        setOtherLoans(data.otherLoans ?? []);
+        setDomainError("otherLoans", null);
+        setDomainStatus("otherLoans", "ready");
+        console.info("[useAppData] reloadOtherLoans ok", {
+          count: data.otherLoans?.length ?? 0,
+        });
+      } else {
+        setDomainError("otherLoans", "Couldn't load personal and balance-transfer loans");
+        setDomainStatus("otherLoans", "error");
+      }
+    } catch (e) {
+      // Timeout, offline or a dropped connection: the list on screen is stale, so mark it failed
+      // (banner + editing off) rather than leaving the rejection unhandled.
+      console.warn("[useAppData] reloadOtherLoans failed", e);
       setDomainError("otherLoans", "Couldn't load personal and balance-transfer loans");
       setDomainStatus("otherLoans", "error");
     }

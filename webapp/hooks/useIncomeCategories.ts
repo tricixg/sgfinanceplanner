@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { IncomeCategory, IncomeCategoryInput } from "@/lib/income/types";
+import { errorMessage } from "@/lib/ui/notify";
 
 export function useIncomeCategories(enabled: boolean) {
   const [categories, setCategories] = useState<IncomeCategory[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!enabled) {
@@ -15,13 +17,19 @@ export function useIncomeCategories(enabled: boolean) {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const { res, data } = await fetchJson<{
         configured?: boolean;
         categories?: IncomeCategory[];
         error?: string;
       }>("/api/income-categories", { credentials: "include" });
-      if (!res.ok || !data.configured) {
+      if (!res.ok) {
+        setConfigured(false);
+        setLoadError(data.error ?? "Couldn't load your income categories.");
+        return;
+      }
+      if (!data.configured) {
         setConfigured(false);
         setCategories([]);
         return;
@@ -32,6 +40,7 @@ export function useIncomeCategories(enabled: boolean) {
     } catch (e) {
       console.error("[useIncomeCategories] load failed", e);
       setConfigured(false);
+      setLoadError(errorMessage(e, "Couldn't load your income categories."));
     } finally {
       setLoading(false);
     }
@@ -61,5 +70,5 @@ export function useIncomeCategories(enabled: boolean) {
     []
   );
 
-  return { categories, loading, configured, reload: load, save };
+  return { categories, loading, configured, loadError, reload: load, save };
 }

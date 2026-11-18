@@ -734,6 +734,9 @@ Each item: complexity · risk · depends on · benefit.
 34. Skeletons/progressive loading; per-section error/retry · M.
 35. Show projection & CPF assumptions on screen · S.
 
+### KIV — keep in view, not scheduled
+- **PERF-008 Lazy-load the app-shell error UI** · S · low. *Found in Phase 4B.* The error toast host (`NotifyHost`), `OfflineBanner` and `RequestIdTag` now ship in every page's first load. Measured on 7 pages (harness, 4x CPU, median of 3): about +3–4 KB gz initial JS (+1%), +1 static request, and data-ready +19–165 ms (median +51 ms @30 ms, +74 ms @100 ms); API requests and DB depth unchanged. Fix: load them with `next/dynamic` / `import()` the first time an error or `offline` event fires, keeping only the tiny event listeners in the shell, so first load returns to the Phase 3 numbers and the first error shows a fraction of a second later. Re-measure with the perf harness (`REPEAT=3`, same routes) before and after. Do it only if first-load time matters more than ~50–75 ms.
+
 ---
 
 # Do Not Touch (already good — avoid churn)

@@ -3,6 +3,7 @@
 import { createEmptyState } from "@/lib/finance/defaults";
 import { useAppData } from "@/hooks/useAppData";
 import { useAppSession } from "@/contexts/AppSessionContext";
+import { DomainLoadErrorBanners } from "@/components/app/DomainLoadErrorBanners";
 
 type Props = {
   children: (ctx: {
@@ -21,6 +22,7 @@ export function DomainPage({ children }: Props) {
 
   return (
     <>
+      <DomainLoadErrorBanners />
       {children({
         state: user?.id ? state : createEmptyState(),
         setState,

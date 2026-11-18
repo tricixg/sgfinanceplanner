@@ -15,7 +15,8 @@ import { useSnackbar } from "@/hooks/useSnackbar";
 import { TransactionActionModal } from "@/components/savings/TransactionActionModal";
 import { reimbursementStatus } from "@/lib/transactions/reimburse-totals";
 import { Icon } from "@/components/ui/Icon";
-import { EmptyState, SkeletonLines } from "@/components/ui/States";
+import { EmptyState, ErrorState, SkeletonLines } from "@/components/ui/States";
+import { errorMessage } from "@/lib/ui/notify";
 
 const PAGE_SIZE = 50;
 
@@ -135,6 +136,7 @@ export function TransactionsHistoryPage() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [selectedTx, setSelectedTx] = useState<UnifiedTransaction | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const snackbar = useSnackbar();
@@ -152,6 +154,7 @@ export function TransactionsHistoryPage() {
       const nextOffset = append ? offset : 0;
       if (append) setLoadingMore(true);
       else setLoading(true);
+      setLoadError("");
 
       const qs = buildQuery({
         accountId,
@@ -191,6 +194,7 @@ export function TransactionsHistoryPage() {
         });
       } catch (e) {
         console.error("[TransactionsHistoryPage] load failed", e);
+        setLoadError(errorMessage(e, "Failed to load transactions"));
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -432,6 +436,10 @@ export function TransactionsHistoryPage() {
         {loading ? (
           <div className="card">
             <SkeletonLines lines={8} label="Loading transactions" />
+          </div>
+        ) : loadError && items.length === 0 ? (
+          <div className="card">
+            <ErrorState message={loadError} onRetry={() => void load(false)} />
           </div>
         ) : items.length === 0 ? (
           <div className="card">

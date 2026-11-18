@@ -78,7 +78,7 @@ Production routing uses **file-based routes** under `app/(app)/` (e.g. `/cards`,
 | Storage | Purpose |
 |---------|---------|
 | **Normalized tables** | Loans, budget lines, expenses, cards, savings, holdings, profile, etc. |
-| **`dashboard_state.data` (jsonb)** | Slim **UI preferences** only after migration (`_migrated_v2`); legacy full snapshot migrated on first load |
+| **`dashboard_state.data` (jsonb)** | Slim **UI preferences** only (`_migrated_v2` flag kept for compatibility). The pre-v2 full-snapshot migration was removed in Phase 4B |
 | **In-memory `DashboardState`** | Client-side merge from many APIs for charts/calculators in `lib/finance/*` |
 
 See [02-architecture.md](./02-architecture.md) and [05-database-schema.md](./05-database-schema.md).

@@ -3,6 +3,7 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { checkRateLimit } from "@/lib/auth/rate-limit";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { normalizeQuoteSymbols } from "@/lib/holdings/quote-symbols";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 export type QuoteResult = {
   price: number;
@@ -61,7 +62,7 @@ async function mapPool<T, R>(
   return results;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Supabase auth not configured" }, { status: 503 });
   }
@@ -110,4 +111,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ quotes, source: "yahoo" });
-}
+});

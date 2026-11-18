@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import { errorMessage } from "@/lib/ui/notify";
 import { DEFAULT_ONCALL_SETTINGS } from "@/lib/oncall/calc";
 import type {
   OncallBundle,
@@ -21,6 +22,7 @@ export function useOncall(enabled: boolean) {
   const [bundle, setBundle] = useState<OncallBundle>(EMPTY);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!enabled) {
@@ -28,15 +30,21 @@ export function useOncall(enabled: boolean) {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const { res, data } = await fetchJson<Partial<OncallBundle> & {
         configured?: boolean;
         error?: string;
       }>("/api/oncall", { credentials: "include" });
-      if (!res.ok || !data.configured) {
+      if (!res.ok) {
+        setConfigured(false);
+        setLoadError(data.error ?? "Couldn't load your on-call log.");
+        console.error("[useOncall] load failed", data.error);
+        return;
+      }
+      if (!data.configured) {
         setConfigured(false);
         setBundle(EMPTY);
-        if (data.error) console.error("[useOncall] load failed", data.error);
         return;
       }
       setConfigured(true);
@@ -52,6 +60,7 @@ export function useOncall(enabled: boolean) {
     } catch (e) {
       console.error("[useOncall] load failed", e);
       setConfigured(false);
+      setLoadError(errorMessage(e, "Couldn't load your on-call log."));
     } finally {
       setLoading(false);
     }
@@ -135,6 +144,7 @@ export function useOncall(enabled: boolean) {
     ...bundle,
     loading,
     configured,
+    loadError,
     reload: load,
     saveSettings,
     addEntry,

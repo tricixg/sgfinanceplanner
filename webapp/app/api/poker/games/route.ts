@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { createPokerGame, listPokerGames } from "@/lib/poker/games";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -17,9 +18,9 @@ export async function GET() {
   const items = await listPokerGames(supabase, auth.user.id);
   console.info("[api/poker/games] GET", { userId: auth.user.id, count: items.length });
   return NextResponse.json({ configured: true, items });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -68,4 +69,4 @@ export async function POST(req: NextRequest) {
     console.error("[api/poker/games] POST failed", msg);
     return apiError("api/poker/games", msg, { status: 400, fallback: "Failed to create game" });
   }
-}
+});

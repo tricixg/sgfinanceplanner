@@ -174,7 +174,6 @@ See [webapp/AGENTS.md](../webapp/AGENTS.md#client-data-and-cross-page-refresh) f
 | `household/` | Partner bootstrap, invites |
 | `dashboard/` | Dashboard and Financial Health calculations (pure, unit-tested) |
 | `time/` | SGT date/time helpers |
-| `migrate-all-domains.ts` | Legacy dashboard JSON → tables |
 
 ---
 

@@ -31,6 +31,7 @@ import {
 } from "@/lib/dashboard/cashflow";
 import { effectiveCalendarDay, fmt, fmtSigned2 } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
+import { DomainLoadErrorBanners } from "@/components/app/DomainLoadErrorBanners";
 
 type Props = {
   enabled: boolean;
@@ -162,6 +163,7 @@ export function DashboardPage({ enabled }: Props) {
 
   return (
     <section className="panel on dash">
+      <DomainLoadErrorBanners />
       <div className="dash-toolbar">
         <SegmentedControl
           options={SEGMENTS}

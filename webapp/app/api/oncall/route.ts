@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOncallBundle } from "@/lib/oncall/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -28,4 +29,4 @@ export async function GET() {
     console.error("[api/oncall] GET failed", msg);
     return apiError("api/oncall", msg, { fallback: "Failed to load on-call tracker" });
   }
-}
+});

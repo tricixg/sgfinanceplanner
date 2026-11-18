@@ -26,7 +26,6 @@ import { fmt, fmt2, formatSnapshotDate } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
-import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
 import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 import { RecurringScheduleFields } from "@/components/recurring/RecurringScheduleFields";
 import { useLiveQuotes } from "@/hooks/useLiveQuotes";
@@ -35,6 +34,8 @@ import type { SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/sav
 import type { Fund, FundsTotals } from "@/lib/funds/types";
 import { SavingsLedgerModal } from "@/components/savings/SavingsLedgerModal";
 import { AddDividendModal } from "@/components/holdings/AddDividendModal";
+import { notifySaveFailed } from "@/lib/ui/notify";
+import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
@@ -99,6 +100,7 @@ export function TabWealth({
 }: Props) {
   const appData = useContext(AppDataContext);
   const holdingsLoadError = useDomainLoadError("holdings").error;
+  const fundsLoadError = useDomainLoadError("funds").error;
   const [editingIlp, setEditingIlp] = useState(false);
   const [editingHoldings, setEditingHoldings] = useState(false);
   const [savingIlp, setSavingIlp] = useState(false);
@@ -260,6 +262,7 @@ export function TabWealth({
       console.info("[TabWealth] ILP policies saved");
     } catch (e) {
       console.error("[TabWealth] ILP save failed", e);
+      notifySaveFailed("your ILP policies", e);
     } finally {
       setSavingIlp(false);
     }
@@ -308,6 +311,7 @@ export function TabWealth({
       console.info("[TabWealth] holdings saved");
     } catch (e) {
       console.error("[TabWealth] holdings save failed", e);
+      notifySaveFailed("your holdings", e);
     } finally {
       setSavingHoldings(false);
     }
@@ -432,7 +436,7 @@ export function TabWealth({
 
   return (
     <section className="panel on">
-      <DomainLoadErrorBanner domain="holdings" />
+      <DomainLoadErrorBanner domain="funds" />
       {savings && personalCash > 0 ? (
         <p className="ui-hint" style={{ marginBottom: 12 }}>
           Free cash uses your personal accounts (Cash Accounts tab). Joint pools stay on Savings
@@ -486,7 +490,12 @@ export function TabWealth({
             {savingFunds ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button type="button" className="btn ghost sm" onClick={startFundsEdit}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            disabled={Boolean(fundsLoadError)}
+            onClick={startFundsEdit}
+          >
             Edit
           </button>
         )}

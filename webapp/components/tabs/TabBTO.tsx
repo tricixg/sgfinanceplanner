@@ -30,6 +30,8 @@ import { btoProjectionAdjustments, reconcileBtoPayments } from "@/lib/finance/bt
 import type { CpfBtoStage } from "@/lib/cpf/types";
 import { useBtoPlannerData } from "@/hooks/useBtoPlannerData";
 import { sgtTodayYmd } from "@/lib/time/sgt";
+import { notifySaveFailed } from "@/lib/ui/notify";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 
 type Props = {
   state: DashboardState;
@@ -109,6 +111,8 @@ export function TabBTO({ state: S, setState }: Props) {
     selfMonthlyFromContrib,
     partnerMonthlyFromContrib,
     btoPayments,
+    loadError,
+    reloadFailed,
   } = useBtoPlannerData(S, setState);
   // Household pairing, the partner's live CPF, and the shared household plan
   // all load asynchronously after the page's core data — rendering before
@@ -144,6 +148,7 @@ export function TabBTO({ state: S, setState }: Props) {
       console.info("[TabBTO] planner prefs saved");
     } catch (e) {
       console.error("[TabBTO] save failed", e);
+      notifySaveFailed("your BTO plan", e);
     } finally {
       setSaving(false);
     }
@@ -410,6 +415,12 @@ export function TabBTO({ state: S, setState }: Props) {
 
   return (
     <section className="panel on">
+      {loadError ? (
+        <LoadErrorCallout title="Couldn’t load part of your BTO plan." onRetry={reloadFailed}>
+          Your shared plan or your partner&apos;s payments are missing, so saving is turned off
+          until they load.
+        </LoadErrorCallout>
+      ) : null}
       <div className="bto-page-head">
         <div className="kicker">
           {p.projectName} · {formatMonthLabel(p.applicationYm)} launch
@@ -467,7 +478,12 @@ export function TabBTO({ state: S, setState }: Props) {
             {saving ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button type="button" className="btn ghost sm" onClick={startCalcEdit}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            disabled={Boolean(loadError)}
+            onClick={startCalcEdit}
+          >
             Edit
           </button>
         )}

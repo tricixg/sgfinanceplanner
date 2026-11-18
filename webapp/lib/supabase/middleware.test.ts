@@ -142,4 +142,49 @@ describe("proxy-session helpers", () => {
     expect(requiresSignInRedirect("/apix")).toBe(true);
     expect(loginRedirectPath("/a b", "?x=1")).toBe("/login?next=%2Fa%20b%3Fx%3D1");
   });
+
+  describe("request IDs (OPS-002)", () => {
+    const VERCEL = "hnd1::iad1::abcde-1700000000000-0123456789ab";
+    const forwardedId = (res: Response) => res.headers.get("x-middleware-request-x-request-id");
+
+    it("reuses x-vercel-id, forwards it to route handlers and returns it to the browser", async () => {
+      signedIn();
+      const res = await updateSession(req("/api/loans", { "x-vercel-id": VERCEL }));
+      expect(forwardedId(res)).toBe(VERCEL);
+      expect(res.headers.get("x-request-id")).toBe(VERCEL);
+    });
+
+    it("generates an ID when there is no x-vercel-id", async () => {
+      signedIn();
+      const res = await updateSession(req("/api/loans"));
+      expect(forwardedId(res)).toMatch(/^req_[a-z0-9]{20}$/);
+      expect(res.headers.get("x-request-id")).toBe(forwardedId(res));
+    });
+
+    it("never trusts a client-supplied x-request-id", async () => {
+      signedIn();
+      const res = await updateSession(req("/api/loans", { "x-request-id": "attacker-chosen-id-1" }));
+      expect(forwardedId(res)).not.toBe("attacker-chosen-id-1");
+      expect(res.headers.get("x-request-id")).not.toBe("attacker-chosen-id-1");
+    });
+
+    it("leaves the signed identity header exactly as before", async () => {
+      signedIn();
+      const res = await updateSession(req("/api/loans", { "x-vercel-id": VERCEL }));
+      const user = await decodeTrustedUser(forwardedHeader(res), SECRET);
+      expect(user).toEqual({ id: "u1", email: "me@example.com", hasPassword: true });
+    });
+
+    it("stamps the sign-in redirect too, and requests when Supabase is not configured", async () => {
+      signedOut();
+      const redirect = await updateSession(req("/dashboard", { "x-vercel-id": VERCEL }));
+      expect(redirect.status).toBe(307);
+      expect(redirect.headers.get("x-request-id")).toBe(VERCEL);
+
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const bare = await updateSession(req("/api/loans", { "x-vercel-id": VERCEL }));
+      expect(bare.headers.get("x-request-id")).toBe(VERCEL);
+      expect(forwardedId(bare)).toBe(VERCEL);
+    });
+  });
 });

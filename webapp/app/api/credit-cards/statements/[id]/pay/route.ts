@@ -8,10 +8,11 @@ import {
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -81,9 +82,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     console.error("[api/credit-cards/statements] POST pay failed", msg);
     return apiError("api/credit-cards/statements/[id]/pay", msg, { status, fallback: "Payment failed" });
   }
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -120,4 +121,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     console.error("[api/credit-cards/statements] DELETE pay failed", msg);
     return apiError("api/credit-cards/statements/[id]/pay", msg, { fallback: "Undo payment failed" });
   }
-}
+});

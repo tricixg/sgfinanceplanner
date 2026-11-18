@@ -7,6 +7,8 @@ import { PageErrorBoundary } from "@/components/app/PageErrorBoundary";
 import { Icon } from "@/components/ui/Icon";
 import { navTabForPath } from "@/lib/nav-config";
 import { usePathname } from "next/navigation";
+import { NotifyHost } from "@/components/app/NotifyHost";
+import { OfflineBanner } from "@/components/app/OfflineBanner";
 
 type Props = {
   children: React.ReactNode;
@@ -72,6 +74,7 @@ export function AppShell({ children }: Props) {
             {activeTab?.summary ? <p className="page-summary">{activeTab.summary}</p> : null}
           </header>
 
+          <OfflineBanner />
           <PageErrorBoundary>{children}</PageErrorBoundary>
 
           <footer>
@@ -89,6 +92,7 @@ export function AppShell({ children }: Props) {
       </div>
 
       <MobileTabBar moreOpen={navOpen} onMore={toggleNav} />
+      <NotifyHost />
     </div>
   );
 }

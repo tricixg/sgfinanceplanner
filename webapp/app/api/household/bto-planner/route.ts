@@ -4,6 +4,7 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 /**
  * Shared BTO planner scenario (project name, flat price, grants, loan terms,
@@ -11,7 +12,7 @@ import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
  * linked partners read/write the same numbers. See
  * supabase/migrations/048_household_bto_planner.sql.
  */
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, data: null });
   }
@@ -33,9 +34,9 @@ export async function GET() {
   }
 
   return NextResponse.json({ configured: true, data: data?.data ?? null });
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -72,4 +73,4 @@ export async function PATCH(req: NextRequest) {
 
   console.info("[api/household/bto-planner] saved", { householdId });
   return NextResponse.json({ data: data.data });
-}
+});

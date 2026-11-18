@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteBenefitClaim, updateBenefitClaim, verifyBenefit } from "@/lib/benefits/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string; claimId: string }> };
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -39,9 +40,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     console.error("[api/benefits/claims] PATCH failed", msg);
     return apiError("api/benefits/[id]/claims/[claimId]", msg, { fallback: "Failed to update claim" });
   }
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -62,4 +63,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     console.error("[api/benefits/claims] DELETE failed", msg);
     return apiError("api/benefits/[id]/claims/[claimId]", msg, { fallback: "Failed to delete claim" });
   }
-}
+});

@@ -7,8 +7,9 @@ import {
 import type { RecurringSubscription } from "@/lib/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -20,9 +21,9 @@ export async function GET() {
   const supabase = await createAuthedSupabaseClient();
   const items = await loadRecurringSubscriptions(supabase, user.id);
   return NextResponse.json({ configured: true, items, subscriptions: items });
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -46,4 +47,4 @@ export async function PUT(req: NextRequest) {
   const items = await saveRecurringSubscriptions(supabase, user.id, body.items);
   console.info("[api/recurring-subscriptions] PUT", { userId: user.id, count: items.length });
   return NextResponse.json({ items });
-}
+});

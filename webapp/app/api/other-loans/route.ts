@@ -5,8 +5,9 @@ import { loadOtherLoans, saveOtherLoans } from "@/lib/other-loans/load";
 import type { OtherLoan } from "@/lib/other-loans/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, otherLoans: [] });
   }
@@ -21,9 +22,9 @@ export async function GET() {
     console.error("[api/other-loans] GET failed", msg);
     return apiError("api/other-loans", msg, { fallback: "Failed to load other loans" });
   }
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -48,4 +49,4 @@ export async function PUT(req: NextRequest) {
     console.error("[api/other-loans] PUT failed", msg);
     return apiError("api/other-loans", msg, { fallback: "Failed to save other loans" });
   }
-}
+});

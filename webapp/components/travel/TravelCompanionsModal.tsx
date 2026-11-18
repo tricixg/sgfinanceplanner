@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { fetchJson } from "@/lib/fetch-json";
+import { errorMessage } from "@/lib/ui/notify";
 import type { TravelCompanion } from "@/lib/travel/types";
 
 type Props = {
@@ -26,39 +27,51 @@ export function TravelCompanionsModal({ tripId, companions, onClose, onChanged }
     }
     setSaving(true);
     setMsg("");
-    const { res, data } = await fetchJson<{ error?: string }>(
-      `/api/travel/trips/${tripId}/companions`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/travel/trips/${tripId}/companions`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        }
+      );
+      if (!res.ok) {
+        setMsg(data.error ?? "Failed to add person");
+        return;
       }
-    );
-    setSaving(false);
-    if (!res.ok) {
-      setMsg(data.error ?? "Failed to add person");
-      return;
+      console.info("[TravelCompanionsModal] companion added", { tripId, name });
+      setNewName("");
+      onChanged();
+    } catch (e) {
+      console.error("[TravelCompanionsModal] add failed", e);
+      setMsg(errorMessage(e, "Failed to add person"));
+    } finally {
+      setSaving(false);
     }
-    console.info("[TravelCompanionsModal] companion added", { tripId, name });
-    setNewName("");
-    onChanged();
   };
 
   const removeCompanion = async (companionId: string) => {
     setSaving(true);
     setMsg("");
-    const { res, data } = await fetchJson<{ error?: string }>(
-      `/api/travel/trips/${tripId}/companions/${companionId}`,
-      { method: "DELETE", credentials: "include" }
-    );
-    setSaving(false);
-    if (!res.ok) {
-      setMsg(data.error ?? "Failed to remove person");
-      return;
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/travel/trips/${tripId}/companions/${companionId}`,
+        { method: "DELETE", credentials: "include" }
+      );
+      if (!res.ok) {
+        setMsg(data.error ?? "Failed to remove person");
+        return;
+      }
+      console.info("[TravelCompanionsModal] companion removed", { tripId, companionId });
+      onChanged();
+    } catch (e) {
+      console.error("[TravelCompanionsModal] remove failed", e);
+      setMsg(errorMessage(e, "Failed to remove person"));
+    } finally {
+      setSaving(false);
     }
-    console.info("[TravelCompanionsModal] companion removed", { tripId, companionId });
-    onChanged();
   };
 
   return (

@@ -5,8 +5,9 @@ import { loadOncallBundle, saveOncallSettings } from "@/lib/oncall/load";
 import type { OncallSettings } from "@/lib/oncall/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -35,4 +36,4 @@ export async function PUT(req: NextRequest) {
     console.error("[api/oncall/settings] PUT failed", msg);
     return apiError("api/oncall/settings", msg, { status: 400, fallback: "Failed to save settings" });
   }
-}
+});

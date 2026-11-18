@@ -22,6 +22,7 @@ import type { ChartOptions } from "chart.js";
 import { fetchJson } from "@/lib/fetch-json";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { AppDataContext } from "@/contexts/app-data-contexts";
+import { notifySaveFailed } from "@/lib/ui/notify";
 
 type Props = {
   state: DashboardState;
@@ -225,6 +226,7 @@ export function TabNow({ state: S, setState, savings, authEnabled = false }: Pro
                 console.info("[TabNow] cashflowStartYm saved", startYmDraft);
               } catch (e) {
                 console.error("[TabNow] cashflowStartYm save failed", e);
+                notifySaveFailed("the cashflow start month", e);
               } finally {
                 setSavingStartYm(false);
               }

@@ -7,10 +7,11 @@ import {
   normalizeRecordType,
   reimburseTransactionWithLedger,
 } from "@/lib/transactions/actions";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ recordType: string; id: string }> };
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -75,4 +76,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
     return apiError("api/transactions/[recordType]/[id]/reimburse", msg, { status, fallback: "Reimburse failed" });
   }
-}
+});

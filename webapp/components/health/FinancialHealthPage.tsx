@@ -6,7 +6,8 @@ import { NetWorthTrendChart } from "@/components/health/NetWorthTrendChart";
 import { CardHeader } from "@/components/ui/CardHeader";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { EmptyState, Skeleton, SkeletonLines } from "@/components/ui/States";
+import { EmptyState, ErrorState, Skeleton, SkeletonLines } from "@/components/ui/States";
+import { errorMessage } from "@/lib/ui/notify";
 import { useAppSession } from "@/contexts/AppSessionContext";
 import { useAppData } from "@/hooks/useAppData";
 import { useCardStatements } from "@/hooks/useCardStatements";
@@ -36,6 +37,7 @@ import { fmt, fmt2 } from "@/lib/finance/helpers";
 import type { RecurringRow } from "@/lib/recurring/build-rows";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import type { DashboardState } from "@/lib/types";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 
 type Props = {
   state: DashboardState;
@@ -77,8 +79,12 @@ export function FinancialHealthPage({ state: S }: Props) {
 
   const { savingsTotals, savingsApi } = usePageSavings(user?.id, S);
   const { netWorthHistory } = useAppData();
-  const { bundle: cardBundle } = useCardStatements(enabled);
-  const { statements: outstandingStatements } = useOutstandingCardStatements();
+  const { bundle: cardBundle, loadError: cardsError, reload: reloadCards } = useCardStatements(enabled);
+  const {
+    statements: outstandingStatements,
+    loadError: outstandingError,
+    reload: reloadOutstanding,
+  } = useOutstandingCardStatements();
 
   // Same definition as Cash Accounts: personal position only, joint pools excluded.
   const personalSavings = useMemo(
@@ -129,8 +135,10 @@ export function FinancialHealthPage({ state: S }: Props) {
   const baselineLabel = `${shortMonth(baselineMonths[0]!)}–${shortMonth(baselineMonths[2]!)}`;
 
   const [recurring, setRecurring] = useState<RecurringRow[] | null>(null);
+  const [recurringError, setRecurringError] = useState("");
   const loadRecurring = useCallback(async () => {
     if (!enabled) return;
+    setRecurringError("");
     try {
       const { res, data } = await fetchJson<{ rows?: RecurringRow[]; error?: string }>(
         `/api/recurring?ym=${currentYm}`,
@@ -140,7 +148,8 @@ export function FinancialHealthPage({ state: S }: Props) {
       setRecurring(data.rows ?? []);
     } catch (e) {
       console.error("[FinancialHealthPage] recurring load failed", e);
-      setRecurring([]);
+      // Not [] — that would read as "nothing recurring, all paid". Leave the figures unavailable.
+      setRecurringError(errorMessage(e, "Failed to load recurring payments"));
     }
   }, [enabled, currentYm]);
   useEffect(() => {
@@ -156,7 +165,7 @@ export function FinancialHealthPage({ state: S }: Props) {
 
   const runway = runwayMonths(wealth.cash, avgSpending);
   const debtRatio = ratio(debtMonthly, takeHome);
-  const commitmentRatio = ratio(commitmentsMonthly, takeHome);
+  const commitmentRatio = recurring == null ? null : ratio(commitmentsMonthly, takeHome);
 
   const upcoming = useMemo(() => {
     const items: { key: string; name: string; kind: string; due: string | null; amount: number }[] =
@@ -260,7 +269,7 @@ export function FinancialHealthPage({ state: S }: Props) {
       key: "commitments",
       label: "Recurring commitments",
       href: "/recurring",
-      loading: recurring == null,
+      loading: recurring == null && !recurringError,
       status: commitmentStatus(commitmentRatio),
       value:
         commitmentRatio == null ? (
@@ -279,6 +288,17 @@ export function FinancialHealthPage({ state: S }: Props) {
 
   return (
     <section className="panel on dash">
+      {cardsError || outstandingError ? (
+        <LoadErrorCallout
+          title="Couldn’t load your card bills."
+          onRetry={() => {
+            void reloadCards();
+            void reloadOutstanding();
+          }}
+        >
+          Card balances may be missing, so net worth and what’s still to pay may be off.
+        </LoadErrorCallout>
+      ) : null}
       {/* Net worth — the headline position. */}
       <div className="card hero">
         <div>
@@ -519,7 +539,9 @@ export function FinancialHealthPage({ state: S }: Props) {
             href="/recurring"
             linkLabel="Recurring"
           />
-          {recurring == null ? (
+          {recurring == null && recurringError ? (
+            <ErrorState message={recurringError} onRetry={() => void loadRecurring()} />
+          ) : recurring == null ? (
             <SkeletonLines lines={5} label="Loading commitments" />
           ) : upcoming.length === 0 ? (
             <EmptyState icon="check" title="All settled">

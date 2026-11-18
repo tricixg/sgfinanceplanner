@@ -11,8 +11,8 @@ type Value = ReturnType<typeof useAppDataProvider>;
 let latest: Value;
 let requests: { url: string; method: string }[];
 let failing: Set<string>;
-/** Requests for these paths stay in flight until the test resolves the promise. */
-let gates: Map<string, Promise<void>>;
+/** When set, every mock response waits for it, so a test can observe the loading state deterministically. */
+let hold: Promise<void> | null;
 
 const BODIES: Record<string, unknown> = {
   "/api/state": { data: { prefs: { theme: "x" } } },
@@ -31,7 +31,7 @@ const BODIES: Record<string, unknown> = {
 beforeEach(() => {
   requests = [];
   failing = new Set();
-  gates = new Map();
+  hold = null;
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.stubGlobal(
@@ -40,7 +40,8 @@ beforeEach(() => {
       const url = String(input);
       const path = url.split("?")[0];
       requests.push({ url: path, method: init?.method ?? "GET" });
-      await (gates.get(path) ?? new Promise((r) => setTimeout(r, 5)));
+      await new Promise((r) => setTimeout(r, 5));
+      if (hold) await hold;
       const bad = failing.has(path);
       return new Response(JSON.stringify(bad ? { error: "boom" } : BODIES[path] ?? {}), {
         status: bad ? 500 : 200,
@@ -97,29 +98,41 @@ describe("domain-scoped loading (PERF-003)", () => {
 
   it("waits (loading) until the declared core domains settle, then shows their real data", async () => {
     const root = createRoot(document.createElement("div"));
+    let release!: () => void;
+    hold = new Promise<void>((r) => (release = r));
     await act(async () => void root.render(<Harness needs={["loans"]} />));
-    expect(latest.loading).toBe(true); // before the fetch resolves
-    for (let i = 0; i < 10; i++) await act(async () => void (await new Promise((r) => setTimeout(r, 15))));
-    expect(latest.loading).toBe(false);
+    expect(latest.loading).toBe(true); // the response is held, however slow this machine is
+    release();
+    // Wait for the condition, not a fixed delay: a busy CI machine can take longer than 150 ms.
+    await vi.waitFor(
+      async () => {
+        await act(async () => void (await new Promise((r) => setTimeout(r, 15))));
+        expect(latest.loading).toBe(false);
+      },
+      { timeout: 5000, interval: 20 }
+    );
     expect(latest.state.loans).toEqual([expect.objectContaining({ id: "l1" })]);
   });
 
   it("does not wait for secondary domains (placeholders instead)", async () => {
-    let release!: () => void;
-    gates.set("/api/portfolio/snapshots", new Promise<void>((r) => (release = r)));
     const root = createRoot(document.createElement("div"));
+    let release!: () => void;
+    hold = new Promise<void>((r) => (release = r));
     await act(async () => void root.render(<Harness needs={["snapshots"]} />));
-    // The request is in flight and held open, so this state can't come from a later tick.
+    // The request was sent and is held open, so this state can't come from a later tick.
     expect(gets()).toEqual(["/api/portfolio/snapshots"]);
     expect(latest.domainStatus.snapshots).toBe("loading");
     expect(latest.loading).toBe(false);
-    expect(latest.snapshotsLoading).toBe(true);
+    expect(latest.snapshotsLoading).toBe(true); // still in flight: the response is held
+    release();
     // Once it arrives, the placeholder clears.
-    await act(async () => {
-      release();
-      for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
-    });
-    expect(latest.snapshotsLoading).toBe(false);
+    await vi.waitFor(
+      async () => {
+        await act(async () => void (await new Promise((r) => setTimeout(r, 15))));
+        expect(latest.snapshotsLoading).toBe(false);
+      },
+      { timeout: 5000, interval: 20 }
+    );
     expect(latest.state.portfolioHistory).toEqual([]);
     act(() => root.unmount());
   });

@@ -7,6 +7,8 @@ import { usePokerSessionForm } from "@/hooks/usePokerSessionForm";
 import { fetchJson } from "@/lib/fetch-json";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import type { PokerGame, PokerSession } from "@/lib/poker/types";
+import { errorMessage } from "@/lib/ui/notify";
+import { ErrorState } from "@/components/ui/States";
 
 type Props = {
   session: PokerSession;
@@ -18,6 +20,8 @@ export function PokerSessionEditModal({ session, onClose, onSaved }: Props) {
   const [locations, setLocations] = useState<string[]>([]);
   const [games, setGames] = useState<PokerGame[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
+  const [metaError, setMetaError] = useState("");
+  const [metaAttempt, setMetaAttempt] = useState(0);
 
   const { accounts: financialAccounts } = useFinancialAccounts();
   const cashAccounts = financialAccounts.filter((a) => a.savingsAccountId);
@@ -34,6 +38,7 @@ export function PokerSessionEditModal({ session, onClose, onSaved }: Props) {
     let cancelled = false;
     void (async () => {
       setLoadingMeta(true);
+      setMetaError("");
       try {
         const [locRes, gameRes] = await Promise.all([
           fetchJson<{ items?: { id: string; name: string }[] }>("/api/poker/locations", {
@@ -42,6 +47,9 @@ export function PokerSessionEditModal({ session, onClose, onSaved }: Props) {
           fetchJson<{ items?: PokerGame[] }>("/api/poker/games", { credentials: "include" }),
         ]);
         if (cancelled) return;
+        if (!locRes.res.ok || !gameRes.res.ok) {
+          throw new Error("Couldn't load the session details.");
+        }
         if (locRes.data.items) {
           setLocations(locRes.data.items.map((l) => l.name).filter(Boolean));
         }
@@ -50,6 +58,8 @@ export function PokerSessionEditModal({ session, onClose, onSaved }: Props) {
         console.info("[PokerSessionEditModal] opened", { id: session.id });
       } catch (e) {
         console.error("[PokerSessionEditModal] load meta failed", e);
+        // Without the lists the form would open blank, and saving it would overwrite the session.
+        if (!cancelled) setMetaError(errorMessage(e, "Couldn't load the session details."));
       } finally {
         if (!cancelled) setLoadingMeta(false);
       }
@@ -58,7 +68,7 @@ export function PokerSessionEditModal({ session, onClose, onSaved }: Props) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open once per session id
-  }, [session.id]);
+  }, [session.id, metaAttempt]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -117,6 +127,8 @@ export function PokerSessionEditModal({ session, onClose, onSaved }: Props) {
 
         {loadingMeta ? (
           <p className="loading">Loading…</p>
+        ) : metaError ? (
+          <ErrorState message={metaError} onRetry={() => setMetaAttempt((n) => n + 1)} />
         ) : (
           <PokerSessionForm
             form={form}

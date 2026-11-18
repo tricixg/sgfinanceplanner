@@ -8,11 +8,12 @@ import { parseDateRangeFilter } from "@/lib/transactions/date-range";
 import { listUnifiedTransactions } from "@/lib/transactions/unified";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const SAVINGS_KINDS: SavingsTransactionKind[] = ["deposit", "withdrawal", "adjustment"];
 const BUDGET_TYPES: BudgetTransactionType[] = ["expense", "subscription", "income"];
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [], total: 0, nextOffset: null });
   }
@@ -116,9 +117,9 @@ export async function GET(req: NextRequest) {
     console.error("[api/transactions] GET failed", msg);
     return apiError("api/transactions", msg, { fallback: "Failed to load transactions" });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   void req;
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
@@ -131,4 +132,4 @@ export async function POST(req: NextRequest) {
     { error: "Budget CSV import is disabled." },
     { status: 410 }
   );
-}
+});
