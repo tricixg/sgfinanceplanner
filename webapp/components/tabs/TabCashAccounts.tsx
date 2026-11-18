@@ -1,6 +1,8 @@
 "use client";
 
 import { useContext, useEffect, useMemo, useState } from "react";
+import { deriveClientRequestId } from "@/lib/api/client-request-id";
+import { useSubmitKey } from "@/hooks/useSubmitKey";
 import type { DashboardState, NetWorthSnapshot, SavingsAccount } from "@/lib/types";
 import type { AccountsBundle, SavingsGoal, SavingsSnapshot, UserSavingsAccount } from "@/lib/savings/types";
 import type { TooltipItem } from "chart.js";
@@ -40,6 +42,8 @@ type CloudAccountsApi = {
       incomeCategoryId?: string;
       benefitId?: string;
       benefitClaimDate?: string;
+      /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+      clientRequestId?: string;
     }
   ) => Promise<void>;
   reload: () => Promise<void>;
@@ -107,6 +111,7 @@ export function TabCashAccounts({
   const [transferNote, setTransferNote] = useState("");
   const [transferGoalId, setTransferGoalId] = useState("");
   const [transferring, setTransferring] = useState(false);
+  const transferSubmitKey = useSubmitKey();
   const [txRefresh, setTxRefresh] = useState(0);
   const [ledgerAccountId, setLedgerAccountId] = useState<string | null>(null);
   const [showHiddenAccounts, setShowHiddenAccounts] = useState(false);
@@ -249,6 +254,11 @@ export function TabCashAccounts({
     const noteSuffix = transferNote.trim();
     setTransferring(true);
     setAccountsMsg("");
+    // One key per transfer; each leg derives its own, so retrying after a
+    // failure between the two legs doesn't debit the source twice.
+    const transferKey = transferSubmitKey.keyFor({
+      transferFromId, transferToId, amt, when, noteSuffix, transferGoalId,
+    });
     try {
       await accountsApi.recordAccountTransaction(transferFromId, {
         amount: -amt,
@@ -257,6 +267,7 @@ export function TabCashAccounts({
         note: noteSuffix
           ? `Transfer to ${toName} · ${noteSuffix}`
           : `Transfer to ${toName}`,
+        clientRequestId: deriveClientRequestId(transferKey, "from"),
       });
       await accountsApi.recordAccountTransaction(transferToId, {
         amount: amt,
@@ -266,7 +277,9 @@ export function TabCashAccounts({
           ? `Transfer from ${fromName} · ${noteSuffix}`
           : `Transfer from ${fromName}`,
         goalId: transferGoalId || undefined,
+        clientRequestId: deriveClientRequestId(transferKey, "to"),
       });
+      transferSubmitKey.reset();
       setTxRefresh((k) => k + 1);
       setTransferAmount("");
       setTransferNote("");

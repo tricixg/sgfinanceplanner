@@ -55,6 +55,8 @@ export type AppDataContextValue = {
     ma: number;
     note?: string;
     creditedOn?: string | null;
+    /** Idempotency key for this submit; sent to the API as-is. */
+    clientRequestId?: string;
   }) => Promise<void>;
   deleteCpfContribution: (id: string) => Promise<void>;
   updateCpfContribution: (

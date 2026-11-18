@@ -94,6 +94,8 @@ export function useFundsProvider(enabled: boolean) {
         kind?: "deposit" | "withdrawal" | "payout";
         note?: string;
         goalId?: string | null;
+        /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+        clientRequestId?: string;
       }
     ) => {
       const { res, data } = await fetchJson<{ error?: string }>(

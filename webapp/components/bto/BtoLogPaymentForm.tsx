@@ -1,6 +1,7 @@
 "use client";
 
 import { useContext, useState } from "react";
+import { useSubmitKey } from "@/hooks/useSubmitKey";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import {
@@ -61,6 +62,7 @@ export function BtoLogPaymentForm({
   onClose,
 }: Props) {
   const appData = useContext(AppDataContext);
+  const submitKey = useSubmitKey();
   const [stage, setStage] = useState<CpfBtoStage>(initialStage);
   const [category, setCategory] = useState<CpfTxnCategory>(initialCategory);
   const [amount, setAmount] = useState(
@@ -100,14 +102,17 @@ export function BtoLogPaymentForm({
     }
     setSaving(true);
     try {
-      await appData.addCpfTransaction({
+      const values = {
         txnDate,
         category,
         amount,
         fundingSource: effectiveSource,
         btoStage: stage,
         note,
-      });
+      };
+      // Same key when this entry is re-submitted (double-click / retry).
+      await appData.addCpfTransaction({ ...values, clientRequestId: submitKey.keyFor(values) });
+      submitKey.reset();
       setDone(
         effectiveSource === "cash"
           ? `Logged ${fmt2(amount)} cash · CPF OA unchanged`

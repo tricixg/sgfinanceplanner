@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { deriveClientRequestId } from "@/lib/api/client-request-id";
 import type { DashboardState } from "@/lib/types";
 import type {
   SavingsBundle,
@@ -34,6 +35,8 @@ type Props = {
       kind?: "deposit" | "withdrawal" | "adjustment";
       note?: string;
       goalId?: string;
+      /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+      clientRequestId?: string;
     }
   ) => Promise<void>;
   /** When provided, pool deposits can be funded from a personal cash account. */
@@ -43,6 +46,8 @@ type Props = {
       amount: number;
       occurredAt?: string;
       kind?: "deposit" | "withdrawal" | "adjustment";
+      /** Idempotency key for this submit (see lib/api/client-request-id.ts). */
+      clientRequestId?: string;
       note?: string;
     }
   ) => Promise<void>;
@@ -398,6 +403,7 @@ export function TabSavings({
                   kind: "adjustment",
                   occurredAt: payload.occurredAt,
                   note: `Transfer to ${pool.name || "Shared pool"}`,
+                  clientRequestId: deriveClientRequestId(payload.clientRequestId, "from"),
                 });
                 await recordPoolTransaction(pool.id, {
                   ...payload,

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useContext, useState } from "react";
+import { useSubmitKey } from "@/hooks/useSubmitKey";
 import { DecimalInput } from "@/components/DecimalInput";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { AppDataContext } from "@/contexts/app-data-contexts";
@@ -26,6 +27,7 @@ function categoryLabel(c: FormCategory): string {
  */
 export function CpfTransactionForm() {
   const appData = useContext(AppDataContext);
+  const submitKey = useSubmitKey();
   const [direction, setDirection] = useState<Direction>("in");
   const [category, setCategory] = useState<FormCategory>("contribution");
   const [amount, setAmount] = useState(0);
@@ -55,21 +57,26 @@ export function CpfTransactionForm() {
     try {
       if (category === "contribution") {
         if (oa <= 0 && sa <= 0 && ma <= 0) throw new Error("Enter at least one non-zero contribution amount");
-        await appData.addCpfContribution({
+        const values = {
           month: `${month}-01`,
           oa,
           sa,
           ma,
           note: note.trim() || undefined,
           creditedOn: txnDate,
-        });
+        };
+        // Same key when this entry is re-submitted (double-click / retry).
+        await appData.addCpfContribution({ ...values, clientRequestId: submitKey.keyFor(values) });
+        submitKey.reset();
         setDone(`Logged ${formatMonthLabel(month)} contribution · ${fmt2(oa + sa + ma)}`);
         setOa(0);
         setSa(0);
         setMa(0);
       } else {
         if (amount <= 0) throw new Error("Enter an amount above $0");
-        await appData.addCpfTransaction({ txnDate, category, amount, note });
+        const values = { txnDate, category, amount, note };
+        await appData.addCpfTransaction({ ...values, clientRequestId: submitKey.keyFor(values) });
+        submitKey.reset();
         setDone(`Logged ${categoryLabel(category).toLowerCase()} · ${fmt2(amount)}`);
         setAmount(0);
       }
