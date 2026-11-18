@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { fetchJson } from "@/lib/fetch-json";
 import { PokerSessionDetailModal } from "@/components/poker/PokerSessionDetailModal";
 import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal";
@@ -46,6 +47,7 @@ export function PokerStatsSessions({
 }: Props) {
   const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
   const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
+  const [pendingDeleteSession, setPendingDeleteSession] = useState<PokerSession | null>(null);
   const [filters, setFilters] = useState<PokerSessionListFilters>(EMPTY_POKER_SESSION_FILTERS);
 
   const { locations, games } = useMemo(() => derivePokerFilterCatalog(sessions), [sessions]);
@@ -55,7 +57,6 @@ export function PokerStatsSessions({
   );
 
   const removeSession = async (session: PokerSession) => {
-    if (!confirm("Delete this poker session?")) return;
     try {
       const { res, data } = await fetchJson<{ error?: string }>(`/api/poker/${session.id}`, {
         method: "DELETE",
@@ -162,7 +163,20 @@ export function PokerStatsSessions({
             setViewingSession(null);
             console.info("[PokerStatsSessions] edit from detail", { id: viewingSession.id });
           }}
-          onDelete={() => void removeSession(viewingSession)}
+          onDelete={() => setPendingDeleteSession(viewingSession)}
+        />
+      ) : null}
+
+      {pendingDeleteSession ? (
+        <ConfirmDeleteModal
+          title="Delete poker session?"
+          message="Delete this poker session? This can't be undone."
+          onCancel={() => setPendingDeleteSession(null)}
+          onConfirm={() => {
+            const s = pendingDeleteSession;
+            setPendingDeleteSession(null);
+            void removeSession(s);
+          }}
         />
       ) : null}
 

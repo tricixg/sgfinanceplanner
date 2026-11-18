@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import type { UnifiedTransaction } from "@/lib/transactions/types";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
@@ -73,6 +74,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const [benefitClaimDate, setBenefitClaimDate] = useState(toDateInput(tx));
   const [statementId, setStatementId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [msg, setMsg] = useState("");
   const reimburseLock = useRef(false);
 
@@ -216,7 +218,6 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   };
 
   const remove = async () => {
-    if (!confirm("Delete this transaction and reverse calculations?")) return;
     setBusy(true);
     setMsg("");
     try {
@@ -232,10 +233,12 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
       setMsg(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setBusy(false);
+      setConfirmingDelete(false);
     }
   };
 
   return (
+    <>
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="card modal-panel" style={{ maxWidth: 680 }}>
         <h3>Manage transaction</h3>
@@ -362,7 +365,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
           <button type="button" className="btn ghost sm" onClick={onClose} disabled={busy}>
             Close
           </button>
-          <button type="button" className="btn del sm" onClick={() => void remove()} disabled={busy}>
+          <button type="button" className="btn del sm" onClick={() => setConfirmingDelete(true)} disabled={busy}>
             Delete
           </button>
           <button type="button" className="btn ghost sm" onClick={() => void reimburse()} disabled={busy}>
@@ -374,5 +377,14 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
         </div>
       </div>
     </div>
+    {confirmingDelete ? (
+      <ConfirmDeleteModal
+        message="Delete this transaction and reverse calculations? This can't be undone."
+        busy={busy}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={() => void remove()}
+      />
+    ) : null}
+    </>
   );
 }
