@@ -1,13 +1,9 @@
 import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
-import { adjustLoanOutstanding } from "@/lib/expenses/auto-payment";
-import { adjustBnplMonthsPaid } from "@/lib/recurring/load";
-import { restoreOtherLoanPayment } from "@/lib/other-loans/pay";
-import { syncExpenseLedgerBeforeDelete } from "@/lib/expenses/expense-ledger-api";
-import { applyFundTransaction } from "@/lib/funds/ledger";
 import { budgetLinePatchForCategoryEdit } from "@/lib/expenses/budget-line-link";
 import { mapExpense } from "@/lib/savings/db-mappers";
+import { deleteExpenseWithLedger } from "@/lib/expenses/expense-write";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -83,85 +79,25 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const supabase = await createAuthedSupabaseClient();
 
-  const { data: existing, error: fetchErr } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (fetchErr) {
-    console.error("[api/expenses] DELETE fetch failed", fetchErr.message);
-    return apiError("api/expenses/[id]", fetchErr);
+  // Reverse ledger rows, delete the expense, restore loan / other loan /
+  // BNPL / fund — one database transaction.
+  let result: Awaited<ReturnType<typeof deleteExpenseWithLedger>>;
+  try {
+    result = await deleteExpenseWithLedger(supabase, user.id, id, {
+      restoreBnpl: true,
+      reverseFund: true,
+    });
+  } catch (e) {
+    console.error("[api/expenses] DELETE failed", e instanceof Error ? e.message : e);
+    return apiError("api/expenses/[id]", e);
   }
-  if (!existing) {
+  if (!result) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-
-  const expense = mapExpense(existing);
-  const ledgerReverse = await syncExpenseLedgerBeforeDelete(supabase, user.id, expense);
-  if (!ledgerReverse.ok) {
-    return apiError("api/expenses/[id]", ledgerReverse.error);
-  }
-
-  const { error } = await supabase
-    .from("expenses")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
-
-  if (error) {
-    console.error("[api/expenses] DELETE failed", error.message);
-    return apiError("api/expenses/[id]", error);
-  }
-
-  if (existing.auto_category === "debt" && existing.loan_id) {
-    const amount = Number(existing.amount ?? 0);
-    const adj = await adjustLoanOutstanding(
-      supabase,
-      user.id,
-      String(existing.loan_id),
-      amount
-    );
-    if (!adj.ok) {
-      console.error("[api/expenses] DELETE loan restore failed", adj.error);
-    }
-  }
-
-  if (existing.auto_category === "debt" && existing.other_loan_id) {
-    const amount = Number(existing.amount ?? 0);
-    const adj = await restoreOtherLoanPayment(
-      supabase,
-      user.id,
-      String(existing.other_loan_id),
-      amount
-    );
-    if (!adj.ok) {
-      console.error("[api/expenses] DELETE other-loan restore failed", adj.error);
-    }
-  }
-
-  if (existing.auto_category === "bnpl" && existing.bnpl_id) {
-    const adj = await adjustBnplMonthsPaid(supabase, user.id, String(existing.bnpl_id), -1);
-    if (!adj.ok) {
-      console.error("[api/expenses] DELETE bnpl restore failed", adj.error);
-    }
-  }
-
-  if (existing.auto_category === "invest" && existing.fund_id) {
-    const amount = Number(existing.amount ?? 0);
-    try {
-      await applyFundTransaction(supabase, {
-        userId: user.id,
-        fundId: String(existing.fund_id),
-        amount: -amount,
-        kind: "withdrawal",
-        note: "Reversed recurring invest payment",
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Fund reversal failed";
-      console.error("[api/expenses] DELETE fund reversal failed", msg);
-    }
+  const existing = result.expense;
+  for (const warning of result.warnings) {
+    // Same best-effort semantics as before: these restores are skipped, not fatal.
+    console.error("[api/expenses] DELETE", warning);
   }
 
   console.info("[api/expenses] DELETE ok", {

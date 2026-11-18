@@ -23,15 +23,31 @@ function expenseOccurredAt(expense: Expense): string {
   return sgtSpentAtToIso(expense.spentAt, "00:00:00");
 }
 
-export async function createExpenseLedger(
+/** What an expense writes to the money ledgers, decided before anything is written. */
+export type ExpenseLedgerPlan =
+  | { type: "savings"; account_id: string; occurred_at: string; note: string }
+  | { type: "budget"; row: Record<string, unknown> };
+
+/** The expense fields the ledger plan depends on. */
+export type ExpenseLedgerDraft = Pick<
+  Expense,
+  "id" | "financialAccountId" | "amount" | "note" | "category" | "autoCategory" | "spentAt" | "spentTime"
+>;
+
+/**
+ * Resolves the pay-from account and returns the ledger write for this
+ * expense (cash withdrawal, card ledger row, or nothing). Reads only.
+ * Throws "Invalid financial account" when the account doesn't exist.
+ */
+export async function planExpenseLedger(
   supabase: SupabaseClient,
   userId: string,
-  expense: Expense,
+  expense: ExpenseLedgerDraft,
   opts: { occurredAt?: string } = {}
-): Promise<void> {
+): Promise<ExpenseLedgerPlan | null> {
   if (!expense.financialAccountId) {
     console.info("[ledger-sync] skip — no pay-from account", { expenseId: expense.id });
-    return;
+    return null;
   }
 
   const account = await loadFinancialAccount(supabase, userId, expense.financialAccountId);
@@ -39,58 +55,78 @@ export async function createExpenseLedger(
     throw new Error("Invalid financial account");
   }
 
-  const note = expenseLedgerNote(expense);
-  const occurredAt = opts.occurredAt ?? expenseOccurredAt(expense);
+  const note = expenseLedgerNote(expense as Expense);
+  const occurredAt = opts.occurredAt ?? expenseOccurredAt(expense as Expense);
   const spentTime = occurredAt.slice(11, 19);
 
   if (account.accountType === "cash" && account.savingsAccountId) {
+    return { type: "savings", account_id: account.savingsAccountId, occurred_at: occurredAt, note };
+  }
+
+  if (account.accountType === "credit_card") {
+    return {
+      type: "budget",
+      row: {
+        user_id: userId,
+        financial_account_id: expense.financialAccountId,
+        ledger: account.name,
+        category: expense.category,
+        subcategory: "",
+        currency: "SGD",
+        amount: expense.amount,
+        recorder: "",
+        spent_at: expense.spentAt,
+        spent_time: spentTime,
+        tag: "",
+        note,
+        transaction_type: expenseBudgetTransactionType(expense as Expense),
+        import_batch_id: null,
+      },
+    };
+  }
+
+  console.info("[ledger-sync] skip — cash account without savings link", {
+    expenseId: expense.id,
+    financialAccountId: expense.financialAccountId,
+  });
+  return null;
+}
+
+/** Writes the ledger entry for an expense that already exists. */
+export async function createExpenseLedger(
+  supabase: SupabaseClient,
+  userId: string,
+  expense: Expense,
+  opts: { occurredAt?: string } = {}
+): Promise<void> {
+  const plan = await planExpenseLedger(supabase, userId, expense, opts);
+  if (!plan) return;
+
+  if (plan.type === "savings") {
+    // Atomic balance change + ledger row (ledger_apply_savings_transaction).
     await applyTransaction(supabase, {
       userId,
-      accountId: account.savingsAccountId,
+      accountId: plan.account_id,
       amount: -expense.amount,
       kind: "withdrawal",
-      occurredAt,
-      note,
+      occurredAt: plan.occurred_at,
+      note: plan.note,
       expenseId: expense.id,
     });
     console.info("[ledger-sync] savings withdrawal created", {
       expenseId: expense.id,
-      accountId: account.savingsAccountId,
+      accountId: plan.account_id,
     });
     return;
   }
 
-  if (account.accountType === "credit_card") {
-    const { error } = await supabase.from("budget_transactions").insert({
-      user_id: userId,
-      financial_account_id: expense.financialAccountId,
-      ledger: account.name,
-      category: expense.category,
-      subcategory: "",
-      currency: "SGD",
-      amount: expense.amount,
-      recorder: "",
-      spent_at: expense.spentAt,
-      spent_time: spentTime,
-      tag: "",
-      note,
-      transaction_type: expenseBudgetTransactionType(expense),
-      import_batch_id: null,
-      expense_id: expense.id,
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    console.info("[ledger-sync] budget transaction created", {
-      expenseId: expense.id,
-      financialAccountId: expense.financialAccountId,
-    });
-    return;
+  const { error } = await supabase
+    .from("budget_transactions")
+    .insert({ ...plan.row, expense_id: expense.id });
+  if (error) {
+    throw new Error(error.message);
   }
-
-  console.info("[ledger-sync] skip — cash account without savings link", {
+  console.info("[ledger-sync] budget transaction created", {
     expenseId: expense.id,
     financialAccountId: expense.financialAccountId,
   });

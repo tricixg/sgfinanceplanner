@@ -2,7 +2,6 @@ import { apiError } from "@/lib/api/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import {
-  adjustLoanOutstanding,
   autoPaymentInsertRow,
   sourceIdFromPayload,
   validateAutoPaymentPayload,
@@ -11,7 +10,6 @@ import {
   type AutoPaymentPayload,
 } from "@/lib/expenses/auto-payment";
 import { loadBudgetLineRowsForMonth } from "@/lib/budget/load";
-import { adjustBnplMonthsPaid } from "@/lib/recurring/load";
 import {
   isExpenseBudgetType,
   resolveBudgetLineId,
@@ -19,9 +17,11 @@ import {
 import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { syncExpenseLedgerAfterCreate } from "@/lib/expenses/expense-ledger-api";
+import { planExpenseLedger, type ExpenseLedgerPlan } from "@/lib/expenses/ledger-sync";
+import { createExpenseWithLedger } from "@/lib/expenses/expense-write";
+import { parseClientRequestId } from "@/lib/api/idempotency";
+import type { Expense } from "@/lib/savings/types";
 import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
-import { applyFundTransaction } from "@/lib/funds/ledger";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -39,6 +39,11 @@ function toTimeOrNull(value: unknown): string | null {
   if (/^\d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`;
   if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
   return null;
+}
+
+/** The expense as it will be inserted — what the ledger plan is derived from. */
+function draftExpense(row: Record<string, unknown>): Expense {
+  return mapExpense({ id: "", created_at: "", ...row });
 }
 
 export async function GET(req: NextRequest) {
@@ -125,6 +130,8 @@ export async function POST(req: NextRequest) {
     spentAt?: string;
     spentTime?: string;
     note?: string;
+    /** Idempotency key, one per submit; a retry returns the original expense. */
+    clientRequestId?: string;
   };
   try {
     body = await req.json();
@@ -135,6 +142,11 @@ export async function POST(req: NextRequest) {
   const amount = typeof body.amount === "number" ? body.amount : NaN;
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "Valid amount required" }, { status: 400 });
+  }
+
+  const clientRequestId = parseClientRequestId(body.clientRequestId);
+  if (clientRequestId && typeof clientRequestId === "object") {
+    return NextResponse.json({ error: clientRequestId.error }, { status: 400 });
   }
 
   const parsedSpentAt = toYmdOrNull(body.spentAt);
@@ -237,66 +249,42 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: row, error } = await supabase
-      .from("expenses")
-      .insert(autoPaymentInsertRow(user.id, payload, linkedCategory, fundId))
-      .select("*")
-      .single();
-
-    if (error) {
-      console.error("[api/expenses] auto payment POST failed", error.message);
-      return apiError("api/expenses", error);
+    if (validated.autoCategory === "invest" && !fundId) {
+      return NextResponse.json({ error: "Recurring invest item has no fund" }, { status: 400 });
     }
 
-    if (validated.autoCategory === "debt" && body.loanId) {
-      const adj = await adjustLoanOutstanding(supabase, user.id, body.loanId, -amount);
-      if (!adj.ok) {
-        await supabase.from("expenses").delete().eq("id", row.id);
-        return apiError("api/expenses", adj.error);
-      }
+    const insertRow = autoPaymentInsertRow(user.id, payload, linkedCategory, fundId);
+    let ledger: ExpenseLedgerPlan | null = null;
+    try {
+      ledger = await planExpenseLedger(supabase, user.id, draftExpense(insertRow), { occurredAt });
+    } catch (e) {
+      return apiError("api/expenses", e);
     }
 
-    if (validated.autoCategory === "bnpl" && body.bnplId) {
-      const adj = await adjustBnplMonthsPaid(supabase, user.id, body.bnplId, 1);
-      if (!adj.ok) {
-        await supabase.from("expenses").delete().eq("id", row.id);
-        return apiError("api/expenses", adj.error);
-      }
-    }
-
-    if (validated.autoCategory === "invest") {
-      if (!fundId) {
-        await supabase.from("expenses").delete().eq("id", row.id);
-        return NextResponse.json({ error: "Recurring invest item has no fund" }, { status: 400 });
-      }
-      try {
-        await applyFundTransaction(supabase, {
-          userId: user.id,
-          fundId,
-          amount,
-          kind: "deposit",
-          note: body.note || `Recurring invest: ${investmentName ?? sourceId}`,
-        });
-      } catch (e) {
-        await supabase.from("expenses").delete().eq("id", row.id);
-        const msg = e instanceof Error ? e.message : "Fund deposit failed";
-        console.error("[api/expenses] auto payment fund deposit failed", msg);
-        return apiError("api/expenses", msg, { fallback: "Fund deposit failed" });
-      }
-    }
-
-    const expense = mapExpense(row);
-    const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, user.id, expense, {
-      loanId: validated.autoCategory === "debt" ? body.loanId : undefined,
-      loanPaymentAmount: validated.autoCategory === "debt" ? amount : undefined,
-      occurredAt,
-    });
-    if (!ledgerSync.ok) {
-      return apiError("api/expenses", ledgerSync.error);
+    let expense: Expense;
+    let replayed: boolean;
+    try {
+      // Expense + loan/BNPL/fund adjustment + ledger row: one database
+      // transaction, so a failure part-way leaves nothing behind.
+      ({ expense, replayed } = await createExpenseWithLedger(supabase, user.id, {
+        row: insertRow,
+        loanId: validated.autoCategory === "debt" ? body.loanId || null : null,
+        bnplId: validated.autoCategory === "bnpl" ? body.bnplId || null : null,
+        fund:
+          validated.autoCategory === "invest" && fundId
+            ? { fundId, note: body.note || `Recurring invest: ${investmentName ?? sourceId}` }
+            : null,
+        ledger,
+        clientRequestId,
+      }));
+    } catch (e) {
+      console.error("[api/expenses] auto payment POST failed", e instanceof Error ? e.message : e);
+      return apiError("api/expenses", e);
     }
 
     console.info("[api/expenses] auto payment POST ok", {
       userId: user.id,
+      replayed,
       autoCategory: validated.autoCategory,
       sourceId,
       spentAt,
@@ -336,36 +324,39 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { data: row, error } = await supabase
-    .from("expenses")
-    .insert({
-      user_id: user.id,
-      amount,
-      category: budgetLine.category,
-      budget_line_id: budgetLineId,
-      spent_at: spentAt,
-      spent_time: spentTime,
-      note: body.note ?? "",
-      financial_account_id: body.financialAccountId ?? null,
-    })
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error("[api/expenses] POST failed", error.message);
-    return apiError("api/expenses", error);
+  const insertRow = {
+    user_id: user.id,
+    amount,
+    category: budgetLine.category,
+    budget_line_id: budgetLineId,
+    spent_at: spentAt,
+    spent_time: spentTime,
+    note: body.note ?? "",
+    financial_account_id: body.financialAccountId ?? null,
+  };
+  let ledger: ExpenseLedgerPlan | null = null;
+  try {
+    ledger = await planExpenseLedger(supabase, user.id, draftExpense(insertRow), { occurredAt });
+  } catch (e) {
+    return apiError("api/expenses", e);
   }
 
-  const expense = mapExpense(row);
-  const ledgerSync = await syncExpenseLedgerAfterCreate(supabase, user.id, expense, {
-    occurredAt,
-  });
-  if (!ledgerSync.ok) {
-    return apiError("api/expenses", ledgerSync.error);
+  let expense: Expense;
+  let replayed: boolean;
+  try {
+    ({ expense, replayed } = await createExpenseWithLedger(supabase, user.id, {
+      row: insertRow,
+      ledger,
+      clientRequestId,
+    }));
+  } catch (e) {
+    console.error("[api/expenses] POST failed", e instanceof Error ? e.message : e);
+    return apiError("api/expenses", e);
   }
 
   console.info("[api/expenses] POST ok", {
     userId: user.id,
+    replayed,
     spentAt,
     budgetLineId,
     financialAccountId: body.financialAccountId ?? null,
