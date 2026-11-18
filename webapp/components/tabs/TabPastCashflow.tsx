@@ -6,6 +6,7 @@ import { SpendingInsightsPanel } from "@/components/spending/SpendingInsightsPan
 import { SpendingKpiStrip } from "@/components/spending/SpendingKpiStrip";
 import { SpendingMonthlyTable } from "@/components/spending/SpendingMonthlyTable";
 import { SpendingCategoryChart } from "@/components/spending/SpendingCategoryChart";
+import { SpendingMonthCompareChart } from "@/components/spending/SpendingMonthCompareChart";
 import { SpendingStackedBarChart } from "@/components/spending/SpendingStackedBarChart";
 import { IncomeKpiStrip } from "@/components/income/IncomeKpiStrip";
 import { IncomeMonthlyTable } from "@/components/income/IncomeMonthlyTable";
@@ -183,6 +184,7 @@ export function TabPastCashflow({ enabled }: Props) {
           <SpendingKpiStrip analytics={analytics} />
           <SpendingMonthlyTable analytics={analytics} />
           <SpendingCategoryChart analytics={analytics} />
+          <SpendingMonthCompareChart scope={scope} />
           <SpendingStackedBarChart
             title="Spend by card (5 months)"
             monthly={analytics.monthly}

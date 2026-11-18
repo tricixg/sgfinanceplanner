@@ -36,26 +36,22 @@ export function MonthlyStackedBarChart({
   embedded = false,
   colorFor,
 }: Props) {
-  const { chart, otherMembers } = useMemo(() => {
-    const { series, otherMembers } = buildStackedSeries(itemsByMonth, PER_MONTH_TOP, topN);
+  const chart = useMemo(() => {
+    const { series } = buildStackedSeries(itemsByMonth, PER_MONTH_TOP, topN);
     let colorIdx = 0;
     return {
-      otherMembers,
-      chart: {
-        labels: months.map((ym) => formatMonthLabel(ym)),
-        datasets: series.map((s) => ({
-          label: s.label,
-          data: s.data,
-          backgroundColor:
-            s.id === OTHER_SERIES_ID
-              ? OTHER_CATEGORY_COLOR
-              : colorFor
-                ? colorFor(s.id, s.label)
-                : colorAt(colorIdx++),
-          stack: "stack",
-          isOther: s.id === OTHER_SERIES_ID,
-        })),
-      },
+      labels: months.map((ym) => formatMonthLabel(ym)),
+      datasets: series.map((s) => ({
+        label: s.label,
+        data: s.data,
+        backgroundColor:
+          s.id === OTHER_SERIES_ID
+            ? OTHER_CATEGORY_COLOR
+            : colorFor
+              ? colorFor(s.id, s.label)
+              : colorAt(colorIdx++),
+        stack: "stack",
+      })),
     };
   }, [months, itemsByMonth, topN, colorFor]);
 
@@ -75,11 +71,6 @@ export function MonthlyStackedBarChart({
           itemSort: (a, b) => Number(b.raw) - Number(a.raw),
           callbacks: {
             label: (ctx) => `${ctx.dataset.label ?? ""}: ${fmt2(Number(ctx.raw))}`,
-            afterLabel: (ctx) => {
-              if (!(ctx.dataset as { isOther?: boolean }).isOther) return "";
-              const members = otherMembers[ctx.dataIndex] ?? [];
-              return members.map((m) => `   ${m.label}: ${fmt2(m.amount)}`);
-            },
             footer: (items) => {
               if (items.length === 0) return "";
               const total = items.reduce((s, item) => s + Number(item.raw ?? 0), 0);
@@ -99,7 +90,7 @@ export function MonthlyStackedBarChart({
         },
       },
     };
-  }, [otherMembers]);
+  }, []);
 
   const hasData = chart.datasets.some((d) => d.data.some((v) => Number(v) > 0));
   if (!hasData) {

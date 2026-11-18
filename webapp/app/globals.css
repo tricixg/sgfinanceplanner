@@ -6431,3 +6431,87 @@ details > summary {
     scroll-behavior: auto !important;
   }
 }
+
+/* Past Cashflow: one month's spend by category vs the month before */
+.month-compare-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.month-compare-caption {
+  margin: 6px 0 14px;
+}
+.month-compare-key {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin: 0 3px;
+  vertical-align: -0.12em;
+  background: var(--ink);
+  opacity: 0.55;
+}
+.month-compare-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.month-compare-row {
+  display: grid;
+  grid-template-columns: minmax(7.5em, 30%) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.month-compare-label {
+  text-align: right;
+  font-size: 14px;
+  line-height: 1.25;
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.month-compare-track {
+  position: relative;
+  height: 22px;
+  /* Room for the value label when the bar or marker reaches the far end. */
+  margin-right: 4.5em;
+}
+.month-compare-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 3px;
+  border-radius: 4px;
+}
+.month-compare-marker {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+  opacity: 0.55;
+  border-radius: 1px;
+}
+.month-compare-val {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  padding-left: 8px;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .month-compare-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .month-compare-label {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+}
