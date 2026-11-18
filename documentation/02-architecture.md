@@ -106,6 +106,8 @@ On first `GET /api/state` after upgrade:
 
 Subsequent saves to `/api/state` only update **preferences**, not loans/cards/etc.
 
+`GET`/`PUT /api/state` never create a household. A household is created where it is first needed: every endpoint that uses one (`/api/household`, `/api/savings*`, `/api/transactions`, BTO planner, partner invites) calls `ensureUserHousehold()` itself (see [webapp/lib/household/bootstrap.ts](../webapp/lib/household/bootstrap.ts)). The only household creation on the `/api/state` path is inside the legacy migration above, because that migration moves household-scoped rows.
+
 ## API route pattern
 
 Typical handler flow:

@@ -55,9 +55,12 @@ export async function GET() {
   const alreadyV2 = Boolean(rawObj?._migrated_v2);
   const hasLegacyBlob = isPersistedDashboardSnapshot(raw);
 
-  // Migrated users just need their prefs back. Household bootstrap is not part of reading
-  // prefs: every endpoint that needs the household calls ensureUserHousehold() itself, so it
-  // only runs here for first-time users and the legacy-blob migration below.
+  // Reading prefs never writes. In particular it does not create the household: every endpoint
+  // that needs one (savings, household, BTO, transactions, ...) calls ensureUserHousehold()
+  // itself, so a household is created where it is first needed, not as a side effect of this
+  // GET. The only write left on this path is the one-time legacy migration below, which runs
+  // only for an account whose dashboard_state is still a full pre-v2 snapshot and has not been
+  // marked `_migrated_v2`; it writes the slim `{ prefs, _migrated_v2 }` row so it never runs again.
   if (alreadyV2) {
     const slim = prefsOnlyFromRaw(raw);
     return NextResponse.json({
@@ -67,9 +70,9 @@ export async function GET() {
     });
   }
 
-  await ensureUserHousehold(supabase, user.id);
-
   if (hasLegacyBlob) {
+    // The legacy migration moves savings/household-scoped rows, so it needs the household.
+    await ensureUserHousehold(supabase, user.id);
     const full = mergeWithDefaults(raw as Partial<DashboardState>);
     const migrated = await migrateAllDomainsFromDashboard(
       supabase,
@@ -159,7 +162,6 @@ export async function PUT(req: NextRequest) {
   const slim: PrefsPayload = { prefs, _migrated_v2: true };
 
   const supabase = await createAuthedSupabaseClient();
-  await ensureUserHousehold(supabase, user.id);
   const { data: row, error } = await supabase
     .from("dashboard_state")
     .upsert({

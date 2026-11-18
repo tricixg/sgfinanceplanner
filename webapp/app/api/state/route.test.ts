@@ -11,7 +11,7 @@ vi.mock("@/lib/auth/require-user", () => ({
 vi.mock("@/lib/supabase/authed", () => ({ createAuthedSupabaseClient: async () => client }));
 vi.mock("@/lib/supabase/env", () => ({ isSupabaseAuthConfigured: () => true }));
 
-import { GET } from "@/app/api/state/route";
+import { GET, PUT } from "@/app/api/state/route";
 
 describe("GET /api/state", () => {
   beforeEach(() => {
@@ -33,11 +33,73 @@ describe("GET /api/state", () => {
     expect(f.rpcCalls).toHaveLength(0);
   });
 
-  it("still creates the household for a first-time user", async () => {
+  it("makes no writes and creates no household for a first-time user with no saved state", async () => {
     const f = createFakeSupabase({}, { rpc: { create_solo_household: () => ({ data: HH }) } });
     client = f.client;
-    const body = await (await GET()).json();
+    const res = await GET();
+    const body = await res.json();
+    expect(res.status).toBe(200);
     expect(body.source).toBe("defaults");
+    expect(body.data.prefs).toEqual({});
+    // One read of dashboard_state; nothing written, no household bootstrap.
+    expect(f.ops.map((o) => `${o.kind}:${o.table}`)).toEqual(["select:dashboard_state"]);
+    expect(f.rpcCalls).toHaveLength(0);
+  });
+
+  it("concurrent first loads all succeed and still write nothing", async () => {
+    const f = createFakeSupabase({}, { rpc: { create_solo_household: () => ({ data: HH }) } });
+    client = f.client;
+    const responses = await Promise.all(Array.from({ length: 6 }, () => GET()));
+    expect(responses.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 200]);
+    expect(f.ops.filter((o) => o.kind !== "select")).toHaveLength(0);
+    expect(f.rpcCalls).toHaveLength(0);
+  });
+
+  it("runs the legacy migration only for a full pre-v2 snapshot that is not yet migrated", async () => {
+    const legacy = {
+      monthlySal: 5000,
+      loans: [],
+      goals: [],
+      holdings: [],
+      budget: [],
+      accounts: [],
+      ilpPolicies: [],
+      prefs: { theme: "dark" },
+    };
+    const f = createFakeSupabase(
+      { dashboard_state: [{ user_id: "u1", data: legacy, updated_at: "2026-01-01" }] },
+      { rpc: { create_solo_household: () => ({ data: HH }) } }
+    );
+    client = f.client;
+    const first = await (await GET()).json();
+    expect(first.migrated).toBe(true);
+    expect(first.data).toEqual({ prefs: { theme: "dark" }, _migrated_v2: true });
+    // The household is created here because the migration needs it...
     expect(f.rpcCalls.map((c) => c.name)).toEqual(["create_solo_household"]);
+    // ...and the row is now the slim v2 shape.
+    expect(f.table("dashboard_state")[0]!.data).toEqual({ prefs: { theme: "dark" }, _migrated_v2: true });
+
+    // Reading again is a plain read: no migration, no household, no writes.
+    f.ops.length = 0;
+    f.rpcCalls.length = 0;
+    const second = await (await GET()).json();
+    expect(second.migrated).toBeUndefined();
+    expect(second.data).toEqual({ prefs: { theme: "dark" }, _migrated_v2: true });
+    expect(f.ops.map((o) => `${o.kind}:${o.table}`)).toEqual(["select:dashboard_state"]);
+    expect(f.rpcCalls).toHaveLength(0);
+  });
+
+  it("saving prefs (PUT) writes only dashboard_state — no household bootstrap either", async () => {
+    const f = createFakeSupabase({}, { rpc: { create_solo_household: () => ({ data: HH }) } });
+    client = f.client;
+    const res = await PUT(
+      new Request("http://localhost/api/state", {
+        method: "PUT",
+        body: JSON.stringify({ data: { prefs: { theme: "dark" } } }),
+      }) as never
+    );
+    expect(res.status).toBe(200);
+    expect(f.rpcCalls).toHaveLength(0);
+    expect(f.ops.filter((o) => o.kind !== "select").map((o) => o.table)).toEqual(["dashboard_state"]);
   });
 });
