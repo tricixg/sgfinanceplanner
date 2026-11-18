@@ -11,6 +11,8 @@ type Value = ReturnType<typeof useAppDataProvider>;
 let latest: Value;
 let requests: { url: string; method: string }[];
 let failing: Set<string>;
+/** Requests for these paths stay in flight until the test resolves the promise. */
+let gates: Map<string, Promise<void>>;
 
 const BODIES: Record<string, unknown> = {
   "/api/state": { data: { prefs: { theme: "x" } } },
@@ -29,6 +31,7 @@ const BODIES: Record<string, unknown> = {
 beforeEach(() => {
   requests = [];
   failing = new Set();
+  gates = new Map();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.stubGlobal(
@@ -37,7 +40,7 @@ beforeEach(() => {
       const url = String(input);
       const path = url.split("?")[0];
       requests.push({ url: path, method: init?.method ?? "GET" });
-      await new Promise((r) => setTimeout(r, 5));
+      await (gates.get(path) ?? new Promise((r) => setTimeout(r, 5)));
       const bad = failing.has(path);
       return new Response(JSON.stringify(bad ? { error: "boom" } : BODIES[path] ?? {}), {
         status: bad ? 500 : 200,
@@ -102,10 +105,23 @@ describe("domain-scoped loading (PERF-003)", () => {
   });
 
   it("does not wait for secondary domains (placeholders instead)", async () => {
+    let release!: () => void;
+    gates.set("/api/portfolio/snapshots", new Promise<void>((r) => (release = r)));
     const root = createRoot(document.createElement("div"));
     await act(async () => void root.render(<Harness needs={["snapshots"]} />));
+    // The request is in flight and held open, so this state can't come from a later tick.
+    expect(gets()).toEqual(["/api/portfolio/snapshots"]);
+    expect(latest.domainStatus.snapshots).toBe("loading");
     expect(latest.loading).toBe(false);
     expect(latest.snapshotsLoading).toBe(true);
+    // Once it arrives, the placeholder clears.
+    await act(async () => {
+      release();
+      for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(latest.snapshotsLoading).toBe(false);
+    expect(latest.state.portfolioHistory).toEqual([]);
+    act(() => root.unmount());
   });
 
   it("reading a field of a domain nobody requested loads it instead of showing a default as real data", async () => {
