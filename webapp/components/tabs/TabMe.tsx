@@ -1,14 +1,13 @@
 "use client";
 
 import { canReplaceLocalState } from "@/lib/me/local-data-actions";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import type { DashboardState, InsurancePolicy } from "@/lib/types";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import {
   computedInsuranceMonthly,
   defaultInsurancePolicy,
 } from "@/lib/finance";
-import { createDummyState, mergeWithDefaults } from "@/lib/finance/defaults";
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import { PartnerCard } from "@/components/PartnerCard";
@@ -23,7 +22,6 @@ type Props = {
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
   onApply: () => void;
   onSaveNow: () => void;
-  onReset: () => void;
   saveMsg: string;
   userEmail?: string;
   hasPassword?: boolean;
@@ -39,7 +37,6 @@ export function TabMe({
   setState,
   onApply,
   onSaveNow,
-  onReset,
   saveMsg,
   userEmail,
   hasPassword,
@@ -49,7 +46,6 @@ export function TabMe({
   authEnabled = false,
 }: Props) {
   const appData = useContext(AppDataContext);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [editingInsurance, setEditingInsurance] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -224,57 +220,8 @@ export function TabMe({
     }
   };
 
-  // Reset / dummy / import only replace in-memory state — never offered when signed in.
+  // Browser-only mode (signed out) keeps state in memory.
   const localMode = canReplaceLocalState(authEnabled);
-
-  const resetAll = () => {
-    if (!localMode) return;
-    if (!confirm("Reset ALL data in this browser to zero? This can't be undone.")) {
-      console.info("[TabMe] reset cancelled");
-      return;
-    }
-    onReset();
-  };
-
-  /** Browser-only mode: the dashboard state held in memory (NOT a backup of server data). */
-  const exportJSON = () => {
-    const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "financial_dashboard_data.json";
-    a.click();
-  };
-
-  const loadDummyData = () => {
-    if (!localMode) return;
-    if (
-      !confirm(
-        "Replace all current data with sample dummy data? You can still Reset or Import JSON to undo."
-      )
-    ) {
-      console.info("[TabMe] add dummy data cancelled");
-      return;
-    }
-    setState(createDummyState());
-    onSaveNow();
-    onApply();
-    console.info("[TabMe] loaded dummy data");
-  };
-
-  const importJSON = (file: File) => {
-    if (!localMode) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const imp = JSON.parse(r.result as string);
-        setState(mergeWithDefaults(imp));
-        onSaveNow();
-      } catch {
-        console.error("[TabMe] invalid JSON import");
-      }
-    };
-    r.readAsText(file);
-  };
 
   return (
     <section className="panel on">
@@ -621,13 +568,6 @@ export function TabMe({
         </div>
       ) : null}
       <div className="card">
-        {localMode ? (
-          <p className="note" style={{ marginTop: 0 }}>
-            Browser-only mode: export or import the dashboard JSON held in this browser. Dummy
-            data fills every tab — salary, accounts, budget, goals, loans, cards (with catalog
-            rewards), holdings (SGX + US), portfolio history, CPF, BTO planner, and more.
-          </p>
-        ) : null}
         <div className="toolbar">
           <button type="button" className="btn" onClick={onApply}>
             Apply &amp; refresh
@@ -636,35 +576,6 @@ export function TabMe({
             <button type="button" className="btn ghost" onClick={onSaveNow}>
               Save now
             </button>
-          ) : null}
-          {localMode ? (
-            <button type="button" className="btn ghost" onClick={exportJSON}>
-              Export dashboard JSON (this browser only)
-            </button>
-          ) : null}
-          {localMode ? (
-            <>
-              <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()}>
-                Import JSON
-              </button>
-              <button type="button" className="btn ghost" onClick={loadDummyData}>
-                Add dummy data
-              </button>
-              <button type="button" className="btn del" onClick={resetAll}>
-                Reset all to zero
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".json"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) importJSON(f);
-                  e.target.value = "";
-                }}
-              />
-            </>
           ) : null}
           <span className="save-status">{saveMsg}</span>
         </div>

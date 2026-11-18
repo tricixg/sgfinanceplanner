@@ -299,7 +299,7 @@ What each page is for, in sidebar order. Page names match the sidebar labels.
 - **Partner** — invite by email to share household savings
 - Sign out
 
-When you are signed in, the Me page no longer offers **Reset all to zero**, **Add dummy data** or **Import JSON**: they only changed what was on screen (nothing was saved) and could lead to real data being overwritten by a later edit. In **browser-only mode** (no sign-in) they remain, with Reset asking for confirmation, and the export is labelled *Export dashboard JSON (this browser only)*, which is not a backup of your saved data.
+The Me page has no **Reset all to zero**, **Add dummy data**, **Import JSON** or **Export dashboard JSON** buttons: they only changed what was on screen (nothing was saved) and could lead to real data being overwritten by a later edit.
 
 **Typical use:** Set up once; revisit when salary or insurance changes; invite partner; backups of your saved data are handled by Supabase (see `documentation/05-database-schema.md`), not by this page.
 

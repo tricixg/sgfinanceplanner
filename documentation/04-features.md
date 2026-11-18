@@ -268,7 +268,7 @@ See [07-credit-cards-and-statements.md](./07-credit-cards-and-statements.md).
 
 ### ME (`/me`)
 
-**Purpose:** Salary, insurance (non-ILP), partner invites, dashboard JSON import/export, dummy data.
+**Purpose:** Salary, insurance (non-ILP), partner invites.
 
 | Layer | Location |
 |-------|----------|
