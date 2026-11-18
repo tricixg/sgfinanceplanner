@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { DecimalTextInput } from "@/components/DecimalInput";
 import {
   buildSplitPayload,
@@ -85,6 +86,7 @@ export function TravelExpenseActionModal({
     expense.financialAccountId ?? ""
   );
   const [busy, setBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [msg, setMsg] = useState("");
   const reimburseLock = useRef(false);
 
@@ -196,7 +198,6 @@ export function TravelExpenseActionModal({
   };
 
   const remove = async () => {
-    if (!confirm("Delete this expense and reverse calculations?")) return;
     setBusy(true);
     setMsg("");
     try {
@@ -212,10 +213,12 @@ export function TravelExpenseActionModal({
       setMsg(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setBusy(false);
+      setConfirmingDelete(false);
     }
   };
 
   return (
+    <>
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="card modal-panel travel-expense-modal" style={{ maxWidth: 680 }}>
         <h3>Manage expense</h3>
@@ -316,7 +319,7 @@ export function TravelExpenseActionModal({
           <button
             type="button"
             className="btn del sm"
-            onClick={() => void remove()}
+            onClick={() => setConfirmingDelete(true)}
             disabled={busy}
           >
             Delete
@@ -335,5 +338,14 @@ export function TravelExpenseActionModal({
         </div>
       </div>
     </div>
+    {confirmingDelete ? (
+      <ConfirmDeleteModal
+        message="Delete this expense and reverse calculations? This can't be undone."
+        busy={busy}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={() => void remove()}
+      />
+    ) : null}
+    </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import type { PokerLocationRecord } from "@/lib/poker/locations";
 import { formatGameStakes, type PokerGame } from "@/lib/poker/types";
 
@@ -19,6 +20,9 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<
+    { kind: "location"; item: PokerLocationRecord } | { kind: "game"; item: PokerGame } | null
+  >(null);
 
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [editLocationName, setEditLocationName] = useState("");
@@ -67,11 +71,11 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key === "Escape" && !busy && !pendingDelete) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, busy]);
+  }, [onClose, busy, pendingDelete]);
 
   const notifyChanged = () => {
     onChanged();
@@ -144,10 +148,6 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
   };
 
   const removeLocation = async (loc: PokerLocationRecord) => {
-    const ok = confirm(
-      `Delete "${loc.name}"?\n\nPast sessions at this location will keep their data but the location field will be cleared.`
-    );
-    if (!ok) return;
     setBusy(true);
     setError("");
     try {
@@ -253,10 +253,6 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
   };
 
   const removeGame = async (game: PokerGame) => {
-    const ok = confirm(
-      `Delete "${formatGameStakes(game)}"?\n\nOnly unused games can be deleted. Games linked to past sessions must be kept.`
-    );
-    if (!ok) return;
     setBusy(true);
     setError("");
     try {
@@ -291,6 +287,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
   };
 
   return (
+    <>
     <div
       className="modal-backdrop"
       role="presentation"
@@ -429,7 +426,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
                           type="button"
                           className="btn ghost sm"
                           disabled={busy}
-                          onClick={() => void removeLocation(loc)}
+                          onClick={() => setPendingDelete({ kind: "location", item: loc })}
                         >
                           Delete
                         </button>
@@ -572,7 +569,7 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
                           type="button"
                           className="btn ghost sm"
                           disabled={busy}
-                          onClick={() => void removeGame(game)}
+                          onClick={() => setPendingDelete({ kind: "game", item: game })}
                         >
                           Delete
                         </button>
@@ -651,5 +648,23 @@ export function PokerManageCatalogModal({ onClose, onChanged }: Props) {
         ) : null}
       </div>
     </div>
+    {pendingDelete ? (
+      <ConfirmDeleteModal
+        title={pendingDelete.kind === "location" ? "Delete location?" : "Delete game?"}
+        message={
+          pendingDelete.kind === "location"
+            ? `Delete "${pendingDelete.item.name}"? Past sessions at this location will keep their data but the location field will be cleared.`
+            : `Delete "${formatGameStakes(pendingDelete.item)}"? Only unused games can be deleted. Games linked to past sessions must be kept.`
+        }
+        busy={busy}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const p = pendingDelete;
+          const done = p.kind === "location" ? removeLocation(p.item) : removeGame(p.item);
+          void done.then(() => setPendingDelete(null));
+        }}
+      />
+    ) : null}
+    </>
   );
 }

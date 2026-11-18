@@ -14,6 +14,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 
 type Props = {
   state: DashboardState;
@@ -57,6 +58,7 @@ function OtherLoanHistoryTable({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<OtherLoanPaymentRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,10 +88,6 @@ function OtherLoanHistoryTable({
   }, [loanId, load]);
 
   const remove = async (p: OtherLoanPaymentRow) => {
-    const label = p.kind === "deposit" ? "draw-down" : "payment";
-    if (!confirm(`Delete this ${label} of ${fmt2(p.amount)} and reverse the loan balance?`)) {
-      return;
-    }
     setDeletingId(p.id);
     try {
       const recordType = p.expenseId ? "expense" : "savings";
@@ -110,6 +108,14 @@ function OtherLoanHistoryTable({
 
   return (
     <div className="other-loan-pay-history">
+      {pendingDelete ? (
+        <ConfirmDeleteModal
+          message={`Delete this ${pendingDelete.kind === "deposit" ? "draw-down" : "payment"} of ${fmt2(pendingDelete.amount)} and reverse the loan balance?`}
+          busy={deletingId === pendingDelete.id}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => void remove(pendingDelete).then(() => setPendingDelete(null))}
+        />
+      ) : null}
       <h4 className="other-loan-pay-history-title">Transaction history</h4>
       {loading ? (
         <p className="note">Loading…</p>
@@ -146,7 +152,7 @@ function OtherLoanHistoryTable({
                     <button
                       type="button"
                       className="btn del sm"
-                      onClick={() => void remove(p)}
+                      onClick={() => setPendingDelete(p)}
                       disabled={deletingId === p.id}
                     >
                       {deletingId === p.id ? "…" : "del"}

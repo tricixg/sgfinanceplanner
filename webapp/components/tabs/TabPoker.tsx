@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
 import { pokerProfitSgd } from "@/lib/fx/convert";
@@ -59,6 +60,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [manageOpen, setManageOpen] = useState(false);
   const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
   const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
+  const [pendingDeleteSession, setPendingDeleteSession] = useState<PokerSession | null>(null);
 
   const { accounts: financialAccounts } = useFinancialAccounts();
   const cashAccounts = financialAccounts.filter((a) => a.savingsAccountId);
@@ -135,7 +137,6 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   };
 
   const removeSession = async (session: PokerSession) => {
-    if (!confirm("Delete this poker session?")) return;
     try {
       const { res, data } = await fetchJson<{ error?: string }>(`/api/poker/${session.id}`, {
         method: "DELETE",
@@ -325,7 +326,20 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
             setViewingSession(null);
             console.info("[TabPoker] edit from detail", { id: viewingSession.id });
           }}
-          onDelete={() => void removeSession(viewingSession)}
+          onDelete={() => setPendingDeleteSession(viewingSession)}
+        />
+      ) : null}
+
+      {pendingDeleteSession ? (
+        <ConfirmDeleteModal
+          title="Delete poker session?"
+          message="Delete this poker session? This can't be undone."
+          onCancel={() => setPendingDeleteSession(null)}
+          onConfirm={() => {
+            const s = pendingDeleteSession;
+            setPendingDeleteSession(null);
+            void removeSession(s);
+          }}
         />
       ) : null}
 

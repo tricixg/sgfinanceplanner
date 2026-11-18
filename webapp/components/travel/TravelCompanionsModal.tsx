@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { fetchJson } from "@/lib/fetch-json";
 import type { TravelCompanion } from "@/lib/travel/types";
 
@@ -14,6 +15,7 @@ type Props = {
 export function TravelCompanionsModal({ tripId, companions, onClose, onChanged }: Props) {
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
   const addCompanion = async () => {
@@ -44,7 +46,6 @@ export function TravelCompanionsModal({ tripId, companions, onClose, onChanged }
   };
 
   const removeCompanion = async (companionId: string) => {
-    if (!confirm("Remove this person from the trip?")) return;
     setSaving(true);
     setMsg("");
     const { res, data } = await fetchJson<{ error?: string }>(
@@ -61,6 +62,7 @@ export function TravelCompanionsModal({ tripId, companions, onClose, onChanged }
   };
 
   return (
+    <>
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="card modal-panel travel-companions-modal" style={{ maxWidth: 420 }}>
         <div className="section-head">
@@ -79,7 +81,7 @@ export function TravelCompanionsModal({ tripId, companions, onClose, onChanged }
                   type="button"
                   className="btn del sm"
                   disabled={saving}
-                  onClick={() => void removeCompanion(c.id)}
+                  onClick={() => setPendingRemoveId(c.id)}
                 >
                   Remove
                 </button>
@@ -119,5 +121,16 @@ export function TravelCompanionsModal({ tripId, companions, onClose, onChanged }
         ) : null}
       </div>
     </div>
+    {pendingRemoveId ? (
+      <ConfirmDeleteModal
+        title="Remove person?"
+        message="Remove this person from the trip?"
+        confirmLabel="Remove"
+        busy={saving}
+        onCancel={() => setPendingRemoveId(null)}
+        onConfirm={() => void removeCompanion(pendingRemoveId).then(() => setPendingRemoveId(null))}
+      />
+    ) : null}
+    </>
   );
 }

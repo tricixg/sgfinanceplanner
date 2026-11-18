@@ -11,6 +11,7 @@ import {
   type PokerImportProgress,
   type PokerImportStreamEvent,
 } from "@/lib/poker/import-sessions";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { parsePokerCsv } from "@/lib/poker/parse-csv";
 import type { PokerSession } from "@/lib/poker/types";
 
@@ -92,6 +93,7 @@ export function PokerImportMenu({ onImported }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<PokerImportProgress | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pendingImport, setPendingImport] = useState<{ file: File; rowCount: number } | null>(null);
 
   const close = () => {
     setOpen(false);
@@ -103,11 +105,11 @@ export function PokerImportMenu({ onImported }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !uploading) close();
+      if (e.key === "Escape" && !uploading && !pendingImport) close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, uploading]);
+  }, [open, uploading, pendingImport]);
 
   const downloadTemplate = () => {
     const blob = new Blob([POKER_IMPORT_TEMPLATE_CSV], { type: "text/csv;charset=utf-8" });
@@ -139,13 +141,10 @@ export function PokerImportMenu({ onImported }: Props) {
       return;
     }
 
-    const rowCount = preview.rows.length;
-    const confirmed = confirm(
-      `Import ${rowCount} poker session${rowCount === 1 ? "" : "s"}?\n\n` +
-        "Rows with a matching Account name will create cash ledger entries."
-    );
-    if (!confirmed) return;
+    setPendingImport({ file, rowCount: preview.rows.length });
+  };
 
+  const runImport = async (file: File, rowCount: number) => {
     setUploading(true);
     setError(null);
     setProgress({ current: 0, total: rowCount, phase: "resolving" });
@@ -319,6 +318,21 @@ export function PokerImportMenu({ onImported }: Props) {
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {pendingImport ? (
+        <ConfirmDeleteModal
+          title="Import poker sessions?"
+          message={`Import ${pendingImport.rowCount} poker session${pendingImport.rowCount === 1 ? "" : "s"}? Rows with a matching Account name will create cash ledger entries.`}
+          confirmLabel="Import"
+          danger={false}
+          onCancel={() => setPendingImport(null)}
+          onConfirm={() => {
+            const { file, rowCount } = pendingImport;
+            setPendingImport(null);
+            void runImport(file, rowCount);
+          }}
+        />
       ) : null}
     </>
   );

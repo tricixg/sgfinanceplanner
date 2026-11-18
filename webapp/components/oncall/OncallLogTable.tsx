@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { DecimalTextInput } from "@/components/DecimalInput";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { fmt2 } from "@/lib/finance/helpers";
 import {
   addAmounts,
@@ -351,16 +352,7 @@ export function OncallLogTable({
                 <MoneyCells a={computeAmounts(d, e.dailyRate, settings)} />
                 {statusCell(e)}
                 <td>
-                  {confirmDeleteId === e.id ? (
-                    <div className="oncall-actions">
-                      <button type="button" className="btn del sm" disabled={busyId === e.id} onClick={() => void remove(e.id)}>
-                        {busyId === e.id ? "Deleting…" : "Confirm delete"}
-                      </button>
-                      <button type="button" className="btn ghost sm" onClick={() => setConfirmDeleteId(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {(
                     <div className="oncall-actions">
                       {owed > 0 ? (
                         <button type="button" className="btn ghost sm" onClick={() => onRecordPay(e.id)}>
@@ -410,6 +402,15 @@ export function OncallLogTable({
           </tfoot>
         ) : null}
       </table>
+      {confirmDeleteId ? (
+        <ConfirmDeleteModal
+          title="Delete on-call entry?"
+          message="Delete this on-call entry? This can't be undone."
+          busy={busyId === confirmDeleteId}
+          onCancel={() => setConfirmDeleteId(null)}
+          onConfirm={() => void remove(confirmDeleteId)}
+        />
+      ) : null}
     </div>
   );
 }
