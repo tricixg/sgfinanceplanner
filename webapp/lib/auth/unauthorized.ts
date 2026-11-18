@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/client";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
 let redirecting = false;
@@ -31,8 +30,10 @@ export function handleUnauthorized(): void {
   console.info("[auth] API returned 401 — redirecting to login");
   const go = () => window.location.replace(`/login?next=${next}`);
   if (!isSupabaseAuthConfigured()) return go();
-  createClient()
-    .auth.signOut({ scope: "local" })
+  // Loaded only now: a 401 is rare, and the browser client is ~60 KB gzipped that no page should
+  // pay for on first load.
+  import("@/lib/supabase/client")
+    .then(({ createClient }) => createClient().auth.signOut({ scope: "local" }))
     .catch(() => undefined)
     .finally(go);
 }
