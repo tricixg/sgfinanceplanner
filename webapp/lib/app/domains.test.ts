@@ -9,6 +9,7 @@ import {
   STATE_FIELD_DOMAIN,
   domainsForPath,
   routeDomainTable,
+  routeLazyTable,
 } from "@/lib/app/domains";
 
 const table = routeDomainTable();
@@ -46,6 +47,10 @@ describe("route domain table (PERF-003)", () => {
         expect(table[route], `${route} reads ${domain}`).toContain(domain);
       }
     }
+  });
+
+  it("early-start entries only exist for routes in the domain table", () => {
+    for (const route of Object.keys(routeLazyTable())) expect(table, route).toHaveProperty([route]);
   });
 
   it("the state-field map only points at real domains", () => {

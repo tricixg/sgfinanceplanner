@@ -152,6 +152,47 @@ export function domainsForPath(pathname: string | null | undefined): readonly Da
   return ROUTE_DOMAINS[path] ?? ALL_DOMAINS;
 }
 
+/**
+ * Lazily-loaded session domains that pages read through their own hooks (useSavings, useHousehold,
+ * ...). They normally start loading when the page's content mounts, which is after its core data
+ * arrived. Listing them here starts them on route entry instead, in parallel with core. This only
+ * changes WHEN they load: the page's hooks would load the same data anyway, so a missing or extra
+ * entry costs time or one redundant request, never correctness.
+ */
+export type LazyDomain =
+  | "savings"
+  | "accounts"
+  | "funds"
+  | "miles"
+  | "household"
+  | "financialAccounts";
+
+const SAVINGS_SET: readonly LazyDomain[] = ["savings", "accounts", "funds"];
+
+const ROUTE_LAZY: Readonly<Record<string, readonly LazyDomain[]>> = {
+  "/now": SAVINGS_SET,
+  "/year": SAVINGS_SET,
+  "/budget": SAVINGS_SET,
+  "/cash-accounts": SAVINGS_SET,
+  "/wealth": SAVINGS_SET,
+  "/financial-health": SAVINGS_SET,
+  "/bto/price-finder": [...SAVINGS_SET, "household"],
+  "/bto": ["household"],
+  "/me": ["household", ...SAVINGS_SET],
+  "/debt": ["financialAccounts"],
+  "/miles": ["miles"],
+};
+
+export function lazyDomainsForPath(pathname: string | null | undefined): readonly LazyDomain[] {
+  if (!pathname) return [];
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return ROUTE_LAZY[path] ?? [];
+}
+
+export function routeLazyTable(): Readonly<Record<string, readonly LazyDomain[]>> {
+  return ROUTE_LAZY;
+}
+
 /** Test hook: the table, so tests can check it against the nav and the recorded reads. */
 export function routeDomainTable(): Readonly<Record<string, readonly DataDomain[]>> {
   return ROUTE_DOMAINS;

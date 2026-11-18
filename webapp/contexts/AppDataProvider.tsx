@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { domainsForPath } from "@/lib/app/domains";
+import { domainsForPath, lazyDomainsForPath } from "@/lib/app/domains";
 import { useAppDataProvider } from "@/hooks/useAppData";
 import { useSavingsProvider } from "@/hooks/useSavings";
 import { useAccountsProvider } from "@/hooks/useAccounts";
@@ -33,7 +33,8 @@ type Props = {
 export function AppDataProvider({ userId, children }: Props) {
   const enabled = Boolean(userId);
   // Load only the domains this route needs (lib/app/domains.ts); others load when first read.
-  const needs = domainsForPath(usePathname());
+  const pathname = usePathname();
+  const needs = domainsForPath(pathname);
   const appData = useAppDataProvider(enabled, needs);
   const savings = useSavingsProvider(enabled);
   const accounts = useAccountsProvider(enabled);
@@ -43,6 +44,24 @@ export function AppDataProvider({ userId, children }: Props) {
   const financialAccounts = useFinancialAccountsProvider(enabled);
   const benefits = useBenefitsProvider(enabled);
   const outstandingCardStatements = useOutstandingCardStatementsProvider(enabled);
+
+  // Start the page's lazily-loaded data on route entry, in parallel with its core data, instead
+  // of when its content mounts after core finished (each provider's ensureLoaded is idempotent).
+  const ensureByName = {
+    savings: savings.ensureLoaded,
+    accounts: accounts.ensureLoaded,
+    funds: funds.ensureLoaded,
+    miles: miles.ensureLoaded,
+    household: household.ensureLoaded,
+    financialAccounts: financialAccounts.ensureLoaded,
+  };
+  const lazyKey = lazyDomainsForPath(pathname).join(",");
+  useEffect(() => {
+    if (!enabled || !lazyKey) return;
+    for (const name of lazyKey.split(",") as (keyof typeof ensureByName)[]) ensureByName[name]();
+    // ensureLoaded functions are stable per provider; lazyKey changes with the route.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, lazyKey]);
 
   useEffect(() => {
     console.info("[AppDataProvider] mounted", { userId: userId ?? null, enabled });

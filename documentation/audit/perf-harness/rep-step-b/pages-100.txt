@@ -1,0 +1,8 @@
+/now fcp 100 usable  req 27 api 9 dataReady 1418 sb 26 auth 0 initJS 338KB api1st 693 apiLast 1418 js 15/310KB css 19KB tot 341KB dupes []
+/year fcp 80 usable  req 27 api 10 dataReady 1365 sb 27 auth 0 initJS 340KB api1st 686 apiLast 1365 js 15/312KB css 19KB tot 343KB dupes []
+/budget fcp 68 usable  req 31 api 14 dataReady 1522 sb 42 auth 0 initJS 341KB api1st 692 apiLast 1522 js 15/313KB css 19KB tot 348KB dupes []
+/cash-accounts fcp 72 usable  req 30 api 13 dataReady 2318 sb 30 auth 0 initJS 345KB api1st 702 apiLast 2318 js 15/317KB css 19KB tot 351KB dupes []
+/wealth fcp 100 usable  req 29 api 11 dataReady 1352 sb 28 auth 0 initJS 349KB api1st 682 apiLast 1352 js 16/322KB css 19KB tot 354KB dupes []
+/me fcp 68 usable  req 30 api 14 dataReady 1290 sb 34 auth 0 initJS 280KB api1st 637 apiLast 1290 js 14/252KB css 19KB tot 286KB dupes []
+/financial-health fcp 100 usable  req 49 api 15 dataReady 1322 sb 49 auth 0 initJS 343KB api1st 654 apiLast 1322 js 22/396KB css 19KB tot 450KB dupes []
+/bto/price-finder fcp 68 usable  req 33 api 11 dataReady 1349 sb 28 auth 0 initJS 378KB api1st 727 apiLast 1349 js 16/351KB css 19KB tot 386KB dupes []

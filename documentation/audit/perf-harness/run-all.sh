@@ -27,7 +27,7 @@ for L in 30 100; do
   sleep 1
   # warm the server (first hit compiles nothing in prod, but primes caches)
   curl -s -o /dev/null -b "$(cat "$HERE/cookie.txt")" http://localhost:3100/dashboard || true
-  ROUTES="$ROUTES" CPU_THROTTLE=4 OUT="$OUTDIR/pages-$L.json" node "$HERE/pages.js" | tee "$OUTDIR/pages-$L.txt"
+  ROUTES="$ROUTES" CPU_THROTTLE=4 REPEAT="${REPEAT:-1}" OUT="$OUTDIR/pages-$L.json" node "$HERE/pages.js" | tee "$OUTDIR/pages-$L.txt"
   if [ "$L" = 100 ]; then ENDPOINTS="${ENDPOINTS:-}" MOCK_LATENCY_MS=100 OUT="$OUTDIR/endpoints-100.json" node "$HERE/endpoints.js" | tee "$OUTDIR/endpoints-100.txt"; fi
   kill $MOCKPID; sleep 1
 done

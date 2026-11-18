@@ -11,6 +11,7 @@ const [cName, ...rest] = cookieStr.split("=");
 const cValue = rest.join("=");
 const ROUTES = (process.env.ROUTES || "").split(",").filter(Boolean);
 const CPU = Number(process.env.CPU_THROTTLE || 4);
+const REPEAT = Math.max(1, Number(process.env.REPEAT || 1)); // N fresh loads per route; the median run is reported
 const MOCK = "http://127.0.0.1:54321";
 
 const mockStats = async (reset) => (await fetch(`${MOCK}/__stats${reset ? "?reset=1" : ""}`)).json();
@@ -31,6 +32,8 @@ async function initialJsGzKB(html) {
   const browser = await chromium.launch();
   const out = [];
   for (const route of ROUTES) {
+    const runs = [];
+    for (let rep = 0; rep < REPEAT; rep++) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await ctx.addCookies([{ name: cName, value: cValue, domain: "localhost", path: "/" }]);
     const page = await ctx.newPage();
@@ -84,7 +87,7 @@ async function initialJsGzKB(html) {
       apiCounts[k] = (apiCounts[k] || 0) + 1;
     }
     const dupes = Object.entries(apiCounts).filter(([, n]) => n > 1);
-    out.push({
+    runs.push({
       route,
       fcp: Math.round(nav.fcp || 0),
       usable: usableAt,
@@ -104,6 +107,11 @@ async function initialJsGzKB(html) {
       waterfall: api.map((a) => `${a.start}-${a.end} ${new URL(a.url).pathname}`),
     });
     await ctx.close();
+    }
+    runs.sort((a, b) => a.dataReadyMs - b.dataReadyMs);
+    const median = runs[Math.floor(runs.length / 2)];
+    median.dataReadyRunsMs = runs.map((r) => r.dataReadyMs);
+    out.push(median);
   }
   await browser.close();
   fs.writeFileSync(path.resolve(__dirname, process.env.OUT || "pages.json"), JSON.stringify(out, null, 2));

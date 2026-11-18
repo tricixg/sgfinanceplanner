@@ -9,17 +9,16 @@ import { useCardStatements } from "@/hooks/useCardStatements";
 function YearContent({
   state,
   setState,
+  cardBundle,
+  cardsLoading,
 }: {
   state: Parameters<typeof TabYear>[0]["state"];
   setState: Parameters<typeof TabYear>[0]["setState"];
+  cardBundle: ReturnType<typeof useCardStatements>["bundle"];
+  cardsLoading: boolean;
 }) {
   const user = useAppSession();
   const { savingsTotals } = usePageSavings(user?.id, state);
-  // Open card cycles feed the card-balance liability in the projection's
-  // starting net worth (same input the Cash Accounts page uses).
-  const { bundle: cardBundle, loading: cardsLoading } = useCardStatements(
-    Boolean(user?.id)
-  );
   if (cardsLoading) return <p className="loading">Loading your financial data…</p>;
   return (
     <TabYear
@@ -32,13 +31,23 @@ function YearContent({
 }
 
 export function YearRoute() {
+  const user = useAppSession();
+  // Open card cycles feed the card-balance liability in the projection's starting net worth
+  // (same input the Cash Accounts page uses). Fetched here, not in YearContent, so the request
+  // starts on route entry instead of after the core data has loaded.
+  const { bundle: cardBundle, loading: cardsLoading } = useCardStatements(Boolean(user?.id));
   return (
     <DomainPage>
       {({ state, setState, loading }) =>
         loading ? (
           <p className="loading">Loading your financial data…</p>
         ) : (
-          <YearContent state={state} setState={setState} />
+          <YearContent
+            state={state}
+            setState={setState}
+            cardBundle={cardBundle}
+            cardsLoading={cardsLoading}
+          />
         )
       }
     </DomainPage>
