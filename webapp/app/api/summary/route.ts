@@ -16,11 +16,12 @@ import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { mergeWithDefaults, createEmptyState } from "@/lib/finance/defaults";
 import type { DashboardState } from "@/lib/types";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 /**
  * Lightweight overview for /this-month without loading every domain on the client.
  */
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -86,4 +87,4 @@ export async function GET() {
     console.error("[api/summary] GET failed", msg);
     return apiError("api/summary", msg, { fallback: "Failed to load summary" });
   }
-}
+});

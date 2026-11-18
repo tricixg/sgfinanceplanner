@@ -8,9 +8,10 @@ import {
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 /** Lightweight data for This month calendar (no spend index / interest). */
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({
       configured: false,
@@ -52,4 +53,4 @@ export async function GET() {
     console.error("[api/credit-cards/calendar] GET failed", msg);
     return apiError("api/credit-cards/calendar", msg, { fallback: "Failed to load calendar data" });
   }
-}
+});

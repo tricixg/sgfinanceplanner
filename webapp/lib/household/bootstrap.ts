@@ -19,7 +19,10 @@ async function readHouseholdId(
   return row?.household_id ?? null;
 }
 
-/** Best-effort delete of a household row left behind when member insert races. */
+/**
+ * Best-effort delete of a household row left behind when a direct member insert races. Only the
+ * direct-insert path (service role / dev bypass) can reach this, and only that client can delete.
+ */
 async function deleteOrphanHousehold(
   supabase: SupabaseClient,
   householdId: string
@@ -43,17 +46,13 @@ async function deleteOrphanHousehold(
 }
 
 /**
- * Errors from create_solo_household() that mean "use the direct insert instead":
- * the function isn't installed yet (migration 066 not applied) or the client is
- * the service role / dev bypass, which has no auth.uid().
+ * create_solo_household() errors that mean "this client has no signed-in user", i.e. the service
+ * role or the dev bypass. Those clients bypass RLS, so a direct insert is allowed (and is the only
+ * way, since they have no auth.uid()). A missing function is NOT in this list: migration 066 is
+ * required, and an authed client cannot write household_members directly any more.
  */
-function canFallBackToDirectInsert(error: { code?: string; message?: string }): boolean {
-  return (
-    error.code === "PGRST202" ||
-    error.code === "42883" ||
-    error.code === "28000" ||
-    /not_authenticated|could not find the function/i.test(error.message ?? "")
-  );
+function isNoAuthUserError(error: { code?: string; message?: string }): boolean {
+  return error.code === "28000" || /not_authenticated/i.test(error.message ?? "");
 }
 
 /**
@@ -61,9 +60,9 @@ function canFallBackToDirectInsert(error: { code?: string; message?: string }): 
  *
  * Since migration 066 clients can no longer insert into household_members, so
  * a signed-in user's solo household is created by the create_solo_household()
- * SQL function. `viaServiceRole` (used when dissolving a pairing, where the
- * caller creates households for OTHER users) writes directly with the
- * RLS-bypassing client.
+ * SQL function (atomic, and it cleans up its own race loser). `viaServiceRole`
+ * (used when dissolving a pairing, where the caller creates households for OTHER
+ * users) and the dev bypass write directly with the RLS-bypassing client.
  */
 export async function ensureUserHousehold(
   supabase: SupabaseClient,
@@ -81,12 +80,12 @@ export async function ensureUserHousehold(
       console.info("[household] created solo household", { userId, householdId: data });
       return data;
     }
-    if (error && !canFallBackToDirectInsert(error)) {
+    if (error && !isNoAuthUserError(error)) {
       console.error("[household] create_solo_household failed", error.message);
       throw new Error(error.message);
     }
     if (error) {
-      console.warn("[household] create_solo_household unavailable — direct insert");
+      console.info("[household] no signed-in user on this client — direct insert");
     }
   }
 

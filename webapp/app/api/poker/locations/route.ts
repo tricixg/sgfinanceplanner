@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { listPokerLocationRecords, upsertPokerLocation } from "@/lib/poker/locations";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -17,9 +18,9 @@ export async function GET() {
   const items = await listPokerLocationRecords(supabase, auth.user.id);
   console.info("[api/poker/locations] GET", { userId: auth.user.id, count: items.length });
   return NextResponse.json({ configured: true, items });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -49,4 +50,4 @@ export async function POST(req: NextRequest) {
     console.error("[api/poker/locations] POST failed", msg);
     return apiError("api/poker/locations", msg, { fallback: "Failed to save location" });
   }
-}
+});

@@ -6,8 +6,9 @@ import type { Holding } from "@/lib/types";
 import { saveErrorStatus } from "@/lib/sync/save-error";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, holdings: [] });
   }
@@ -21,9 +22,9 @@ export async function GET() {
     const msg = e instanceof Error ? e.message : "Failed to load holdings";
     return apiError("api/holdings", msg, { fallback: "Failed to load holdings" });
   }
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -48,4 +49,4 @@ export async function PUT(req: NextRequest) {
     const msg = e instanceof Error ? e.message : "Failed to save holdings";
     return apiError("api/holdings", msg, { status: saveErrorStatus(e), fallback: "Failed to save holdings" });
   }
-}
+});

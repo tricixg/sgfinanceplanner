@@ -2,8 +2,9 @@ import { apiError } from "@/lib/api/api-error";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function POST() {
+export const POST = withRequestId(async function POST() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ ok: true });
   }
@@ -17,4 +18,4 @@ export async function POST() {
 
   console.info("[api/auth/signout] ok");
   return NextResponse.json({ ok: true });
-}
+});

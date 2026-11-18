@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadBenefitClaims, recordBenefitClaim, verifyBenefit } from "@/lib/benefits/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -28,9 +29,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     console.error("[api/benefits/claims] GET failed", msg);
     return apiError("api/benefits/[id]/claims", msg, { fallback: "Failed to load claims" });
   }
-}
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -67,4 +68,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     console.error("[api/benefits/claims] POST failed", msg);
     return apiError("api/benefits/[id]/claims", msg, { fallback: "Failed to log claim" });
   }
-}
+});

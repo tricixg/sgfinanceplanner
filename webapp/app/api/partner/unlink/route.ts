@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { unlinkPartner } from "@/lib/household/unlink-partner";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function POST() {
+export const POST = withRequestId(async function POST() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -32,4 +33,4 @@ export async function POST() {
     console.error("[api/partner/unlink] failed", { userId: user.id, msg });
     return apiError("api/partner/unlink", msg, { status, fallback: "Failed to unlink partner" });
   }
-}
+});

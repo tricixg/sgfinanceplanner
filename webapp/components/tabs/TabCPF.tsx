@@ -11,6 +11,7 @@ import { sgtTodayYmd } from "@/lib/time/sgt";
 import { CpfTransactionForm } from "@/components/cpf/CpfTransactionForm";
 import { CpfOaHistory } from "@/components/cpf/CpfOaHistory";
 import { CpfAssumptions } from "@/components/cpf/CpfAssumptions";
+import { notifySaveFailed } from "@/lib/ui/notify";
 
 type Props = {
   state: DashboardState;
@@ -53,6 +54,7 @@ export function TabCPF({ state: S, setState }: Props) {
       console.info("[TabCPF] CPF balances saved");
     } catch (e) {
       console.error("[TabCPF] CPF save failed", e);
+      notifySaveFailed("your CPF balances", e);
     } finally {
       setSaving(false);
     }

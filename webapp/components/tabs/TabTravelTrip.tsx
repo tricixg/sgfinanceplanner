@@ -29,6 +29,8 @@ import type {
   TravelTrip,
   TravelTripBudget,
 } from "@/lib/travel/types";
+import { errorMessage } from "@/lib/ui/notify";
+import { ErrorState } from "@/components/ui/States";
 
 const PIE_PALETTE = [
   "#5b8def",
@@ -92,8 +94,22 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     endDate: "",
   });
 
+  const [loadError, setLoadError] = useState("");
+
   const load = async () => {
     setLoading(true);
+    setLoadError("");
+    try {
+      await loadTrip();
+    } catch (e) {
+      console.error("[TabTravelTrip] load failed", e);
+      setLoadError(errorMessage(e, "Failed to load trip"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTrip = async () => {
     const [tripRes, budgetRes, expenseRes, companionRes, balanceRes] = await Promise.all([
       fetchJson<{ item?: TravelTrip; error?: string }>(`/api/travel/trips/${tripId}`, {
         credentials: "include",
@@ -115,8 +131,20 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
         { credentials: "include" }
       ),
     ]);
+    // A section that failed must not look like an empty one: say so, with Retry.
+    const failed = [
+      !tripRes.res.ok && "the trip",
+      !budgetRes.res.ok && "budgets",
+      !expenseRes.res.ok && "expenses",
+      !companionRes.res.ok && "people",
+      !balanceRes.res.ok && "balances",
+    ].filter(Boolean);
+    if (failed.length > 0) {
+      setLoadError(
+        (!tripRes.res.ok && tripRes.data.error) || `Couldn't load ${failed.join(", ")}.`
+      );
+    }
     if (!tripRes.res.ok) {
-      setMsg(tripRes.data.error ?? "Failed to load trip");
       setTrip(null);
     } else {
       const item = tripRes.data.item ?? null;
@@ -146,7 +174,6 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       setBalances(balanceRes.data.items ?? []);
       setTotalPending(balanceRes.data.totalPending ?? 0);
     }
-    setLoading(false);
   };
 
   const resetSplitForm = () => {
@@ -197,34 +224,41 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
 
     setSavingTrip(true);
     setMsg("");
-    const { res, data } = await fetchJson<{ item?: TravelTrip; error?: string }>(
-      `/api/travel/trips/${tripId}`,
-      {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          country,
-          startDate,
-          endDate,
-        }),
+    try {
+      const { res, data } = await fetchJson<{ item?: TravelTrip; error?: string }>(
+        `/api/travel/trips/${tripId}`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            country,
+            startDate,
+            endDate,
+          }),
+        }
+      );
+      if (!res.ok || !data.item) {
+        setMsg(data.error ?? "Failed to save trip");
+        return;
       }
-    );
-    setSavingTrip(false);
-    if (!res.ok || !data.item) {
-      setMsg(data.error ?? "Failed to save trip");
-      return;
-    }
 
-    setTrip(data.item);
-    setTripDraft({
-      name: data.item.name,
-      country: data.item.country,
-      startDate: data.item.startDate,
-      endDate: data.item.endDate,
-    });
-    setEditingTrip(false);
+      setTrip(data.item);
+      setTripDraft({
+        name: data.item.name,
+        country: data.item.country,
+        startDate: data.item.startDate,
+        endDate: data.item.endDate,
+      });
+      setEditingTrip(false);
+    } catch (e) {
+      console.error("[TabTravelTrip] save trip failed", e);
+      setMsg(errorMessage(e, "Failed to save trip"));
+      return;
+    } finally {
+      setSavingTrip(false);
+    }
     await load();
   };
 
@@ -238,25 +272,31 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
         budgetAmount: d.budgetAmount,
       }))
       .filter((d) => d.subCategory.length > 0);
-    const { res, data } = await fetchJson<{ items?: TravelTripBudget[]; error?: string }>(
-      `/api/travel/trips/${tripId}/budgets`,
-      {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: payload }),
+    try {
+      const { res, data } = await fetchJson<{ items?: TravelTripBudget[]; error?: string }>(
+        `/api/travel/trips/${tripId}/budgets`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: payload }),
+        }
+      );
+      if (!res.ok) {
+        setMsg(data.error ?? "Failed to save budgets");
+        return;
       }
-    );
-    setSavingBudget(false);
-    if (!res.ok) {
-      setMsg(data.error ?? "Failed to save budgets");
-      return;
+      const next = data.items ?? [];
+      setBudgets(next);
+      setDraft(next.map((b) => ({ id: b.id, subCategory: b.subCategory, budgetAmount: b.budgetAmount })));
+      if (!subCategory && next.length > 0) setSubCategory(next[0]!.subCategory);
+      setEditingBudget(false);
+    } catch (e) {
+      console.error("[TabTravelTrip] save budgets failed", e);
+      setMsg(errorMessage(e, "Failed to save budgets"));
+    } finally {
+      setSavingBudget(false);
     }
-    const next = data.items ?? [];
-    setBudgets(next);
-    setDraft(next.map((b) => ({ id: b.id, subCategory: b.subCategory, budgetAmount: b.budgetAmount })));
-    if (!subCategory && next.length > 0) setSubCategory(next[0]!.subCategory);
-    setEditingBudget(false);
   };
 
   const addExpense = async (e: React.FormEvent) => {
@@ -284,31 +324,38 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
 
     setSavingExpense(true);
     setMsg("");
-    const { res, data } = await fetchJson<{ error?: string }>(
-      `/api/travel/trips/${tripId}/expenses`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: amt,
-          spentAt,
-          subCategory,
-          note,
-          financialAccountId: paidByCompanionId ? undefined : financialAccountId || undefined,
-          split,
-        }),
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/travel/trips/${tripId}/expenses`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: amt,
+            spentAt,
+            subCategory,
+            note,
+            financialAccountId: paidByCompanionId ? undefined : financialAccountId || undefined,
+            split,
+          }),
+        }
+      );
+      if (!res.ok) {
+        setMsg(data.error ?? "Failed to add expense");
+        return;
       }
-    );
-    setSavingExpense(false);
-    if (!res.ok) {
-      setMsg(data.error ?? "Failed to add expense");
+      setAmount("");
+      setNote("");
+      resetSplitForm();
+      dispatchDomainEvent(["expense:changed", "accounts:changed"]);
+    } catch (e) {
+      console.error("[TabTravelTrip] add expense failed", e);
+      setMsg(errorMessage(e, "Failed to add expense"));
       return;
+    } finally {
+      setSavingExpense(false);
     }
-    setAmount("");
-    setNote("");
-    resetSplitForm();
-    dispatchDomainEvent(["expense:changed", "accounts:changed"]);
     await load();
   };
 
@@ -381,16 +428,22 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
     setConfirmDeleteTrip(false);
     setDeleting(true);
     setMsg("");
-    const { res, data } = await fetchJson<{ error?: string }>(`/api/travel/trips/${tripId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    if (!res.ok) {
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(`/api/travel/trips/${tripId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setDeleting(false);
+        setMsg(data.error ?? "Failed to delete trip");
+        return;
+      }
+      router.push("/travel");
+    } catch (e) {
+      console.error("[TabTravelTrip] delete trip failed", e);
       setDeleting(false);
-      setMsg(data.error ?? "Failed to delete trip");
-      return;
+      setMsg(errorMessage(e, "Failed to delete trip"));
     }
-    router.push("/travel");
   };
 
   if (!enabled) {
@@ -454,6 +507,9 @@ export function TabTravelTrip({ tripId, enabled }: Props) {
       </div>
 
       {loading ? <p className="note">Loading…</p> : null}
+      {!loading && loadError ? (
+        <ErrorState message={loadError} onRetry={() => void load()} />
+      ) : null}
       {editingTrip ? (
         <div className="card">
           <h3>Edit travel</h3>

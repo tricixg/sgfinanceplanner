@@ -8,16 +8,14 @@ import {
   saveFinanceProfile,
   saveIlpPolicies,
   saveInsurancePolicies,
-  migrateProfileFromDashboard,
   profileFromState,
 } from "@/lib/profile/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
-import { mergeWithDefaults } from "@/lib/finance/defaults";
 import type { DashboardState } from "@/lib/types";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -26,17 +24,6 @@ export async function GET() {
 
   try {
     const supabase = await createAuthedSupabaseClient();
-    const { data: stateRow } = await supabase
-      .from("dashboard_state")
-      .select("data")
-      .eq("user_id", auth.user.id)
-      .maybeSingle();
-
-    const raw = stateRow?.data;
-    if (isPersistedDashboardSnapshot(raw)) {
-      const state = mergeWithDefaults(raw as Partial<DashboardState>);
-      await migrateProfileFromDashboard(supabase, auth.user.id, state);
-    }
 
     const [profile, insurancePolicies, ilpPolicies] = await Promise.all([
       loadFinanceProfile(supabase, auth.user.id),
@@ -55,9 +42,9 @@ export async function GET() {
     console.error("[api/profile] GET failed", msg);
     return apiError("api/profile", msg, { fallback: "Failed to load profile" });
   }
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -103,4 +90,4 @@ export async function PATCH(req: NextRequest) {
     const msg = e instanceof Error ? e.message : "Failed to save profile";
     return apiError("api/profile", msg, { fallback: "Failed to save profile" });
   }
-}
+});

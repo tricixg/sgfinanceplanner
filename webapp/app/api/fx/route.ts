@@ -8,10 +8,11 @@ import {
 } from "@/lib/fx/currencies";
 import { fetchFxRateToSgd } from "@/lib/fx/frankfurter";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const RATE_LIMIT = { limit: 60, windowMs: 60_000 };
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -76,4 +77,4 @@ export async function GET(req: NextRequest) {
     rateDate: result.rateDate,
     source: result.source,
   });
-}
+});

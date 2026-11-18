@@ -22,6 +22,7 @@ import { createExpenseWithLedger } from "@/lib/expenses/expense-write";
 import { parseClientRequestId } from "@/lib/api/idempotency";
 import type { Expense } from "@/lib/savings/types";
 import { sgtNowTimeHms, sgtSpentAtToIso, sgtTodayYmd } from "@/lib/time/sgt";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -46,7 +47,7 @@ function draftExpense(row: Record<string, unknown>): Expense {
   return mapExpense({ id: "", created_at: "", ...row });
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [], nextCursor: null });
   }
@@ -104,9 +105,9 @@ export async function GET(req: NextRequest) {
     nextOffset,
     total,
   });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -362,4 +363,4 @@ export async function POST(req: NextRequest) {
     financialAccountId: body.financialAccountId ?? null,
   });
   return NextResponse.json({ item: expense });
-}
+});

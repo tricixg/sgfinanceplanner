@@ -19,7 +19,6 @@ import { RecurringScheduleFields } from "@/components/recurring/RecurringSchedul
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
-import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
 import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 
 type Props = {
@@ -250,7 +249,6 @@ export function TabDebt({ state: S, setState }: Props) {
 
   return (
     <section className="panel on">
-      <DomainLoadErrorBanner domain="loans" />
       <div className="callout tip">
         <span className="ico">Tip</span>
         Monthly instalment plans feed cashflow, calendar, and debt burn-down charts.

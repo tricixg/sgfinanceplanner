@@ -5,6 +5,7 @@ import { TabYear } from "@/components/tabs/TabYear";
 import { useAppSession } from "@/contexts/AppSessionContext";
 import { usePageSavings } from "@/hooks/usePageSavings";
 import { useCardStatements } from "@/hooks/useCardStatements";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 
 function YearContent({
   state,
@@ -35,19 +36,34 @@ export function YearRoute() {
   // Open card cycles feed the card-balance liability in the projection's starting net worth
   // (same input the Cash Accounts page uses). Fetched here, not in YearContent, so the request
   // starts on route entry instead of after the core data has loaded.
-  const { bundle: cardBundle, loading: cardsLoading } = useCardStatements(Boolean(user?.id));
+  const {
+    bundle: cardBundle,
+    loading: cardsLoading,
+    loadError: cardsError,
+    reload: reloadCards,
+  } = useCardStatements(Boolean(user?.id));
   return (
     <DomainPage>
       {({ state, setState, loading }) =>
         loading ? (
           <p className="loading">Loading your financial data…</p>
         ) : (
-          <YearContent
-            state={state}
-            setState={setState}
-            cardBundle={cardBundle}
-            cardsLoading={cardsLoading}
-          />
+          <>
+            {cardsError ? (
+              <LoadErrorCallout
+                title="Couldn’t load your card statements."
+                onRetry={() => void reloadCards()}
+              >
+                Card balances may be missing, so the projection&apos;s starting net worth may be too high.
+              </LoadErrorCallout>
+            ) : null}
+            <YearContent
+              state={state}
+              setState={setState}
+              cardBundle={cardBundle}
+              cardsLoading={cardsLoading}
+            />
+          </>
         )
       }
     </DomainPage>

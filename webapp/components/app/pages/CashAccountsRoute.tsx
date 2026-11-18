@@ -7,6 +7,7 @@ import { useAppSession } from "@/contexts/AppSessionContext";
 import { useAppData } from "@/hooks/useAppData";
 import { usePageSavings } from "@/hooks/usePageSavings";
 import { useCardStatements } from "@/hooks/useCardStatements";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 
 function CashAccountsContent({
   state,
@@ -76,21 +77,34 @@ export function CashAccountsRoute() {
   const user = useAppSession();
   // Fetched here, not in CashAccountsContent, so the request starts on route entry instead of
   // after the core data has loaded. The net-worth snapshot still waits for it (snapshotInputs).
-  const { bundle: cardStatementsBundle, loading: cardStatementsLoading } = useCardStatements(
-    Boolean(user?.id)
-  );
+  const {
+    bundle: cardStatementsBundle,
+    loading: cardStatementsLoading,
+    loadError: cardStatementsError,
+    reload: reloadCardStatements,
+  } = useCardStatements(Boolean(user?.id));
   return (
     <DomainPage>
       {({ state, setState, loading }) =>
         loading ? (
           <p className="loading">Loading your financial data…</p>
         ) : (
-          <CashAccountsContent
-            state={state}
-            setState={setState}
-            cardStatementsBundle={cardStatementsBundle}
-            cardStatementsLoading={cardStatementsLoading}
-          />
+          <>
+            {cardStatementsError ? (
+              <LoadErrorCallout
+                title="Couldn’t load your card statements."
+                onRetry={() => void reloadCardStatements()}
+              >
+                Card balances may be missing, so net worth shown here may be too high.
+              </LoadErrorCallout>
+            ) : null}
+            <CashAccountsContent
+              state={state}
+              setState={setState}
+              cardStatementsBundle={cardStatementsBundle}
+              cardStatementsLoading={cardStatementsLoading}
+            />
+          </>
         )
       }
     </DomainPage>

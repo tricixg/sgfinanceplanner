@@ -10,6 +10,7 @@ import {
   runMonthEnd,
 } from "@/lib/jobs/month-end";
 import { sgtTodayYmd } from "@/lib/time/sgt";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 // Many users are processed in one invocation.
 export const maxDuration = 60;
@@ -24,7 +25,7 @@ export const maxDuration = 60;
  * user id. `?force=1` runs it for the current month on any day (still needs
  * the secret); a later run on the real last day overwrites that month's rows.
  */
-export async function GET(req: Request) {
+export const GET = withRequestId(async function GET(req: Request) {
   const auth = verifyCronSecret(req);
   if (auth === "unconfigured") {
     return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
@@ -61,4 +62,4 @@ export async function GET(req: Request) {
     console.error("[cron/month-end] failed", msg);
     return apiError("api/cron/month-end", msg, { fallback: "Month-end job failed" });
   }
-}
+});

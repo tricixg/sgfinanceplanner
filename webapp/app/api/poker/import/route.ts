@@ -8,6 +8,7 @@ import {
 } from "@/lib/poker/import-sessions";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const ALLOWED_MIME_TYPES = new Set([
   "text/csv",
@@ -34,7 +35,7 @@ function ndjsonLine(event: PokerImportStreamEvent): Uint8Array {
   return new TextEncoder().encode(`${JSON.stringify(event)}\n`);
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -157,4 +158,4 @@ export async function POST(req: NextRequest) {
       "Cache-Control": "no-store",
     },
   });
-}
+});

@@ -18,7 +18,6 @@ import {
 import { fmt, fmt2 } from "@/lib/finance/helpers";
 import { DecimalInput, DecimalTextInput } from "@/components/DecimalInput";
 import { ChartBox } from "@/components/ChartBox";
-import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
 import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { netWorthSnapshotBlockers } from "@/lib/net-worth/snapshot-gate";
@@ -299,7 +298,6 @@ export function TabCashAccounts({
 
   return (
     <section className="panel on">
-      <DomainLoadErrorBanner domain="accounts" />
       <h2>Net worth</h2>
       <div className="card net-worth-card" style={{ marginBottom: 16 }}>
         <label className="ctrl">

@@ -5,12 +5,14 @@ import type { CpfTransaction } from "@/lib/cpf/types";
 import { fetchJson } from "@/lib/fetch-json";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { useHousehold } from "@/hooks/useHousehold";
+import { errorMessage } from "@/lib/ui/notify";
 
 /** The linked partner's BTO-tagged payments (BTO planner only) — empty when unpaired. */
 export function usePartnerBtoPayments() {
   const { paired, configured } = useHousehold();
   const [items, setItems] = useState<CpfTransaction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!configured || !paired) {
@@ -18,6 +20,7 @@ export function usePartnerBtoPayments() {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const { res, data } = await fetchJson<{ items?: CpfTransaction[]; error?: string }>(
         "/api/household/partner-bto-payments",
@@ -28,6 +31,7 @@ export function usePartnerBtoPayments() {
       console.info("[usePartnerBtoPayments] loaded", { count: data.items?.length ?? 0 });
     } catch (e) {
       console.error("[usePartnerBtoPayments] load failed", e);
+      setLoadError(errorMessage(e, "Couldn't load your partner's BTO payments."));
       setItems([]);
     } finally {
       setLoading(false);
@@ -39,5 +43,5 @@ export function usePartnerBtoPayments() {
   }, [load]);
   useDomainEvent("cpf:changed", () => void load());
 
-  return { partnerPayments: items, loading, reload: load };
+  return { partnerPayments: items, loading, loadError, reload: load };
 }

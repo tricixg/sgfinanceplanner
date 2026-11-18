@@ -9,8 +9,9 @@ import {
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { isTelegramConfigured } from "@/lib/telegram/config";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, linked: false });
   }
@@ -27,9 +28,9 @@ export async function GET() {
     username: link?.username ?? null,
     linkedAt: link?.linkedAt ?? null,
   });
-}
+});
 
-export async function POST() {
+export const POST = withRequestId(async function POST() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -51,9 +52,9 @@ export async function POST() {
     expiresAt,
     botUsername,
   });
-}
+});
 
-export async function DELETE() {
+export const DELETE = withRequestId(async function DELETE() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -65,4 +66,4 @@ export async function DELETE() {
   await deleteLinkByUserId(supabase, auth.user.id);
 
   return NextResponse.json({ ok: true });
-}
+});

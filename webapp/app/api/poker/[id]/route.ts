@@ -7,10 +7,11 @@ import { reversePokerLedger } from "@/lib/poker/ledger-sync";
 import { type PokerSessionBody, updatePokerSession } from "@/lib/poker/save-session";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -38,9 +39,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   console.info("[api/poker] GET ok", { id, userId: user.id });
   return NextResponse.json({ item: mapPokerSession(data) });
-}
+});
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -79,9 +80,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   console.info("[api/poker] PATCH ok", { id, userId: user.id });
   return NextResponse.json({ item: result.session });
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -131,4 +132,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   console.info("[api/poker] DELETE ok", { id, userId: user.id });
   return NextResponse.json({ ok: true });
-}
+});

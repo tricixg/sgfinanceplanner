@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadFinancialAccounts } from "@/lib/financial-accounts/sync";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, accounts: [] });
   }
@@ -27,4 +28,4 @@ export async function GET() {
     console.error("[api/financial-accounts] GET failed", msg);
     return apiError("api/financial-accounts", msg, { fallback: "Failed to load accounts" });
   }
-}
+});

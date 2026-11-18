@@ -5,10 +5,11 @@ import { loadMilesBundle } from "@/lib/miles/load";
 import type { MilesBalance } from "@/lib/miles/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, balances: [], totals: null });
   }
@@ -26,11 +27,11 @@ export async function GET() {
     console.error("[api/miles] GET failed", msg);
     return apiError("api/miles", msg, { fallback: "Failed to load miles" });
   }
-}
+});
 
 type PutBody = { balances?: Partial<MilesBalance>[] };
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -106,4 +107,4 @@ export async function PUT(req: NextRequest) {
   console.info("[api/miles] PUT ok", { userId: user.id, count: incoming.length });
   const bundle = await loadMilesBundle(supabase, user.id);
   return NextResponse.json({ configured: true, ...bundle });
-}
+});

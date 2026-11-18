@@ -7,6 +7,7 @@ import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 export type PartnerBtoPaymentsResponse = {
   configured: boolean;
@@ -21,7 +22,7 @@ export type PartnerBtoPaymentsResponse = {
  * service-role client because cpf_transactions RLS is owner-only, mirroring
  * app/api/household/partner-cpf/route.ts.
  */
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, paired: false, items: [] });
   }
@@ -70,4 +71,4 @@ export async function GET() {
     paired: true,
     items,
   } satisfies PartnerBtoPaymentsResponse);
-}
+});

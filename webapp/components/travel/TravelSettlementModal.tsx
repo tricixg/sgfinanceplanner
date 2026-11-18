@@ -5,6 +5,7 @@ import { DecimalTextInput } from "@/components/DecimalInput";
 import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { fetchJson } from "@/lib/fetch-json";
+import { errorMessage } from "@/lib/ui/notify";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import { travelReimbursementDepositNote } from "@/lib/travel/settlement-ledger";
 import type { CompanionBalanceRow, TravelSettlementDirection } from "@/lib/travel/types";
@@ -45,41 +46,47 @@ export function TravelSettlementModal({ tripId, tripName, row, onClose, onSaved 
     }
     setBusy(true);
     setMsg("");
-    const { res, data } = await fetchJson<{ error?: string }>(
-      `/api/travel/trips/${tripId}/settlements`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companionId: row.companionId,
-          direction,
-          amount: amt,
-          settledAt,
-          financialAccountId:
-            direction === "received" && financialAccountId ? financialAccountId : undefined,
-          note: direction === "paid" || (direction === "received" && !financialAccountId)
-            ? note
-            : undefined,
-        }),
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>(
+        `/api/travel/trips/${tripId}/settlements`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companionId: row.companionId,
+            direction,
+            amount: amt,
+            settledAt,
+            financialAccountId:
+              direction === "received" && financialAccountId ? financialAccountId : undefined,
+            note: direction === "paid" || (direction === "received" && !financialAccountId)
+              ? note
+              : undefined,
+          }),
+        }
+      );
+      if (!res.ok) {
+        setMsg(data.error ?? "Failed to record payment");
+        return;
       }
-    );
-    setBusy(false);
-    if (!res.ok) {
-      setMsg(data.error ?? "Failed to record payment");
-      return;
+      console.info("[TravelSettlementModal] settlement saved", {
+        tripId,
+        companionId: row.companionId,
+        direction,
+        financialAccountId: direction === "received" ? financialAccountId : null,
+      });
+      if (syncLedger) {
+        dispatchDomainEvent(["savings:changed", "accounts:changed"]);
+      }
+      onSaved();
+      onClose();
+    } catch (e) {
+      console.error("[TravelSettlementModal] save failed", e);
+      setMsg(errorMessage(e, "Failed to record payment"));
+    } finally {
+      setBusy(false);
     }
-    console.info("[TravelSettlementModal] settlement saved", {
-      tripId,
-      companionId: row.companionId,
-      direction,
-      financialAccountId: direction === "received" ? financialAccountId : null,
-    });
-    if (syncLedger) {
-      dispatchDomainEvent(["savings:changed", "accounts:changed"]);
-    }
-    onSaved();
-    onClose();
   };
 
   return (

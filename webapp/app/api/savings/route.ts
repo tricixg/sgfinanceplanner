@@ -9,8 +9,9 @@ import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { SaveConfigError, saveGoalsConfig, savePoolsConfig } from "@/lib/savings/save-config";
 import type { SavingsGoal, SavingsPool } from "@/lib/savings/types";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -45,7 +46,7 @@ export async function GET() {
     console.error("[api/savings] GET failed", msg);
     return apiError("api/savings", msg, { fallback: "Failed to load savings" });
   }
-}
+});
 
 /**
  * Rows are matched by id and updated in place. Rows are only deleted when
@@ -59,7 +60,7 @@ type PutBody = {
   deletedGoalIds?: string[];
 };
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -116,4 +117,4 @@ export async function PUT(req: NextRequest) {
       fundsBundle.totals.fundsBalanceTotal
     ),
   });
-}
+});

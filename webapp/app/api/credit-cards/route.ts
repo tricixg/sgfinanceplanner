@@ -5,18 +5,14 @@ import {
   loadCreditCards,
   saveCreditCards,
 } from "@/lib/credit-cards/load";
-import {
-  migrateCreditCardsFromDashboard,
-  needsCreditCardsMigration,
-} from "@/lib/credit-cards/migrate-from-dashboard";
 import { toCreditCard } from "@/lib/credit-cards/mappers";
 import { saveErrorStatus } from "@/lib/sync/save-error";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
-import { isPersistedDashboardSnapshot } from "@/lib/validate-state";
-import type { CreditCard, DashboardState } from "@/lib/types";
+import type { CreditCard } from "@/lib/types";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, cards: [] });
   }
@@ -28,21 +24,6 @@ export async function GET() {
   try {
     const supabase = await createAuthedSupabaseClient();
 
-    const { data: stateRow } = await supabase
-      .from("dashboard_state")
-      .select("data")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const raw = stateRow?.data;
-    if (isPersistedDashboardSnapshot(raw) && (await needsCreditCardsMigration(supabase, user.id, raw))) {
-      await migrateCreditCardsFromDashboard(
-        supabase,
-        user.id,
-        raw as DashboardState
-      );
-    }
-
     const rows = await loadCreditCards(supabase, user.id);
     const cards = rows.map(toCreditCard);
     console.info("[api/credit-cards] GET", { userId: user.id, count: cards.length });
@@ -52,9 +33,9 @@ export async function GET() {
     console.error("[api/credit-cards] GET failed", msg);
     return apiError("api/credit-cards", msg, { fallback: "Failed to load credit cards" });
   }
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -84,4 +65,4 @@ export async function PUT(req: NextRequest) {
     console.error("[api/credit-cards] PUT failed", msg);
     return apiError("api/credit-cards", msg, { status: saveErrorStatus(e), fallback: "Failed to save credit cards" });
   }
-}
+});

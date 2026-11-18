@@ -3,15 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { SharedBtoPlannerFields } from "@/lib/finance";
+import { errorMessage } from "@/lib/ui/notify";
 
 /** Shared (household-level) subset of the BTO planner — synced across linked partners. */
 export function useHouseholdBtoPlanner() {
   const [data, setData] = useState<Partial<SharedBtoPlannerFields> | null>(null);
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const { res, data: json } = await fetchJson<{
         configured: boolean;
@@ -24,6 +27,7 @@ export function useHouseholdBtoPlanner() {
       console.info("[useHouseholdBtoPlanner] loaded", { hasData: json.data != null });
     } catch (e) {
       console.error("[useHouseholdBtoPlanner] load failed", e);
+      setLoadError(errorMessage(e, "Couldn't load your shared BTO plan."));
     } finally {
       setLoading(false);
     }
@@ -48,5 +52,5 @@ export function useHouseholdBtoPlanner() {
     console.info("[useHouseholdBtoPlanner] saved");
   }, []);
 
-  return { sharedBto: data, loading, configured, reload: load, saveSharedBto: save };
+  return { sharedBto: data, loading, configured, loadError, reload: load, saveSharedBto: save };
 }

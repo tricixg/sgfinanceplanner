@@ -18,7 +18,6 @@ import { ensureCreditCardIds } from "@/lib/finance/card-linking";
 import { getCatalogEntry } from "@/lib/cards/sg-card-catalog";
 import { fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
-import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
 import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 import { Snackbar } from "@/components/Snackbar";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -35,6 +34,7 @@ import {
   statementIncludesPriorDraft,
 } from "@/components/credit-cards/CardStatementList";
 import { CardRewardsAdvisor } from "@/components/credit-cards/CardRewardsAdvisor";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 type CardsApi = {
   cards: CreditCard[];
   saveCards: (next: CreditCard[]) => Promise<void>;
@@ -56,6 +56,7 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
     bundle,
     loading: statementsLoading,
     navigating: statementsNavigating,
+    loadError: statementsError,
     reload: reloadStatements,
   } = useCardStatements(statementsEnabled, statementCycleOffset);
   const { reload: reloadFinancialAccounts } = useFinancialAccounts();
@@ -335,7 +336,14 @@ export function TabCards({ state: S, setState, cardsApi }: Props) {
 
   return (
     <section className="panel on">
-      <DomainLoadErrorBanner domain="cards" />
+      {statementsError ? (
+        <LoadErrorCallout
+          title="Couldn’t load your card statements."
+          onRetry={() => void reloadStatements()}
+        >
+          Statement balances below may be missing. Nothing has been changed.
+        </LoadErrorCallout>
+      ) : null}
       <div className="callout tip">
         <span className="ico">Tip</span>
         Pick cards from the Singapore catalog (indicative as of {CATALOG_AS_OF}).
