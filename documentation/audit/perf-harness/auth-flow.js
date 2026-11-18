@@ -2,11 +2,12 @@
 //   node auth-flow.js ok       # mock accepts the cookie   -> app renders, no /api/auth/session call
 //   node auth-flow.js reject   # mock started with MOCK_AUTH_REJECT=1 -> 401 -> lands on /login
 //   node auth-flow.js anon     # no cookie                 -> redirected to /login?next=...
+//   node auth-flow.js forged   # cookie signed with a different key (cookie-forged.txt) -> rejected
 const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
 const mode = process.argv[2];
-const [cName, ...rest] = fs.readFileSync(path.join(__dirname, "cookie.txt"), "utf8").split("=");
+const [cName, ...rest] = fs.readFileSync(path.join(__dirname, mode === "forged" ? "forged-cookie.txt" : "cookie.txt"), "utf8").split("=");
 (async () => {
   const b = await chromium.launch();
   const ctx = await b.newContext();

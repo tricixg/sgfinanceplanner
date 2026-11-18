@@ -65,7 +65,7 @@ export function AppSidebar({ open, onClose }: Props) {
         className={`sidebar ${open ? "sidebar--open" : ""}`}
         aria-label="Main navigation"
       >
-        <Link href={HOME_HREF} className="sidebar-brand" onClick={onClose}>
+        <Link href={HOME_HREF} prefetch={false} className="sidebar-brand" onClick={onClose}>
           <div className="kicker">{appConfig.kicker}</div>
           <div className="sidebar-title">{appConfig.title}</div>
           <div className="asof">{appConfig.asOf}</div>
@@ -100,6 +100,9 @@ export function AppSidebar({ open, onClose }: Props) {
                       <Link
                         key={t.id}
                         href={t.href}
+                        // Every page is a static client shell, so prefetching all ~26 of them
+                        // on each page load buys almost nothing and costs a request each.
+                        prefetch={false}
                         className={`sidebar-tab ${active ? "on" : ""}`}
                         aria-current={active ? "page" : undefined}
                         onClick={() => {

@@ -14,6 +14,7 @@ if [ -z "${SKIP_BUILD:-}" ]; then
   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=anon npx next build >"$OUTDIR/build.log" 2>&1
 fi
 node "$HERE/cookie.js" > "$HERE/cookie.txt"
+node "$HERE/cookie.js" forged > "$HERE/forged-cookie.txt"
 stop_all() { pkill -f mock-supabase.js 2>/dev/null || true; pkill -f "next start" 2>/dev/null || true; pkill -f next-server 2>/dev/null || true; sleep 1; }
 stop_all
 cleanup() { stop_all; }

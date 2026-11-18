@@ -15,6 +15,20 @@ const USER = {
   user_metadata: {},
   created_at: "2026-01-01T00:00:00Z",
 };
+function tokenIsValid(authorization) {
+  try {
+    const f = require("path").join(__dirname, "keypair.json");
+    if (!fs.existsSync(f)) return true; // no key material: accept anything (legacy behaviour)
+    const token = String(authorization || "").replace(/^Bearer /i, "");
+    const [h, b, sig] = token.split(".");
+    if (!h || !b || !sig) return false;
+    const pub = crypto.createPublicKey({ key: JSON.parse(fs.readFileSync(f, "utf8")).public, format: "jwk" });
+    const ok = crypto.verify("sha256", Buffer.from(`${h}.${b}`), { key: pub, dsaEncoding: "ieee-p1363" }, Buffer.from(sig, "base64url"));
+    return ok && JSON.parse(Buffer.from(b, "base64url").toString()).exp > Date.now() / 1000;
+  } catch {
+    return false;
+  }
+}
 let counter = 0;
 // household_members is seeded with the user's membership so ensureUserHousehold() takes the
 // common "already has a household" path (1 read) instead of the first-sign-in create path
@@ -53,9 +67,20 @@ const server = http.createServer((req, res) => {
         return res.end(JSON.stringify(out));
       }
       if (!url.pathname.startsWith("/__")) calls.push({ t0, method: req.method, path: url.pathname });
+      if (url.pathname === "/auth/v1/.well-known/jwks.json") {
+        const f = require("path").join(__dirname, "keypair.json");
+        const keys = fs.existsSync(f) ? [JSON.parse(fs.readFileSync(f, "utf8")).public] : [];
+        return res.end(JSON.stringify({ keys }));
+      }
       if (url.pathname.startsWith("/auth/v1/user")) {
         // MOCK_AUTH_REJECT=1: every token is rejected, like an expired/revoked/forged session.
         if (process.env.MOCK_AUTH_REJECT) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ code: 401, error_code: "bad_jwt", msg: "invalid JWT" }));
+        }
+        // Like the real Auth server: the bearer token's signature (against keypair.json) and
+        // expiry must check out, otherwise 401.
+        if (!tokenIsValid(req.headers["authorization"])) {
           res.statusCode = 401;
           return res.end(JSON.stringify({ code: 401, error_code: "bad_jwt", msg: "invalid JWT" }));
         }
