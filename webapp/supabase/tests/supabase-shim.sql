@@ -1,10 +1,17 @@
 -- Minimal stand-in for the parts of a Supabase database that our migrations
 -- and functions rely on. Used ONLY by the local SQL tests (PGlite or a
 -- throwaway Postgres); never run this against a real Supabase project.
+-- Roles are server-wide, and test files set up their databases in parallel,
+-- so two files can both see "role missing" and race to create it. Each create
+-- treats "already exists" (42710, or 23505 when the race hits the catalog
+-- index) as success.
 do $$ begin
-  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
+  begin create role anon nologin;
+  exception when duplicate_object or unique_violation then null; end;
+  begin create role authenticated nologin;
+  exception when duplicate_object or unique_violation then null; end;
+  begin create role service_role nologin bypassrls;
+  exception when duplicate_object or unique_violation then null; end;
 end $$;
 
 create schema if not exists auth;
