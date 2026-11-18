@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { domainsForPath } from "@/lib/app/domains";
 import { useAppDataProvider } from "@/hooks/useAppData";
 import { useSavingsProvider } from "@/hooks/useSavings";
 import { useAccountsProvider } from "@/hooks/useAccounts";
@@ -30,7 +32,9 @@ type Props = {
 /** Session-scoped data cache — fetch once per sign-in, shared across routes. */
 export function AppDataProvider({ userId, children }: Props) {
   const enabled = Boolean(userId);
-  const appData = useAppDataProvider(enabled);
+  // Load only the domains this route needs (lib/app/domains.ts); others load when first read.
+  const needs = domainsForPath(usePathname());
+  const appData = useAppDataProvider(enabled, needs);
   const savings = useSavingsProvider(enabled);
   const accounts = useAccountsProvider(enabled);
   const funds = useFundsProvider(enabled);

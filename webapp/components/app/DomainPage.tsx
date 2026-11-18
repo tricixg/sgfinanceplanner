@@ -17,7 +17,7 @@ type Props = {
 /** Domain tab content — reads session-cached app data from AppDataProvider. */
 export function DomainPage({ children }: Props) {
   const user = useAppSession();
-  const { state, setState, coreLoading, snapshotsLoading, cardsApi } = useAppData();
+  const { state, setState, loading, snapshotsLoading, cardsApi } = useAppData();
 
   return (
     <>
@@ -25,7 +25,7 @@ export function DomainPage({ children }: Props) {
         state: user?.id ? state : createEmptyState(),
         setState,
         cardsApi,
-        loading: coreLoading,
+        loading,
         snapshotsLoading,
       })}
     </>

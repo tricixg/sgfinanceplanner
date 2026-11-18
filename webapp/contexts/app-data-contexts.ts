@@ -23,9 +23,14 @@ export type AppDataContextValue = {
   setState: (
     updater: DashboardState | ((prev: DashboardState) => DashboardState)
   ) => void;
-  /** Alias for coreLoading — blocks DomainPage until core domains are ready. */
+  /** True until the core domains THIS route needs have finished loading (what DomainPage waits for). */
   loading: boolean;
+  /** True until EVERY core domain has finished loading — the strict gate for the net-worth snapshot. */
   coreLoading: boolean;
+  /** Load state per data domain; a domain is only fetched once something asks for it. */
+  domainStatus: Record<import("@/lib/app/domains").DataDomain, import("@/lib/app/domains").DomainStatus>;
+  /** Ask for domains (idempotent). Routes get theirs automatically; reading a field also asks. */
+  ensureDomains: (domains: readonly import("@/lib/app/domains").DataDomain[]) => void;
   snapshotsLoading: boolean;
   configured: boolean;
   /** Domains that failed to load. Editing them is blocked so an empty list can't overwrite real data. */
