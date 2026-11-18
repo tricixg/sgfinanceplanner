@@ -136,7 +136,26 @@ export function TabDebt({ state: S, setState }: Props) {
       <td>{creditCardLabel(cardsWithIds, l.cardId) || l.card}</td>
       <td className="num">{l.monthly ? fmt2(l.monthly) : "—"}</td>
       <td className="num">{fmt2(l.out)}</td>
-      <td className="num">{l.endLbl}</td>
+      <td className="num">
+        <div>{l.endLbl}</div>
+        {!l.isEnded && (
+          <div className="note" style={{ marginTop: 2 }}>
+            {l.monthsLeft === 0 ? "Final month" : `${l.monthsLeft} mo left`}
+          </div>
+        )}
+        {l.progressPct !== null && (
+          <div
+            className="progress sm"
+            style={{ marginTop: 4, minWidth: 72 }}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(l.progressPct)}
+          >
+            <i style={{ width: `${l.progressPct}%` }} />
+          </div>
+        )}
+      </td>
       <td>
         <span className={`tag ${l.cls}`}>{l.tag}</span>
       </td>
@@ -171,6 +190,12 @@ export function TabDebt({ state: S, setState }: Props) {
           value={l.out}
           step={0.01}
           onChange={(v) => updateLoan(l.index, "out", v)}
+        />
+        <input
+          type="text"
+          placeholder="optional"
+          value={l.start ?? ""}
+          onChange={(e) => updateLoan(l.index, "start", e.target.value)}
         />
         <input
           type="text"
@@ -256,7 +281,8 @@ export function TabDebt({ state: S, setState }: Props) {
                 <span>Card</span>
                 <span>Monthly $</span>
                 <span>Outstanding $</span>
-                <span>Ends YYYY-MM</span>
+                <span>Starts YYYY-MM</span>
+        <span>Ends YYYY-MM</span>
                 <span>Due</span>
                 <span>Pay from</span>
                 <span></span>

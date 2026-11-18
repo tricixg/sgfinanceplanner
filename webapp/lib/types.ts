@@ -11,6 +11,8 @@ export type Loan = {
   monthly: number;
   out: number;
   end: string;
+  /** Optional first month (YYYY-MM) of the plan; enables the progress bar. */
+  start?: string;
   /** Day of month (1–31) when instalment is typically charged. */
   deductionDay?: number;
   /** Default cash or card account for recording payments. */

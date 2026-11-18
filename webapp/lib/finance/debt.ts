@@ -7,6 +7,10 @@ export type EnrichedLoan = Loan & {
   endLbl: string;
   isEnded: boolean;
   index: number;
+  /** Whole months until the end month (0 = final month). */
+  monthsLeft: number;
+  /** Elapsed share of the plan (0–100); null when no valid start month is set. */
+  progressPct: number | null;
 };
 
 export function enrichLoan(l: Loan, nowYm: string, index: number): EnrichedLoan {
@@ -31,7 +35,15 @@ export function enrichLoan(l: Loan, nowYm: string, index: number): EnrichedLoan 
     month: "short",
     year: "numeric",
   });
-  return { ...l, tag, cls, endLbl, isEnded: ei < nowIdx, index };
+  const monthsLeft = Math.max(0, ei - nowIdx);
+  let progressPct: number | null = null;
+  if (l.start && /^\d{4}-\d{2}$/.test(l.start)) {
+    const total = ei - monIdx(l.start);
+    if (total > 0) {
+      progressPct = Math.min(100, Math.max(0, ((nowIdx - monIdx(l.start)) / total) * 100));
+    }
+  }
+  return { ...l, tag, cls, endLbl, isEnded: ei < nowIdx, index, monthsLeft, progressPct };
 }
 
 export function partitionLoans(S: DashboardState, nowYm?: string) {

@@ -49,6 +49,7 @@ export async function saveLoans(
       monthly: l.monthly ?? 0,
       outstanding: l.out ?? 0,
       end_ym: l.end ?? "",
+      start_ym: /^\d{4}-\d{2}$/.test(l.start ?? "") ? l.start : null,
       deduction_day: l.deductionDay ?? null,
       default_financial_account_id: l.defaultFinancialAccountId ?? null,
       sort_order: i,
