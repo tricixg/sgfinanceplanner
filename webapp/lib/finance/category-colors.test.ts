@@ -63,20 +63,21 @@ describe("pinned colours (Salary)", () => {
   const fixed = incomeFixedColors({ "inc-salary": "salary", "inc-comms": "comms" });
   const color = buildCategoryColors(order, fixed);
 
-  it("gives Salary bandung rose pink", () => {
-    expect(INCOME_SLUG_COLORS.salary).toBe("#e089a0");
-    expect(color("inc-salary", "Salary")).toBe("#e089a0");
+  it("gives Salary pandan green", () => {
+    expect(INCOME_SLUG_COLORS.salary).toBe("#7db25f");
+    expect(color("inc-salary", "Salary")).toBe("#7db25f");
   });
 
-  it("never hands Salary's pink to another category", () => {
+  it("never hands Salary's green to another category", () => {
     const others = order.slice(1).map((id) => color(id));
-    expect(others).not.toContain("#e089a0");
+    expect(others).not.toContain("#7db25f");
     expect(new Set(others).size).toBe(others.length);
   });
 
   it("hands the other categories the remaining palette colours in order", () => {
-    // Pink is CATEGORY_PALETTE[0] and pinned to Salary, so the next category starts at [1].
-    expect(CATEGORY_PALETTE[0]).toBe("#e089a0");
-    expect(color("inc-comms")).toBe(CATEGORY_PALETTE[1]);
+    // Salary's green is taken out of the palette, so the others start at pink and skip green.
+    const palette = CATEGORY_PALETTE.filter((c) => c !== "#7db25f");
+    expect(order.slice(1).map((id) => color(id))).toEqual(palette.slice(0, order.length - 1));
+    expect(color("inc-comms")).toBe(CATEGORY_PALETTE[0]);
   });
 });

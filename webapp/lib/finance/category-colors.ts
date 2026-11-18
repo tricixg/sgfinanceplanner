@@ -48,7 +48,7 @@ export const AUTO_CATEGORY_COLORS = {
 
 /** Fixed colours for built-in income categories, keyed by slug. */
 export const INCOME_SLUG_COLORS: Readonly<Record<string, string>> = {
-  salary: "#e089a0", // bandung rose
+  salary: "#7db25f", // pandan green
 };
 
 /**
@@ -58,7 +58,7 @@ export const INCOME_SLUG_COLORS: Readonly<Record<string, string>> = {
  */
 export const FLOW_COLORS = {
   salary: INCOME_SLUG_COLORS.salary!,
-  additionalIncome: "#7db25f", // pandan green
+  additionalIncome: "#1e8a89", // teal
   fixed: "#d8b297", // teh tarik
   variable: "#d56f0a", // papaya
   loans: AUTO_CATEGORY_COLORS.debt,
