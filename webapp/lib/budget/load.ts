@@ -13,6 +13,11 @@ export type BudgetData = {
   months: BudgetMonthMap;
   /** Gross monthly salary recorded per saved month (months with none recorded are omitted). */
   income: Record<string, number>;
+  /**
+   * Catalog line ids in creation order. Drives per-category chart colours: new lines
+   * append, and reordering a month's lines doesn't reshuffle colours.
+   */
+  categoryOrder: string[];
 };
 
 /** Catalog (ids, names, types) plus every configured month snapshot. */
@@ -23,7 +28,7 @@ export async function loadBudgetData(
   const [linesRes, monthsRes, lineMonthsRes] = await Promise.all([
     supabase
       .from("budget_lines")
-      .select("id, category, line_type, sort_order")
+      .select("id, category, line_type, sort_order, created_at")
       .eq("user_id", userId)
       .order("sort_order", { ascending: true }),
     supabase.from("budget_months").select("month, monthly_salary").eq("user_id", userId),
@@ -59,7 +64,11 @@ export async function loadBudgetData(
       type: line.lineType,
     });
   }
-  return { catalog, months, income };
+  const categoryOrder = (linesRes.data ?? [])
+    .map((row) => ({ id: String(row.id), created: String(row.created_at ?? "") }))
+    .sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id))
+    .map((row) => row.id);
+  return { catalog, months, income, categoryOrder };
 }
 
 export async function loadBudgetMonths(
@@ -126,7 +135,7 @@ export async function saveBudgetMonth(
   userId: string,
   ym: string,
   incoming: BudgetItem[]
-): Promise<{ months: BudgetMonthMap; income: Record<string, number> }> {
+): Promise<{ months: BudgetMonthMap; income: Record<string, number>; categoryOrder: string[] }> {
   const [{ catalog, months }, subscriptions, investments, profile] = await Promise.all([
     loadBudgetData(supabase, userId),
     loadRecurringSubscriptions(supabase, userId),
@@ -239,7 +248,7 @@ export async function saveBudgetMonth(
 
   console.info("[budget] saved month", { userId, ym, count: plan.lines.length });
   const fresh = await loadBudgetData(supabase, userId);
-  return { months: fresh.months, income: fresh.income };
+  return { months: fresh.months, income: fresh.income, categoryOrder: fresh.categoryOrder };
 }
 
 /** Save the current month's budget (used by the legacy migration). */

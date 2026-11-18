@@ -114,10 +114,19 @@ export function useCashflowAnalytics(enabled: boolean, currentYm: string, earlie
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 
+  // Every chunk carries the same budget catalog order; prefer the freshest.
+  const categoryOrder: string[] = useMemo(() => {
+    const all = [...cacheRef.current.entries()].sort(([a], [b]) => b.localeCompare(a));
+    return all.find(([, c]) => c.spending.categoryOrder?.length)?.[1].spending.categoryOrder ?? [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+
   const covered = chunksKey.split("|").every((k) => cacheRef.current.has(k));
 
   return {
     flows,
+    /** Budget catalog line ids in creation order, for consistent category colours. */
+    categoryOrder,
     /** True until the first response arrives. */
     loading: loading && cacheRef.current.size === 0,
     /** True while months needed for the current range are still being fetched. */

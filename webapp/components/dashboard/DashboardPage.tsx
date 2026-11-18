@@ -14,6 +14,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { EmptyState, ErrorState, Skeleton, SkeletonLines } from "@/components/ui/States";
 import { useAppData } from "@/hooks/useAppData";
 import { useCashflowAnalytics } from "@/hooks/useCashflowAnalytics";
+import { buildCategoryColors } from "@/lib/finance/category-colors";
 import {
   RANGE_OPTIONS,
   clampMonthYm,
@@ -114,11 +115,12 @@ export function DashboardPage({ enabled }: Props) {
   const plotMonths = useMemo(() => trendMonths(window_, currentYm), [window_, currentYm]);
   const earliestYm = window_.prior[0]! < plotMonths[0]! ? window_.prior[0]! : plotMonths[0]!;
 
-  const { flows, loading, pending, error, reload } = useCashflowAnalytics(
+  const { flows, categoryOrder, loading, pending, error, reload } = useCashflowAnalytics(
     enabled,
     currentYm,
     earliestYm
   );
+  const categoryColor = useMemo(() => buildCategoryColors(categoryOrder), [categoryOrder]);
 
   const current = useMemo(() => summariseFlows(flows, window_.months), [flows, window_]);
   const previous = useMemo(() => summariseFlows(flows, window_.prior), [flows, window_]);
@@ -377,6 +379,7 @@ export function DashboardPage({ enabled }: Props) {
                   window={window_}
                   periodText={periodText}
                   backHref={backHref}
+                  colorFor={categoryColor}
                 />
               )}
             </div>

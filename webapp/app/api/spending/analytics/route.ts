@@ -150,6 +150,7 @@ export async function GET(req: NextRequest) {
     months,
     scope,
     budgetLines,
+    categoryOrder: budgetData.categoryOrder,
     budgetByYm,
     expenses,
     imports,

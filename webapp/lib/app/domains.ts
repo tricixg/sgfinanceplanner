@@ -90,6 +90,7 @@ export const STATE_FIELD_DOMAIN: Readonly<Record<string, DataDomain>> = {
   budgetMonths: "budget",
   incomeMonths: "budget",
   computedMonths: "budget",
+  budgetCategoryOrder: "budget",
   creditCards: "cards",
   holdings: "holdings",
   portfolioHistory: "snapshots",

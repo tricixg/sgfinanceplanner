@@ -5,6 +5,7 @@ import type { ChartOptions } from "chart.js";
 import { ChartBox } from "@/components/ChartBox";
 import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import type { SpendingMonthlyRow } from "@/lib/spending/analytics";
+import { OTHER_CATEGORY_COLOR, type CategoryColorFn } from "@/lib/finance/category-colors";
 import { colorAt, SPENDING_CHART_COLORS } from "./chart-colors";
 import { buildStackedSeries, OTHER_SERIES_ID } from "./stacked-series";
 
@@ -15,9 +16,10 @@ type Props = {
   topN?: number;
   /** When true, omit outer card wrapper (for embedding in a parent card). */
   embedded?: boolean;
+  /** Per-category colours shared across pages; falls back to colours by rank. */
+  colorFor?: CategoryColorFn;
 };
 
-const OTHER_COLOR = "#c4bdb0";
 /** How many of each month's largest items are guaranteed their own segment. */
 const PER_MONTH_TOP = 6;
 
@@ -27,6 +29,7 @@ export function SpendingStackedBarChart({
   dimension,
   topN = SPENDING_CHART_COLORS.length,
   embedded = false,
+  colorFor,
 }: Props) {
   const { chart, otherMembers } = useMemo(() => {
     const { series, otherMembers } = buildStackedSeries(
@@ -43,13 +46,18 @@ export function SpendingStackedBarChart({
         datasets: series.map((s) => ({
           label: s.label,
           data: s.data,
-          backgroundColor: s.id === OTHER_SERIES_ID ? OTHER_COLOR : colorAt(colorIdx++),
+          backgroundColor:
+            s.id === OTHER_SERIES_ID
+              ? OTHER_CATEGORY_COLOR
+              : colorFor
+                ? colorFor(s.id, s.label)
+                : colorAt(colorIdx++),
           stack: "spend",
           isOther: s.id === OTHER_SERIES_ID,
         })),
       },
     };
-  }, [monthly, dimension, topN]);
+  }, [monthly, dimension, topN, colorFor]);
 
   const options = useMemo((): ChartOptions<"bar"> => {
     return {

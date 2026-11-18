@@ -37,6 +37,8 @@ export type SpendingAccountSeries = {
 export type SpendingAnalyticsBundle = {
   months: string[];
   scope: SpendingScope;
+  /** Budget catalog line ids in creation order, for consistent category colours. */
+  categoryOrder: string[];
   monthly: SpendingMonthlyRow[];
   perAccount: SpendingAccountSeries[];
   budgetByCategory: { id: string; label: string; monthlyAllocated: number }[];
@@ -143,6 +145,8 @@ export function buildSpendingAnalytics(input: {
   months?: number;
   scope: SpendingScope;
   budgetLines: BudgetLineRow[];
+  /** Catalog line ids in creation order (see `BudgetData.categoryOrder`). */
+  categoryOrder?: string[];
   /** Budget rows that applied in each window month; omit to use `budgetLines` amounts for every month. */
   budgetByYm?: Record<string, BudgetLineRow[]>;
   expenses: LeanExpenseRow[];
@@ -282,6 +286,7 @@ export function buildSpendingAnalytics(input: {
   return {
     months: window.months,
     scope: input.scope,
+    categoryOrder: input.categoryOrder ?? input.budgetLines.map((l) => l.id),
     monthly,
     perAccount,
     budgetByCategory,
