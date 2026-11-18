@@ -216,6 +216,7 @@ TEST_DATABASE_URL=postgres://postgres:postgres@localhost:54329/postgres npx vite
 - Ensure production `/auth/callback` is allowlisted in Supabase
 - Run pending migrations (`supabase db push`, see [Database migrations](#database-migrations)) before deploying code that depends on them
 - Uptime monitoring: `GET /api/health` (no session; 200 healthy, 503 if Supabase is unreachable)
+- Error logs: see [Error tracking](#error-tracking)
 
 ---
 
@@ -229,6 +230,20 @@ Technical docs: [documentation/README.md](./README.md)
 
 - [02-architecture.md](./02-architecture.md)
 - [08-authentication-and-security.md](./08-authentication-and-security.md)
+
+## Error tracking
+
+No external service (option B of OPS-002). Every server error the app masks (`apiError` in [lib/api/api-error.ts](../webapp/lib/api/api-error.ts)) and every uncaught server error ([webapp/instrumentation.ts](../webapp/instrumentation.ts), Next's `onRequestError`) is written to the Vercel function logs as **one JSON line**:
+
+```json
+{"level":"error","event":"server_error","time":"…","scope":"api/expenses","message":"duplicate key … ([id], [n])","code":"23505","env":"production"}
+```
+
+- **What's in it:** scope, a scrubbed message, Postgres/Next error code or digest, method, path without its query string, route. **Never** request bodies, headers or cookies. Emails, ids, tokens and numbers (amounts, balances) in the message are replaced by `[email]`, `[id]`, `[token]`, `[n]` ([lib/observability/server-error.ts](../webapp/lib/observability/server-error.ts)).
+- **Finding them:** in the Vercel project's logs, search for `"event":"server_error"` (add `"scope":"api/expenses"` to narrow it down).
+- **Alerting:** set up an alert on that search if your Vercel plan offers log alerts, or add a log drain to a log service and alert there. What's available depends on the plan; check Vercel's current docs.
+- User-facing messages (validation, "Insufficient balance", …) are not errors and aren't logged this way.
+- If you later want issue grouping (repeats folded into one issue, alert once per new issue, regressions flagged), that's option A: Sentry with the same scrubbing.
 
 ## Month-end job
 
