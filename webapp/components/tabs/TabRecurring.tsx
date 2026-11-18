@@ -319,7 +319,11 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
   const investDraftTotal = activeInvestDraft.reduce((s, { sub }) => s + sub.amount, 0);
 
-  const activeBnplPlans = bnplPlans.filter((p) => p.monthsPaid < p.tenureMonths);
+  const bnplDueSortKey = (p: BnplPlan) =>
+    p.deductionDay && p.deductionDay >= 1 && p.deductionDay <= 31 ? p.deductionDay : 32;
+  const activeBnplPlans = bnplPlans
+    .filter((p) => p.monthsPaid < p.tenureMonths)
+    .sort((a, b) => bnplDueSortKey(a) - bnplDueSortKey(b));
   const completedBnplPlans = bnplPlans.filter((p) => p.monthsPaid >= p.tenureMonths);
 
   const indexedBnplDraft = bnplDraft.map((s, idx) => ({ sub: s, idx }));
