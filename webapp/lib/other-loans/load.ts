@@ -425,6 +425,9 @@ export async function loadInstalmentLoans(
       monthly: Number(row.monthly ?? 0),
       out: Number(row.outstanding ?? 0),
       end: String(row.end_ym ?? ""),
+      start: row.start_ym ? String(row.start_ym) : undefined,
+      principal: row.principal != null ? Number(row.principal) : undefined,
+      tenureMonths: row.tenure_months != null ? Number(row.tenure_months) : undefined,
       deductionDay:
         typeof row.deduction_day === "number" && row.deduction_day >= 1
           ? row.deduction_day

@@ -866,7 +866,7 @@ tfoot td {
   padding-bottom: 8px;
 }
 .editrow.loans {
-  grid-template-columns: 1.2fr 0.85fr 0.75fr 0.75fr 0.9fr 0.55fr 0.85fr auto;
+  grid-template-columns: 1.2fr 0.85fr 0.75fr 0.75fr 0.75fr 0.65fr 0.9fr 0.9fr 0.55fr 0.85fr auto;
 }
 .editrow.other-loans-bt,
 .editrow.other-loans-personal {
@@ -1470,10 +1470,10 @@ tr.computed-row td {
 }
 .instalment-plans-scroll table {
   width: 100%;
-  min-width: 36rem;
+  min-width: 46rem;
 }
 .instalment-plans-scroll .instalment-plans-edit-inner {
-  min-width: 52rem;
+  min-width: 70rem;
 }
 .cashflow-table-scroll table {
   width: 100%;

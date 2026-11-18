@@ -319,7 +319,11 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
   const investDraftTotal = activeInvestDraft.reduce((s, { sub }) => s + sub.amount, 0);
 
-  const activeBnplPlans = bnplPlans.filter((p) => p.monthsPaid < p.tenureMonths);
+  const bnplDueSortKey = (p: BnplPlan) =>
+    p.deductionDay && p.deductionDay >= 1 && p.deductionDay <= 31 ? p.deductionDay : 32;
+  const activeBnplPlans = bnplPlans
+    .filter((p) => p.monthsPaid < p.tenureMonths)
+    .sort((a, b) => bnplDueSortKey(a) - bnplDueSortKey(b));
   const completedBnplPlans = bnplPlans.filter((p) => p.monthsPaid >= p.tenureMonths);
 
   const indexedBnplDraft = bnplDraft.map((s, idx) => ({ sub: s, idx }));
@@ -330,6 +334,27 @@ export function TabRecurring({ enabled, onReload }: Props) {
 
   const bnplActiveTotal = activeBnplPlans.reduce((s, x) => s + x.amount, 0);
   const bnplDraftTotal = activeBnplDraft.reduce((s, { sub }) => s + sub.amount, 0);
+
+  const renderMonthsPaid = (paid: number, tenure: number) => {
+    const pct = tenure > 0 ? Math.min(100, Math.max(0, (paid / tenure) * 100)) : 0;
+    return (
+      <div style={{ minWidth: 72 }}>
+        <div>
+          {paid} / {tenure}
+        </div>
+        <div
+          className="progress sm"
+          style={{ marginTop: 4 }}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={tenure}
+          aria-valuenow={paid}
+        >
+          <i style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    );
+  };
 
   const renderRecurringRows = (
     list: RecurringRow[],
@@ -1425,9 +1450,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                             <>
                               <td className="num">{fmt2(p?.totalAmount ?? 0)}</td>
                               <td>{p?.tenureMonths ?? 0} mo</td>
-                              <td>
-                                {p?.monthsPaid ?? 0} / {p?.tenureMonths ?? 0}
-                              </td>
+                              <td>{renderMonthsPaid(p?.monthsPaid ?? 0, p?.tenureMonths ?? 0)}</td>
                             </>
                           );
                         },
@@ -1443,9 +1466,7 @@ export function TabRecurring({ enabled, onReload }: Props) {
                         <td className="num">{fmt2(plan.amount)}</td>
                         <td className="num">{fmt2(plan.totalAmount)}</td>
                         <td>{plan.tenureMonths} mo</td>
-                        <td>
-                          {plan.monthsPaid} / {plan.tenureMonths}
-                        </td>
+                        <td>{renderMonthsPaid(plan.monthsPaid, plan.tenureMonths)}</td>
                         <td>{formatDeductionDayLabel(day)}</td>
                         <td>—</td>
                         <td>

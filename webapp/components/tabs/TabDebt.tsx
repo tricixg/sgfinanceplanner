@@ -11,7 +11,7 @@ import {
   partitionLoans,
 } from "@/lib/finance";
 import type { EnrichedLoan } from "@/lib/finance/debt";
-import { fmt, fmt2 } from "@/lib/finance/helpers";
+import { currentYm, fmt, fmt2, monIdx, ymFromMonIdx } from "@/lib/finance/helpers";
 import { ChartBox } from "@/components/ChartBox";
 import { OtherLoansPanel } from "@/components/debt/OtherLoansPanel";
 import { Snackbar } from "@/components/Snackbar";
@@ -71,9 +71,19 @@ export function TabDebt({ state: S, setState }: Props) {
     }
   };
 
-  const updateLoan = (i: number, key: keyof Loan, val: string | number) => {
+  const updateLoan = (i: number, key: keyof Loan, val: string | number | undefined) => {
     setLoansDraft((prev) =>
-      prev.map((l, j) => (j === i ? { ...l, [key]: val } : l))
+      prev.map((l, j) => {
+        if (j !== i) return l;
+        const next = { ...l, [key]: val };
+        // Start + tenure fully determine the last instalment month.
+        if ((key === "start" || key === "tenureMonths") && next.start && next.tenureMonths) {
+          if (/^\d{4}-\d{2}$/.test(next.start) && next.tenureMonths > 0) {
+            next.end = ymFromMonIdx(monIdx(next.start) + next.tenureMonths - 1);
+          }
+        }
+        return next;
+      })
     );
     console.info("[TabDebt] updated loan draft", i, key, val);
   };
@@ -105,8 +115,11 @@ export function TabDebt({ state: S, setState }: Props) {
         card: defaultLabel,
         cardId: defaultCardId,
         monthly: 100,
-        out: 0,
-        end: "2027-01",
+        principal: 1200,
+        tenureMonths: 12,
+        start: currentYm(),
+        out: 1200,
+        end: ymFromMonIdx(monIdx(currentYm()) + 11),
       },
     ]);
     console.info("[TabDebt] added loan to draft");
@@ -123,7 +136,9 @@ export function TabDebt({ state: S, setState }: Props) {
         <th>Plan</th>
         <th>Card</th>
         <th>Monthly</th>
+        <th>Principal</th>
         <th>Outstanding</th>
+        <th>Tenure</th>
         <th>Ends</th>
         <th>Status</th>
       </tr>
@@ -135,8 +150,29 @@ export function TabDebt({ state: S, setState }: Props) {
       <td>{l.name}</td>
       <td>{creditCardLabel(cardsWithIds, l.cardId) || l.card}</td>
       <td className="num">{l.monthly ? fmt2(l.monthly) : "—"}</td>
+      <td className="num">{l.principal ? fmt2(l.principal) : "—"}</td>
       <td className="num">{fmt2(l.out)}</td>
-      <td className="num">{l.endLbl}</td>
+      <td className="num">{l.tenureMonths ? `${l.tenureMonths} mo` : "—"}</td>
+      <td className="num">
+        <div>{l.endLbl}</div>
+        {!l.isEnded && (
+          <div className="note" style={{ marginTop: 2 }}>
+            {l.monthsLeft === 0 ? "Final month" : `${l.monthsLeft} mo left`}
+          </div>
+        )}
+        {l.progressPct !== null && (
+          <div
+            className="progress sm"
+            style={{ marginTop: 4, minWidth: 72 }}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(l.progressPct)}
+          >
+            <i style={{ width: `${l.progressPct}%` }} />
+          </div>
+        )}
+      </td>
       <td>
         <span className={`tag ${l.cls}`}>{l.tag}</span>
       </td>
@@ -171,6 +207,24 @@ export function TabDebt({ state: S, setState }: Props) {
           value={l.out}
           step={0.01}
           onChange={(v) => updateLoan(l.index, "out", v)}
+        />
+        <DecimalInput
+          value={l.principal ?? 0}
+          step={0.01}
+          onChange={(v) => updateLoan(l.index, "principal", v > 0 ? v : undefined)}
+        />
+        <DecimalInput
+          value={l.tenureMonths ?? 0}
+          step={1}
+          onChange={(v) =>
+            updateLoan(l.index, "tenureMonths", v > 0 ? Math.round(v) : undefined)
+          }
+        />
+        <input
+          type="text"
+          placeholder="optional"
+          value={l.start ?? ""}
+          onChange={(e) => updateLoan(l.index, "start", e.target.value)}
         />
         <input
           type="text"
@@ -256,6 +310,9 @@ export function TabDebt({ state: S, setState }: Props) {
                 <span>Card</span>
                 <span>Monthly $</span>
                 <span>Outstanding $</span>
+                <span>Principal $</span>
+                <span>Tenure (mo)</span>
+                <span>Starts YYYY-MM</span>
                 <span>Ends YYYY-MM</span>
                 <span>Due</span>
                 <span>Pay from</span>
