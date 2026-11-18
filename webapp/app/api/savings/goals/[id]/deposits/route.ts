@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { applyTransaction } from "@/lib/savings/ledger";
+import { parseClientRequestId } from "@/lib/api/idempotency";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 
@@ -23,6 +24,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     occurredAt?: string;
     note?: string;
     kind?: "deposit" | "withdrawal" | "adjustment";
+    /** Idempotency key, one per submit; a retry returns the original transaction. */
+    clientRequestId?: string;
   };
   try {
     body = await req.json();
@@ -33,6 +36,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   const amount = typeof body.amount === "number" ? body.amount : NaN;
   if (!Number.isFinite(amount) || amount === 0) {
     return NextResponse.json({ error: "Valid non-zero amount required" }, { status: 400 });
+  }
+
+  const clientRequestId = parseClientRequestId(body.clientRequestId);
+  if (clientRequestId && typeof clientRequestId === "object") {
+    return NextResponse.json({ error: clientRequestId.error }, { status: 400 });
   }
 
   const supabase = await createAuthedSupabaseClient();
@@ -81,6 +89,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       occurredAt: body.occurredAt,
       kind,
       note: body.note ?? "Goal savings",
+      clientRequestId,
     });
     console.info("[api/savings/goals/deposits] recorded", {
       goalId,

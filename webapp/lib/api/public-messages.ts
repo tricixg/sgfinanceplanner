@@ -68,6 +68,7 @@ export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
   "Invalid actualAmount",
   "Invalid benefit",
   "Invalid budget category",
+  "Invalid clientRequestId",
   "Invalid cash account",
   "Invalid date (use YYYY-MM-DD)",
   "Invalid date of birth",
