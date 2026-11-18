@@ -1,0 +1,282 @@
+[
+  {
+    "endpoint": "/api/auth/session",
+    "status": 200,
+    "wallMs": 16,
+    "authCalls": 0,
+    "dbCalls": 0,
+    "sequentialDepth": 0
+  },
+  {
+    "endpoint": "/api/state",
+    "status": 200,
+    "wallMs": 112,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/profile",
+    "status": 200,
+    "wallMs": 214,
+    "authCalls": 0,
+    "dbCalls": 4,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/loans",
+    "status": 200,
+    "wallMs": 110,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/other-loans",
+    "status": 200,
+    "wallMs": 212,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/budget-lines",
+    "status": 200,
+    "wallMs": 111,
+    "authCalls": 0,
+    "dbCalls": 4,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/credit-cards",
+    "status": 200,
+    "wallMs": 211,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/holdings",
+    "status": 200,
+    "wallMs": 210,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/portfolio/snapshots",
+    "status": 200,
+    "wallMs": 108,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/net-worth/snapshots",
+    "status": 200,
+    "wallMs": 109,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/cpf/contributions",
+    "status": 200,
+    "wallMs": 108,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/cpf/transactions",
+    "status": 200,
+    "wallMs": 107,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/savings",
+    "status": 200,
+    "wallMs": 214,
+    "authCalls": 0,
+    "dbCalls": 8,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/accounts",
+    "status": 200,
+    "wallMs": 111,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/funds",
+    "status": 200,
+    "wallMs": 210,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/summary",
+    "status": 200,
+    "wallMs": 223,
+    "authCalls": 0,
+    "dbCalls": 15,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/household",
+    "status": 200,
+    "wallMs": 212,
+    "authCalls": 0,
+    "dbCalls": 4,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/household/bto-planner",
+    "status": 200,
+    "wallMs": 209,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/household/partner-cpf",
+    "status": 200,
+    "wallMs": 212,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/household/partner-bto-payments",
+    "status": 200,
+    "wallMs": 212,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/savings/shared-contributions",
+    "status": 200,
+    "wallMs": 211,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/travel/trips",
+    "status": 200,
+    "wallMs": 316,
+    "authCalls": 0,
+    "dbCalls": 7,
+    "sequentialDepth": 3
+  },
+  {
+    "endpoint": "/api/expenses/summary",
+    "status": 200,
+    "wallMs": 214,
+    "authCalls": 0,
+    "dbCalls": 12,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/credit-cards/statements",
+    "status": 200,
+    "wallMs": 108,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/credit-cards/statements/outstanding",
+    "status": 200,
+    "wallMs": 109,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/credit-cards/calendar",
+    "status": 200,
+    "wallMs": 213,
+    "authCalls": 0,
+    "dbCalls": 2,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/expenses",
+    "status": 200,
+    "wallMs": 110,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/transactions",
+    "status": 200,
+    "wallMs": 314,
+    "authCalls": 0,
+    "dbCalls": 7,
+    "sequentialDepth": 3
+  },
+  {
+    "endpoint": "/api/miles",
+    "status": 200,
+    "wallMs": 108,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/benefits",
+    "status": 200,
+    "wallMs": 107,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/recurring",
+    "status": 200,
+    "wallMs": 112,
+    "authCalls": 0,
+    "dbCalls": 9,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/poker",
+    "status": 200,
+    "wallMs": 209,
+    "authCalls": 0,
+    "dbCalls": 3,
+    "sequentialDepth": 2
+  },
+  {
+    "endpoint": "/api/poker/stats",
+    "status": 200,
+    "wallMs": 111,
+    "authCalls": 0,
+    "dbCalls": 1,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/spending/analytics",
+    "status": 200,
+    "wallMs": 113,
+    "authCalls": 0,
+    "dbCalls": 8,
+    "sequentialDepth": 1
+  },
+  {
+    "endpoint": "/api/income/analytics",
+    "status": 200,
+    "wallMs": 109,
+    "authCalls": 0,
+    "dbCalls": 3,
+    "sequentialDepth": 1
+  }
+]

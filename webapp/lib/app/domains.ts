@@ -103,24 +103,56 @@ export const CONTEXT_FIELD_DOMAIN: Readonly<Record<string, DataDomain>> = {
   cardsApi: "cards",
 };
 
+const CORE_AND_NET_WORTH: readonly DataDomain[] = [...CORE_DOMAINS, "netWorth"];
+
 /**
- * Domains each route needs, by path prefix (longest match wins). Step 1 of PERF-003: every route
- * still asks for everything, so behaviour is unchanged until each entry is narrowed with
- * evidence of what the page actually reads.
+ * Domains each route needs, matched on the exact path. Derived from what each page actually
+ * reads, recorded in a browser with every domain undeclared and the read guard on
+ * (documentation/audit/perf-harness/domain-reads.js, results in domain-reads.json), plus a read of
+ * each page's components for reads the probe cannot reach (inside click handlers or loops over
+ * rows). The two safety nets above cover whatever that still misses.
+ *
+ * Paths not listed (dynamic children such as /travel/<id>, anything new) load every domain.
+ * An empty list means the page reads no shared session data and fetches its own.
  */
-const ROUTE_DOMAINS: Readonly<Record<string, readonly DataDomain[]>> = {};
+const ROUTE_DOMAINS: Readonly<Record<string, readonly DataDomain[]>> = {
+  "/dashboard": ["profile"],
+  "/financial-health": ["profile", "loans", "otherLoans", "budget", "cards", "holdings", "netWorth"],
+  "/this-month": ["profile", "loans", "otherLoans", "cards"],
+  "/this-month-cashflow": ["profile", "loans", "otherLoans", "budget", "cards"],
+  "/budget": ["prefs", "profile", "loans", "otherLoans", "budget", "cards", "holdings", "snapshots"],
+  "/past-cashflow": [],
+  "/savings": [],
+  "/now": ["profile", "loans", "otherLoans", "budget", "cards"],
+  "/year": ["profile", "loans", "otherLoans", "budget", "cards", "holdings"],
+  "/bto": ["profile", "loans", "otherLoans", "cards", "cpfContributions", "cpfTransactions"],
+  "/bto/price-finder": ["profile", "loans", "otherLoans", "cards", "cpfContributions", "cpfTransactions"],
+  "/expenses": [],
+  "/recurring": ["budget"],
+  "/transactions": [],
+  "/travel": ["cards"],
+  "/miles": ["profile", "cards"],
+  "/poker": [],
+  "/poker/stats": [],
+  "/benefits": [],
+  "/oncall": [],
+  // The monthly net-worth snapshot is written from here and must only be written from fully
+  // loaded data (lib/net-worth/snapshot-gate.ts), so this page declares every core domain.
+  "/cash-accounts": CORE_AND_NET_WORTH,
+  "/cards": ["cards"],
+  "/wealth": ["prefs", "profile", "loans", "otherLoans", "budget", "cards", "holdings", "snapshots"],
+  "/cpf": ["profile", "cards", "cpfContributions", "cpfTransactions"],
+  "/debt": ["profile", "loans", "otherLoans", "cards"],
+  "/me": ["prefs", "profile", "loans", "otherLoans", "budget", "cards", "holdings", "snapshots"],
+};
 
 export function domainsForPath(pathname: string | null | undefined): readonly DataDomain[] {
   if (!pathname) return ALL_DOMAINS;
-  let best: string | null = null;
-  for (const prefix of Object.keys(ROUTE_DOMAINS)) {
-    const match = pathname === prefix || pathname.startsWith(`${prefix}/`);
-    if (match && (best === null || prefix.length > best.length)) best = prefix;
-  }
-  return best === null ? ALL_DOMAINS : ROUTE_DOMAINS[best]!;
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return ROUTE_DOMAINS[path] ?? ALL_DOMAINS;
 }
 
-/** Test hook: the table, so a test can check every nav route has an entry. */
+/** Test hook: the table, so tests can check it against the nav and the recorded reads. */
 export function routeDomainTable(): Readonly<Record<string, readonly DataDomain[]>> {
   return ROUTE_DOMAINS;
 }

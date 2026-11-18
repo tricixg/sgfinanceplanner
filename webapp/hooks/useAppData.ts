@@ -129,8 +129,12 @@ export function useAppDataProvider(
   const requestedKey = DATA_DOMAINS.filter((d) => domainStatus[d] !== "idle").join(",");
   const isRequested = useCallback((d: DataDomain) => statusRef.current[d] !== "idle", []);
   const ensureDomainsRef = useRef<(d: readonly DataDomain[]) => void>(() => {});
+  const needsRef = useRef(needs);
+  needsRef.current = needs;
   const requestFromRead = useCallback((domain: DataDomain, field: string) => {
-    if (DOMAIN_GUARD && typeof window !== "undefined") {
+    // Reads of declared domains before their load has started (first render) are expected;
+    // only a read of something the route did NOT declare is a gap in the route table.
+    if (DOMAIN_GUARD && typeof window !== "undefined" && !needsRef.current.includes(domain)) {
       console.warn("[domain-guard] read before requested", { domain, field });
       const w = window as unknown as { __domainGuard?: { domain: string; field: string }[] };
       (w.__domainGuard ??= []).push({ domain, field });

@@ -1,0 +1,378 @@
+{
+  "/dashboard": {
+    "profile": [
+      "monthlySal"
+    ]
+  },
+  "/now": {
+    "cards": [
+      "cardsApi"
+    ],
+    "profile": [
+      "cashflowStartYm",
+      "ilpPolicies",
+      "insurancePolicies",
+      "monthlySal"
+    ],
+    "budget": [
+      "budget",
+      "budgetMonths",
+      "computedMonths"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ]
+  },
+  "/this-month": {
+    "cards": [
+      "cardsApi",
+      "creditCards"
+    ],
+    "profile": [
+      "ilpPolicies",
+      "insurancePolicies",
+      "monthlySal",
+      "salaryCreditDay"
+    ],
+    "loans": [
+      "loans"
+    ]
+  },
+  "/this-month-cashflow": {
+    "cards": [
+      "cardsApi"
+    ],
+    "budget": [
+      "budget"
+    ],
+    "profile": [
+      "ilpPolicies",
+      "insurancePolicies",
+      "monthlySal"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ]
+  },
+  "/past-cashflow": {},
+  "/year": {
+    "cards": [
+      "cardsApi"
+    ],
+    "budget": [
+      "budget",
+      "budgetMonths"
+    ],
+    "profile": [
+      "ilpPolicies",
+      "insurancePolicies",
+      "ma",
+      "margin",
+      "monthlySal",
+      "moo",
+      "oa",
+      "sa"
+    ],
+    "holdings": [
+      "holdings"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ],
+    "loans": [
+      "loans"
+    ]
+  },
+  "/budget": {
+    "cards": [
+      "cardsApi",
+      "creditCards"
+    ],
+    "budget": [
+      "budget",
+      "budgetMonths",
+      "computedMonths",
+      "incomeMonths"
+    ],
+    "prefs": [
+      "prefs"
+    ],
+    "profile": [
+      "btoPlanner",
+      "cash",
+      "cashflowStartYm",
+      "ccDebt",
+      "ilpPolicies",
+      "insurancePolicies",
+      "ma",
+      "margin",
+      "monthlySal",
+      "moo",
+      "oa",
+      "sa",
+      "salaryCreditDay"
+    ],
+    "holdings": [
+      "holdings"
+    ],
+    "snapshots": [
+      "portfolioHistory"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ]
+  },
+  "/expenses": {},
+  "/transactions": {},
+  "/recurring": {
+    "budget": [
+      "budget",
+      "budgetMonths"
+    ]
+  },
+  "/cash-accounts": {
+    "cards": [
+      "cardsApi"
+    ],
+    "netWorth": [
+      "netWorthHistory"
+    ],
+    "holdings": [
+      "holdings"
+    ],
+    "profile": [
+      "ilpPolicies",
+      "ma",
+      "margin",
+      "moo",
+      "oa",
+      "sa"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ],
+    "loans": [
+      "loans"
+    ]
+  },
+  "/savings": {},
+  "/wealth": {
+    "cards": [
+      "cardsApi",
+      "creditCards"
+    ],
+    "profile": [
+      "btoPlanner",
+      "cash",
+      "cashflowStartYm",
+      "ccDebt",
+      "ilpPolicies",
+      "insurancePolicies",
+      "ma",
+      "margin",
+      "monthlySal",
+      "moo",
+      "oa",
+      "sa",
+      "salaryCreditDay"
+    ],
+    "holdings": [
+      "holdings"
+    ],
+    "prefs": [
+      "prefs"
+    ],
+    "snapshots": [
+      "portfolioHistory"
+    ],
+    "budget": [
+      "budget",
+      "budgetMonths",
+      "computedMonths",
+      "incomeMonths"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ]
+  },
+  "/cpf": {
+    "cards": [
+      "cardsApi"
+    ],
+    "profile": [
+      "ma",
+      "monthlySal",
+      "oa",
+      "sa"
+    ],
+    "cpfContributions": [
+      "cpfContributions"
+    ],
+    "cpfTransactions": [
+      "cpfTransactions"
+    ]
+  },
+  "/debt": {
+    "cards": [
+      "cardsApi",
+      "creditCards"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ],
+    "profile": [
+      "margin"
+    ]
+  },
+  "/cards": {
+    "cards": [
+      "cardsApi",
+      "creditCards"
+    ]
+  },
+  "/bto": {
+    "cards": [
+      "cardsApi"
+    ],
+    "profile": [
+      "btoPlanner",
+      "monthlySal",
+      "oa"
+    ],
+    "cpfTransactions": [
+      "cpfTransactions"
+    ],
+    "cpfContributions": [
+      "cpfContributions"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ]
+  },
+  "/bto/price-finder": {
+    "cards": [
+      "cardsApi"
+    ],
+    "profile": [
+      "btoPlanner",
+      "monthlySal",
+      "oa"
+    ],
+    "cpfTransactions": [
+      "cpfTransactions"
+    ],
+    "cpfContributions": [
+      "cpfContributions"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ]
+  },
+  "/financial-health": {
+    "cards": [
+      "cardsApi"
+    ],
+    "netWorth": [
+      "netWorthHistory"
+    ],
+    "holdings": [
+      "holdings"
+    ],
+    "profile": [
+      "ilpPolicies",
+      "insurancePolicies",
+      "ma",
+      "margin",
+      "monthlySal",
+      "moo",
+      "oa",
+      "sa"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "budget": [
+      "computedMonths"
+    ]
+  },
+  "/benefits": {},
+  "/miles": {
+    "cards": [
+      "cardsApi"
+    ]
+  },
+  "/oncall": {},
+  "/poker": {},
+  "/poker/stats": {},
+  "/travel": {
+    "cards": [
+      "cardsApi"
+    ]
+  },
+  "/me": {
+    "cards": [
+      "cardsApi",
+      "creditCards"
+    ],
+    "profile": [
+      "btoPlanner",
+      "cash",
+      "cashflowStartYm",
+      "ccDebt",
+      "ilpPolicies",
+      "insurancePolicies",
+      "ma",
+      "margin",
+      "monthlySal",
+      "moo",
+      "oa",
+      "sa",
+      "salaryCreditDay"
+    ],
+    "prefs": [
+      "prefs"
+    ],
+    "holdings": [
+      "holdings"
+    ],
+    "snapshots": [
+      "portfolioHistory"
+    ],
+    "budget": [
+      "budget",
+      "budgetMonths",
+      "computedMonths",
+      "incomeMonths"
+    ],
+    "loans": [
+      "loans"
+    ],
+    "otherLoans": [
+      "otherLoans"
+    ]
+  }
+}
