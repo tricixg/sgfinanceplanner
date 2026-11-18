@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { formatTransactionWhen } from "@/lib/savings/format-transaction-when";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 
 /** Structural shape shared by SavingsTransaction and FundTransaction — this list only reads these fields. */
 type LedgerHistoryItem = {
@@ -35,6 +36,7 @@ export function TransactionList({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,7 +127,7 @@ export function TransactionList({
                 type="button"
                 className="btn ghost sm"
                 disabled={deletingId === tx.id}
-                onClick={() => void handleDelete(tx.id)}
+                onClick={() => setPendingDeleteId(tx.id)}
                 aria-label="Delete entry"
               >
                 {deletingId === tx.id ? "…" : "Delete"}
@@ -145,6 +147,14 @@ export function TransactionList({
         >
           View more
         </Link>
+      ) : null}
+      {pendingDeleteId ? (
+        <ConfirmDeleteModal
+          message="Delete this transaction and reverse calculations? This can't be undone."
+          busy={deletingId === pendingDeleteId}
+          onCancel={() => setPendingDeleteId(null)}
+          onConfirm={() => void handleDelete(pendingDeleteId).then(() => setPendingDeleteId(null))}
+        />
       ) : null}
     </>
   );

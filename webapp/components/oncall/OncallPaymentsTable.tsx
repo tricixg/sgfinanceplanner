@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fmt2 } from "@/lib/finance/helpers";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import type { IncomeCategory } from "@/lib/income/types";
 import { daysInclusive, paymentAmounts } from "@/lib/oncall/calc";
 import { fmtOncallDay, fmtOncallRange, fmtSalaryMonth } from "@/lib/oncall/format";
@@ -122,16 +123,7 @@ export function OncallPaymentsTable({ payments, entries, settings, accounts, cat
                   </div>
                 </td>
                 <td>
-                  {confirmId === p.id ? (
-                    <div className="oncall-actions">
-                      <button type="button" className="btn del sm" disabled={busyId === p.id} onClick={() => void remove(p)}>
-                        {busyId === p.id ? "Deleting…" : "Confirm delete"}
-                      </button>
-                      <button type="button" className="btn ghost sm" onClick={() => setConfirmId(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {(
                     <div className="oncall-actions">
                       <button type="button" className="btn del sm" onClick={() => setConfirmId(p.id)}>
                         Delete
@@ -144,6 +136,19 @@ export function OncallPaymentsTable({ payments, entries, settings, accounts, cat
           })}
         </tbody>
       </table>
+      {confirmId ? (
+        <ConfirmDeleteModal
+          title="Delete payment?"
+          message="Delete this payment? This can't be undone."
+          busy={busyId === confirmId}
+          onCancel={() => setConfirmId(null)}
+          onConfirm={() => {
+            const p = payments.find((x) => x.id === confirmId);
+            if (p) void remove(p);
+            else setConfirmId(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

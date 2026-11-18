@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import { useMemo, useState } from "react";
 import type { BenefitClaim, BenefitClaimVia, BenefitInput, BenefitUsage } from "@/lib/benefits/types";
 import { useBenefits } from "@/hooks/useBenefits";
@@ -80,6 +81,7 @@ export function TabBenefits({ enabled }: Props) {
 
   const [claimForms, setClaimForms] = useState<Record<string, ClaimFormState>>({});
   const [claimBusyId, setClaimBusyId] = useState<string | null>(null);
+  const [pendingClaimDelete, setPendingClaimDelete] = useState<{ benefitId: string; claimId: string } | null>(null);
   const [claimMsg, setClaimMsg] = useState<Record<string, string>>({});
 
   const [editingClaimId, setEditingClaimId] = useState<string | null>(null);
@@ -209,7 +211,6 @@ export function TabBenefits({ enabled }: Props) {
   };
 
   const removeClaim = async (benefitId: string, claimId: string) => {
-    if (!confirm("Remove this claim and restore the amount to the benefit?")) return;
     setClaimBusyId(claimId);
     try {
       await benefitsApi.deleteClaim(benefitId, claimId);
@@ -316,7 +317,7 @@ export function TabBenefits({ enabled }: Props) {
                       type="button"
                       className="btn del sm"
                       disabled={claimBusyId === c.id}
-                      onClick={() => void removeClaim(benefitId, c.id)}
+                      onClick={() => setPendingClaimDelete({ benefitId, claimId: c.id })}
                     >
                       del
                     </button>
@@ -332,6 +333,20 @@ export function TabBenefits({ enabled }: Props) {
 
   return (
     <section className="panel on">
+      {pendingClaimDelete ? (
+        <ConfirmDeleteModal
+          title="Remove claim?"
+          message="Remove this claim and restore the amount to the benefit?"
+          confirmLabel="Remove"
+          busy={claimBusyId === pendingClaimDelete.claimId}
+          onCancel={() => setPendingClaimDelete(null)}
+          onConfirm={() =>
+            void removeClaim(pendingClaimDelete.benefitId, pendingClaimDelete.claimId).then(() =>
+              setPendingClaimDelete(null)
+            )
+          }
+        />
+      ) : null}
       <div className="callout tip">
         <span className="ico">Tip</span>
         Add any benefit — dental, specialist medical, WFH allowance, a monthly Communication

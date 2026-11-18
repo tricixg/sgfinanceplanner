@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ConfirmDeleteModal } from "@/components/ConfirmDeleteModal";
 import type { CategoryBudgetSummary } from "@/lib/expenses/budget-summary";
 import { fmt2 } from "@/lib/finance/helpers";
 import { PayFromAccountSelect } from "@/components/expenses/PayFromAccountSelect";
@@ -30,6 +31,18 @@ export function ZeroBudgetCategoryItem({
   onAddExpense,
   onDeleteExpense,
 }: Props) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    setDeleting(true);
+    try {
+      await onDeleteExpense(pendingDeleteId);
+    } finally {
+      setDeleting(false);
+      setPendingDeleteId(null);
+    }
+  };
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [spentAtInput, setSpentAtInput] = useState(sgtNowInputDateTime());
@@ -142,7 +155,7 @@ export function ZeroBudgetCategoryItem({
                   <button
                     type="button"
                     className="btn ghost sm zero-budget-item-del"
-                    onClick={() => void onDeleteExpense(r.id)}
+                    onClick={() => setPendingDeleteId(r.id)}
                   >
                     ×
                   </button>
@@ -152,6 +165,14 @@ export function ZeroBudgetCategoryItem({
           </ul>
         ) : null}
       </div>
+      {pendingDeleteId ? (
+        <ConfirmDeleteModal
+          message="Delete this expense? This will reverse its calculations and can't be undone."
+          busy={deleting}
+          onCancel={() => setPendingDeleteId(null)}
+          onConfirm={() => void confirmDelete()}
+        />
+      ) : null}
     </details>
   );
 }
