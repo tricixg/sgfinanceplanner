@@ -5,7 +5,8 @@ import type { ChartOptions } from "chart.js";
 import { ChartBox } from "@/components/ChartBox";
 import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import type { SpendingMonthlyRow } from "@/lib/spending/analytics";
-import { colorAt } from "./chart-colors";
+import { colorAt, SPENDING_CHART_COLORS } from "./chart-colors";
+import { buildStackedSeries, OTHER_SERIES_ID } from "./stacked-series";
 
 type Props = {
   title: string;
@@ -16,63 +17,37 @@ type Props = {
   embedded?: boolean;
 };
 
-const OTHER_ID = "__other__";
+const OTHER_COLOR = "#c4bdb0";
+/** How many of each month's largest items are guaranteed their own segment. */
+const PER_MONTH_TOP = 6;
 
 export function SpendingStackedBarChart({
   title,
   monthly,
   dimension,
-  topN = 7,
+  topN = SPENDING_CHART_COLORS.length,
   embedded = false,
 }: Props) {
-  const chart = useMemo(() => {
-    const totals = new Map<string, { label: string; total: number }>();
-    for (const row of monthly) {
-      for (const item of row[dimension]) {
-        const prev = totals.get(item.id) ?? { label: item.label, total: 0 };
-        prev.total += item.amount;
-        totals.set(item.id, prev);
-      }
-    }
-
-    const ranked = [...totals.entries()]
-      .sort((a, b) => b[1].total - a[1].total)
-      .slice(0, topN);
-    const topIds = new Set(ranked.map(([id]) => id));
-
-    const series = ranked.map(([id, meta], i) => ({
-      id,
-      label: meta.label,
-      color: colorAt(i),
-      data: monthly.map((row) => {
-        const match = row[dimension].find((r) => r.id === id);
-        return match?.amount ?? 0;
-      }),
-    }));
-
-    if (totals.size > topN) {
-      series.push({
-        id: OTHER_ID,
-        label: "Other",
-        color: "#c4bdb0",
-        data: monthly.map((row) => {
-          let other = 0;
-          for (const item of row[dimension]) {
-            if (!topIds.has(item.id)) other += item.amount;
-          }
-          return Math.round(other * 100) / 100;
-        }),
-      });
-    }
-
+  const { chart, otherMembers } = useMemo(() => {
+    const { series, otherMembers } = buildStackedSeries(
+      monthly,
+      dimension,
+      PER_MONTH_TOP,
+      topN,
+    );
+    let colorIdx = 0;
     return {
-      labels: monthly.map((m) => formatMonthLabel(m.ym)),
-      datasets: series.map((s) => ({
-        label: s.label,
-        data: s.data,
-        backgroundColor: s.color,
-        stack: "spend",
-      })),
+      otherMembers,
+      chart: {
+        labels: monthly.map((m) => formatMonthLabel(m.ym)),
+        datasets: series.map((s) => ({
+          label: s.label,
+          data: s.data,
+          backgroundColor: s.id === OTHER_SERIES_ID ? OTHER_COLOR : colorAt(colorIdx++),
+          stack: "spend",
+          isOther: s.id === OTHER_SERIES_ID,
+        })),
+      },
     };
   }, [monthly, dimension, topN]);
 
@@ -88,8 +63,15 @@ export function SpendingStackedBarChart({
         legend: { position: "bottom" },
         tooltip: {
           mode: "index",
+          filter: (item) => Number(item.raw) > 0,
+          itemSort: (a, b) => Number(b.raw) - Number(a.raw),
           callbacks: {
             label: (ctx) => `${ctx.dataset.label ?? ""}: ${fmt2(Number(ctx.raw))}`,
+            afterLabel: (ctx) => {
+              if (!(ctx.dataset as { isOther?: boolean }).isOther) return "";
+              const members = otherMembers[ctx.dataIndex] ?? [];
+              return members.map((m) => `   ${m.label}: ${fmt2(m.amount)}`);
+            },
             footer: (items) => {
               if (items.length === 0) return "";
               const total = items.reduce((s, item) => s + Number(item.raw ?? 0), 0);
@@ -109,7 +91,7 @@ export function SpendingStackedBarChart({
         },
       },
     };
-  }, []);
+  }, [otherMembers]);
 
   const hasData = chart.datasets.some((d) => d.data.some((v) => Number(v) > 0));
   if (!hasData) {
