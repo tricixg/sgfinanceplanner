@@ -50,6 +50,12 @@ export async function saveLoans(
       outstanding: l.out ?? 0,
       end_ym: l.end ?? "",
       start_ym: /^\d{4}-\d{2}$/.test(l.start ?? "") ? l.start : null,
+      principal:
+        typeof l.principal === "number" && l.principal > 0 ? l.principal : null,
+      tenure_months:
+        Number.isInteger(l.tenureMonths) && (l.tenureMonths as number) > 0
+          ? l.tenureMonths
+          : null,
       deduction_day: l.deductionDay ?? null,
       default_financial_account_id: l.defaultFinancialAccountId ?? null,
       sort_order: i,

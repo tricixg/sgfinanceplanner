@@ -38,7 +38,7 @@ export function enrichLoan(l: Loan, nowYm: string, index: number): EnrichedLoan 
   const monthsLeft = Math.max(0, ei - nowIdx);
   let progressPct: number | null = null;
   if (l.start && /^\d{4}-\d{2}$/.test(l.start)) {
-    const total = ei - monIdx(l.start);
+    const total = l.tenureMonths && l.tenureMonths > 0 ? l.tenureMonths : ei - monIdx(l.start);
     if (total > 0) {
       progressPct = Math.min(100, Math.max(0, ((nowIdx - monIdx(l.start)) / total) * 100));
     }
