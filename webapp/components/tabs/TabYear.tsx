@@ -8,6 +8,7 @@ import { monthlyInvestContributionWithIlp, simulate5y } from "@/lib/finance";
 import { fmt } from "@/lib/finance/helpers";
 import { sgtTodayYmd } from "@/lib/time/sgt";
 import { ChartBox } from "@/components/ChartBox";
+import { FLOW_COLORS } from "@/lib/finance/category-colors";
 import { CpfAssumptions } from "@/components/cpf/CpfAssumptions";
 import { DecimalInput } from "@/components/DecimalInput";
 import type { ChartOptions } from "chart.js";
@@ -52,16 +53,16 @@ export function TabYear({ state: S, savings, openCycles }: Props) {
   const chartData = {
     labels: series.map((r) => r.label),
     datasets: [
-      { label: "CPF", data: series.map((r) => r.oa + r.sa + r.ma), backgroundColor: "#2f5d3a", stack: "a" },
-      { label: "Investments", data: series.map((r) => r.inv), backgroundColor: "#3d6b8e", stack: "a" },
-      { label: "Cash", data: series.map((r) => r.cash), backgroundColor: "#c08a2e", stack: "a" },
-      { label: "Debt", data: series.map((r) => -r.debt), backgroundColor: "#b5482e", stack: "a" },
+      { label: "CPF", data: series.map((r) => r.oa + r.sa + r.ma), backgroundColor: FLOW_COLORS.cpf, stack: "a" },
+      { label: "Investments", data: series.map((r) => r.inv), backgroundColor: FLOW_COLORS.investments, stack: "a" },
+      { label: "Cash", data: series.map((r) => r.cash), backgroundColor: FLOW_COLORS.cash, stack: "a" },
+      { label: "Debt", data: series.map((r) => -r.debt), backgroundColor: FLOW_COLORS.debt, stack: "a" },
       {
         label: "Net worth",
         data: series.map((r) => r.nw),
         type: "line" as const,
-        borderColor: "#11201a",
-        backgroundColor: "#11201a",
+        borderColor: FLOW_COLORS.line,
+        backgroundColor: FLOW_COLORS.line,
         borderWidth: 2.5,
         pointRadius: 4,
         tension: 0.25,

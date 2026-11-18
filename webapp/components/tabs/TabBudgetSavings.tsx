@@ -42,6 +42,7 @@ import {
   recurringFloorsByBudgetLine,
 } from "@/lib/finance/budget";
 import { computedLinesForMonth } from "@/lib/finance/computed-months";
+import { buildCategoryColors, FLOW_COLORS } from "@/lib/finance/category-colors";
 import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 
@@ -52,25 +53,6 @@ type Props = {
 };
 
 const BUDGET_TYPES: BudgetItem["type"][] = ["fixed", "spend", "invest"];
-
-/** One distinct color per category, cycled by position — not by type, so two
- *  "fixed" (or two "spend") categories never render as the same doughnut slice. */
-const CATEGORY_CHART_COLORS = [
-  "#1f6aa8", // blue
-  "#0d9483", // teal
-  "#c8901f", // gold
-  "#0d6b3f", // forest
-  "#7a3f8a", // violet
-  "#c1502e", // terracotta
-  "#b23f6b", // rose
-];
-
-const AUTO_CHART_COLORS: Record<string, string> = {
-  debt: "#b5482e",
-  insurance: "#3d6b8e",
-  ilp: "#7a9eb5",
-  savings: "#4a8055",
-};
 
 const TYPE_TAG: Record<BudgetItem["type"], string> = {
   fixed: "t-end",
@@ -522,15 +504,25 @@ export function TabBudgetSavings({
   }
   verdict += ` Directing ${invPct.toFixed(0)}% of take-home to investing via budget lines and ILP premiums.`;
 
+  // Same per-category colours as the Dashboard and Past Cashflow charts.
+  const categoryColor = buildCategoryColors(S.budgetCategoryOrder);
   const allocationChartRows = [
-    { label: COMPUTED_DEBT_LABEL, amount: debt, color: AUTO_CHART_COLORS.debt },
-    { label: COMPUTED_INSURANCE_LABEL, amount: insurancePrem, color: AUTO_CHART_COLORS.insurance },
-    { label: COMPUTED_ILP_LABEL, amount: ilpPrem, color: AUTO_CHART_COLORS.ilp },
-    { label: COMPUTED_SAVINGS_LABEL, amount: savingsPrem, color: AUTO_CHART_COLORS.savings },
-    ...budgetLines.map((b, i) => ({
+    { label: COMPUTED_DEBT_LABEL, amount: debt, color: categoryColor(null, COMPUTED_DEBT_LABEL) },
+    {
+      label: COMPUTED_INSURANCE_LABEL,
+      amount: insurancePrem,
+      color: categoryColor(null, COMPUTED_INSURANCE_LABEL),
+    },
+    { label: COMPUTED_ILP_LABEL, amount: ilpPrem, color: categoryColor(null, COMPUTED_ILP_LABEL) },
+    {
+      label: COMPUTED_SAVINGS_LABEL,
+      amount: savingsPrem,
+      color: categoryColor(null, COMPUTED_SAVINGS_LABEL),
+    },
+    ...budgetLines.map((b) => ({
       label: b.cat?.trim() || "Unnamed",
       amount: Number(b.amt ?? 0),
-      color: CATEGORY_CHART_COLORS[i % CATEGORY_CHART_COLORS.length],
+      color: categoryColor(b.id, b.cat),
     })),
   ].filter((row) => row.amount > 0);
 
@@ -922,13 +914,13 @@ export function TabBudgetSavings({
           data={{
             labels: proj.labels,
             datasets: [
-              { label: "Invested", data: proj.invSeries, backgroundColor: "#3d6b8e", stack: "a" },
-              { label: "Cash", data: proj.cashSeries, backgroundColor: "#c08a2e", stack: "a" },
+              { label: "Invested", data: proj.invSeries, backgroundColor: FLOW_COLORS.investments, stack: "a" },
+              { label: "Cash", data: proj.cashSeries, backgroundColor: FLOW_COLORS.cash, stack: "a" },
               {
                 label: "LNW",
                 data: proj.nwSeries,
                 type: "line",
-                borderColor: "#11201a",
+                borderColor: FLOW_COLORS.line,
                 borderWidth: 2.5,
                 pointRadius: 3,
                 tension: 0.25,

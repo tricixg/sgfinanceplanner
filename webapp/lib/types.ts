@@ -254,6 +254,8 @@ export type DashboardState = {
   dateOfBirth?: string;
   /** Frozen insurance / ILP / loan-load figures of finished months, keyed YYYY-MM. */
   computedMonths?: import("./finance/computed-months").ComputedMonthMap;
+  /** Budget catalog line ids in creation order; drives per-category chart colours. */
+  budgetCategoryOrder?: string[];
   insurancePolicies: InsurancePolicy[];
   accounts: SavingsAccount[];
   oa: number;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { colorAt } from "@/components/spending/chart-colors";
+import type { CategoryColorFn } from "@/lib/finance/category-colors";
 import {
   OTHER_ID,
   categoryTransactionsHref,
@@ -19,6 +19,8 @@ type Props = {
   periodText: string;
   /** Dashboard URL to come back to from Transactions. */
   backHref: string;
+  /** Per-category colours shared with Budget and Past Cashflow. */
+  colorFor: CategoryColorFn;
 };
 
 type RowProps = {
@@ -65,7 +67,7 @@ function CategoryLink({ row, color, scale, window, periodText, backHref }: RowPr
 }
 
 /** Ranked spending categories; each opens Transactions filtered to it and the period. */
-export function CategoryBreakdown({ rows, window, periodText, backHref }: Props) {
+export function CategoryBreakdown({ rows, window, periodText, backHref, colorFor }: Props) {
   const [otherOpen, setOtherOpen] = useState(false);
   const subId = useId();
   const scale = rows[0]?.amount ?? 0;
@@ -73,10 +75,16 @@ export function CategoryBreakdown({ rows, window, periodText, backHref }: Props)
 
   return (
     <div className="rank">
-      {rows.map((row, i) => {
+      {rows.map((row) => {
         if (row.id !== OTHER_ID) {
           return (
-            <CategoryLink key={row.id} row={row} color={colorAt(i)} scale={scale} {...linkProps} />
+            <CategoryLink
+              key={row.id}
+              row={row}
+              color={colorFor(row.id, row.label)}
+              scale={scale}
+              {...linkProps}
+            />
           );
         }
         const children = row.children ?? [];

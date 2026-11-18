@@ -114,6 +114,7 @@ export function useAppDataProvider(
   const [budgetMonths, setBudgetMonths] = useState<Record<string, DashboardState["budget"]>>({});
   const [incomeMonths, setIncomeMonths] = useState<Record<string, number>>({});
   const [computedMonths, setComputedMonths] = useState<DashboardState["computedMonths"]>({});
+  const [budgetCategoryOrder, setBudgetCategoryOrder] = useState<string[]>([]);
   const [creditCards, setCreditCards] = useState<DashboardState["creditCards"]>([]);
   const [holdings, setHoldings] = useState<DashboardState["holdings"]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<
@@ -158,6 +159,7 @@ export function useAppDataProvider(
       budgetMonths,
       incomeMonths,
       computedMonths,
+      budgetCategoryOrder,
       creditCards,
       holdings,
       portfolioHistory,
@@ -168,7 +170,7 @@ export function useAppDataProvider(
     return withLazyDomains(composed, STATE_FIELD_DOMAIN, isRequested, requestFromRead);
     // requestedKey: rebuild when a domain is first requested (accessors -> plain values).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileBundle, loans, budgetMonths, incomeMonths, computedMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans, requestedKey, isRequested, requestFromRead]);
+  }, [profileBundle, loans, budgetMonths, incomeMonths, computedMonths, budgetCategoryOrder, creditCards, holdings, portfolioHistory, prefs, otherLoans, requestedKey, isRequested, requestFromRead]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -294,6 +296,7 @@ export function useAppDataProvider(
                 months?: Record<string, DashboardState["budget"]>;
                 income?: Record<string, number>;
                 computed?: DashboardState["computedMonths"];
+                categoryOrder?: string[];
                 configured?: boolean;
               }>("/api/budget-lines", opts), "budget"
             );
@@ -302,6 +305,7 @@ export function useAppDataProvider(
               setBudgetMonths(data.months ?? {});
               setIncomeMonths(data.income ?? {});
               setComputedMonths(data.computed ?? {});
+              setBudgetCategoryOrder(data.categoryOrder ?? []);
             }
             ok = res.ok;
             break;
@@ -561,6 +565,7 @@ export function useAppDataProvider(
       const { res, data } = await fetchJson<{
         months?: Record<string, DashboardState["budget"]>;
         income?: Record<string, number>;
+        categoryOrder?: string[];
         error?: string;
       }>("/api/budget-lines", {
         method: "PUT",
@@ -571,6 +576,7 @@ export function useAppDataProvider(
       if (!res.ok) throw new Error(data.error ?? "Failed to save budget");
       setBudgetMonths(data.months ?? {});
       setIncomeMonths(data.income ?? {});
+      if (data.categoryOrder) setBudgetCategoryOrder(data.categoryOrder);
       dispatchDomainEvent("budget:changed");
     },
     [configured, assertDomainLoaded]

@@ -12,11 +12,12 @@ import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { withRequestId } from "@/lib/api/with-request-id";
 
 function payload(
-  data: { months: BudgetMonthMap; income: Record<string, number> },
+  data: { months: BudgetMonthMap; income: Record<string, number>; categoryOrder?: string[] },
   computed: ComputedMonthMap = {}
 ) {
   const ym = currentYm();
   const { months, income } = data;
+  const categoryOrder = data.categoryOrder ?? [];
   return {
     configured: true,
     currentYm: ym,
@@ -25,12 +26,14 @@ function payload(
     /** Frozen insurance / ILP / loan figures of finished months. */
     computed,
     budget: resolveBudgetMonth(months, ym).lines,
+    /** Catalog line ids in creation order, for consistent category colours. */
+    categoryOrder,
   };
 }
 
 export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
-    return NextResponse.json({ configured: false, currentYm: currentYm(), months: {}, income: {}, budget: [] });
+    return NextResponse.json({ configured: false, currentYm: currentYm(), months: {}, income: {}, budget: [], categoryOrder: [] });
   }
   const auth = await requireSessionUser();
   if ("response" in auth) return auth.response;

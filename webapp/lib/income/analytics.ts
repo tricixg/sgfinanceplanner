@@ -22,6 +22,10 @@ export type IncomeAccountSeries = {
 
 export type IncomeAnalyticsBundle = {
   months: string[];
+  /** Income category ids in the user's order, for consistent category colours. */
+  categoryOrder: string[];
+  /** Income category id → slug, so built-in categories (Salary) get their pinned colour. */
+  categorySlugs: Record<string, string>;
   monthly: IncomeMonthlyRow[];
   perAccount: IncomeAccountSeries[];
   insights: {
@@ -132,7 +136,7 @@ export function buildIncomeAnalytics(input: {
   throughYm: string;
   months?: number;
   deposits: LeanDepositRow[];
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; slug?: string }[];
   accounts: { id: string; name: string }[];
   excludeReimbursements?: boolean;
 }): IncomeAnalyticsBundle {
@@ -251,6 +255,10 @@ export function buildIncomeAnalytics(input: {
 
   return {
     months: window.months,
+    categoryOrder: input.categories.map((c) => c.id),
+    categorySlugs: Object.fromEntries(
+      input.categories.filter((c) => c.slug).map((c) => [c.id, c.slug!])
+    ),
     monthly,
     perAccount,
     insights: {
