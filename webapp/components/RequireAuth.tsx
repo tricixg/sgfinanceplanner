@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchJson } from "@/lib/fetch-json";
+import { readClientSession } from "@/lib/auth/client-session";
 
 export type SessionUser = { id: string; email: string | null; hasPassword?: boolean };
 
@@ -24,13 +25,22 @@ export function RequireAuth({ children }: Props) {
     setChecking(true);
     setCheckFailed(false);
     try {
-      const { res, data: json } = await fetchJson<{
-        configured?: boolean;
-        user?: SessionUser | null;
-        error?: string;
-      }>("/api/auth/session", { credentials: "include" });
-      if (!res.ok) {
-        throw new Error(json.error ?? `Session check failed (${res.status})`);
+      // Normal mode: read the session from the cookie locally (no round-trip), so data fetches
+      // can start straight away. Dev bypass has no cookie (the user id is a server-side env),
+      // so it still asks the server. API routes verify the session themselves either way.
+      let json: { configured?: boolean; user?: SessionUser | null };
+      if (devBypass) {
+        const out = await fetchJson<{
+          configured?: boolean;
+          user?: SessionUser | null;
+          error?: string;
+        }>("/api/auth/session", { credentials: "include" });
+        if (!out.res.ok) {
+          throw new Error(out.data.error ?? `Session check failed (${out.res.status})`);
+        }
+        json = out.data;
+      } else {
+        json = await readClientSession();
       }
       setConfigured(Boolean(json.configured));
       setUser(json.user ?? null);

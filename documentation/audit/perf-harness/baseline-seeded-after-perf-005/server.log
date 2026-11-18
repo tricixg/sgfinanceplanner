@@ -1,0 +1,1898 @@
+▲ Next.js 16.4.6
+- Local:         http://localhost:3100
+- Network:       http://192.0.2.2:3100
+✓ Ready in 94ms
+✓ Running next.config.ts took 29ms
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 90
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[income] seeded default categories { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 156
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_as_additive',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_in_baseline',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 186 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/calendar] GET { userId: '00000000-0000-4000-8000-000000000001', entries: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_as_additive',
+  result: { '2026-11': 0 }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_in_baseline',
+  result: { '2026-11': 0 }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  scope: 'discretionary',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 43
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  depositRows: 0,
+  ms: 44
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 170 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 167 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 163 }
+[net-worth-history] upserted snapshot { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/net-worth/snapshots] POST ok { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 165 }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 159 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  members: 1,
+  receivedPending: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  members: 1,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 165 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[card-statements] loaded outstanding statements { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/statements/outstanding] GET { userId: '00000000-0000-4000-8000-000000000001', statements: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 52
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 36
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 193 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/benefits] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[miles] bundle loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/oncall] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  entries: 0,
+  payments: 0
+}
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/poker] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/poker/stats] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  sessions: 0,
+  totalNet: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  members: 1,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 167 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 115
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[income] seeded default categories { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 311
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_as_additive',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_in_baseline',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 513 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/calendar] GET { userId: '00000000-0000-4000-8000-000000000001', entries: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_as_additive',
+  result: { '2026-11': 0 }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_in_baseline',
+  result: { '2026-11': 0 }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  scope: 'discretionary',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 116
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  depositRows: 0,
+  ms: 108
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 514 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 509 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 509 }
+[net-worth-history] upserted snapshot { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/net-worth/snapshots] POST ok { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 520 }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 513 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  members: 1,
+  receivedPending: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  members: 1,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 514 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[card-statements] loaded outstanding statements { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/statements/outstanding] GET { userId: '00000000-0000-4000-8000-000000000001', statements: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 107
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 107
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 525 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/benefits] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[miles] bundle loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/oncall] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  entries: 0,
+  payments: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/poker] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/poker/stats] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  sessions: 0,
+  totalNet: 0
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  members: 1,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 524 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 517 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[mergeWithDefaults] merged state { monthlySal: 0, creditCards: 0, loans: 0 }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/summary] GET ok { userId: '00000000-0000-4000-8000-000000000001', loadMs: 522 }
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '11111111-1111-4111-8111-111111111111',
+  paired: false,
+  members: 1,
+  receivedPending: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[card-statements] loaded outstanding statements { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/statements/outstanding] GET { userId: '00000000-0000-4000-8000-000000000001', statements: 0 }
+[api/credit-cards/calendar] GET { userId: '00000000-0000-4000-8000-000000000001', entries: 0 }
+[api/expenses] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[miles] bundle loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/benefits] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[api/poker] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[api/poker/stats] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  sessions: 0,
+  totalNet: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  scope: 'discretionary',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 108
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  depositRows: 0,
+  ms: 108
+}

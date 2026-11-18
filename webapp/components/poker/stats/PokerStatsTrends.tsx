@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Chart } from "react-chartjs-2";
+import { Chart as ChartJSCore, TimeScale } from "chart.js";
+import "chartjs-adapter-date-fns";
 import type {
   Chart as ChartJS,
   ChartOptions,
@@ -21,6 +23,9 @@ import type { PokerSession } from "@/lib/poker/types";
 import { formatChartDate, formatPlPlain, formatSessionDate } from "@/components/poker/stats/format";
 
 ensureChartsRegistered();
+// The only time-scale chart in the app: the date adapter (~78 KB gz) and TimeScale are
+// loaded with this component instead of in the shared chart setup (PERF-005).
+ChartJSCore.register(TimeScale);
 
 type Props = { sessions: PokerSession[] };
 

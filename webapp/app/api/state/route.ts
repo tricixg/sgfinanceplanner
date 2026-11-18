@@ -55,8 +55,9 @@ export async function GET() {
   const alreadyV2 = Boolean(rawObj?._migrated_v2);
   const hasLegacyBlob = isPersistedDashboardSnapshot(raw);
 
-  await ensureUserHousehold(supabase, user.id);
-
+  // Migrated users just need their prefs back. Household bootstrap is not part of reading
+  // prefs: every endpoint that needs the household calls ensureUserHousehold() itself, so it
+  // only runs here for first-time users and the legacy-blob migration below.
   if (alreadyV2) {
     const slim = prefsOnlyFromRaw(raw);
     return NextResponse.json({
@@ -65,6 +66,8 @@ export async function GET() {
       source: "database",
     });
   }
+
+  await ensureUserHousehold(supabase, user.id);
 
   if (hasLegacyBlob) {
     const full = mergeWithDefaults(raw as Partial<DashboardState>);

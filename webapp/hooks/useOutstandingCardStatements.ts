@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, useMemo } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { CardStatementComputed } from "@/lib/cards/types";
 import { OutstandingCardStatementsContext } from "@/contexts/app-data-contexts";
@@ -50,7 +50,11 @@ export function useOutstandingCardStatementsProvider(enabled: boolean) {
 
   useDomainEvent(["expense:changed", "cards:changed"], () => void load());
 
-  return { statements, loading, reload: load, ensureLoaded };
+  // Stable identity: consumers re-render only when a member changes (PERF-006).
+  return useMemo(
+    () => ({ statements, loading, reload: load, ensureLoaded }),
+    [statements, loading, load, ensureLoaded]
+  );
 }
 
 export function useOutstandingCardStatements() {

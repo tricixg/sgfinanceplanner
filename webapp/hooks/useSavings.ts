@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, useMemo } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { SavingsBundle, SavingsGoal, SavingsPool } from "@/lib/savings/types";
 import { SavingsContext } from "@/contexts/app-data-contexts";
@@ -216,19 +216,35 @@ export function useSavingsProvider(enabled: boolean) {
     [load]
   );
 
-  return {
-    bundle,
-    loading,
-    hasLoaded,
-    configured,
-    error,
-    reload: load,
-    ensureLoaded,
-    savePools,
-    saveGoals,
-    recordGoalDeposit,
-    recordPoolTransaction,
-  };
+  // Stable identity: consumers of this context re-render only when a member changes (PERF-006).
+  return useMemo(
+    () => ({
+      bundle,
+      loading,
+      hasLoaded,
+      configured,
+      error,
+      reload: load,
+      ensureLoaded,
+      savePools,
+      saveGoals,
+      recordGoalDeposit,
+      recordPoolTransaction,
+    }),
+    [
+      bundle,
+      configured,
+      ensureLoaded,
+      error,
+      hasLoaded,
+      load,
+      loading,
+      recordGoalDeposit,
+      recordPoolTransaction,
+      saveGoals,
+      savePools,
+    ]
+  );
 }
 
 export function useSavings() {

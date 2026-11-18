@@ -17,35 +17,42 @@ export async function GET() {
   const { user } = auth;
 
   const supabase = await createAuthedSupabaseClient();
-  const householdId = await ensureUserHousehold(supabase, user.id);
+  const email = user.email?.toLowerCase() ?? "";
 
-  const { data: members, error: memErr } = await supabase
-    .from("household_members")
-    .select("user_id, role, joined_at")
-    .eq("household_id", householdId);
+  // The invite lists don't depend on the household id, so they load alongside it.
+  const [householdId, { data: sentInvites }, { data: receivedInvites }] = await Promise.all([
+    ensureUserHousehold(supabase, user.id),
+    supabase
+      .from("partner_invites")
+      .select("*")
+      .eq("inviter_id", user.id)
+      .in("status", ["pending", "accepted", "declined", "cancelled"])
+      .order("created_at", { ascending: false })
+      .limit(20),
+    email
+      ? supabase
+          .from("partner_invites")
+          .select("*")
+          .eq("status", "pending")
+          .ilike("invitee_email", email)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as Record<string, unknown>[] | null }),
+  ]);
+
+  // Members need the household id; the inviter-email lookups need only the invites.
+  const [{ data: members, error: memErr }, sent, received] = await Promise.all([
+    supabase
+      .from("household_members")
+      .select("user_id, role, joined_at")
+      .eq("household_id", householdId),
+    enrichInviterEmails((sentInvites ?? []).map((r) => mapInvite(r))),
+    enrichInviterEmails((receivedInvites ?? []).map((r) => mapInvite(r))),
+  ]);
 
   if (memErr) {
     console.error("[api/household] members failed", memErr.message);
     return apiError("api/household", memErr);
   }
-
-  const { data: sentInvites } = await supabase
-    .from("partner_invites")
-    .select("*")
-    .eq("inviter_id", user.id)
-    .in("status", ["pending", "accepted", "declined", "cancelled"])
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  const email = user.email?.toLowerCase() ?? "";
-  const { data: receivedInvites } = email
-    ? await supabase
-        .from("partner_invites")
-        .select("*")
-        .eq("status", "pending")
-        .ilike("invitee_email", email)
-        .order("created_at", { ascending: false })
-    : { data: [] };
 
   const paired = (members?.length ?? 0) > 1;
 
@@ -61,11 +68,6 @@ export async function GET() {
     ...m,
     email: memberEmails.get(m.userId) ?? null,
   }));
-
-  const sent = await enrichInviterEmails((sentInvites ?? []).map((r) => mapInvite(r)));
-  const received = await enrichInviterEmails(
-    (receivedInvites ?? []).map((r) => mapInvite(r))
-  );
 
   console.info("[api/household] GET", {
     userId: user.id,

@@ -1,0 +1,2250 @@
+▲ Next.js 16.4.6
+- Local:         http://localhost:3100
+- Network:       http://192.0.2.2:3100
+✓ Ready in 108ms
+✓ Running next.config.ts took 37ms
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 60
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[income] seeded default categories { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 128
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'e4463bd1-96d7-41f3-afb2-efaf6cb4fc49'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '760e8e27-2343-431a-b280-ef79b313f05c'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_as_additive',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_in_baseline',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '42e0e931-1d54-4646-9d7f-c4ea042da5f6'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '42e0e931-1d54-4646-9d7f-c4ea042da5f6',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 274 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'f4242ea6-2383-4f19-a879-4f9e4ef1c5b8'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards/calendar] GET { userId: '00000000-0000-4000-8000-000000000001', entries: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '3a9fc767-85a7-49f7-9f45-2fdb6c8ffbd8'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_as_additive',
+  result: { '2026-11': 0 }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_in_baseline',
+  result: { '2026-11': 0 }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  scope: 'discretionary',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 48
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  depositRows: 0,
+  ms: 42
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '94701f86-788a-4925-9db8-28df7767caaf'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '05f73576-2867-403b-a9d7-a7944b1a5842'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ab27b6f7-b851-41f3-94fc-f462e45c6ddf'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ab27b6f7-b851-41f3-94fc-f462e45c6ddf',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 259 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'e2173d6d-87e6-432a-8fc2-fe4b649d5ed7'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '350003fd-07f3-43b1-82ee-ac6bace38d1e'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '350003fd-07f3-43b1-82ee-ac6bace38d1e',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 267 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'a45a334d-1428-478b-bd16-92a64d176683'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'de8594bf-b951-476c-ba38-f4050573b21f'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '4a59ec15-2782-4db3-8a37-fac7b429ce40'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ff05f7e9-15cd-4fd7-b600-2449d918eabe'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '99655db4-362c-49f6-9ab8-40db0379f2ec'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '99655db4-362c-49f6-9ab8-40db0379f2ec',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 265 }
+[net-worth-history] upserted snapshot { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/net-worth/snapshots] POST ok { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '5f850288-980a-4f8d-a9df-7681ee12bb7c'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'e295d8c5-b986-4749-aae3-d24d7e349c05'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '5f850288-980a-4f8d-a9df-7681ee12bb7c',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 264 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'f132c827-a33b-431b-aecf-b652fe8e9ad7'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '3d947649-98a1-4787-8a33-4f82910cf0b0'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '3d947649-98a1-4787-8a33-4f82910cf0b0',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 262 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '42c122ad-c10f-4e38-97a9-62d3f6b8f873'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '0ac8022e-bbec-4012-a5c9-d5b06f04d464'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '5765fe02-5f5d-4fc7-8d7c-3565953d232c'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ba07e869-40b4-4fa2-8cdb-31c8690f406b'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'c9d4aa8f-c410-4841-ae2f-aa4e2e11060e'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '03cf26cc-2f15-41c5-a26e-bc1412443717'
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'c9d4aa8f-c410-4841-ae2f-aa4e2e11060e',
+  paired: false,
+  members: 0,
+  receivedPending: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '5779d860-a25c-4322-9f72-f7366b89457a'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'fb073fec-ca42-412a-bba7-0214c57a0df6'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'cc6421b2-7f46-4b1a-8dd9-453b99157a1e'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'b9f5e0c9-d2b2-4372-b549-1fb5578e9c75'
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'cc6421b2-7f46-4b1a-8dd9-453b99157a1e',
+  paired: false,
+  members: 0,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'fb073fec-ca42-412a-bba7-0214c57a0df6',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 254 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '840d364e-2c71-48ae-aa58-03545e82e845'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[card-statements] loaded outstanding statements { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/statements/outstanding] GET { userId: '00000000-0000-4000-8000-000000000001', statements: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 39
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 36
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'e756f3ca-bc4c-4153-b400-b006e7593f97'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'e756f3ca-bc4c-4153-b400-b006e7593f97',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 269 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/benefits] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '780a5b32-5030-4c7f-abbd-e386bea11843'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '4cb5cc40-b925-4374-96dc-f9eaa41df35d'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[miles] bundle loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/oncall] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  entries: 0,
+  payments: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '41dd57f3-5ad0-44ac-bf88-dcb311b16110'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/poker] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '34c405e2-4fa1-47bb-945c-0f136d063643'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/poker/stats] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  sessions: 0,
+  totalNet: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'b77b92bd-b6da-4b2f-81ac-7365a19c21d7'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '9abc3d36-ccbf-4e04-a7a1-ffac175c6c42'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'fa7d244e-2119-4e95-a00a-6a49264e75f3'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'a697781e-ebff-4445-aa2c-f540591338d7'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '36844e66-992b-4545-94b6-0c26d52c74f5'
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'a697781e-ebff-4445-aa2c-f540591338d7',
+  paired: false,
+  members: 0,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '36844e66-992b-4545-94b6-0c26d52c74f5',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 259 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 109
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[income] seeded default categories { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 313
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '54217bc8-346a-4fb8-98c7-95b55dc92cfe'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '467820ac-8eab-4a18-9efd-c65aa2ca4bae'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_as_additive',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5,
+  flagColumn: 'counts_in_baseline',
+  result: {
+    '2026-11': 0,
+    '2026-12': 0,
+    '2027-01': 0,
+    '2027-02': 0,
+    '2027-03': 0
+  }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 5
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'db3b6d7c-91e6-4c64-8bf2-5a32ef3afb93'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'db3b6d7c-91e6-4c64-8bf2-5a32ef3afb93',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 825 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '1685055e-08b2-4658-bf0d-a350b1b6182d'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards/calendar] GET { userId: '00000000-0000-4000-8000-000000000001', entries: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '09b89f1f-e038-486c-8413-787e6109686a'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_as_additive',
+  result: { '2026-11': 0 }
+}
+[income] deposits by month {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1,
+  flagColumn: 'counts_in_baseline',
+  result: { '2026-11': 0 }
+}
+[api/cashflow/additive-income] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  startYm: '2026-11',
+  count: 1
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  scope: 'discretionary',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 106
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  depositRows: 0,
+  ms: 104
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ac4ccbd2-86dc-4b21-9a1a-1636c709b822'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '334d858c-1d2b-4e9c-9b9a-2db201d3add8'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '4b53e1b2-e0b6-4a3a-abc1-499879138f4d'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '4b53e1b2-e0b6-4a3a-abc1-499879138f4d',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 818 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'c1fb6088-10d1-47a3-85ea-993046dccff8'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '9b03091f-c146-404d-8924-224753d2cc23'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '9b03091f-c146-404d-8924-224753d2cc23',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 822 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'bdaf3127-b369-4edb-8748-c6a572c8043d'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'c00a4422-c17c-4750-8763-c58f24d5e148'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '25638d62-547c-4f8e-a910-8d018a20a34d'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '52a0aeea-2cc3-45cc-ab0f-5d7faa807afb'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '720506ec-b740-4a31-99ef-ebb9c2aa7a6f'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '720506ec-b740-4a31-99ef-ebb9c2aa7a6f',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 819 }
+[net-worth-history] upserted snapshot { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/net-worth/snapshots] POST ok { userId: '00000000-0000-4000-8000-000000000001', month: '2026-11-01' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '32a242d4-8fda-4bb3-ba45-c5a7e31540e4'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '037c9aa0-4e70-4c79-92a1-c04abf235042'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '32a242d4-8fda-4bb3-ba45-c5a7e31540e4',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 821 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '02f0a1f4-bd38-4d18-ba52-09a34316a7b0'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '23731724-cb06-473f-903a-6b07f281661d'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '23731724-cb06-473f-903a-6b07f281661d',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 823 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'fe04169c-72ac-4f5a-8d4e-d646fc15ff03'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'c6d313f4-687b-4e45-973e-d9eb9533bc95'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '1b76e3d8-3ef7-41d2-b3e6-75c5071f55df'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '2be3376a-2670-46c1-a8de-04182d770a6b'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ac4636ca-f2b9-4b9e-9271-44ca37c7854b'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ffe8d5bf-7c3a-4bbc-83e5-abbef6cadc4c'
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ac4636ca-f2b9-4b9e-9271-44ca37c7854b',
+  paired: false,
+  members: 0,
+  receivedPending: 0
+}
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'c1ccbf43-54ea-40f0-b45d-9750b6864042'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '5fe8c435-3f80-44e8-9d6d-7c82b9f53373'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '15a2fcda-f4e1-4ad3-b0ab-49c034b0e0ca'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'ecf9fdf8-fabe-46b5-94f0-323075c61883'
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '15a2fcda-f4e1-4ad3-b0ab-49c034b0e0ca',
+  paired: false,
+  members: 0,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '5fe8c435-3f80-44e8-9d6d-7c82b9f53373',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 835 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '990fe1f5-c187-4934-bb86-41df295e3acd'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[card-statements] loaded outstanding statements { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/statements/outstanding] GET { userId: '00000000-0000-4000-8000-000000000001', statements: 0 }
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  scope: 'all',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 106
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 6,
+  depositRows: 0,
+  ms: 103
+}
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '573f7905-64f8-4bda-a1c9-e0dcebb0536e'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '573f7905-64f8-4bda-a1c9-e0dcebb0536e',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 814 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/benefits] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '2dd11859-b6fe-433e-b07b-2e5a2b1531e2'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'bdc2b6e8-3d11-4bac-ba68-6ab0cc51d26a'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[miles] bundle loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/oncall] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  entries: 0,
+  payments: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'cbf24131-d7f6-4731-aea7-69aebc0bfc30'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/financial-accounts] loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/poker] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '33a2ce19-5f50-4703-a7c8-da523d5bc8fa'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/poker/stats] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  sessions: 0,
+  totalNet: 0
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'dedd36a2-81e1-4ad6-991d-81314436972c'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '1e79c568-e6e8-414f-86c7-dd8188ac706a'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'f2a80123-b4f0-4b3d-8d9a-f6f99aa29b4b'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/income-categories] GET { userId: '00000000-0000-4000-8000-000000000001', count: 7 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '7cdf9e11-88c8-4cc2-8bd6-dcbfd3a1d27d'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '25ce39da-be5f-49cb-af93-6e9de62e7604'
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '7cdf9e11-88c8-4cc2-8bd6-dcbfd3a1d27d',
+  paired: false,
+  members: 0,
+  receivedPending: 0
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '25ce39da-be5f-49cb-af93-6e9de62e7604',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 823 }
+[api/auth/session] GET {
+  configured: true,
+  signedIn: true,
+  userId: '00000000-0000-4000-8000-000000000001'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '556c6b2e-368f-4702-945f-bec46f76f5ed'
+}
+[api/state] GET ok (prefs only) { userId: '00000000-0000-4000-8000-000000000001' }
+[api/credit-cards] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '429279c5-5993-4410-835b-dc86921e290d'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '429279c5-5993-4410-835b-dc86921e290d',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[api/savings] GET loaded { userId: '00000000-0000-4000-8000-000000000001', loadMs: 823 }
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[funds] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  fundsBalanceTotal: 0,
+  fundsPnlTotal: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '9abbfdec-76b2-45b1-b910-26262a0fb273'
+}
+[savings] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '9abbfdec-76b2-45b1-b910-26262a0fb273',
+  paired: false,
+  pools: 0,
+  goals: 0
+}
+[mergeWithDefaults] merged state { monthlySal: 0, creditCards: 0, loans: 0 }
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/summary] GET ok { userId: '00000000-0000-4000-8000-000000000001', loadMs: 830 }
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '7995e465-1e4b-404b-a219-a7f3701c151c'
+}
+[api/household] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '7995e465-1e4b-404b-a219-a7f3701c151c',
+  paired: false,
+  members: 0,
+  receivedPending: 0
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '22a6c357-f8b4-4fba-92ec-500def25133a'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '7fa037ea-f023-486d-905a-56ca8ba5b9f8'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: 'b277294e-d93a-4fa7-bdeb-dc63368890bd'
+}
+[household] created solo household {
+  userId: '00000000-0000-4000-8000-000000000001',
+  householdId: '1a6b21de-8897-41b4-b0f8-73b9b8d73552'
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/expenses/summary] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  expenseCount: 0,
+  importCount: 0,
+  categories: 0,
+  zeroAllocated: 0,
+  computed: [
+    { kind: 'debt', spent: 0 },
+    { kind: 'insurance', spent: 0 },
+    { kind: 'ilp', spent: 0 }
+  ],
+  uncategorizedSpent: 0
+}
+[card-statements] loaded bundle {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  openCycles: 0,
+  cycleOffset: 0
+}
+[api/credit-cards/statements] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  statements: 0,
+  cycleOffset: 0
+}
+[card-statements] loaded outstanding statements { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/credit-cards/statements/outstanding] GET { userId: '00000000-0000-4000-8000-000000000001', statements: 0 }
+[api/credit-cards/calendar] GET { userId: '00000000-0000-4000-8000-000000000001', entries: 0 }
+[api/expenses] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[savings-scope] loaded visibility scope {
+  userId: '00000000-0000-4000-8000-000000000001',
+  accountCount: 0,
+  poolCount: 0
+}
+[transactions] unified list {
+  userId: '00000000-0000-4000-8000-000000000001',
+  returned: 0,
+  total: 0,
+  savings: 0,
+  budget: 0,
+  expenses: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[api/transactions] listed {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  total: 0,
+  dateFrom: null,
+  dateTo: null
+}
+[miles] bundle loaded { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/benefits] GET { userId: '00000000-0000-4000-8000-000000000001', count: 0 }
+[api/recurring] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  ym: '2026-11',
+  rows: 0,
+  paid: 0
+}
+[api/poker] GET {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  offset: 0,
+  total: 0
+}
+[api/poker/stats] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  sessions: 0,
+  totalNet: 0
+}
+[reimburse-totals] loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  expenseSources: 0,
+  budgetSources: 0
+}
+[api/spending/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  scope: 'discretionary',
+  expenseRows: 0,
+  importRows: 0,
+  ms: 107
+}
+[accounts] bundle loaded {
+  userId: '00000000-0000-4000-8000-000000000001',
+  count: 0,
+  personalSavingsCash: 0,
+  personalNetWorthCash: 0
+}
+[api/income/analytics] built {
+  userId: '00000000-0000-4000-8000-000000000001',
+  months: 5,
+  depositRows: 0,
+  ms: 103
+}

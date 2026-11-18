@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { DomainPage } from "@/components/app/DomainPage";
 import { TabCashAccounts } from "@/components/tabs/TabCashAccounts";
 import { useAppSession } from "@/contexts/AppSessionContext";
@@ -11,26 +11,33 @@ import { useCardStatements } from "@/hooks/useCardStatements";
 function CashAccountsContent({
   state,
   setState,
+  cardStatementsBundle,
+  cardStatementsLoading,
 }: {
   state: Parameters<typeof TabCashAccounts>[0]["state"];
   setState: Parameters<typeof TabCashAccounts>[0]["setState"];
+  cardStatementsBundle: ReturnType<typeof useCardStatements>["bundle"];
+  cardStatementsLoading: boolean;
 }) {
   const user = useAppSession();
   const { savingsTotals, savingsApi, accountsApi, fundsApi } = usePageSavings(user?.id, state);
   const { netWorthHistory, appendNetWorthSnapshot } = useAppData();
-  const { bundle: cardStatementsBundle, loading: cardStatementsLoading } = useCardStatements(
-    Boolean(user?.id)
-  );
 
-  // Depend on the *stable* members (reload is a useCallback, configured is a
-  // boolean) — not the whole accountsApi object, which is a fresh identity every
-  // render and would make this effect re-run → reload → re-render → loop.
+  // Refresh once when entering the page, but only if the accounts were already cached from
+  // an earlier page (so they may be stale). On a first visit the provider's own load is
+  // already in flight; reloading when it completes would just fetch /api/accounts twice.
+  // Depend on the *stable* members (reload is a useCallback) — not the whole accountsApi
+  // object, which is a fresh identity every render.
   const { reload: reloadAccounts, configured: accountsConfigured } = accountsApi;
+  const cachedOnEnterRef = useRef(accountsConfigured);
+  const refreshedOnEnterRef = useRef(false);
   useEffect(() => {
-    if (!user?.id || !accountsConfigured) return;
+    if (!user?.id || refreshedOnEnterRef.current) return;
+    refreshedOnEnterRef.current = true;
+    if (!cachedOnEnterRef.current) return;
     console.info("[CashAccountsRoute] refresh accounts on tab enter");
     void reloadAccounts();
-  }, [user?.id, accountsConfigured, reloadAccounts]);
+  }, [user?.id, reloadAccounts]);
 
   return (
     <TabCashAccounts
@@ -66,13 +73,24 @@ function CashAccountsContent({
 }
 
 export function CashAccountsRoute() {
+  const user = useAppSession();
+  // Fetched here, not in CashAccountsContent, so the request starts on route entry instead of
+  // after the core data has loaded. The net-worth snapshot still waits for it (snapshotInputs).
+  const { bundle: cardStatementsBundle, loading: cardStatementsLoading } = useCardStatements(
+    Boolean(user?.id)
+  );
   return (
     <DomainPage>
       {({ state, setState, loading }) =>
         loading ? (
           <p className="loading">Loading your financial data…</p>
         ) : (
-          <CashAccountsContent state={state} setState={setState} />
+          <CashAccountsContent
+            state={state}
+            setState={setState}
+            cardStatementsBundle={cardStatementsBundle}
+            cardStatementsLoading={cardStatementsLoading}
+          />
         )
       }
     </DomainPage>

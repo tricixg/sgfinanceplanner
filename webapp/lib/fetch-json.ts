@@ -1,3 +1,5 @@
+import { handleUnauthorized, isAppApiRequest } from "@/lib/auth/unauthorized";
+
 /** Parse a fetch Response as JSON; avoid opaque "<!DOCTYPE" errors when the API returns HTML. */
 export async function parseJsonResponse<T = unknown>(
   res: Response
@@ -37,6 +39,8 @@ export async function fetchJson<T = unknown>(
   init?: RequestInit
 ): Promise<{ res: Response; data: T }> {
   const res = await fetch(input, init);
+  // The browser's session is no good (expired, revoked, forged cookie): go sign in again.
+  if (res.status === 401 && isAppApiRequest(input)) handleUnauthorized();
   const data = await parseJsonResponse<T>(res);
   return { res, data };
 }

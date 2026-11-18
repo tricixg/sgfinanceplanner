@@ -5,7 +5,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 
 const LATENCY = Number(process.env.MOCK_LATENCY_MS || 100);
-const LOG = process.env.MOCK_LOG || require("path").join(__dirname, "mock.log");
+const LOG = process.env.MOCK_LOG || "/dev/null";
 const USER = {
   id: "00000000-0000-4000-8000-000000000001",
   aud: "authenticated",
@@ -15,17 +15,44 @@ const USER = {
   user_metadata: {},
   created_at: "2026-01-01T00:00:00Z",
 };
+function tokenIsValid(authorization) {
+  try {
+    const f = require("path").join(__dirname, "keypair.json");
+    if (!fs.existsSync(f)) return true; // no key material: accept anything (legacy behaviour)
+    const token = String(authorization || "").replace(/^Bearer /i, "");
+    const [h, b, sig] = token.split(".");
+    if (!h || !b || !sig) return false;
+    const pub = crypto.createPublicKey({ key: JSON.parse(fs.readFileSync(f, "utf8")).public, format: "jwk" });
+    const ok = crypto.verify("sha256", Buffer.from(`${h}.${b}`), { key: pub, dsaEncoding: "ieee-p1363" }, Buffer.from(sig, "base64url"));
+    return ok && JSON.parse(Buffer.from(b, "base64url").toString()).exp > Date.now() / 1000;
+  } catch {
+    return false;
+  }
+}
 let counter = 0;
-const store = {};
-const STATEFUL = new Set(["income_categories"]);
+// household_members is seeded with the user's membership so ensureUserHousehold() takes the
+// common "already has a household" path (1 read) instead of the first-sign-in create path
+// (read + rpc + 2 inserts). Set MOCK_NO_HOUSEHOLD=1 to measure the first-sign-in path.
+const HOUSEHOLD_ID = "11111111-1111-4111-8111-111111111111";
+const store = process.env.MOCK_NO_HOUSEHOLD
+  ? {}
+  : {
+      household_members: [{ household_id: HOUSEHOLD_ID, user_id: USER.id, role: "owner", joined_at: "2026-01-01T00:00:00Z" }],
+      // an already-migrated (v2) user, so /api/state takes the common prefs-only path
+      dashboard_state: [{ user_id: USER.id, data: { prefs: {}, _migrated_v2: true }, updated_at: "2026-01-01T00:00:00Z" }],
+    };
+const STATEFUL = new Set(["income_categories", "household_members", "dashboard_state"]);
 let inflight = 0;
 let maxInflight = 0;
+// Every call (start time, method, path) since the last reset, so a client can compute the
+// number of Auth calls, DB calls and the sequential depth of a request.
+let calls = [];
 
 const server = http.createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
   req.on("end", () => {
-    counter++;
+    if (!req.url.startsWith("/__stats")) counter++;
     inflight++;
     maxInflight = Math.max(maxInflight, inflight);
     const t0 = Date.now();
@@ -35,11 +62,30 @@ const server = http.createServer((req, res) => {
       fs.appendFileSync(LOG, `${t0} ${req.method} ${url.pathname}${url.search.slice(0, 120)}\n`);
       res.setHeader("Content-Type", "application/json");
       if (url.pathname === "/__stats") {
-        const out = { counter, maxInflight };
-        if (url.searchParams.get("reset")) { counter = 0; maxInflight = 0; }
+        const out = { counter, maxInflight, calls };
+        if (url.searchParams.get("reset")) { counter = 0; maxInflight = 0; calls = []; }
         return res.end(JSON.stringify(out));
       }
-      if (url.pathname.startsWith("/auth/v1/user")) return res.end(JSON.stringify(USER));
+      if (!url.pathname.startsWith("/__")) calls.push({ t0, method: req.method, path: url.pathname });
+      if (url.pathname === "/auth/v1/.well-known/jwks.json") {
+        const f = require("path").join(__dirname, "keypair.json");
+        const keys = fs.existsSync(f) ? [JSON.parse(fs.readFileSync(f, "utf8")).public] : [];
+        return res.end(JSON.stringify({ keys }));
+      }
+      if (url.pathname.startsWith("/auth/v1/user")) {
+        // MOCK_AUTH_REJECT=1: every token is rejected, like an expired/revoked/forged session.
+        if (process.env.MOCK_AUTH_REJECT) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ code: 401, error_code: "bad_jwt", msg: "invalid JWT" }));
+        }
+        // Like the real Auth server: the bearer token's signature (against keypair.json) and
+        // expiry must check out, otherwise 401.
+        if (!tokenIsValid(req.headers["authorization"])) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ code: 401, error_code: "bad_jwt", msg: "invalid JWT" }));
+        }
+        return res.end(JSON.stringify(USER));
+      }
       if (url.pathname.startsWith("/auth/v1/")) return res.end(JSON.stringify({}));
       const accept = String(req.headers["accept"] || "");
       const wantsObject = accept.includes("vnd.pgrst.object");
@@ -47,6 +93,10 @@ const server = http.createServer((req, res) => {
       if (req.method === "HEAD") { res.setHeader("Content-Range", "*/0"); return res.end(); }
       if (req.method === "GET") {
         if (prefer.includes("count=")) res.setHeader("Content-Range", "*/0");
+        const tblObj = url.pathname.split("/").pop();
+        if (wantsObject && STATEFUL.has(tblObj) && (store[tblObj] || []).length) {
+          return res.end(JSON.stringify(store[tblObj][0]));
+        }
         if (wantsObject) {
           res.statusCode = 406;
           return res.end(JSON.stringify({ code: "PGRST116", message: "no rows", details: "", hint: null }));

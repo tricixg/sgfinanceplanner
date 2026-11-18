@@ -32,6 +32,7 @@ export function MobileTabBar({ moreOpen, onMore }: Props) {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             className={`tabbar-item ${active ? "on" : ""}`}
             aria-current={active ? "page" : undefined}
           >

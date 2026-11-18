@@ -2,6 +2,17 @@
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createEmptyState, mergeWithDefaults } from "@/lib/finance/defaults";
+import {
+  ALL_DOMAINS,
+  CONTEXT_FIELD_DOMAIN,
+  CORE_DOMAINS,
+  DATA_DOMAINS,
+  DOMAIN_LABEL,
+  STATE_FIELD_DOMAIN,
+  isSettled,
+  type DataDomain,
+  type DomainStatus,
+} from "@/lib/app/domains";
 import { fetchJson } from "@/lib/fetch-json";
 import type { DashboardState, NetWorthSnapshot, PortfolioSnapshot } from "@/lib/types";
 import type { FinanceProfile } from "@/lib/profile/load";
@@ -50,9 +61,52 @@ type ProfileBundle = {
 /**
  * Composes DashboardState from normalized domain APIs (no monolithic /api/state).
  */
-export function useAppDataProvider(enabled: boolean) {
-  const [coreLoading, setCoreLoading] = useState(enabled);
-  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+const DOMAIN_GUARD = process.env.NEXT_PUBLIC_DOMAIN_GUARD === "1";
+
+const IDLE_STATUS: Record<DataDomain, DomainStatus> = Object.fromEntries(
+  DATA_DOMAINS.map((d) => [d, "idle" as const])
+) as Record<DataDomain, DomainStatus>;
+
+/**
+ * Turn the fields of domains that nobody has requested yet into accessors that request the
+ * domain when read. A page that reads data it did not declare therefore loads it (and
+ * re-renders when it arrives) instead of silently showing an empty default as if it were the
+ * user's real data. Fields of requested domains stay plain properties, so the common path
+ * pays nothing.
+ */
+function withLazyDomains<T extends object>(
+  obj: T,
+  fieldDomain: Readonly<Record<string, DataDomain>>,
+  isRequested: (d: DataDomain) => boolean,
+  request: (d: DataDomain, field: string) => void
+): T {
+  for (const [field, domain] of Object.entries(fieldDomain)) {
+    if (isRequested(domain) || !(field in obj)) continue;
+    const value = (obj as Record<string, unknown>)[field];
+    Object.defineProperty(obj, field, {
+      enumerable: true,
+      configurable: true,
+      get() {
+        request(domain, field);
+        return value;
+      },
+    });
+  }
+  return obj;
+}
+
+export function useAppDataProvider(
+  enabled: boolean,
+  needs: readonly DataDomain[] = ALL_DOMAINS
+) {
+  const [domainStatus, setDomainStatusState] = useState<Record<DataDomain, DomainStatus>>(IDLE_STATUS);
+  const statusRef = useRef<Record<DataDomain, DomainStatus>>(IDLE_STATUS);
+  const setDomainStatus = useCallback((d: DataDomain, status: DomainStatus) => {
+    // The ref is updated synchronously so concurrent ensureDomains() calls never double-load.
+    if (statusRef.current[d] === status) return;
+    statusRef.current = { ...statusRef.current, [d]: status };
+    setDomainStatusState(statusRef.current);
+  }, []);
   const [configured, setConfigured] = useState(false);
   const [profileBundle, setProfileBundle] = useState<ProfileBundle | null>(null);
   const [loans, setLoans] = useState<DashboardState["loans"]>([]);
@@ -70,10 +124,29 @@ export function useAppDataProvider(enabled: boolean) {
   const [cpfContributions, setCpfContributions] = useState<CpfContribution[]>([]);
   const [cpfTransactions, setCpfTransactions] = useState<CpfTransaction[]>([]);
 
+  // Domains that have been asked for (anything not "idle"). Its key changes only when a new
+  // domain is first requested, which is when the lazy accessors below must be rebuilt.
+  const requestedKey = DATA_DOMAINS.filter((d) => domainStatus[d] !== "idle").join(",");
+  const isRequested = useCallback((d: DataDomain) => statusRef.current[d] !== "idle", []);
+  const ensureDomainsRef = useRef<(d: readonly DataDomain[]) => void>(() => {});
+  const needsRef = useRef(needs);
+  needsRef.current = needs;
+  const requestFromRead = useCallback((domain: DataDomain, field: string) => {
+    // Reads of declared domains before their load has started (first render) are expected;
+    // only a read of something the route did NOT declare is a gap in the route table.
+    if (DOMAIN_GUARD && typeof window !== "undefined" && !needsRef.current.includes(domain)) {
+      console.warn("[domain-guard] read before requested", { domain, field });
+      const w = window as unknown as { __domainGuard?: { domain: string; field: string }[] };
+      (w.__domainGuard ??= []).push({ domain, field });
+    }
+    // Never start a load (a state update) while rendering: defer it.
+    queueMicrotask(() => ensureDomainsRef.current([domain]));
+  }, []);
+
   const state = useMemo((): DashboardState => {
     const base = createEmptyState();
     const p = profileBundle?.profile;
-    return mergeWithDefaults({
+    const composed = mergeWithDefaults({
       ...base,
       ...(p ?? {}),
       prefs,
@@ -91,7 +164,10 @@ export function useAppDataProvider(enabled: boolean) {
       accounts: [],
       goals: [],
     });
-  }, [profileBundle, loans, budgetMonths, incomeMonths, computedMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans]);
+    return withLazyDomains(composed, STATE_FIELD_DOMAIN, isRequested, requestFromRead);
+    // requestedKey: rebuild when a domain is first requested (accessors -> plain values).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileBundle, loans, budgetMonths, incomeMonths, computedMonths, creditCards, holdings, portfolioHistory, prefs, otherLoans, requestedKey, isRequested, requestFromRead]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -117,184 +193,217 @@ export function useAppDataProvider(enabled: boolean) {
   const loadedRef = useRef({ loans, creditCards, holdings });
   loadedRef.current = { loans, creditCards, holdings };
 
-  const loadSnapshots = useCallback(async () => {
-    if (!enabled) return;
-    setSnapshotsLoading(true);
-    try {
-      const { res, data } = await fetchJson<{
-        items?: DashboardState["portfolioHistory"];
-        configured?: boolean;
-      }>(`/api/portfolio/snapshots?limit=${PORTFOLIO_HISTORY_LIMIT}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        setPortfolioHistory(data.items ?? []);
-        console.info("[useAppData] portfolio snapshots loaded", {
-          count: data.items?.length ?? 0,
-        });
-      }
-    } catch (e) {
-      console.warn("[useAppData] portfolio snapshots load failed", e);
-    } finally {
-      setSnapshotsLoading(false);
+  /**
+   * Whole-list and whole-object saves must never run against data that was not (successfully)
+   * loaded: an empty default would overwrite the user's real rows. A domain that was never
+   * requested, is still loading, or failed to load is not editable.
+   */
+  const assertDomainLoaded = useCallback((domain: DataDomain) => {
+    if (statusRef.current[domain] !== "ready") {
+      throw new Error(
+        `${DOMAIN_LABEL[domain]} haven't finished loading — reload and try again.`
+      );
     }
-  }, [enabled]);
+  }, []);
 
-  const loadNetWorthHistory = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const { res, data } = await fetchJson<{
-        items?: NetWorthSnapshot[];
-        configured?: boolean;
-      }>(`/api/net-worth/snapshots?limit=${NET_WORTH_HISTORY_LIMIT}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        setNetWorthHistory(data.items ?? []);
-        console.info("[useAppData] net worth history loaded", {
-          count: data.items?.length ?? 0,
-        });
-      }
-    } catch (e) {
-      console.warn("[useAppData] net worth history load failed", e);
-    }
-  }, [enabled]);
-
-  const loadCpfContributions = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const { res, data } = await fetchJson<{
-        items?: CpfContribution[];
-        configured?: boolean;
-      }>(`/api/cpf/contributions?limit=${CPF_CONTRIBUTIONS_LIMIT}`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        setCpfContributions(data.items ?? []);
-        console.info("[useAppData] cpf contributions loaded", {
-          count: data.items?.length ?? 0,
-        });
-      }
-    } catch (e) {
-      console.warn("[useAppData] cpf contributions load failed", e);
-    }
-  }, [enabled]);
-
-  const loadCpfTransactions = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const { res, data } = await fetchJson<{ items?: CpfTransaction[] }>("/api/cpf/transactions", {
-        credentials: "include",
-      });
-      if (res.ok) {
-        setCpfTransactions(data.items ?? []);
-        console.info("[useAppData] cpf transactions loaded", { count: data.items?.length ?? 0 });
-      }
-    } catch (e) {
-      console.warn("[useAppData] cpf transactions load failed", e);
-    }
-  }, [enabled]);
-
-  const load = useCallback(async () => {
-    if (!enabled) {
-      setCoreLoading(false);
-      setSnapshotsLoading(false);
-      return;
-    }
-    setCoreLoading(true);
-    void loadSnapshots();
-    void loadNetWorthHistory();
-    void loadCpfContributions();
-    void loadCpfTransactions();
-    // A failed/throwing request resolves to `{ res.ok: false }` so one bad
-    // domain can't hide behind (or break) the others.
-    const safe = <T,>(p: Promise<{ res: Response; data: T }>) =>
+  // A failed/throwing request resolves to `{ res.ok: false }` so one bad domain can't hide
+  // behind (or break) the others.
+  const safe = useCallback(
+    <T,>(p: Promise<{ res: Response; data: T }>) =>
       p.catch((e: unknown) => {
         console.warn("[useAppData] request failed", e);
         return { res: { ok: false, status: 0 } as Response, data: {} as T };
-      });
-    try {
-      const [prefsRes, profRes, loansRes, otherLoansRes, budgetRes, cardsRes, holdRes] =
-        await Promise.all([
-          safe(fetchJson<{ data?: { prefs?: DashboardState["prefs"] }; configured?: boolean }>(
-            "/api/state",
-            { credentials: "include" }
-          )),
-          safe(fetchJson<ProfileBundle & { configured?: boolean }>("/api/profile", {
-            credentials: "include",
-          })),
-          safe(fetchJson<{ loans?: DashboardState["loans"]; configured?: boolean }>(
-            "/api/loans",
-            { credentials: "include" }
-          )),
-          safe(fetchJson<{ otherLoans?: DashboardState["otherLoans"]; configured?: boolean }>(
-            "/api/other-loans",
-            { credentials: "include" }
-          )),
-          safe(fetchJson<{
-            budget?: DashboardState["budget"];
-            months?: Record<string, DashboardState["budget"]>;
-            income?: Record<string, number>;
-            computed?: DashboardState["computedMonths"];
-            currentYm?: string;
-            configured?: boolean;
-          }>(
-            "/api/budget-lines",
-            { credentials: "include" }
-          )),
-          safe(fetchJson<{ cards?: DashboardState["creditCards"]; configured?: boolean }>(
-            "/api/credit-cards",
-            { credentials: "include" }
-          )),
-          safe(fetchJson<{ holdings?: DashboardState["holdings"]; configured?: boolean }>(
-            "/api/holdings",
-            { credentials: "include" }
-          )),
-        ]);
+      }),
+    []
+  );
 
-      setConfigured(profRes.data.configured !== false);
-      if (prefsRes.res.ok && prefsRes.data.data?.prefs) {
-        setPrefs(prefsRes.data.data.prefs);
+  /** Fetch one domain and apply it; (re)loading sets its status to loading, then ready/error. */
+  const loadDomain = useCallback(
+    async (d: DataDomain): Promise<void> => {
+      if (!enabled) return;
+      setDomainStatus(d, "loading");
+      const opts = { credentials: "include" as const };
+      let ok = true;
+      try {
+        switch (d) {
+          case "prefs": {
+            const { res, data } = await safe(
+              fetchJson<{ data?: { prefs?: DashboardState["prefs"] } }>("/api/state", opts)
+            );
+            if (res.ok && data.data?.prefs) setPrefs(data.data.prefs);
+            ok = res.ok;
+            break;
+          }
+          case "profile": {
+            const { res, data } = await safe(
+              fetchJson<ProfileBundle & { configured?: boolean }>("/api/profile", opts)
+            );
+            setConfigured(data.configured !== false);
+            ok = Boolean(res.ok && data.profile);
+            if (ok) {
+              setProfileBundle({
+                profile: data.profile,
+                insurancePolicies: data.insurancePolicies ?? [],
+                ilpPolicies: data.ilpPolicies ?? [],
+              });
+            }
+            setDomainError("profile", ok ? null : "Couldn't load your profile");
+            break;
+          }
+          case "loans": {
+            const { res, data } = await safe(
+              fetchJson<{ loans?: DashboardState["loans"]; configured?: boolean }>("/api/loans", opts)
+            );
+            setConfigured(data.configured !== false);
+            if (res.ok) setLoans(data.loans ?? []);
+            ok = res.ok;
+            setDomainError("loans", ok ? null : "Couldn't load instalment plans");
+            break;
+          }
+          case "otherLoans": {
+            const { res, data } = await safe(
+              fetchJson<{ otherLoans?: DashboardState["otherLoans"]; configured?: boolean }>(
+                "/api/other-loans",
+                opts
+              )
+            );
+            setConfigured(data.configured !== false);
+            if (res.ok) setOtherLoans(data.otherLoans ?? []);
+            ok = res.ok;
+            setDomainError("otherLoans", ok ? null : "Couldn't load personal and balance-transfer loans");
+            break;
+          }
+          case "budget": {
+            const { res, data } = await safe(
+              fetchJson<{
+                months?: Record<string, DashboardState["budget"]>;
+                income?: Record<string, number>;
+                computed?: DashboardState["computedMonths"];
+                configured?: boolean;
+              }>("/api/budget-lines", opts)
+            );
+            setConfigured(data.configured !== false);
+            if (res.ok) {
+              setBudgetMonths(data.months ?? {});
+              setIncomeMonths(data.income ?? {});
+              setComputedMonths(data.computed ?? {});
+            }
+            ok = res.ok;
+            break;
+          }
+          case "cards": {
+            const { res, data } = await safe(
+              fetchJson<{ cards?: DashboardState["creditCards"]; configured?: boolean }>(
+                "/api/credit-cards",
+                opts
+              )
+            );
+            setConfigured(data.configured !== false);
+            if (res.ok) setCreditCards(data.cards ?? []);
+            ok = res.ok;
+            setDomainError("cards", ok ? null : "Couldn't load credit cards");
+            break;
+          }
+          case "holdings": {
+            const { res, data } = await safe(
+              fetchJson<{ holdings?: DashboardState["holdings"]; configured?: boolean }>(
+                "/api/holdings",
+                opts
+              )
+            );
+            setConfigured(data.configured !== false);
+            if (res.ok) setHoldings(data.holdings ?? []);
+            ok = res.ok;
+            setDomainError("holdings", ok ? null : "Couldn't load holdings");
+            break;
+          }
+          case "snapshots": {
+            const { res, data } = await safe(
+              fetchJson<{ items?: DashboardState["portfolioHistory"] }>(
+                `/api/portfolio/snapshots?limit=${PORTFOLIO_HISTORY_LIMIT}`,
+                opts
+              )
+            );
+            if (res.ok) setPortfolioHistory(data.items ?? []);
+            ok = res.ok;
+            break;
+          }
+          case "netWorth": {
+            const { res, data } = await safe(
+              fetchJson<{ items?: NetWorthSnapshot[] }>(
+                `/api/net-worth/snapshots?limit=${NET_WORTH_HISTORY_LIMIT}`,
+                opts
+              )
+            );
+            if (res.ok) setNetWorthHistory(data.items ?? []);
+            ok = res.ok;
+            break;
+          }
+          case "cpfContributions": {
+            const { res, data } = await safe(
+              fetchJson<{ items?: CpfContribution[] }>(
+                `/api/cpf/contributions?limit=${CPF_CONTRIBUTIONS_LIMIT}`,
+                opts
+              )
+            );
+            if (res.ok) setCpfContributions(data.items ?? []);
+            ok = res.ok;
+            break;
+          }
+          case "cpfTransactions": {
+            const { res, data } = await safe(
+              fetchJson<{ items?: CpfTransaction[] }>("/api/cpf/transactions", opts)
+            );
+            if (res.ok) setCpfTransactions(data.items ?? []);
+            ok = res.ok;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn("[useAppData] domain load failed", { domain: d, e });
+        ok = false;
       }
-      if (profRes.res.ok && profRes.data.profile) {
-        setProfileBundle({
-          profile: profRes.data.profile,
-          insurancePolicies: profRes.data.insurancePolicies ?? [],
-          ilpPolicies: profRes.data.ilpPolicies ?? [],
-        });
-      }
-      setDomainError(
-        "profile",
-        profRes.res.ok && profRes.data.profile ? null : "Couldn't load your profile"
-      );
-      setDomainError(
-        "otherLoans",
-        otherLoansRes.res.ok ? null : "Couldn't load personal and balance-transfer loans"
-      );
-      if (loansRes.res.ok) setLoans(loansRes.data.loans ?? []);
-      setDomainError("loans", loansRes.res.ok ? null : "Couldn't load instalment plans");
-      setDomainError("cards", cardsRes.res.ok ? null : "Couldn't load credit cards");
-      setDomainError("holdings", holdRes.res.ok ? null : "Couldn't load holdings");
-      if (otherLoansRes.res.ok) setOtherLoans(otherLoansRes.data.otherLoans ?? []);
-      if (budgetRes.res.ok) {
-        setBudgetMonths(budgetRes.data.months ?? {});
-        setIncomeMonths(budgetRes.data.income ?? {});
-        setComputedMonths(budgetRes.data.computed ?? {});
-      }
-      if (cardsRes.res.ok) setCreditCards(cardsRes.data.cards ?? []);
-      if (holdRes.res.ok) setHoldings(holdRes.data.holdings ?? []);
+      console.info("[useAppData] domain loaded", { domain: d, ok });
+      setDomainStatus(d, ok ? "ready" : "error");
+    },
+    [enabled, safe, setDomainStatus, setDomainError]
+  );
 
-      console.info("[useAppData] core domains loaded");
-    } catch (e) {
-      console.warn("[useAppData] core load failed", e);
-    } finally {
-      setCoreLoading(false);
-    }
-  }, [enabled, loadSnapshots, loadNetWorthHistory, loadCpfContributions, loadCpfTransactions, setDomainError]);
+  /** Start loading the domains that have not been requested yet (idempotent). */
+  const ensureDomains = useCallback(
+    (domains: readonly DataDomain[]) => {
+      if (!enabled) return;
+      for (const d of domains) {
+        if (statusRef.current[d] === "idle") void loadDomain(d);
+      }
+    },
+    [enabled, loadDomain]
+  );
+  ensureDomainsRef.current = ensureDomains;
 
+  const loadSnapshots = useCallback(() => loadDomain("snapshots"), [loadDomain]);
+  const loadNetWorthHistory = useCallback(() => loadDomain("netWorth"), [loadDomain]);
+  const loadCpfContributions = useCallback(() => loadDomain("cpfContributions"), [loadDomain]);
+  const loadCpfTransactions = useCallback(() => loadDomain("cpfTransactions"), [loadDomain]);
+
+  /** Reload every domain that has been requested. */
+  const load = useCallback(async () => {
+    if (!enabled) return;
+    const requested = DATA_DOMAINS.filter((d) => statusRef.current[d] !== "idle");
+    await Promise.all(requested.map((d) => loadDomain(d)));
+  }, [enabled, loadDomain]);
+
+  // Load what the current route needs.
   useEffect(() => {
-    void load();
-  }, [load]);
+    ensureDomains(needs);
+  }, [ensureDomains, needs]);
+
+  const settled = (d: DataDomain) => isSettled(domainStatus[d]);
+  // Strict gate for work that needs every core domain (the monthly net-worth snapshot).
+  const coreLoading = enabled ? !CORE_DOMAINS.every(settled) : false;
+  // What a page waits for: only the core domains it declared.
+  const loading = enabled ? needs.some((d) => CORE_DOMAINS.includes(d) && !settled(d)) : false;
+  const snapshotsLoading = enabled ? !settled("snapshots") : false;
 
   const reloadLoans = useCallback(async () => {
     const { res, data } = await fetchJson<{ loans?: DashboardState["loans"] }>(
@@ -304,11 +413,13 @@ export function useAppDataProvider(enabled: boolean) {
     if (res.ok) {
       setLoans(data.loans ?? []);
       setDomainError("loans", null);
+      setDomainStatus("loans", "ready");
       console.info("[useAppData] reloadLoans ok", { count: data.loans?.length ?? 0 });
     } else {
       setDomainError("loans", "Couldn't load instalment plans");
+      setDomainStatus("loans", "error");
     }
-  }, [setDomainError]);
+  }, [setDomainError, setDomainStatus]);
 
   const reloadHoldings = useCallback(async () => {
     const { res, data } = await fetchJson<{ holdings?: DashboardState["holdings"] }>(
@@ -318,13 +429,15 @@ export function useAppDataProvider(enabled: boolean) {
     if (res.ok) {
       setHoldings(data.holdings ?? []);
       setDomainError("holdings", null);
+      setDomainStatus("holdings", "ready");
       console.info("[useAppData] reloadHoldings ok", {
         count: data.holdings?.length ?? 0,
       });
     } else {
       setDomainError("holdings", "Couldn't load holdings");
+      setDomainStatus("holdings", "error");
     }
-  }, [setDomainError]);
+  }, [setDomainError, setDomainStatus]);
 
   const reloadOtherLoans = useCallback(async () => {
     const { res, data } = await fetchJson<{ otherLoans?: DashboardState["otherLoans"] }>(
@@ -334,13 +447,15 @@ export function useAppDataProvider(enabled: boolean) {
     if (res.ok) {
       setOtherLoans(data.otherLoans ?? []);
       setDomainError("otherLoans", null);
+      setDomainStatus("otherLoans", "ready");
       console.info("[useAppData] reloadOtherLoans ok", {
         count: data.otherLoans?.length ?? 0,
       });
     } else {
       setDomainError("otherLoans", "Couldn't load personal and balance-transfer loans");
+      setDomainStatus("otherLoans", "error");
     }
-  }, [setDomainError]);
+  }, [setDomainError, setDomainStatus]);
 
   // Dispatched by TabCards/CardPaymentModal (a statement payment can pay down
   // a linked BT loan) and OtherLoansPanel (direct edits) — nothing else keeps
@@ -348,7 +463,8 @@ export function useAppDataProvider(enabled: boolean) {
   // worth liabilities breakdown would otherwise show stale balances until a
   // full reload.
   useDomainEvent(["otherLoans:changed"], () => {
-    void reloadOtherLoans();
+    // Nothing to keep in sync if this session never asked for the loans.
+    if (statusRef.current.otherLoans !== "idle") void reloadOtherLoans();
   });
 
   const patchProfile = useCallback(
@@ -373,6 +489,7 @@ export function useAppDataProvider(enabled: boolean) {
   );
 
   const saveLoans = useCallback(async (next: DashboardState["loans"]) => {
+    assertDomainLoaded("loans");
     assertDomainEditable(loadErrorsRef.current, "loans");
     const deletedIds = removedIds(loadedRef.current.loans, next, (l) => l.id);
     const { res, data } = await fetchJson<{ loans?: DashboardState["loans"]; error?: string }>(
@@ -387,7 +504,7 @@ export function useAppDataProvider(enabled: boolean) {
     if (!res.ok) throw new Error(data.error ?? "Failed to save loans");
     setLoans(data.loans ?? next);
     dispatchDomainEvent("loans:changed");
-  }, []);
+  }, [assertDomainLoaded]);
 
   const saveBudgetMonth = useCallback(
     async (month: string, next: DashboardState["budget"]) => {
@@ -395,6 +512,8 @@ export function useAppDataProvider(enabled: boolean) {
         setBudgetMonths((prev) => ({ ...prev, [month]: next }));
         return;
       }
+      // Saving replaces that month's lines: never from a budget that did not load.
+      assertDomainLoaded("budget");
       const { res, data } = await fetchJson<{
         months?: Record<string, DashboardState["budget"]>;
         income?: Record<string, number>;
@@ -410,10 +529,11 @@ export function useAppDataProvider(enabled: boolean) {
       setIncomeMonths(data.income ?? {});
       dispatchDomainEvent("budget:changed");
     },
-    [configured]
+    [configured, assertDomainLoaded]
   );
 
   const saveCards = useCallback(async (next: DashboardState["creditCards"]) => {
+    assertDomainLoaded("cards");
     assertDomainEditable(loadErrorsRef.current, "cards");
     const deletedCardKeys = removedIds(loadedRef.current.creditCards, next, (c) => c.id);
     const { res, data } = await fetchJson<{
@@ -431,9 +551,10 @@ export function useAppDataProvider(enabled: boolean) {
     if (!res.ok) throw new Error(data.error ?? "Failed to save cards");
     setCreditCards(data.cards ?? next);
     dispatchDomainEvent("cards:changed");
-  }, []);
+  }, [assertDomainLoaded]);
 
   const saveHoldings = useCallback(async (next: DashboardState["holdings"]) => {
+    assertDomainLoaded("holdings");
     assertDomainEditable(loadErrorsRef.current, "holdings");
     const deletedIds = removedIds(loadedRef.current.holdings, next, (h) => h.id);
     const { res, data } = await fetchJson<{
@@ -451,7 +572,7 @@ export function useAppDataProvider(enabled: boolean) {
     if (!res.ok) throw new Error(data.error ?? "Failed to save holdings");
     setHoldings(data.holdings ?? next);
     dispatchDomainEvent("holdings:changed");
-  }, []);
+  }, [assertDomainLoaded]);
 
   const recordHoldingDividend = useCallback(
     async (
@@ -708,6 +829,7 @@ export function useAppDataProvider(enabled: boolean) {
   }, []);
 
   const savePrefs = useCallback(async (nextPrefs: DashboardState["prefs"]) => {
+    assertDomainLoaded("prefs"); // the PUT replaces all stored prefs
     const { res } = await fetchJson("/api/state", {
       method: "PUT",
       credentials: "include",
@@ -716,13 +838,14 @@ export function useAppDataProvider(enabled: boolean) {
     });
     if (!res.ok) throw new Error("Failed to save preferences");
     setPrefs(nextPrefs);
-  }, []);
+  }, [assertDomainLoaded]);
 
   const saveProfilePolicies = useCallback(
     async (patch: {
       insurancePolicies?: DashboardState["insurancePolicies"];
       ilpPolicies?: DashboardState["ilpPolicies"];
     }) => {
+      assertDomainLoaded("profile"); // replaces whole policy lists
       const { res, data } = await fetchJson<ProfileBundle & { error?: string }>(
         "/api/profile",
         {
@@ -744,7 +867,7 @@ export function useAppDataProvider(enabled: boolean) {
         ilp: patch.ilpPolicies?.length,
       });
     },
-    []
+    [assertDomainLoaded]
   );
 
   /** Update in-memory dashboard state only — persist via save* methods or tab Save buttons. */
@@ -823,46 +946,101 @@ export function useAppDataProvider(enabled: boolean) {
     [patchProfile]
   );
 
-  return {
-    state,
-    setState,
-    loading: coreLoading,
-    coreLoading,
-    snapshotsLoading,
-    configured,
-    loadErrors,
-    reload: load,
-    reloadLoans,
-    reloadOtherLoans,
-    reloadHoldings,
-    reloadSnapshots: loadSnapshots,
-    saveProfile,
-    saveProfilePolicies,
-    saveLoans,
-    saveBudgetMonth,
-    saveCards,
-    saveHoldings,
-    recordHoldingDividend,
-    deleteHoldingDividend,
-    savePrefs,
-    appendSnapshot,
-    netWorthHistory,
-    reloadNetWorthHistory: loadNetWorthHistory,
-    appendNetWorthSnapshot,
-    cpfContributions,
-    reloadCpfContributions: loadCpfContributions,
-    addCpfContribution,
-    deleteCpfContribution,
-    updateCpfContribution,
-    cpfTransactions,
-    reloadCpfTransactions: loadCpfTransactions,
-    addCpfTransaction,
-    deleteCpfTransaction,
-    updateCpfTransaction,
-    cardsApi: configured
-      ? { cards: creditCards, saveCards, configured: true as const }
-      : undefined,
-  };
+  // One stable value per real change: every consumer of AppDataContext re-renders whenever
+  // this object's identity changes, so it must only change when one of its members does
+  // (PERF-006). All members are state or useCallback results.
+  return useMemo(
+    () =>
+      withLazyDomains(
+        {
+      state,
+      setState,
+      loading,
+      coreLoading,
+      domainStatus,
+      ensureDomains,
+      snapshotsLoading,
+      configured,
+      loadErrors,
+      reload: load,
+      reloadLoans,
+      reloadOtherLoans,
+      reloadHoldings,
+      reloadSnapshots: loadSnapshots,
+      saveProfile,
+      saveProfilePolicies,
+      saveLoans,
+      saveBudgetMonth,
+      saveCards,
+      saveHoldings,
+      recordHoldingDividend,
+      deleteHoldingDividend,
+      savePrefs,
+      appendSnapshot,
+      netWorthHistory,
+      reloadNetWorthHistory: loadNetWorthHistory,
+      appendNetWorthSnapshot,
+      cpfContributions,
+      reloadCpfContributions: loadCpfContributions,
+      addCpfContribution,
+      deleteCpfContribution,
+      updateCpfContribution,
+      cpfTransactions,
+      reloadCpfTransactions: loadCpfTransactions,
+      addCpfTransaction,
+      deleteCpfTransaction,
+      updateCpfTransaction,
+      cardsApi: configured
+        ? { cards: creditCards, saveCards, configured: true as const }
+        : undefined,
+        },
+        CONTEXT_FIELD_DOMAIN,
+        isRequested,
+        requestFromRead
+      ),
+    [
+      state,
+      setState,
+      loading,
+      coreLoading,
+      domainStatus,
+      ensureDomains,
+      isRequested,
+      requestFromRead,
+      snapshotsLoading,
+      configured,
+      loadErrors,
+      load,
+      reloadLoans,
+      reloadOtherLoans,
+      reloadHoldings,
+      loadSnapshots,
+      saveProfile,
+      saveProfilePolicies,
+      saveLoans,
+      saveBudgetMonth,
+      saveCards,
+      saveHoldings,
+      recordHoldingDividend,
+      deleteHoldingDividend,
+      savePrefs,
+      appendSnapshot,
+      netWorthHistory,
+      loadNetWorthHistory,
+      appendNetWorthSnapshot,
+      cpfContributions,
+      loadCpfContributions,
+      addCpfContribution,
+      deleteCpfContribution,
+      updateCpfContribution,
+      cpfTransactions,
+      loadCpfTransactions,
+      addCpfTransaction,
+      deleteCpfTransaction,
+      updateCpfTransaction,
+      creditCards,
+    ]
+  );
 }
 
 export function useAppData() {

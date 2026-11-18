@@ -1,0 +1,822 @@
+[
+  {
+    "route": "/dashboard",
+    "fcp": 100,
+    "usable": null,
+    "requests": 37,
+    "apiRequests": 5,
+    "firstApiStart": 649,
+    "lastApiEnd": 988,
+    "dataReadyMs": 988,
+    "supabaseCalls": 36,
+    "authCalls": 0,
+    "initialJsGzKB": 282,
+    "jsCount": 20,
+    "jsKB": 289,
+    "cssKB": 19,
+    "totalKB": 335,
+    "dupes": [],
+    "waterfall": [
+      "649-822 /api/profile",
+      "747-910 /api/expenses/summary",
+      "747-974 /api/transactions",
+      "749-910 /api/spending/analytics",
+      "749-988 /api/income/analytics"
+    ],
+    "dataReadyRunsMs": [
+      793,
+      988,
+      1078
+    ]
+  },
+  {
+    "route": "/now",
+    "fcp": 112,
+    "usable": null,
+    "requests": 27,
+    "apiRequests": 9,
+    "firstApiStart": 546,
+    "lastApiEnd": 1029,
+    "dataReadyMs": 1029,
+    "supabaseCalls": 28,
+    "authCalls": 0,
+    "initialJsGzKB": 277,
+    "jsCount": 15,
+    "jsKB": 250,
+    "cssKB": 19,
+    "totalKB": 280,
+    "dupes": [],
+    "waterfall": [
+      "546-653 /api/credit-cards",
+      "620-708 /api/profile",
+      "620-670 /api/loans",
+      "620-712 /api/other-loans",
+      "621-688 /api/budget-lines",
+      "621-935 /api/savings",
+      "621-700 /api/accounts",
+      "622-937 /api/funds",
+      "902-1029 /api/cashflow/additive-income"
+    ],
+    "dataReadyRunsMs": [
+      1013,
+      1029,
+      1173
+    ]
+  },
+  {
+    "route": "/this-month",
+    "fcp": 112,
+    "usable": null,
+    "requests": 23,
+    "apiRequests": 7,
+    "firstApiStart": 521,
+    "lastApiEnd": 820,
+    "dataReadyMs": 820,
+    "supabaseCalls": 13,
+    "authCalls": 0,
+    "initialJsGzKB": 213,
+    "jsCount": 14,
+    "jsKB": 185,
+    "cssKB": 19,
+    "totalKB": 213,
+    "dupes": [],
+    "waterfall": [
+      "521-617 /api/credit-cards",
+      "581-650 /api/profile",
+      "581-626 /api/loans",
+      "581-652 /api/other-loans",
+      "739-782 /api/recurring-subscriptions",
+      "739-787 /api/recurring-investments",
+      "739-820 /api/credit-cards/calendar"
+    ],
+    "dataReadyRunsMs": [
+      773,
+      820,
+      900
+    ]
+  },
+  {
+    "route": "/this-month-cashflow",
+    "fcp": 92,
+    "usable": null,
+    "requests": 24,
+    "apiRequests": 8,
+    "firstApiStart": 548,
+    "lastApiEnd": 832,
+    "dataReadyMs": 832,
+    "supabaseCalls": 19,
+    "authCalls": 0,
+    "initialJsGzKB": 214,
+    "jsCount": 14,
+    "jsKB": 186,
+    "cssKB": 19,
+    "totalKB": 215,
+    "dupes": [],
+    "waterfall": [
+      "548-642 /api/credit-cards",
+      "620-694 /api/profile",
+      "620-657 /api/loans",
+      "620-692 /api/other-loans",
+      "621-660 /api/budget-lines",
+      "755-800 /api/credit-cards/statements",
+      "756-832 /api/cashflow/additive-income",
+      "756-804 /api/recurring-subscriptions"
+    ],
+    "dataReadyRunsMs": [
+      832,
+      832,
+      910
+    ]
+  },
+  {
+    "route": "/past-cashflow",
+    "fcp": 104,
+    "usable": null,
+    "requests": 20,
+    "apiRequests": 2,
+    "firstApiStart": 601,
+    "lastApiEnd": 677,
+    "dataReadyMs": 677,
+    "supabaseCalls": 11,
+    "authCalls": 0,
+    "initialJsGzKB": 278,
+    "jsCount": 15,
+    "jsKB": 250,
+    "cssKB": 19,
+    "totalKB": 275,
+    "dupes": [],
+    "waterfall": [
+      "601-672 /api/spending/analytics",
+      "602-677 /api/income/analytics"
+    ],
+    "dataReadyRunsMs": [
+      646,
+      677,
+      756
+    ]
+  },
+  {
+    "route": "/year",
+    "fcp": 108,
+    "usable": null,
+    "requests": 27,
+    "apiRequests": 10,
+    "firstApiStart": 574,
+    "lastApiEnd": 972,
+    "dataReadyMs": 972,
+    "supabaseCalls": 27,
+    "authCalls": 0,
+    "initialJsGzKB": 279,
+    "jsCount": 15,
+    "jsKB": 251,
+    "cssKB": 19,
+    "totalKB": 282,
+    "dupes": [],
+    "waterfall": [
+      "574-704 /api/credit-cards",
+      "678-715 /api/credit-cards/statements",
+      "678-747 /api/profile",
+      "678-722 /api/loans",
+      "679-760 /api/other-loans",
+      "679-731 /api/budget-lines",
+      "679-763 /api/holdings",
+      "680-970 /api/savings",
+      "680-772 /api/accounts",
+      "680-972 /api/funds"
+    ],
+    "dataReadyRunsMs": [
+      922,
+      972,
+      986
+    ]
+  },
+  {
+    "route": "/budget",
+    "fcp": 84,
+    "usable": null,
+    "requests": 31,
+    "apiRequests": 14,
+    "firstApiStart": 514,
+    "lastApiEnd": 1023,
+    "dataReadyMs": 1023,
+    "supabaseCalls": 42,
+    "authCalls": 0,
+    "initialJsGzKB": 280,
+    "jsCount": 15,
+    "jsKB": 252,
+    "cssKB": 19,
+    "totalKB": 287,
+    "dupes": [],
+    "waterfall": [
+      "514-617 /api/credit-cards",
+      "584-619 /api/state",
+      "585-661 /api/profile",
+      "585-630 /api/loans",
+      "585-658 /api/other-loans",
+      "585-636 /api/budget-lines",
+      "585-679 /api/holdings",
+      "585-661 /api/portfolio/snapshots",
+      "588-915 /api/savings",
+      "588-763 /api/accounts",
+      "588-933 /api/funds",
+      "887-1023 /api/expenses/summary",
+      "887-985 /api/recurring-subscriptions",
+      "887-987 /api/recurring-investments"
+    ],
+    "dataReadyRunsMs": [
+      1007,
+      1023,
+      1034
+    ]
+  },
+  {
+    "route": "/expenses",
+    "fcp": 100,
+    "usable": null,
+    "requests": 18,
+    "apiRequests": 2,
+    "firstApiStart": 554,
+    "lastApiEnd": 655,
+    "dataReadyMs": 655,
+    "supabaseCalls": 13,
+    "authCalls": 0,
+    "initialJsGzKB": 215,
+    "jsCount": 14,
+    "jsKB": 187,
+    "cssKB": 19,
+    "totalKB": 211,
+    "dupes": [],
+    "waterfall": [
+      "554-595 /api/financial-accounts",
+      "558-655 /api/expenses/summary"
+    ],
+    "dataReadyRunsMs": [
+      642,
+      655,
+      667
+    ]
+  },
+  {
+    "route": "/transactions",
+    "fcp": 84,
+    "usable": null,
+    "requests": 21,
+    "apiRequests": 3,
+    "firstApiStart": 584,
+    "lastApiEnd": 701,
+    "dataReadyMs": 701,
+    "supabaseCalls": 14,
+    "authCalls": 0,
+    "initialJsGzKB": 218,
+    "jsCount": 14,
+    "jsKB": 189,
+    "cssKB": 19,
+    "totalKB": 214,
+    "dupes": [],
+    "waterfall": [
+      "584-622 /api/financial-accounts",
+      "585-685 /api/transactions/categories",
+      "585-701 /api/transactions"
+    ],
+    "dataReadyRunsMs": [
+      660,
+      701,
+      740
+    ]
+  },
+  {
+    "route": "/recurring",
+    "fcp": 124,
+    "usable": null,
+    "requests": 20,
+    "apiRequests": 3,
+    "firstApiStart": 546,
+    "lastApiEnd": 686,
+    "dataReadyMs": 686,
+    "supabaseCalls": 15,
+    "authCalls": 0,
+    "initialJsGzKB": 218,
+    "jsCount": 15,
+    "jsKB": 190,
+    "cssKB": 19,
+    "totalKB": 216,
+    "dupes": [],
+    "waterfall": [
+      "546-635 /api/budget-lines",
+      "614-686 /api/funds",
+      "614-681 /api/recurring"
+    ],
+    "dataReadyRunsMs": [
+      673,
+      686,
+      765
+    ]
+  },
+  {
+    "route": "/cash-accounts",
+    "fcp": 136,
+    "usable": null,
+    "requests": 31,
+    "apiRequests": 14,
+    "firstApiStart": 584,
+    "lastApiEnd": 1737,
+    "dataReadyMs": 1737,
+    "supabaseCalls": 31,
+    "authCalls": 0,
+    "initialJsGzKB": 284,
+    "jsCount": 15,
+    "jsKB": 257,
+    "cssKB": 19,
+    "totalKB": 291,
+    "dupes": [
+      [
+        "/api/accounts",
+        2
+      ]
+    ],
+    "waterfall": [
+      "584-695 /api/credit-cards",
+      "664-696 /api/credit-cards/statements",
+      "664-701 /api/state",
+      "665-732 /api/profile",
+      "665-713 /api/loans",
+      "665-736 /api/other-loans",
+      "665-716 /api/budget-lines",
+      "665-761 /api/holdings",
+      "666-746 /api/net-worth/snapshots",
+      "666-842 /api/savings",
+      "666-755 /api/accounts",
+      "667-856 /api/funds",
+      "838-888 /api/accounts",
+      "1693-1737 /api/net-worth/snapshots"
+    ],
+    "dataReadyRunsMs": [
+      1722,
+      1737,
+      1777
+    ]
+  },
+  {
+    "route": "/savings",
+    "fcp": 84,
+    "usable": null,
+    "requests": 20,
+    "apiRequests": 3,
+    "firstApiStart": 613,
+    "lastApiEnd": 693,
+    "dataReadyMs": 693,
+    "supabaseCalls": 11,
+    "authCalls": 0,
+    "initialJsGzKB": 283,
+    "jsCount": 15,
+    "jsKB": 256,
+    "cssKB": 19,
+    "totalKB": 281,
+    "dupes": [],
+    "waterfall": [
+      "613-690 /api/savings",
+      "613-654 /api/accounts",
+      "613-693 /api/funds"
+    ],
+    "dataReadyRunsMs": [
+      675,
+      693,
+      813
+    ]
+  },
+  {
+    "route": "/wealth",
+    "fcp": 84,
+    "usable": null,
+    "requests": 29,
+    "apiRequests": 11,
+    "firstApiStart": 533,
+    "lastApiEnd": 825,
+    "dataReadyMs": 825,
+    "supabaseCalls": 28,
+    "authCalls": 0,
+    "initialJsGzKB": 288,
+    "jsCount": 16,
+    "jsKB": 261,
+    "cssKB": 19,
+    "totalKB": 293,
+    "dupes": [],
+    "waterfall": [
+      "533-692 /api/credit-cards",
+      "632-694 /api/state",
+      "632-711 /api/profile",
+      "632-699 /api/loans",
+      "632-712 /api/other-loans",
+      "632-705 /api/budget-lines",
+      "632-712 /api/holdings",
+      "633-726 /api/portfolio/snapshots",
+      "633-824 /api/savings",
+      "633-770 /api/accounts",
+      "633-825 /api/funds"
+    ],
+    "dataReadyRunsMs": [
+      798,
+      825,
+      852
+    ]
+  },
+  {
+    "route": "/cpf",
+    "fcp": 80,
+    "usable": null,
+    "requests": 29,
+    "apiRequests": 4,
+    "firstApiStart": 557,
+    "lastApiEnd": 695,
+    "dataReadyMs": 695,
+    "supabaseCalls": 8,
+    "authCalls": 0,
+    "initialJsGzKB": 317,
+    "jsCount": 17,
+    "jsKB": 299,
+    "cssKB": 19,
+    "totalKB": 332,
+    "dupes": [],
+    "waterfall": [
+      "557-638 /api/credit-cards",
+      "615-695 /api/profile",
+      "615-667 /api/cpf/contributions",
+      "615-668 /api/cpf/transactions"
+    ],
+    "dataReadyRunsMs": [
+      692,
+      695,
+      703
+    ]
+  },
+  {
+    "route": "/debt",
+    "fcp": 80,
+    "usable": null,
+    "requests": 23,
+    "apiRequests": 5,
+    "firstApiStart": 561,
+    "lastApiEnd": 685,
+    "dataReadyMs": 685,
+    "supabaseCalls": 10,
+    "authCalls": 0,
+    "initialJsGzKB": 317,
+    "jsCount": 16,
+    "jsKB": 290,
+    "cssKB": 19,
+    "totalKB": 317,
+    "dupes": [],
+    "waterfall": [
+      "561-642 /api/credit-cards",
+      "610-684 /api/profile",
+      "610-651 /api/loans",
+      "610-685 /api/other-loans",
+      "610-656 /api/financial-accounts"
+    ],
+    "dataReadyRunsMs": [
+      678,
+      685,
+      800
+    ]
+  },
+  {
+    "route": "/cards",
+    "fcp": 112,
+    "usable": null,
+    "requests": 23,
+    "apiRequests": 4,
+    "firstApiStart": 591,
+    "lastApiEnd": 792,
+    "dataReadyMs": 792,
+    "supabaseCalls": 5,
+    "authCalls": 0,
+    "initialJsGzKB": 317,
+    "jsCount": 16,
+    "jsKB": 290,
+    "cssKB": 19,
+    "totalKB": 316,
+    "dupes": [],
+    "waterfall": [
+      "591-694 /api/credit-cards",
+      "738-767 /api/credit-cards/statements",
+      "739-779 /api/financial-accounts",
+      "739-792 /api/accounts"
+    ],
+    "dataReadyRunsMs": [
+      754,
+      792,
+      834
+    ]
+  },
+  {
+    "route": "/bto",
+    "fcp": 104,
+    "usable": null,
+    "requests": 28,
+    "apiRequests": 8,
+    "firstApiStart": 552,
+    "lastApiEnd": 845,
+    "dataReadyMs": 845,
+    "supabaseCalls": 17,
+    "authCalls": 0,
+    "initialJsGzKB": 317,
+    "jsCount": 16,
+    "jsKB": 290,
+    "cssKB": 19,
+    "totalKB": 323,
+    "dupes": [],
+    "waterfall": [
+      "552-642 /api/credit-cards",
+      "615-714 /api/profile",
+      "615-664 /api/loans",
+      "616-714 /api/other-loans",
+      "616-666 /api/cpf/contributions",
+      "617-666 /api/cpf/transactions",
+      "617-714 /api/household",
+      "771-845 /api/household/bto-planner"
+    ],
+    "dataReadyRunsMs": [
+      834,
+      845,
+      1039
+    ]
+  },
+  {
+    "route": "/bto/price-finder",
+    "fcp": 88,
+    "usable": null,
+    "requests": 33,
+    "apiRequests": 11,
+    "firstApiStart": 587,
+    "lastApiEnd": 1007,
+    "dataReadyMs": 1007,
+    "supabaseCalls": 28,
+    "authCalls": 0,
+    "initialJsGzKB": 317,
+    "jsCount": 16,
+    "jsKB": 290,
+    "cssKB": 19,
+    "totalKB": 325,
+    "dupes": [],
+    "waterfall": [
+      "587-706 /api/credit-cards",
+      "679-770 /api/profile",
+      "680-727 /api/loans",
+      "682-776 /api/other-loans",
+      "682-736 /api/cpf/contributions",
+      "682-740 /api/cpf/transactions",
+      "682-933 /api/savings",
+      "682-774 /api/accounts",
+      "682-934 /api/funds",
+      "683-935 /api/household",
+      "929-1007 /api/household/bto-planner"
+    ],
+    "dataReadyRunsMs": [
+      947,
+      1007,
+      1210
+    ]
+  },
+  {
+    "route": "/financial-health",
+    "fcp": 116,
+    "usable": null,
+    "requests": 49,
+    "apiRequests": 15,
+    "firstApiStart": 581,
+    "lastApiEnd": 1049,
+    "dataReadyMs": 1049,
+    "supabaseCalls": 49,
+    "authCalls": 0,
+    "initialJsGzKB": 283,
+    "jsCount": 22,
+    "jsKB": 335,
+    "cssKB": 19,
+    "totalKB": 389,
+    "dupes": [],
+    "waterfall": [
+      "581-703 /api/credit-cards",
+      "665-735 /api/profile",
+      "665-713 /api/loans",
+      "665-752 /api/other-loans",
+      "665-718 /api/budget-lines",
+      "666-754 /api/holdings",
+      "666-722 /api/net-worth/snapshots",
+      "666-766 /api/savings",
+      "667-756 /api/accounts",
+      "667-810 /api/funds",
+      "876-947 /api/credit-cards/statements",
+      "877-947 /api/credit-cards/statements/outstanding",
+      "877-962 /api/spending/analytics",
+      "878-962 /api/income/analytics",
+      "880-1049 /api/recurring"
+    ],
+    "dataReadyRunsMs": [
+      922,
+      1049,
+      1071
+    ]
+  },
+  {
+    "route": "/benefits",
+    "fcp": 88,
+    "usable": null,
+    "requests": 18,
+    "apiRequests": 2,
+    "firstApiStart": 542,
+    "lastApiEnd": 579,
+    "dataReadyMs": 579,
+    "supabaseCalls": 2,
+    "authCalls": 0,
+    "initialJsGzKB": 215,
+    "jsCount": 14,
+    "jsKB": 187,
+    "cssKB": 19,
+    "totalKB": 211,
+    "dupes": [],
+    "waterfall": [
+      "542-575 /api/benefits",
+      "543-579 /api/income-categories"
+    ],
+    "dataReadyRunsMs": [
+      577,
+      579,
+      671
+    ]
+  },
+  {
+    "route": "/miles",
+    "fcp": 112,
+    "usable": null,
+    "requests": 22,
+    "apiRequests": 3,
+    "firstApiStart": 561,
+    "lastApiEnd": 693,
+    "dataReadyMs": 693,
+    "supabaseCalls": 7,
+    "authCalls": 0,
+    "initialJsGzKB": 317,
+    "jsCount": 16,
+    "jsKB": 290,
+    "cssKB": 19,
+    "totalKB": 315,
+    "dupes": [],
+    "waterfall": [
+      "561-662 /api/credit-cards",
+      "627-693 /api/profile",
+      "628-675 /api/miles"
+    ],
+    "dataReadyRunsMs": [
+      687,
+      693,
+      791
+    ]
+  },
+  {
+    "route": "/oncall",
+    "fcp": 152,
+    "usable": null,
+    "requests": 21,
+    "apiRequests": 3,
+    "firstApiStart": 739,
+    "lastApiEnd": 790,
+    "dataReadyMs": 790,
+    "supabaseCalls": 7,
+    "authCalls": 1,
+    "initialJsGzKB": 221,
+    "jsCount": 15,
+    "jsKB": 194,
+    "cssKB": 19,
+    "totalKB": 219,
+    "dupes": [],
+    "waterfall": [
+      "739-786 /api/oncall",
+      "739-788 /api/accounts",
+      "740-790 /api/income-categories"
+    ],
+    "dataReadyRunsMs": [
+      778,
+      790,
+      798
+    ]
+  },
+  {
+    "route": "/poker",
+    "fcp": 116,
+    "usable": null,
+    "requests": 26,
+    "apiRequests": 2,
+    "firstApiStart": 686,
+    "lastApiEnd": 786,
+    "dataReadyMs": 786,
+    "supabaseCalls": 4,
+    "authCalls": 0,
+    "initialJsGzKB": 225,
+    "jsCount": 18,
+    "jsKB": 288,
+    "cssKB": 19,
+    "totalKB": 316,
+    "dupes": [],
+    "waterfall": [
+      "686-745 /api/financial-accounts",
+      "689-786 /api/poker"
+    ],
+    "dataReadyRunsMs": [
+      733,
+      786,
+      786
+    ]
+  },
+  {
+    "route": "/poker/stats",
+    "fcp": 128,
+    "usable": null,
+    "requests": 24,
+    "apiRequests": 1,
+    "firstApiStart": 658,
+    "lastApiEnd": 703,
+    "dataReadyMs": 703,
+    "supabaseCalls": 1,
+    "authCalls": 0,
+    "initialJsGzKB": 308,
+    "jsCount": 18,
+    "jsKB": 288,
+    "cssKB": 19,
+    "totalKB": 315,
+    "dupes": [],
+    "waterfall": [
+      "658-703 /api/poker/stats"
+    ],
+    "dataReadyRunsMs": [
+      689,
+      703,
+      785
+    ]
+  },
+  {
+    "route": "/travel",
+    "fcp": 112,
+    "usable": null,
+    "requests": 21,
+    "apiRequests": 2,
+    "firstApiStart": 633,
+    "lastApiEnd": 832,
+    "dataReadyMs": 832,
+    "supabaseCalls": 9,
+    "authCalls": 0,
+    "initialJsGzKB": 284,
+    "jsCount": 16,
+    "jsKB": 257,
+    "cssKB": 19,
+    "totalKB": 281,
+    "dupes": [],
+    "waterfall": [
+      "633-762 /api/credit-cards",
+      "716-832 /api/travel/trips"
+    ],
+    "dataReadyRunsMs": [
+      785,
+      832,
+      863
+    ]
+  },
+  {
+    "route": "/me",
+    "fcp": 84,
+    "usable": null,
+    "requests": 30,
+    "apiRequests": 14,
+    "firstApiStart": 486,
+    "lastApiEnd": 830,
+    "dataReadyMs": 830,
+    "supabaseCalls": 34,
+    "authCalls": 0,
+    "initialJsGzKB": 219,
+    "jsCount": 14,
+    "jsKB": 191,
+    "cssKB": 19,
+    "totalKB": 225,
+    "dupes": [],
+    "waterfall": [
+      "486-596 /api/credit-cards",
+      "565-604 /api/state",
+      "565-646 /api/profile",
+      "566-610 /api/loans",
+      "566-665 /api/other-loans",
+      "566-612 /api/budget-lines",
+      "566-663 /api/holdings",
+      "566-640 /api/portfolio/snapshots",
+      "567-783 /api/household",
+      "567-786 /api/savings",
+      "567-752 /api/accounts",
+      "567-798 /api/funds",
+      "774-828 /api/income-categories",
+      "774-830 /api/integrations/telegram/link"
+    ],
+    "dataReadyRunsMs": [
+      830,
+      830,
+      850
+    ]
+  }
+]

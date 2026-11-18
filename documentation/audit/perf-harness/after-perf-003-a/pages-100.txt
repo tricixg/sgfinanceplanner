@@ -1,0 +1,8 @@
+/dashboard fcp 112 usable  req 47 api 15 dataReady 1412 sb 52 auth 0 initJS 343KB api1st 780 apiLast 1412 js 20/349KB css 19KB tot 403KB dupes []
+/wealth fcp 88 usable  req 32 api 14 dataReady 1352 sb 31 auth 0 initJS 348KB api1st 681 apiLast 1352 js 16/322KB css 19KB tot 356KB dupes []
+/cash-accounts fcp 100 usable  req 33 api 16 dataReady 2358 sb 33 auth 0 initJS 345KB api1st 706 apiLast 2358 js 15/317KB css 19KB tot 353KB dupes []
+/expenses fcp 100 usable  req 29 api 13 dataReady 1078 sb 33 auth 0 initJS 276KB api1st 741 apiLast 1078 js 14/247KB css 19KB tot 281KB dupes []
+/me fcp 96 usable  req 33 api 17 dataReady 1239 sb 37 auth 0 initJS 280KB api1st 616 apiLast 1239 js 14/251KB css 19KB tot 288KB dupes []
+/cards fcp 112 usable  req 33 api 14 dataReady 1257 sb 23 auth 0 initJS 377KB api1st 730 apiLast 1257 js 16/351KB css 19KB tot 385KB dupes []
+/savings fcp 128 usable  req 31 api 14 dataReady 1301 sb 31 auth 0 initJS 344KB api1st 902 apiLast 1301 js 15/316KB css 19KB tot 350KB dupes []
+/cpf fcp 100 usable  req 36 api 11 dataReady 1115 sb 20 auth 0 initJS 377KB api1st 727 apiLast 1115 js 17/360KB css 19KB tot 399KB dupes []
