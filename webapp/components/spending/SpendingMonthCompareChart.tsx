@@ -34,6 +34,8 @@ export function SpendingMonthCompareChart({ scope }: Props) {
   const [error, setError] = useState("");
   const cacheRef = useRef(new Map<string, SpendingAnalyticsBundle>());
   const wantedRef = useRef("");
+  /** Row whose tooltip is showing (hover, keyboard focus or tap). */
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const key = `${scope}:${ym}`;
@@ -76,6 +78,7 @@ export function SpendingMonthCompareChart({ scope }: Props) {
   });
 
   const prevYm = addMonthsYm(ym, -1);
+  const prevShort = monthYear(prevYm).split(" ")[0];
   const label = periodLabel(rangeWindow("month", currentYm, ym), todayYmd);
 
   const view = useMemo(() => {
@@ -121,8 +124,21 @@ export function SpendingMonthCompareChart({ scope }: Props) {
             const text = `${r.label}: ${fmt(r.amount)} in ${monthYear(ym)}, ${fmt(
               r.prevAmount
             )} in ${monthYear(prevYm)} (${changeText(r.change)})`;
+            const endPct = pct(Math.max(r.amount, r.prevAmount), view.scale);
+            const barPct = pct(r.amount, view.scale);
+            const active = activeId === r.id;
             return (
-              <li key={r.id} className="month-compare-row" title={text} aria-label={text}>
+              <li
+                key={r.id}
+                className={`month-compare-row${active ? " is-active" : ""}`}
+                aria-label={text}
+                tabIndex={0}
+                onMouseEnter={() => setActiveId(r.id)}
+                onMouseLeave={() => setActiveId((id) => (id === r.id ? null : id))}
+                onFocus={() => setActiveId(r.id)}
+                onBlur={() => setActiveId((id) => (id === r.id ? null : id))}
+                onClick={() => setActiveId((id) => (id === r.id ? null : r.id))}
+              >
                 <span className="month-compare-label">{r.label}</span>
                 <span className="month-compare-track">
                   {r.amount > 0 ? (
@@ -140,13 +156,28 @@ export function SpendingMonthCompareChart({ scope }: Props) {
                       style={{ left: `${pct(r.prevAmount, view.scale)}%` }}
                     />
                   ) : null}
-                  {/* Value sits just past whichever ends further right: the bar or the marker. */}
-                  <span
-                    className="month-compare-val"
-                    style={{ left: `${pct(Math.max(r.amount, r.prevAmount), view.scale)}%` }}
-                  >
-                    {fmt(r.amount)}
+                  {/* Values sit just past whichever ends further right: the bar or the marker. */}
+                  <span className="month-compare-val" style={{ left: `${endPct}%` }}>
+                    <b>{fmt(r.amount)}</b>
+                    <span className="month-compare-prev">
+                      {prevShort} {fmt(r.prevAmount)}
+                    </span>
                   </span>
+                  {active ? (
+                    <span
+                      className={`month-compare-tip${barPct > 55 ? " is-flipped" : ""}`}
+                      style={{ left: `${barPct}%` }}
+                      role="tooltip"
+                    >
+                      <b>{r.label}</b>
+                      <span>
+                        {monthYear(ym)} <b>{fmt(r.amount)}</b>
+                      </span>
+                      <span>
+                        {monthYear(prevYm)} {fmt(r.prevAmount)} · {changeText(r.change)}
+                      </span>
+                    </span>
+                  ) : null}
                 </span>
               </li>
             );

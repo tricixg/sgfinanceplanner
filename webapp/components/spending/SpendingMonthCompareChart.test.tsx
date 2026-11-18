@@ -92,6 +92,27 @@ describe("SpendingMonthCompareChart", () => {
     expect(rows[3]!.querySelector(".month-compare-marker")).not.toBeNull();
   });
 
+  it("shows last month's amount on every row, and both months in a tooltip on hover", async () => {
+    await act(async () => root.render(<SpendingMonthCompareChart scope="discretionary" />));
+    await settle();
+
+    const rows = [...host.querySelectorAll(".month-compare-row")];
+    const shop = rows[0]!;
+    expect(shop.querySelector(".month-compare-val b")!.textContent).toContain("500");
+    expect(shop.querySelector(".month-compare-prev")!.textContent).toMatch(/^Oct \$1,000/);
+    // A category new this month still shows last month at $0.
+    expect(rows[2]!.querySelector(".month-compare-prev")!.textContent).toMatch(/^Oct \$0/);
+
+    expect(host.querySelector(".month-compare-tip")).toBeNull();
+    await act(async () => void shop.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    const tip = host.querySelector(".month-compare-tip")!;
+    expect(tip.textContent).toContain("Nov 2026");
+    expect(tip.textContent).toContain("Oct 2026");
+    expect(tip.textContent).toContain("−50%");
+    await act(async () => void shop.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+    expect(host.querySelector(".month-compare-tip")).toBeNull();
+  });
+
   it("steps back a month, and can't step past the current month", async () => {
     await act(async () => root.render(<SpendingMonthCompareChart scope="discretionary" />));
     await settle();

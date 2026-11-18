@@ -6476,8 +6476,8 @@ details > summary {
 .month-compare-track {
   position: relative;
   height: 22px;
-  /* Room for the value label when the bar or marker reaches the far end. */
-  margin-right: 4.5em;
+  /* Room for the value labels when the bar or marker reaches the far end. */
+  margin-right: 9.5em;
 }
 .month-compare-bar {
   position: absolute;
@@ -6500,10 +6500,55 @@ details > summary {
   top: 50%;
   transform: translateY(-50%);
   padding-left: 8px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   font-size: 13.5px;
   font-variant-numeric: tabular-nums;
-  color: var(--muted);
   white-space: nowrap;
+}
+.month-compare-val b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.month-compare-prev {
+  font-size: 12px;
+  color: var(--muted);
+}
+.month-compare-row {
+  cursor: default;
+  border-radius: 6px;
+}
+.month-compare-row:focus-visible {
+  outline: 2px solid var(--moss);
+  outline-offset: 3px;
+}
+.month-compare-row.is-active .month-compare-bar {
+  filter: brightness(1.08);
+}
+.month-compare-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fffdf6;
+  font-size: 12.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 14px rgba(17, 32, 26, 0.18);
+  pointer-events: none;
+  transform: translateX(-12px);
+}
+.month-compare-tip.is-flipped {
+  transform: translateX(calc(-100% + 12px));
+}
+.month-compare-tip b {
+  font-weight: 600;
 }
 @media (max-width: 520px) {
   .month-compare-row {
@@ -6513,5 +6558,11 @@ details > summary {
   .month-compare-label {
     grid-column: 1 / -1;
     text-align: left;
+  }
+  /* Narrow screens: pin the tooltip to the start of the bar so it never leaves the card. */
+  .month-compare-tip,
+  .month-compare-tip.is-flipped {
+    left: 0 !important;
+    transform: none;
   }
 }
