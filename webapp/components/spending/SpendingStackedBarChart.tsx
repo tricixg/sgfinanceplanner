@@ -1,13 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ChartOptions } from "chart.js";
-import { ChartBox } from "@/components/ChartBox";
-import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
 import type { SpendingMonthlyRow } from "@/lib/spending/analytics";
-import { OTHER_CATEGORY_COLOR, type CategoryColorFn } from "@/lib/finance/category-colors";
-import { colorAt, SPENDING_CHART_COLORS } from "./chart-colors";
-import { buildStackedSeries, OTHER_SERIES_ID } from "./stacked-series";
+import type { CategoryColorFn } from "@/lib/finance/category-colors";
+import { MonthlyStackedBarChart } from "./MonthlyStackedBarChart";
 
 type Props = {
   title: string;
@@ -20,106 +16,15 @@ type Props = {
   colorFor?: CategoryColorFn;
 };
 
-/** How many of each month's largest items are guaranteed their own segment. */
-const PER_MONTH_TOP = 6;
-
-export function SpendingStackedBarChart({
-  title,
-  monthly,
-  dimension,
-  topN = SPENDING_CHART_COLORS.length,
-  embedded = false,
-  colorFor,
-}: Props) {
-  const { chart, otherMembers } = useMemo(() => {
-    const { series, otherMembers } = buildStackedSeries(
-      monthly,
-      dimension,
-      PER_MONTH_TOP,
-      topN,
-    );
-    let colorIdx = 0;
-    return {
-      otherMembers,
-      chart: {
-        labels: monthly.map((m) => formatMonthLabel(m.ym)),
-        datasets: series.map((s) => ({
-          label: s.label,
-          data: s.data,
-          backgroundColor:
-            s.id === OTHER_SERIES_ID
-              ? OTHER_CATEGORY_COLOR
-              : colorFor
-                ? colorFor(s.id, s.label)
-                : colorAt(colorIdx++),
-          stack: "spend",
-          isOther: s.id === OTHER_SERIES_ID,
-        })),
-      },
-    };
-  }, [monthly, dimension, topN, colorFor]);
-
-  const options = useMemo((): ChartOptions<"bar"> => {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false,
-      },
-      plugins: {
-        legend: { position: "bottom" },
-        tooltip: {
-          mode: "index",
-          filter: (item) => Number(item.raw) > 0,
-          itemSort: (a, b) => Number(b.raw) - Number(a.raw),
-          callbacks: {
-            label: (ctx) => `${ctx.dataset.label ?? ""}: ${fmt2(Number(ctx.raw))}`,
-            afterLabel: (ctx) => {
-              if (!(ctx.dataset as { isOther?: boolean }).isOther) return "";
-              const members = otherMembers[ctx.dataIndex] ?? [];
-              return members.map((m) => `   ${m.label}: ${fmt2(m.amount)}`);
-            },
-            footer: (items) => {
-              if (items.length === 0) return "";
-              const total = items.reduce((s, item) => s + Number(item.raw ?? 0), 0);
-              return `Total: ${fmt2(total)}`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: { stacked: true, grid: { display: false } },
-        y: {
-          stacked: true,
-          grid: { color: "#e6dfca" },
-          ticks: {
-            callback: (v) => "$" + (Number(v) / 1000).toFixed(1) + "k",
-          },
-        },
-      },
-    };
-  }, [otherMembers]);
-
-  const hasData = chart.datasets.some((d) => d.data.some((v) => Number(v) > 0));
-  if (!hasData) {
-    const empty = <p className="note">No spending data in this period.</p>;
-    if (embedded) return empty;
-    return (
-      <div className="card" style={{ marginBottom: 16 }}>
-        {title ? <h3 style={{ marginTop: 0 }}>{title}</h3> : null}
-        {empty}
-      </div>
-    );
-  }
-
-  const chartEl = <ChartBox type="bar" data={chart} options={options} height={280} />;
-  if (embedded) return chartEl;
-
+export function SpendingStackedBarChart({ monthly, dimension, ...rest }: Props) {
+  const months = useMemo(() => monthly.map((m) => m.ym), [monthly]);
+  const itemsByMonth = useMemo(() => monthly.map((m) => m[dimension]), [monthly, dimension]);
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      {title ? <h3 style={{ marginTop: 0 }}>{title}</h3> : null}
-      {chartEl}
-    </div>
+    <MonthlyStackedBarChart
+      {...rest}
+      months={months}
+      itemsByMonth={itemsByMonth}
+      emptyText="No spending data in this period."
+    />
   );
 }

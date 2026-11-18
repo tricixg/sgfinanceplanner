@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fmt2 } from "@/lib/finance/helpers";
 import type { IncomeAnalyticsBundle } from "@/lib/income/analytics";
+import { buildCategoryColors } from "@/lib/finance/category-colors";
 import { IncomeStackedBarChart } from "./IncomeStackedBarChart";
 
 const ALL_ACCOUNTS_ID = "__all__";
@@ -15,6 +16,10 @@ export function IncomeCategoryChart({ analytics }: Props) {
   const accounts = analytics.perAccount;
   const grandTotal = analytics.monthly.reduce((s, m) => s + m.total, 0);
   const [accountId, setAccountId] = useState(ALL_ACCOUNTS_ID);
+  const colorFor = useMemo(
+    () => buildCategoryColors(analytics.categoryOrder),
+    [analytics.categoryOrder]
+  );
 
   useEffect(() => {
     if (accountId === ALL_ACCOUNTS_ID) return;
@@ -69,6 +74,7 @@ export function IncomeCategoryChart({ analytics }: Props) {
         title=""
         monthly={monthly}
         dimension="byCategory"
+        colorFor={colorFor}
         embedded
       />
     </div>

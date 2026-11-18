@@ -39,9 +39,11 @@ const monthly = [
   ]),
 ];
 
+const byMonth = monthly.map((m) => m.byCategory);
+
 describe("pickSeriesIds", () => {
   it("keeps each month's top categories even when another month dominates the window", () => {
-    const ids = pickSeriesIds(monthly, "byCategory", 6, 10);
+    const ids = pickSeriesIds(byMonth, 6, 10);
     expect(ids).toContain("work");
     expect(ids).toContain("transport");
     expect(ids).toContain("travel");
@@ -49,20 +51,20 @@ describe("pickSeriesIds", () => {
   });
 
   it("orders picked ids by window total", () => {
-    const ids = pickSeriesIds(monthly, "byCategory", 6, 10);
+    const ids = pickSeriesIds(byMonth, 6, 10);
     expect(ids[0]).toBe("travel");
     expect(ids[1]).toBe("family");
   });
 
   it("respects the cap, preferring ids with the highest single-month amount", () => {
-    const ids = pickSeriesIds(monthly, "byCategory", 6, 3);
+    const ids = pickSeriesIds(byMonth, 6, 3);
     expect(ids).toEqual(["travel", "family", "food"]);
   });
 });
 
 describe("buildStackedSeries", () => {
   it("folds the remainder into Other and lists its members per month", () => {
-    const { series, otherMembers } = buildStackedSeries(monthly, "byCategory", 6, 10);
+    const { series, otherMembers } = buildStackedSeries(byMonth, 6, 10);
     const other = series.find((s) => s.id === OTHER_SERIES_ID);
     expect(other).toBeDefined();
 
@@ -83,7 +85,7 @@ describe("buildStackedSeries", () => {
 
   it("omits Other when everything fits", () => {
     const small = [row("2026-11", [["a", 10], ["b", 5]])];
-    const { series } = buildStackedSeries(small, "byCategory", 6, 10);
+    const { series } = buildStackedSeries(small.map((m) => m.byCategory), 6, 10);
     expect(series.map((s) => s.id)).toEqual(["a", "b"]);
   });
 });

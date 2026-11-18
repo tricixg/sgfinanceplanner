@@ -14,30 +14,36 @@ import { COMPUTED_INSURANCE_LABEL } from "@/lib/finance/insurance";
  * Past Cashflow), so a category looks the same everywhere.
  */
 
-/** Colours for user budget lines, assigned by catalog creation order. */
+/**
+ * "Kopitiam" palette. Together with the four auto colours below, every pair is
+ * at least ~10 OKLab ΔE apart (≈7 under red-green colour blindness), and each
+ * colour keeps ≥1.9:1 contrast on both the light and dark card backgrounds.
+ * Ordered so the first few colours handed out are the most different.
+ *
+ * Colours for user categories (budget lines, income categories), assigned by
+ * the user's category order.
+ */
 export const CATEGORY_PALETTE = [
-  "#1f6aa8", // blue
-  "#0d9483", // teal
-  "#c8901f", // gold
-  "#0d6b3f", // forest
-  "#7a3f8a", // violet
-  "#b23f6b", // rose
-  "#8a7be2", // lavender
-  "#a89a76", // sand
-  "#d97a2b", // orange
-  "#5a4678", // plum
-  "#94a83a", // olive
-  "#8c5a3c", // brown
-  "#2e9cc2", // cyan
-  "#6b7d6a", // sage
+  "#dcb701", // kaya yellow
+  "#633f9b", // ube purple
+  "#9d4e01", // toast brown
+  "#1e8a89", // teal
+  "#e089a0", // bandung rose
+  "#d56f0a", // papaya
+  "#7db25f", // pandan green
+  "#2b4d6f", // navy
+  "#6b412e", // kopi brown
+  "#d8b297", // teh tarik
+  "#a781b8", // taro
+  "#8e8f68", // sage
 ] as const;
 
 /** Fixed colours for the categories computed from other tabs. */
 export const AUTO_CATEGORY_COLORS = {
-  debt: "#b5482e",
-  insurance: "#3d6b8e",
-  ilp: "#7a9eb5",
-  savings: "#4a8055",
+  debt: "#c53954",
+  insurance: "#4d6ba3",
+  ilp: "#8aaecd",
+  savings: "#2b7344",
 } as const;
 
 export const OTHER_CATEGORY_COLOR = "#c4bdb0";

@@ -1,4 +1,5 @@
-import type { SpendingAmountRow, SpendingMonthlyRow } from "@/lib/spending/analytics";
+/** One labelled amount in a month (a category, card or account). */
+export type StackedItem = { id: string; label: string; amount: number };
 
 export const OTHER_SERIES_ID = "__other__";
 
@@ -12,7 +13,7 @@ export type StackedSeriesResult = {
   /** Named series (in display order) followed by an optional "Other" series. */
   series: StackedSeries[];
   /** Per month index: the rows folded into "Other", largest first. */
-  otherMembers: SpendingAmountRow[][];
+  otherMembers: StackedItem[][];
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -26,8 +27,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * (by peak single-month amount), then ordered by window total.
  */
 export function pickSeriesIds(
-  monthly: SpendingMonthlyRow[],
-  dimension: "byCategory" | "byCard",
+  itemsByMonth: StackedItem[][],
   perMonth: number,
   cap: number,
 ): string[] {
@@ -35,8 +35,8 @@ export function pickSeriesIds(
   const peaks = new Map<string, number>();
   const candidates = new Set<string>();
 
-  for (const row of monthly) {
-    const items = row[dimension].filter((r) => r.amount > 0);
+  for (const monthItems of itemsByMonth) {
+    const items = monthItems.filter((r) => r.amount > 0);
     for (const item of items) {
       totals.set(item.id, (totals.get(item.id) ?? 0) + item.amount);
       peaks.set(item.id, Math.max(peaks.get(item.id) ?? 0, item.amount));
@@ -54,17 +54,16 @@ export function pickSeriesIds(
 }
 
 export function buildStackedSeries(
-  monthly: SpendingMonthlyRow[],
-  dimension: "byCategory" | "byCard",
+  itemsByMonth: StackedItem[][],
   perMonth: number,
   cap: number,
 ): StackedSeriesResult {
-  const ids = pickSeriesIds(monthly, dimension, perMonth, cap);
+  const ids = pickSeriesIds(itemsByMonth, perMonth, cap);
   const idSet = new Set(ids);
 
   const labels = new Map<string, string>();
-  for (const row of monthly) {
-    for (const item of row[dimension]) {
+  for (const monthItems of itemsByMonth) {
+    for (const item of monthItems) {
       if (!labels.has(item.id)) labels.set(item.id, item.label);
     }
   }
@@ -72,11 +71,11 @@ export function buildStackedSeries(
   const series: StackedSeries[] = ids.map((id) => ({
     id,
     label: labels.get(id) ?? id,
-    data: monthly.map((row) => row[dimension].find((r) => r.id === id)?.amount ?? 0),
+    data: itemsByMonth.map((items) => items.find((r) => r.id === id)?.amount ?? 0),
   }));
 
-  const otherMembers = monthly.map((row) =>
-    row[dimension]
+  const otherMembers = itemsByMonth.map((items) =>
+    items
       .filter((r) => !idSet.has(r.id) && r.amount > 0)
       .sort((a, b) => b.amount - a.amount),
   );

@@ -22,6 +22,8 @@ export type IncomeAccountSeries = {
 
 export type IncomeAnalyticsBundle = {
   months: string[];
+  /** Income category ids in the user's order, for consistent category colours. */
+  categoryOrder: string[];
   monthly: IncomeMonthlyRow[];
   perAccount: IncomeAccountSeries[];
   insights: {
@@ -251,6 +253,7 @@ export function buildIncomeAnalytics(input: {
 
   return {
     months: window.months,
+    categoryOrder: input.categories.map((c) => c.id),
     monthly,
     perAccount,
     insights: {
