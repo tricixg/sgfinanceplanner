@@ -41,16 +41,29 @@ describe("CPF contributions", () => {
     expect(await cpf(u)).toEqual({ oa: 1000.1, sa: 500, ma: 200 });
   });
 
-  it("CURRENT BEHAVIOUR (kept): the 0-floor makes add → lower OA by hand → delete not return to start", async () => {
+  it("075: a delete that would take a balance below $0 is rejected and nothing changes", async () => {
     const u = await userWithCpf(100);
     const sb = rpcClientAs(db, u);
     const c = await addCpfContribution(sb, u, { month: "2026-09-01", oa: 500, sa: 0, ma: 0 });
     await db.query("update user_finance_profile set oa = 200 where user_id = $1", [u]); // manual edit
-    expect((await deleteCpfContribution(sb, u, c.contribution.id)).oa).toBe(0); // 200 - 500 floored
-    const audit = await one<{ details: { clamped: boolean } }>(
-      db, "select details from ledger_audit_log where user_id = $1 and operation = 'cpf.contribution.delete'", [u]
+    await expect(deleteCpfContribution(sb, u, c.contribution.id)).rejects.toThrow(
+      "This would take your CPF OA below $0 (it is $200.00 now). Correct your OA balance first, or change this entry."
     );
-    expect(audit.details.clamped).toBe(true);
+    expect((await cpf(u)).oa).toBe(200);
+    expect(await count(db, "select count(*) n from cpf_contributions where id = $1", [c.contribution.id])).toBe(1);
+  });
+
+  it("075: an edit that lowers a balance below $0 is rejected; add → delete always returns to the start", async () => {
+    const u = await userWithCpf(1000, 50, 0);
+    const sb = rpcClientAs(db, u);
+    const c = await addCpfContribution(sb, u, { month: "2026-03-01", oa: 10, sa: 20, ma: 30 });
+    await db.query("update user_finance_profile set sa = 5 where user_id = $1", [u]);
+    await expect(
+      updateCpfContribution(sb, u, c.contribution.id, { month: "2026-03-01", oa: 10, sa: 0, ma: 30 })
+    ).rejects.toThrow("This would take your CPF SA below $0 (it is $5.00 now).");
+    expect((await cpf(u)).sa).toBe(5);
+    await db.query("update user_finance_profile set sa = 70 where user_id = $1", [u]);
+    expect(await deleteCpfContribution(sb, u, c.contribution.id)).toEqual({ oa: 1000, sa: 50, ma: 0 });
   });
 
   it("update moves balances by the difference", async () => {
@@ -129,12 +142,25 @@ describe("CPF transactions", () => {
     expect(res.transaction.fundingSource).toBe("cash");
   });
 
-  it("CURRENT BEHAVIOUR (kept): a debit larger than OA floors at 0, so deleting it overshoots", async () => {
+  it("075: an OA debit larger than OA is rejected (no row, no change)", async () => {
     const u = await userWithCpf(300);
     const sb = rpcClientAs(db, u);
-    const t = await addCpfTransaction(sb, u, { txnDate: "2026-11-01", category: "other_withdrawal", amount: 500 });
+    await expect(
+      addCpfTransaction(sb, u, { txnDate: "2026-11-01", category: "other_withdrawal", amount: 500 })
+    ).rejects.toThrow("This would take your CPF OA below $0 (it is $300.00 now).");
+    expect((await cpf(u)).oa).toBe(300);
+    expect(await count(db, "select count(*) n from cpf_transactions where user_id = $1", [u])).toBe(0);
+    // Exactly reaching $0 is fine, and deleting returns to the start.
+    const t = await addCpfTransaction(sb, u, { txnDate: "2026-11-01", category: "other_withdrawal", amount: 300 });
     expect(t.oa).toBe(0);
-    expect((await deleteCpfTransaction(sb, u, t.transaction.id)).oa).toBe(500); // not 300
+    expect((await deleteCpfTransaction(sb, u, t.transaction.id)).oa).toBe(300);
+  });
+
+  it("075: credits and contributions are never blocked, even from a negative balance", async () => {
+    const u = await userWithCpf(-50);
+    const sb = rpcClientAs(db, u);
+    expect((await addCpfTransaction(sb, u, { txnDate: "2026-11-01", category: "other_credit", amount: 20 })).oa).toBe(-30);
+    expect((await addCpfContribution(sb, u, { month: "2026-02-01", oa: 10, sa: 0, ma: 0 })).profile.oa).toBe(-20);
   });
 
   it("same idempotency key twice → one row, OA moved once", async () => {

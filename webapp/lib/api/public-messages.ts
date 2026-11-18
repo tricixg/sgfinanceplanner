@@ -222,6 +222,8 @@ export const PUBLIC_MESSAGE_PATTERNS: readonly RegExp[] = [
   new RegExp("^This\\ stretch\\ has\\ .+?\\ paid\\ .+?\\.\\ Delete\\ those\\ payments\\ first$", "s"),
   new RegExp("^Unsupported\\ currency:\\ .+?$", "s"),
   new RegExp("^Unsupported\\ currency:\\ .+?$", "s"),
+  // supabase/migrations/075 — CPF change that would take OA/SA/MA below $0.
+  new RegExp("^This\\ would\\ take\\ your\\ CPF\\ (OA|SA|MA)\\ below\\ \\$0\\ \\(it\\ is\\ \\$.+?\\ now\\)\\.\\ Correct\\ your\\ (OA|SA|MA)\\ balance\\ first,\\ or\\ change\\ this\\ entry\\.$", "s"),
   // lib/supabase/rpc.ts — code deployed before its migration was run (shown to the app owner).
   new RegExp("^The\\ database\\ is\\ missing\\ an\\ update\\.\\ Run\\ migration\\ .+?\\ in\\ the\\ Supabase\\ SQL\\ editor,\\ then\\ try\\ again\\.$", "s"),
 ];
