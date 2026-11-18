@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { isSystemIncomeSlug } from "@/lib/income/types";
 import type { IncomeCategoryInput } from "@/lib/income/types";
+import { ErrorState } from "@/components/ui/States";
 
 type Props = {
   /** Whether the signed-in income-category API is available (cloud mode). */
@@ -17,7 +18,7 @@ type Props = {
  * deposited to a cash account. Rendered on the ME tab.
  */
 export function IncomeSourcesCard({ authEnabled }: Props) {
-  const { categories, configured, save, loading: catsLoading } =
+  const { categories, configured, loadError, reload, save, loading: catsLoading } =
     useIncomeCategories(authEnabled);
   const [catDraft, setCatDraft] = useState<IncomeCategoryInput[]>([]);
   const [editingCats, setEditingCats] = useState(false);
@@ -50,6 +51,17 @@ export function IncomeSourcesCard({ authEnabled }: Props) {
       setCatSaving(false);
     }
   };
+
+  if (loadError) {
+    return (
+      <div className="card">
+        <div className="section-head">
+          <h2 style={{ margin: 0 }}>Income sources</h2>
+        </div>
+        <ErrorState message={loadError} onRetry={() => void reload()} />
+      </div>
+    );
+  }
 
   if (!configured) return null;
 

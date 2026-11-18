@@ -5,10 +5,11 @@ import { applyFundTransaction, listFundTransactions } from "@/lib/funds/ledger";
 import { parseClientRequestId } from "@/lib/api/idempotency";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -42,9 +43,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to load transactions";
     return apiError("api/funds/[id]/transactions", msg, { fallback: "Failed to load transactions" });
   }
-}
+});
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -115,4 +116,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     console.error("[api/funds/transactions] POST failed", msg);
     return apiError("api/funds/[id]/transactions", msg, { fallback: "Transaction failed" });
   }
-}
+});

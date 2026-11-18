@@ -22,6 +22,8 @@ import { PokerSessionEditModal } from "@/components/poker/PokerSessionEditModal"
 import { PokerSessionForm } from "@/components/poker/PokerSessionForm";
 import { PokerSessionMobileCard } from "@/components/poker/PokerSessionMobileCard";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
+import { errorMessage } from "@/lib/ui/notify";
+import { ErrorState } from "@/components/ui/States";
 
 function monthBounds(): { from: string; to: string } {
   const d = new Date();
@@ -57,6 +59,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [manageOpen, setManageOpen] = useState(false);
   const [viewingSession, setViewingSession] = useState<PokerSession | null>(null);
   const [editingSession, setEditingSession] = useState<PokerSession | null>(null);
@@ -77,6 +80,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
     async (append: boolean) => {
       if (!enabled) return;
       setLoading(true);
+      setLoadError("");
       const { from, to } = monthBounds();
       const qs = new URLSearchParams({
         from,
@@ -108,6 +112,7 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
         console.info("[TabPoker] loaded", { count: data.items?.length, total: data.total });
       } catch (e) {
         console.error("[TabPoker] load failed", e);
+        setLoadError(errorMessage(e, "Failed to load poker sessions"));
       } finally {
         setLoading(false);
       }
@@ -223,6 +228,10 @@ export function TabPoker({ enabled }: { enabled: boolean }) {
       {loading && items.length === 0 ? (
         <div className="card">
           <p className="loading">Loading…</p>
+        </div>
+      ) : loadError && items.length === 0 ? (
+        <div className="card">
+          <ErrorState message={loadError} onRetry={() => void load(false)} />
         </div>
       ) : items.length === 0 ? (
         <div className="card">

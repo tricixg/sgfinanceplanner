@@ -6,8 +6,9 @@ import { enrichInviterEmails, lookupUserEmails } from "@/lib/household/invite-em
 import { mapInvite } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false });
   }
@@ -85,4 +86,4 @@ export async function GET() {
     sentInvites: sent,
     receivedInvites: received,
   });
-}
+});

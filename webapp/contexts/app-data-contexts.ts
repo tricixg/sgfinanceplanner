@@ -148,6 +148,8 @@ export type FundsContextValue = {
   totals: FundsTotals | null;
   loading: boolean;
   configured: boolean;
+  /** Set when the last load failed (not the same as "not configured"); cleared by a successful reload. */
+  loadError: string | null;
   reload: () => Promise<void>;
   ensureLoaded: () => void;
   saveFunds: (next: Fund[]) => Promise<void>;
@@ -169,6 +171,8 @@ export type MilesContextValue = {
   totals: MilesTotals | null;
   loading: boolean;
   configured: boolean;
+  /** Set when the last load failed (not the same as "not configured"); cleared by a successful reload. */
+  loadError: string | null;
   reload: () => Promise<void>;
   ensureLoaded: () => void;
   saveBalances: (next: MilesBalance[]) => Promise<void>;
@@ -182,6 +186,8 @@ export type HouseholdContextValue = {
   receivedInvites: PartnerInvite[];
   loading: boolean;
   configured: boolean;
+  /** Set when the last load failed (not the same as "not configured"); cleared by a successful reload. */
+  loadError: string | null;
   reload: () => Promise<void>;
   ensureLoaded: () => void;
   sendInvite: (email: string) => Promise<void>;
@@ -219,6 +225,8 @@ export type BenefitsContextValue = {
 export type OutstandingCardStatementsContextValue = {
   statements: CardStatementComputed[];
   loading: boolean;
+  /** Set when the last load failed, so an empty list is not read as "no card bills". */
+  loadError: string | null;
   reload: () => Promise<void>;
   ensureLoaded: () => void;
 };

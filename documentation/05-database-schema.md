@@ -147,7 +147,7 @@ erDiagram
 ### App state
 
 **`dashboard_state`** — `(user_id PK, data jsonb, updated_at)`  
-Per-user UI preferences and migration flag `_migrated_v2`. Not the full dashboard anymore.
+Per-user UI preferences (plus the historical `_migrated_v2` flag). Not the full dashboard anymore.
 
 **`dashboard_state_legacy`** (optional) — Old singleton blob from 001; safe to drop after migration.
 

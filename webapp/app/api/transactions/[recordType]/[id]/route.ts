@@ -11,6 +11,7 @@ import { mapExpense } from "@/lib/savings/db-mappers";
 import { budgetLinePatchForCategoryEdit } from "@/lib/expenses/budget-line-link";
 import { deleteTransactionWithLedger } from "@/lib/transactions/actions";
 import { isExpenseDeleteBlocked } from "@/lib/expenses/expense-write";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ recordType: string; id: string }> };
 
@@ -34,7 +35,7 @@ function toTimeOrNull(value: unknown): string | null {
   return null;
 }
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -124,9 +125,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   });
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ item });
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -159,4 +160,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     });
     return apiError("api/transactions/[recordType]/[id]", msg, { status, fallback: "Failed to delete transaction" });
   }
-}
+});

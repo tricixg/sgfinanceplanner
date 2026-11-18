@@ -6,10 +6,11 @@ import { applyTransaction } from "@/lib/savings/ledger";
 import { parseClientRequestId } from "@/lib/api/idempotency";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(req: NextRequest, { params }: Params) {
+export const POST = withRequestId(async function POST(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -101,4 +102,4 @@ export async function POST(req: NextRequest, { params }: Params) {
     console.error("[api/savings/goals/deposits] failed", msg);
     return apiError("api/savings/goals/[id]/deposits", msg, { fallback: "Deposit failed" });
   }
-}
+});

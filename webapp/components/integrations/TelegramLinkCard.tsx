@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
+import { errorMessage } from "@/lib/ui/notify";
+import { ErrorState } from "@/components/ui/States";
 
 type LinkStatus = {
   configured?: boolean;
@@ -25,13 +27,27 @@ export function TelegramLinkCard() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
+  const [loadError, setLoadError] = useState("");
+
   const loadStatus = useCallback(async () => {
     setLoading(true);
-    const { res, data } = await fetchJson<LinkStatus>("/api/integrations/telegram/link", {
-      credentials: "include",
-    });
-    if (res.ok) setStatus(data);
-    setLoading(false);
+    setLoadError("");
+    try {
+      const { res, data } = await fetchJson<LinkStatus>("/api/integrations/telegram/link", {
+        credentials: "include",
+      });
+      if (res.ok) setStatus(data);
+      else {
+        setLoadError(
+          (data as { error?: string }).error ?? "Couldn't load your Telegram link status."
+        );
+      }
+    } catch (e) {
+      console.error("[TelegramLinkCard] status load failed", e);
+      setLoadError(errorMessage(e, "Couldn't load your Telegram link status."));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -41,34 +57,46 @@ export function TelegramLinkCard() {
   const generateCode = async () => {
     setBusy(true);
     setMsg("");
-    const { res, data } = await fetchJson<LinkCode>("/api/integrations/telegram/link", {
-      method: "POST",
-      credentials: "include",
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setMsg(data.error ?? "Failed to generate code");
-      return;
+    try {
+      const { res, data } = await fetchJson<LinkCode>("/api/integrations/telegram/link", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setMsg(data.error ?? "Failed to generate code");
+        return;
+      }
+      setCodeInfo(data);
+      console.info("[TelegramLinkCard] link code generated", { expiresAt: data.expiresAt });
+    } catch (e) {
+      console.error("[TelegramLinkCard] generate code failed", e);
+      setMsg(errorMessage(e, "Failed to generate code"));
+    } finally {
+      setBusy(false);
     }
-    setCodeInfo(data);
-    console.info("[TelegramLinkCard] link code generated", { expiresAt: data.expiresAt });
   };
 
   const unlink = async () => {
     setBusy(true);
     setMsg("");
-    const { res, data } = await fetchJson<{ error?: string }>("/api/integrations/telegram/link", {
-      method: "DELETE",
-      credentials: "include",
-    });
-    setBusy(false);
-    if (!res.ok) {
-      setMsg(data.error ?? "Failed to unlink");
-      return;
+    try {
+      const { res, data } = await fetchJson<{ error?: string }>("/api/integrations/telegram/link", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setMsg(data.error ?? "Failed to unlink");
+        return;
+      }
+      setCodeInfo(null);
+      await loadStatus();
+      setMsg("Telegram disconnected.");
+    } catch (e) {
+      console.error("[TelegramLinkCard] unlink failed", e);
+      setMsg(errorMessage(e, "Failed to unlink"));
+    } finally {
+      setBusy(false);
     }
-    setCodeInfo(null);
-    await loadStatus();
-    setMsg("Telegram disconnected.");
   };
 
   if (loading) {
@@ -76,6 +104,15 @@ export function TelegramLinkCard() {
       <div className="card">
         <h3>Telegram bot</h3>
         <p className="note">Loading…</p>
+      </div>
+    );
+  }
+
+  if (loadError && !status) {
+    return (
+      <div className="card">
+        <h3>Telegram bot</h3>
+        <ErrorState message={loadError} onRetry={() => void loadStatus()} />
       </div>
     );
   }

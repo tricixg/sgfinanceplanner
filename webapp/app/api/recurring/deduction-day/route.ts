@@ -4,8 +4,9 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { updateRecurringDeductionDay } from "@/lib/recurring/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -59,4 +60,4 @@ export async function PATCH(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
-}
+});

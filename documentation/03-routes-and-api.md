@@ -55,7 +55,7 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 
 | Method | Path | Handler | Primary lib |
 |--------|------|---------|-------------|
-| GET | `/api/state` | `app/api/state/route.ts` | `migrate-all-domains`, prefs |
+| GET | `/api/state` | `app/api/state/route.ts` | prefs only |
 | PUT | `/api/state` | same | Prefs only after migration |
 | GET | `/api/summary` | `app/api/summary/route.ts` | Profile, cards, holdings, savings totals |
 | GET | `/api/profile` | `app/api/profile/route.ts` | `lib/profile/load` |
@@ -182,7 +182,16 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 
 ## Client fetch helper
 
-[webapp/lib/fetch-json.ts](../webapp/lib/fetch-json.ts) — wraps `fetch`, parses JSON, used across hooks and forms.
+[webapp/lib/fetch-json.ts](../webapp/lib/fetch-json.ts) — wraps `fetch`, parses JSON, used across hooks and forms. Every call has a 15 s timeout (override with `timeoutMs`; `0` disables) and fails with a `FetchError` whose message is written for the user: "The server took too long — try again.", "You're offline…", or "Couldn't reach the server…".
+
+## Request IDs
+
+Every request gets an ID so an error on screen can be matched to the Vercel logs.
+
+1. The proxy ([webapp/lib/supabase/middleware.ts](../webapp/lib/supabase/middleware.ts)) assigns it: Vercel's `x-vercel-id` when present, otherwise a generated `req_…`. A client-supplied `x-request-id` is ignored.
+2. Every handler under `app/api` is exported as `withRequestId(...)` ([webapp/lib/api/with-request-id.ts](../webapp/lib/api/with-request-id.ts); a test enforces it). The wrapper puts the ID in an `AsyncLocalStorage`, adds `x-request-id` to every response, and adds `requestId` to every JSON error body (`{ error, requestId }`).
+3. `[scope]`-prefixed log lines written during a request are stamped `[scope] [req <id>] …` (hook installed in `instrumentation.ts`), and the structured `"event":"server_error"` lines carry a `requestId` field. To find a user's error: search the logs for the ref shown under the message.
+4. In the UI the ref appears small and copyable under error toasts, `ErrorState`, and load-failure banners. A failure that never reached the server (timeout, offline) has none.
 
 ## Related
 

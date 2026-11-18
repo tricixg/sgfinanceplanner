@@ -5,8 +5,9 @@ import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { mapInvite } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -68,4 +69,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ invite: mapInvite(row) });
-}
+});

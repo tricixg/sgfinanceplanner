@@ -5,10 +5,11 @@ import { mapPokerSession } from "@/lib/poker/db-mappers";
 import { buildPokerStats } from "@/lib/poker/stats";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const MAX_SESSIONS = 5000;
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, stats: null });
   }
@@ -40,4 +41,4 @@ export async function GET() {
   });
 
   return NextResponse.json({ configured: true, stats });
-}
+});

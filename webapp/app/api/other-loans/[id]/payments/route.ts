@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadOtherLoanPayments } from "@/lib/other-loans/payment-history";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: Request, { params }: Params) {
+export const GET = withRequestId(async function GET(_req: Request, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -45,4 +46,4 @@ export async function GET(_req: Request, { params }: Params) {
     console.error("[api/other-loans] GET payments failed", { id, msg });
     return apiError("api/other-loans/[id]/payments", msg, { fallback: "Failed to load payments" });
   }
-}
+});

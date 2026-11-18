@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadTrip, updateTrip, deleteTrip } from "@/lib/travel/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, item: null });
   }
@@ -18,9 +19,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const item = await loadTrip(supabase, auth.user.id, id);
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ item });
-}
+});
 
-export async function PUT(req: NextRequest, { params }: Params) {
+export const PUT = withRequestId(async function PUT(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -67,9 +68,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ item });
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -79,4 +80,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const supabase = await createAuthedSupabaseClient();
   await deleteTrip(supabase, auth.user.id, id);
   return NextResponse.json({ ok: true });
-}
+});

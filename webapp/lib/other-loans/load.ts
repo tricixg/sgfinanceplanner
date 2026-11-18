@@ -619,17 +619,3 @@ export async function saveOtherLoans(
   console.info("[other-loans] saved", { userId, count: incoming.length });
   return loadOtherLoans(supabase, userId);
 }
-
-export async function migrateOtherLoansFromDashboard(
-  supabase: SupabaseClient,
-  userId: string,
-  otherLoans: OtherLoan[]
-): Promise<void> {
-  const { count } = await supabase
-    .from("other_loans")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if ((count ?? 0) > 0 || !otherLoans.length) return;
-  await saveOtherLoans(supabase, userId, otherLoans);
-  console.info("[migrate] other_loans", { userId, count: otherLoans.length });
-}

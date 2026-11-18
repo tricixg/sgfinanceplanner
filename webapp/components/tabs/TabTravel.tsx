@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2 } from "@/lib/finance/helpers";
 import type { TravelTripSummary } from "@/lib/travel/types";
+import { errorMessage } from "@/lib/ui/notify";
+import { ErrorState } from "@/components/ui/States";
 
 type Props = { enabled: boolean };
 
@@ -27,27 +29,38 @@ export function TabTravel({ enabled }: Props) {
   const [endDate, setEndDate] = useState("");
   const [msg, setMsg] = useState("");
   const [openingTrip, setOpeningTrip] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!enabled) return;
     setLoading(true);
+    setLoadError("");
     void (async () => {
-      const { res, data } = await fetchJson<{
-        items?: TravelTripSummary[];
-        totals?: { budgeted: number; spent: number };
-        error?: string;
-      }>(`/api/travel/trips?year=${year}`, { credentials: "include" });
-      if (!res.ok) {
-        setMsg(data.error ?? "Failed to load trips");
+      try {
+        const { res, data } = await fetchJson<{
+          items?: TravelTripSummary[];
+          totals?: { budgeted: number; spent: number };
+          error?: string;
+        }>(`/api/travel/trips?year=${year}`, { credentials: "include" });
+        if (!res.ok) {
+          setLoadError(data.error ?? "Failed to load trips");
+          setItems([]);
+          setTotals({ budgeted: 0, spent: 0 });
+        } else {
+          setItems(data.items ?? []);
+          setTotals(data.totals ?? { budgeted: 0, spent: 0 });
+        }
+      } catch (e) {
+        console.error("[TabTravel] trips load failed", e);
+        setLoadError(errorMessage(e, "Failed to load trips"));
         setItems([]);
         setTotals({ budgeted: 0, spent: 0 });
-      } else {
-        setItems(data.items ?? []);
-        setTotals(data.totals ?? { budgeted: 0, spent: 0 });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
-  }, [enabled, year]);
+  }, [enabled, year, reloadKey]);
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,27 +71,33 @@ export function TabTravel({ enabled }: Props) {
     setSaving(true);
     setOpeningTrip(false);
     setMsg("");
-    const { res, data } = await fetchJson<{ item?: { id: string }; error?: string }>(
-      "/api/travel/trips",
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          country,
-          startDate,
-          endDate,
-        }),
+    try {
+      const { res, data } = await fetchJson<{ item?: { id: string }; error?: string }>(
+        "/api/travel/trips",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            country,
+            startDate,
+            endDate,
+          }),
+        }
+      );
+      if (!res.ok || !data.item?.id) {
+        setMsg(data.error ?? "Failed to create trip");
+        return;
       }
-    );
-    setSaving(false);
-    if (!res.ok || !data.item?.id) {
-      setMsg(data.error ?? "Failed to create trip");
-      return;
+      setOpeningTrip(true);
+      router.push(`/travel/${data.item.id}`);
+    } catch (e) {
+      console.error("[TabTravel] create trip failed", e);
+      setMsg(errorMessage(e, "Failed to create trip"));
+    } finally {
+      setSaving(false);
     }
-    setOpeningTrip(true);
-    router.push(`/travel/${data.item.id}`);
   };
 
   const net = useMemo(() => totals.budgeted - totals.spent, [totals]);
@@ -159,6 +178,8 @@ export function TabTravel({ enabled }: Props) {
 
       {loading ? (
         <p className="note">Loading trips…</p>
+      ) : loadError ? (
+        <ErrorState message={loadError} onRetry={() => setReloadKey((k) => k + 1)} />
       ) : (
         <div className="card table-scroll">
           <table>

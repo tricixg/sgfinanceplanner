@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BudgetItem } from "@/lib/types";
-import { recurringFloorsByBudgetLine, stripSaveBudgetLines } from "@/lib/finance/budget";
+import { recurringFloorsByBudgetLine } from "@/lib/finance/budget";
 import { mapDbBudgetLine, type BudgetLineRow } from "@/lib/expenses/budget-match";
 import { budgetLineRowsForMonth, resolveBudgetMonth, type BudgetMonthMap } from "@/lib/budget/monthly";
 import { classifyRemovedLines, planBudgetMonthSave } from "@/lib/budget/save-plan";
@@ -260,20 +260,4 @@ export async function saveBudgetLines(
   const ym = currentYm();
   const { months } = await saveBudgetMonth(supabase, userId, ym, incoming);
   return resolveBudgetMonth(months, ym).lines;
-}
-
-export async function migrateBudgetFromDashboard(
-  supabase: SupabaseClient,
-  userId: string,
-  budget: BudgetItem[]
-): Promise<void> {
-  const { count } = await supabase
-    .from("budget_lines")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if ((count ?? 0) > 0) return;
-  const lines = stripSaveBudgetLines(budget ?? []);
-  if (!lines.length) return;
-  await saveBudgetLines(supabase, userId, lines);
-  console.info("[migrate] budget lines", { userId, count: lines.length });
 }

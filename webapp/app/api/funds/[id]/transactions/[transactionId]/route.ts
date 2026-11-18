@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteFundTransaction } from "@/lib/funds/ledger";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string; transactionId: string }> };
 
-export async function DELETE(_req: Request, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: Request, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -37,4 +38,4 @@ export async function DELETE(_req: Request, { params }: Params) {
     const status = msg === "Transaction not found" ? 404 : 500;
     return apiError("api/funds/[id]/transactions/[transactionId]", msg, { status, fallback: "Failed to delete transaction" });
   }
-}
+});

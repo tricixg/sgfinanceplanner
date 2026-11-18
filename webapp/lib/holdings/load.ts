@@ -178,28 +178,3 @@ export async function appendPortfolioSnapshot(
     cutoff: cutoffYmd,
   });
 }
-
-export async function migrateHoldingsFromDashboard(
-  supabase: SupabaseClient,
-  userId: string,
-  holdings: Holding[],
-  history: PortfolioSnapshot[]
-): Promise<void> {
-  const { count } = await supabase
-    .from("holdings")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if ((count ?? 0) === 0 && holdings.length) {
-    await saveHoldings(supabase, userId, holdings);
-  }
-  const { count: snapCount } = await supabase
-    .from("portfolio_snapshots")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-  if ((snapCount ?? 0) === 0 && history.length) {
-    for (const s of history.slice(-50)) {
-      await appendPortfolioSnapshot(supabase, userId, s);
-    }
-  }
-  console.info("[migrate] holdings", { userId, holdings: holdings.length });
-}

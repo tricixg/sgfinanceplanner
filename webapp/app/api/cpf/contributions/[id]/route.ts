@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { deleteCpfContribution, updateCpfContribution } from "@/lib/cpf/contributions";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function DELETE(_req: Request, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: Request, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -24,9 +25,9 @@ export async function DELETE(_req: Request, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to delete CPF contribution";
     return apiError("api/cpf/contributions/[id]", msg, { status: 400, fallback: "Failed to delete CPF contribution" });
   }
-}
+});
 
-export async function PATCH(req: Request, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: Request, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -58,4 +59,4 @@ export async function PATCH(req: Request, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to update CPF contribution";
     return apiError("api/cpf/contributions/[id]", msg, { status: 400, fallback: "Failed to update CPF contribution" });
   }
-}
+});

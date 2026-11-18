@@ -23,13 +23,36 @@ export function useBtoPlannerData(
   const appData = useContext(AppDataContext);
   const household = useHousehold();
   const { partnerCpf, loading: partnerCpfLoading } = usePartnerCpf();
-  const { sharedBto, loading: sharedBtoLoading, saveSharedBto } = useHouseholdBtoPlanner();
-  const { partnerPayments, loading: partnerPaymentsLoading } = usePartnerBtoPayments();
+  const {
+    sharedBto,
+    loading: sharedBtoLoading,
+    loadError: sharedBtoError,
+    reload: reloadSharedBto,
+    saveSharedBto,
+  } = useHouseholdBtoPlanner();
+  const {
+    partnerPayments,
+    loading: partnerPaymentsLoading,
+    loadError: partnerPaymentsError,
+    reload: reloadPartnerPayments,
+  } = usePartnerBtoPayments();
+  const loadError = sharedBtoError ?? partnerPaymentsError;
+  const reloadFailed = useCallback(() => {
+    if (sharedBtoError) void reloadSharedBto();
+    if (partnerPaymentsError) void reloadPartnerPayments();
+  }, [sharedBtoError, partnerPaymentsError, reloadSharedBto, reloadPartnerPayments]);
 
   const savedPrefs = useMemo(() => resolveBtoPlannerPrefs(S, sharedBto), [S, sharedBto]);
 
   const savePrefs = useCallback(
     async (prefs: BtoPlannerPrefs) => {
+      // A shared plan that failed to load looks like "no shared plan"; saving now would overwrite
+      // the household's real one (and your partner's view of it) with these local values.
+      if (sharedBtoError) {
+        throw new Error(
+          "Couldn't load your shared BTO plan, so saving is turned off. Retry the load and try again."
+        );
+      }
       const saves: Promise<unknown>[] = [saveSharedBto(splitSharedBtoFields(prefs))];
       if (appData?.configured) {
         saves.push(appData.saveProfile({ btoPlanner: prefs }));
@@ -39,7 +62,7 @@ export function useBtoPlannerData(
       await Promise.all(saves);
       console.info("[useBtoPlannerData] planner prefs saved");
     },
-    [appData, saveSharedBto, setState]
+    [appData, saveSharedBto, setState, sharedBtoError]
   );
 
   // Partner OA: live balance from a linked household account wins when available;
@@ -73,5 +96,7 @@ export function useBtoPlannerData(
     partnerMonthlyFromContrib: partnerCpf?.paired ? partnerCpf.latestMonthlyOA : null,
     btoPayments,
     partnerPaymentsLoading,
+    loadError,
+    reloadFailed,
   };
 }

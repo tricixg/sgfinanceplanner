@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   const authResult = await requireSessionUser();
   if ("response" in authResult) return authResult.response;
 
@@ -29,4 +30,4 @@ export async function POST(req: NextRequest) {
 
   console.info("[api/auth/password] password updated", { userId: authResult.user.id });
   return NextResponse.json({ ok: true });
-}
+});

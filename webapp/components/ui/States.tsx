@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { RequestIdTag } from "@/components/ui/RequestIdTag";
 
 /** Placeholder block shown while data loads. */
 export function Skeleton({
@@ -64,6 +65,7 @@ export function ErrorState({
       <Icon name="alert" />
       <strong>Couldn’t load this</strong>
       <span>{message}</span>
+      <RequestIdTag message={message} />
       {onRetry ? (
         <button type="button" className="btn ghost sm" onClick={onRetry}>
           Try again

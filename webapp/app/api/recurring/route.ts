@@ -13,8 +13,9 @@ import { mapExpense } from "@/lib/savings/db-mappers";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { currentYm } from "@/lib/finance/helpers";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, rows: [] });
   }
@@ -122,4 +123,4 @@ export async function GET(req: NextRequest) {
     investments,
     bnplPlans,
   });
-}
+});

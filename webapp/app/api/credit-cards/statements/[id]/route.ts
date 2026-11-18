@@ -5,10 +5,11 @@ import { updateStatementFields } from "@/lib/credit-cards/card-statements/load";
 import { loadCreditCards } from "@/lib/credit-cards/load";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -85,4 +86,4 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     console.error("[api/credit-cards/statements] PATCH failed", msg);
     return apiError("api/credit-cards/statements/[id]", msg, { fallback: "Failed to update statement" });
   }
-}
+});

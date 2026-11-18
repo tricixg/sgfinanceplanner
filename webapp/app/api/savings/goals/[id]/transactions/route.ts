@@ -5,10 +5,11 @@ import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { listGoalTransactions } from "@/lib/savings/ledger";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(req: NextRequest, { params }: Params) {
+export const GET = withRequestId(async function GET(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -50,4 +51,4 @@ export async function GET(req: NextRequest, { params }: Params) {
     const msg = e instanceof Error ? e.message : "Failed to load transactions";
     return apiError("api/savings/goals/[id]/transactions", msg, { fallback: "Failed to load transactions" });
   }
-}
+});

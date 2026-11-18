@@ -13,6 +13,9 @@ import { estimateRedemption } from "@/lib/miles/redemption-chart";
 import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { useMiles } from "@/hooks/useMiles";
+import { notifySaveFailed } from "@/lib/ui/notify";
+import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
+import { useDomainLoadError } from "@/hooks/useDomainLoadError";
 
 type Props = {
   state: DashboardState;
@@ -44,6 +47,7 @@ function emptyBalance(sortOrder: number): MilesBalance {
 export function TabMiles({ state: S, setState }: Props) {
   const appData = useContext(AppDataContext);
   const milesApi = useMiles();
+  const milesLoadError = useDomainLoadError("miles").error;
   const prefs = resolveMilesPrefs(S);
 
   const [editingGoal, setEditingGoal] = useState(false);
@@ -78,6 +82,7 @@ export function TabMiles({ state: S, setState }: Props) {
       console.info("[TabMiles] goal saved", goalDraft);
     } catch (e) {
       console.error("[TabMiles] goal save failed", e);
+      notifySaveFailed("your miles goal", e);
     } finally {
       setSavingGoal(false);
     }
@@ -89,6 +94,7 @@ export function TabMiles({ state: S, setState }: Props) {
       console.info("[TabMiles] display program saved", program);
     } catch (e) {
       console.error("[TabMiles] display program save failed", e);
+      notifySaveFailed("your display programme", e);
     }
   };
 
@@ -284,7 +290,12 @@ export function TabMiles({ state: S, setState }: Props) {
             {savingBalances ? "Saving…" : "Save"}
           </button>
         ) : (
-          <button type="button" className="btn ghost sm" onClick={startBalancesEdit}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            disabled={Boolean(milesLoadError)}
+            onClick={startBalancesEdit}
+          >
             Edit
           </button>
         )}
@@ -295,9 +306,10 @@ export function TabMiles({ state: S, setState }: Props) {
         know the rate yet. Add more banks any time you get a new card.
       </div>
       {balancesMsg ? <p className="pin-error">{balancesMsg}</p> : null}
+      <DomainLoadErrorBanner domain="miles" />
 
       <div className="card">
-        {!milesApi.configured ? (
+        {milesLoadError ? null : !milesApi.configured ? (
           <p className="note">Sign in to add points balances.</p>
         ) : editingBalances ? (
           <>

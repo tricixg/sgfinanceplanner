@@ -6,8 +6,9 @@ import {
 } from "@/lib/auth/dev-bypass";
 import { getSessionUser } from "@/lib/auth/require-user";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (isDevAuthBypass()) {
     const id = getDevBypassUserId();
     console.info("[api/auth/session] GET — dev bypass", { userId: id ?? null });
@@ -43,4 +44,4 @@ export async function GET() {
         }
       : null,
   });
-}
+});

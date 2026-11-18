@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import type { CardStatementsBundle } from "@/lib/cards/types";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
+import { errorMessage } from "@/lib/ui/notify";
 
 const emptyBundle: CardStatementsBundle = {
   configured: false,
@@ -20,6 +21,7 @@ export function useCardStatements(enabled: boolean, cycleOffset = 0) {
   const [bundle, setBundle] = useState<CardStatementsBundle>(emptyBundle);
   const [loading, setLoading] = useState(enabled);
   const [navigating, setNavigating] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const hasLoadedOnce = useRef(false);
 
   const reload = useCallback(
@@ -35,6 +37,7 @@ export function useCardStatements(enabled: boolean, cycleOffset = 0) {
       const silent = opts?.silent ?? hasLoadedOnce.current;
       if (silent) setNavigating(true);
       else setLoading(true);
+      setLoadError(null);
 
       try {
         const qs = new URLSearchParams({
@@ -46,6 +49,7 @@ export function useCardStatements(enabled: boolean, cycleOffset = 0) {
         );
         if (!res.ok) {
           console.error("[useCardStatements] load failed", data.error);
+          setLoadError(data.error ?? "Couldn't load your card statements.");
           if (!silent) setBundle(emptyBundle);
           return;
         }
@@ -66,6 +70,7 @@ export function useCardStatements(enabled: boolean, cycleOffset = 0) {
         });
       } catch (e) {
         console.error("[useCardStatements] load error", e);
+        setLoadError(errorMessage(e, "Couldn't load your card statements."));
         if (!silent) setBundle(emptyBundle);
       } finally {
         setLoading(false);
@@ -102,5 +107,5 @@ export function useCardStatements(enabled: boolean, cycleOffset = 0) {
     };
   }, [enabled, reload]);
 
-  return { bundle, loading, navigating, reload };
+  return { bundle, loading, navigating, loadError, reload };
 }

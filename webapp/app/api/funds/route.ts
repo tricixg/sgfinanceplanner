@@ -6,10 +6,11 @@ import { loadFundsBundle } from "@/lib/funds/load";
 import type { Fund } from "@/lib/funds/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, funds: [], totals: null });
   }
@@ -27,11 +28,11 @@ export async function GET() {
     console.error("[api/funds] GET failed", msg);
     return apiError("api/funds", msg, { fallback: "Failed to load funds" });
   }
-}
+});
 
 type PutBody = { funds?: Partial<Fund>[] };
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -122,4 +123,4 @@ export async function PUT(req: NextRequest) {
   console.info("[api/funds] PUT ok", { userId: user.id, count: incoming.length });
   const bundle = await loadFundsBundle(supabase, user.id);
   return NextResponse.json({ configured: true, ...bundle });
-}
+});

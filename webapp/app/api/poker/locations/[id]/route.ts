@@ -4,10 +4,11 @@ import { requireSessionUser } from "@/lib/auth/require-user";
 import { deletePokerLocation, updatePokerLocation } from "@/lib/poker/locations";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export const PATCH = withRequestId(async function PATCH(req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -46,9 +47,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     console.error("[api/poker/locations] PATCH failed", msg);
     return apiError("api/poker/locations/[id]", msg, { status, fallback: "Failed to update location" });
   }
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export const DELETE = withRequestId(async function DELETE(_req: NextRequest, { params }: Params) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -68,4 +69,4 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     console.error("[api/poker/locations] DELETE failed", msg);
     return apiError("api/poker/locations/[id]", msg, { status, fallback: "Failed to delete location" });
   }
-}
+});

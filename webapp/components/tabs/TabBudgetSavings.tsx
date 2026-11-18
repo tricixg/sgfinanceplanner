@@ -43,6 +43,8 @@ import {
 } from "@/lib/finance/budget";
 import { computedLinesForMonth } from "@/lib/finance/computed-months";
 import { buildCategoryColors, FLOW_COLORS } from "@/lib/finance/category-colors";
+import { useDomainLoadError } from "@/hooks/useDomainLoadError";
+import { LoadErrorCallout } from "@/components/app/LoadErrorCallout";
 
 type Props = {
   state: DashboardState;
@@ -106,11 +108,26 @@ export function TabBudgetSavings({
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [viewYm, setViewYm] = useState(currentYm);
   const [saveError, setSaveError] = useState("");
+  // Data the budget page leans on besides the budget itself. Subscriptions and investments set
+  // the per-line floors you cannot budget below, so editing waits until they have loaded.
+  const [supportFailed, setSupportFailed] = useState<{
+    summary?: boolean;
+    subscriptions?: boolean;
+    investments?: boolean;
+  }>({});
+  const markSupport = useCallback(
+    (key: "summary" | "subscriptions" | "investments", failed: boolean) =>
+      setSupportFailed((prev) => (Boolean(prev[key]) === failed ? prev : { ...prev, [key]: failed })),
+    []
+  );
   const todayYm = currentYm();
   const maxYm = addMonthsYm(todayYm, 1);
   const resolved = resolveBudgetMonth(S.budgetMonths ?? {}, viewYm);
   const viewBudget = resolved.sourceYm ? resolved.lines : S.budget;
-  const canEdit = isBudgetMonthEditable(viewYm, todayYm);
+  // A budget that failed to load is an empty list, not the user's budget: no editing until it loads.
+  const budgetLoadError = useDomainLoadError("budget").error;
+  const floorsUnavailable = Boolean(supportFailed.subscriptions || supportFailed.investments);
+  const canEdit = isBudgetMonthEditable(viewYm, todayYm) && !budgetLoadError && !floorsUnavailable;
   const monthStatus = budgetMonthStatus(viewYm, todayYm);
   const [budgetDraft, setBudgetDraft] = useState<BudgetItem[]>(viewBudget);
   const viewYmRef = useRef(viewYm);
@@ -135,12 +152,16 @@ export function TabBudgetSavings({
       );
       if (res.ok && ym === viewYmRef.current) {
         setExpenseSummary(data);
+        markSupport("summary", false);
         console.info("[TabBudgetSavings] expense summary loaded", { ym });
+      } else if (!res.ok) {
+        markSupport("summary", true);
       }
     } catch (e) {
       console.warn("[TabBudgetSavings] expense summary failed", e);
+      markSupport("summary", true);
     }
-  }, [editingAllocation, viewYm]);
+  }, [editingAllocation, viewYm, markSupport]);
 
   useEffect(() => {
     setExpenseSummary(null);
@@ -154,12 +175,16 @@ export function TabBudgetSavings({
       );
       if (res.ok) {
         setSubscriptions(data.items ?? []);
+        markSupport("subscriptions", false);
         console.info("[TabBudgetSavings] subscriptions loaded", { count: data.items?.length ?? 0 });
+      } else {
+        markSupport("subscriptions", true);
       }
     } catch (e) {
       console.warn("[TabBudgetSavings] subscriptions load failed", e);
+      markSupport("subscriptions", true);
     }
-  }, []);
+  }, [markSupport]);
 
   const loadInvestments = useCallback(async () => {
     try {
@@ -169,12 +194,16 @@ export function TabBudgetSavings({
       );
       if (res.ok) {
         setInvestments(data.items ?? []);
+        markSupport("investments", false);
         console.info("[TabBudgetSavings] investments loaded", { count: data.items?.length ?? 0 });
+      } else {
+        markSupport("investments", true);
       }
     } catch (e) {
       console.warn("[TabBudgetSavings] investments load failed", e);
+      markSupport("investments", true);
     }
-  }, []);
+  }, [markSupport]);
 
   useEffect(() => {
     void loadExpenseSummary();
@@ -588,6 +617,20 @@ export function TabBudgetSavings({
         {statusNote ? <span className="note">{statusNote}</span> : null}
       </div>
 
+      {supportFailed.summary || floorsUnavailable ? (
+        <LoadErrorCallout
+          title="Couldn’t load some of the data behind this budget."
+          onRetry={() => {
+            void loadExpenseSummary();
+            void loadSubscriptions();
+            void loadInvestments();
+          }}
+        >
+          {floorsUnavailable
+            ? "Editing is turned off until your recurring payments load, so you can't budget below them by mistake."
+            : "Spending totals below may be missing."}
+        </LoadErrorCallout>
+      ) : null}
       <div className="callout tip">
         <span className="ico">Tip</span>
         {canEdit ? (

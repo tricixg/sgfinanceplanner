@@ -8,11 +8,12 @@ import { listPokerLocations } from "@/lib/poker/locations";
 import { insertPokerSession, type PokerSessionBody } from "@/lib/poker/save-session";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
-export async function GET(req: NextRequest) {
+export const GET = withRequestId(async function GET(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [], nextOffset: null, total: 0 });
   }
@@ -76,9 +77,9 @@ export async function GET(req: NextRequest) {
     locations,
     games,
   });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -114,4 +115,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ item: result.session });
-}
+});

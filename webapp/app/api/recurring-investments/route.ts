@@ -8,8 +8,9 @@ import {
 import type { RecurringInvestment } from "@/lib/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, items: [] });
   }
@@ -21,9 +22,9 @@ export async function GET() {
   const supabase = await createAuthedSupabaseClient();
   const items = await loadRecurringInvestments(supabase, user.id);
   return NextResponse.json({ configured: true, items });
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -70,4 +71,4 @@ export async function PUT(req: NextRequest) {
   const items = await saveRecurringInvestments(supabase, user.id, body.items);
   console.info("[api/recurring-investments] PUT", { userId: user.id, count: items.length });
   return NextResponse.json({ items });
-}
+});

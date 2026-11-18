@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { RequestIdTag } from "@/components/ui/RequestIdTag";
 
 type Props = {
   message: string;
@@ -33,6 +34,7 @@ export function Snackbar({
       aria-live="polite"
     >
       {message}
+      {variant === "error" ? <RequestIdTag message={message} /> : null}
     </div>
   );
 }

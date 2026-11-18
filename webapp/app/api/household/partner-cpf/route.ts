@@ -5,6 +5,7 @@ import { ensureUserHousehold } from "@/lib/household/bootstrap";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 export type PartnerCpfResponse = {
   configured: boolean;
@@ -30,7 +31,7 @@ const EMPTY: Omit<PartnerCpfResponse, "configured"> = {
  * RLS is owner-only, mirroring the existing service-role email lookup in
  * lib/household/invite-emails.ts.
  */
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, ...EMPTY });
   }
@@ -92,4 +93,4 @@ export async function GET() {
     latestMonthlyOA: latest ? Number(latest.oa ?? 0) : null,
     latestContributionMonth: latest ? String(latest.month).slice(0, 7) : null,
   } satisfies PartnerCpfResponse);
-}
+});

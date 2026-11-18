@@ -9,6 +9,7 @@ import type { ComputedMonthMap } from "@/lib/finance/computed-months";
 import type { BudgetItem } from "@/lib/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { withRequestId } from "@/lib/api/with-request-id";
 
 function payload(
   data: { months: BudgetMonthMap; income: Record<string, number>; categoryOrder?: string[] },
@@ -30,7 +31,7 @@ function payload(
   };
 }
 
-export async function GET() {
+export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ configured: false, currentYm: currentYm(), months: {}, income: {}, budget: [], categoryOrder: [] });
   }
@@ -47,9 +48,9 @@ export async function GET() {
     const msg = e instanceof Error ? e.message : "Failed to load budget";
     return apiError("api/budget-lines", msg, { fallback: "Failed to load budget" });
   }
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -88,4 +89,4 @@ export async function PUT(req: NextRequest) {
     console.error("[api/budget-lines] PUT failed", msg);
     return apiError("api/budget-lines", msg, { fallback: "Failed to save budget" });
   }
-}
+});
