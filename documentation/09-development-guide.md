@@ -82,7 +82,7 @@ Run from `webapp/` on your own machine. Nothing here touches app tables except s
    ```
 8. Deploy the code (merge the PR).
 
-If you'd rather not use the CLI this time: run `069_…` to `074_…` in the SQL editor in order (each is idempotent), deploy, and later do step 5 with versions 001–074.
+If you'd rather not use the CLI this time: run the files in the SQL editor in order (each from 069 on is idempotent), deploy, and then record them with `bash scripts/mark-migrations-applied.sh` (from `webapp/`). The script lists the history, asks you to type `yes`, marks every local file (or only the versions you pass, e.g. `075 076`) as applied without running them, and ends with a `db push --dry-run` that should say the remote database is up to date.
 
 ### Routine for each new migration
 
