@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ensureTravelBudgetLine } from "@/lib/travel/budget-line";
 import {
-  listTravelExpensesInRange,
+  listTravelExpensesForTrips,
   listTripBudgets,
   listTripsForYear,
   loadSplitsForExpenses,
@@ -25,9 +25,7 @@ export async function loadTravelTripsForYear(
 
   if (budgetErr) throw new Error(budgetErr.message);
 
-  const from = `${year}-01-01`;
-  const to = `${year}-12-31`;
-  const expenses = await listTravelExpensesInRange(supabase, userId, from, to);
+  const expenses = await listTravelExpensesForTrips(supabase, userId, trips);
   const splitMap = await loadSplitsForExpenses(
     supabase,
     userId,

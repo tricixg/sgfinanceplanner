@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapExpense } from "@/lib/savings/db-mappers";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { Expense } from "@/lib/savings/types";
 import { loadReimbursementTotals } from "@/lib/transactions/reimburse-totals";
 import { DEFAULT_TRAVEL_SUBCATEGORIES } from "@/lib/travel/defaults";
@@ -473,19 +474,33 @@ export async function listTripExpenses(
   });
 }
 
-export async function listTravelExpensesInRange(
+/**
+ * All Travel-category expenses tagged (by note prefix) to any of `trips`,
+ * regardless of the expense date. A trip's spend often lands outside the
+ * trip's own year — e.g. flights for a 2027 trip booked in 2026 — so the
+ * overview must not window expenses by the selected year.
+ */
+export async function listTravelExpensesForTrips(
   supabase: SupabaseClient,
   userId: string,
-  from: string,
-  to: string
+  trips: TravelTrip[]
 ): Promise<Expense[]> {
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("category", TRAVEL_CATEGORY)
-    .gte("spent_at", from)
-    .lte("spent_at", to);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => mapExpense(r));
+  if (trips.length === 0) return [];
+  const rows = await fetchAllRows<Record<string, unknown>>((from, to) =>
+    supabase
+      .from("expenses")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("category", TRAVEL_CATEGORY)
+      .order("spent_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
+  return filterExpensesTaggedToTrips(trips, rows.map((r) => mapExpense(r)));
+}
+
+export function filterExpensesTaggedToTrips(trips: TravelTrip[], expenses: Expense[]): Expense[] {
+  return expenses.filter((e) =>
+    trips.some((t) => parseTravelExpenseParts(t.name, e.note) != null)
+  );
 }

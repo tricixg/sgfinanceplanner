@@ -6,7 +6,7 @@ import { formatTravelExpenseNote } from "@/lib/travel/notes";
 import { buildTravelTripSummaries } from "@/lib/travel/summary";
 import {
   createTrip,
-  listTravelExpensesInRange,
+  listTravelExpensesForTrips,
   listTripsForYear,
   loadSplitsForExpenses,
 } from "@/lib/travel/load";
@@ -29,32 +29,30 @@ export const GET = withRequestId(async function GET(req: NextRequest) {
     }
 
     const supabase = await createAuthedSupabaseClient();
-    const from = `${year}-01-01`;
-    const to = `${year}-12-31`;
-    // The budget-line ensure, the trips and the year's travel expenses are independent;
-    // trip budgets need the trip ids and the splits need the expense ids, so those two
-    // run together afterwards: two round-trips instead of five.
-    const [, trips, expenses] = await Promise.all([
+    // The budget-line ensure and the trips are independent. Expenses are matched to
+    // trips by note prefix with no date window (a 2027 trip's flights may be dated
+    // 2026), so they need the trips; budgets need the trip ids and splits the expense ids.
+    const [, trips] = await Promise.all([
       ensureTravelBudgetLine(supabase, userId),
       listTripsForYear(supabase, userId, year),
-      listTravelExpensesInRange(supabase, userId, from, to),
     ]);
     const tripIds = trips.map((t) => t.id);
-    const [{ data: budgetRows, error: budgetErr }, splitMap] = await Promise.all([
+    const [{ data: budgetRows, error: budgetErr }, expenses] = await Promise.all([
       supabase
         .from("travel_trip_budgets")
         .select("*")
         .eq("user_id", userId)
         .in("trip_id", tripIds.length ? tripIds : ["00000000-0000-0000-0000-000000000000"]),
-      loadSplitsForExpenses(
-        supabase,
-        userId,
-        expenses.map((e) => e.id)
-      ),
+      listTravelExpensesForTrips(supabase, userId, trips),
     ]);
     if (budgetErr) {
       return apiError("api/travel/trips", budgetErr);
     }
+    const splitMap = await loadSplitsForExpenses(
+      supabase,
+      userId,
+      expenses.map((e) => e.id)
+    );
     const budgets = (budgetRows ?? []).map((r) => ({
       id: String(r.id),
       userId: String(r.user_id),
