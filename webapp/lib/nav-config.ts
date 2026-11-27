@@ -187,7 +187,7 @@ export const NAV_GROUPS: { category: string; tabs: NavTab[] }[] = [
         href: "/miles",
         icon: "star",
         summary:
-          "Bank points converted to airline miles, expiry tracking, and a redemption estimator.",
+          "KrisFlyer miles and card points by expiry: when to convert each card and when to redeem.",
       },
       {
         id: "poker",

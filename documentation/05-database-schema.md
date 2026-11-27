@@ -86,6 +86,7 @@ All application tables use **Row Level Security (RLS)** unless noted.
 | 074 | `074_cpf_ledger_functions.sql` | DATA-003: atomic CPF contribution/transaction logging; `client_request_id` on both CPF tables |
 | 075 | `075_cpf_reject_negative.sql` | CPF changes that would take OA/SA/MA below $0 are rejected with a clear message instead of floored at 0 (replaces `private.cpf_profile_apply`) |
 | 076 | `076_expense_delete_strict.sql` | Expense delete is refused ("Can't delete this payment: …") instead of skipping a restore it can't make; both delete paths restore BNPL and reverse funds (replaces `expense_delete_with_ledger`) |
+| 078 | `078_miles_lots.sql` | Miles tracker by lot: `miles_lots`, `miles_activity`, `miles_activity_lots` and the `miles_*` ledger functions (see [Ledger functions](#ledger-functions-and-audit-log-069074)). `miles_balances` (041) is left in place, unused |
 
 ---
 
@@ -206,6 +207,14 @@ Per-user UI preferences (plus the historical `_migrated_v2` flag). Not the full 
 | `insurance_policies` | `monthly_premium`, `deduction_day` | Insurance |
 | `ilp_policies` | premiums, funds json | ILP |
 
+### Miles
+
+| Table | Key columns | Purpose |
+|-------|-------------|---------|
+| `miles_lots` | `program` (krisflyer / dbs_womans_world / dbs_altitude / uob), `earned_month`, `expiry_month` (first of month; null = no expiry), `amount`, `used`, `source` (earned / balance_update / conversion), `converted_from` | One lot of miles or points; usable to the end of its expiry month |
+| `miles_activity` | `kind` (convert / redeem), `program`, `activity_month`, `amount`, `miles`, `fee`, `created_lot_id` | Conversions and redemptions |
+| `miles_activity_lots` | `activity_id`, `lot_id`, `amount` | Which lots each activity drew on, so Undo restores them exactly |
+
 ### CPF ledger
 
 | Table | Key columns | Purpose |
@@ -270,6 +279,7 @@ Every operation that changes a stored balance runs as **one Postgres function** 
 | `other_loan_record_payment` / `other_loan_add_draw_down` / `other_loan_restore_*` (072) | `recordOtherLoanPayment` / `addToOtherLoan` / `restoreOtherLoan*` | Expense + withdrawal/deposit + loan totals in one transaction; loan row locked and re-checked |
 | `expense_create_with_ledger` (073) | `POST /api/expenses` multi-step | Expense + loan/BNPL/fund + cash withdrawal or card ledger row |
 | `expense_delete_with_ledger` (073, replaced by 076) | `DELETE /api/expenses/[id]`, unified-list delete | Both paths: reverse ledger, delete, restore loan / other loan / BNPL / fund. If a restore can't be made (e.g. the fund no longer holds enough) the delete is refused with "Can't delete this payment: …" (HTTP 409) and nothing changes |
+| `miles_add_lot`, `miles_set_expiry_bucket`, `miles_set_uob_balance`, `miles_convert`, `miles_redeem`, `miles_undo_activity`, `miles_delete_lot` (078) | `PUT /api/miles` (single balances) | Lots drawn soonest-expiring first under a per-user, per-programme advisory lock; conversions only in whole blocks and only for points usable that month; undo refused while a conversion's miles are redeemed |
 | `cpf_add/update/delete_contribution`, `cpf_add/update/delete_transaction` (074) | `lib/cpf/*` | Log row + OA/SA/MA, applied exactly. Since 075 a delete, edit or OA debit that would take a balance below $0 is **rejected** ("This would take your CPF OA below $0 …") and nothing is written, so add-then-delete always returns to the start. Credits and contributions are never blocked |
 
 **Security.** All are `SECURITY INVOKER`: they run as the caller, so RLS still decides what can be touched. Each also checks `p_user_id = auth.uid()` when there is a session (`private.ledger_assert_caller`); the Telegram bot (service role, no `auth.uid()`) passes the linked user's id. `execute` is granted to `authenticated` and `service_role`, revoked from `anon`. Helpers live in the `private` schema, which PostgREST does not expose. The single exception is `private.ledger_audit_append`, which is `SECURITY DEFINER` because API users have no insert right on the audit log; it always records `auth.uid()` when present.

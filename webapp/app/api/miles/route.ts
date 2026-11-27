@@ -1,17 +1,16 @@
 import { apiError } from "@/lib/api/api-error";
+import { isPublicMessage } from "@/lib/api/public-messages";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { applyMilesAction } from "@/lib/miles/ledger";
 import { loadMilesBundle } from "@/lib/miles/load";
-import type { MilesBalance } from "@/lib/miles/types";
 import { createAuthedSupabaseClient } from "@/lib/supabase/authed";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { withRequestId } from "@/lib/api/with-request-id";
 
-const UUID_RE = /^[0-9a-f-]{36}$/i;
-
 export const GET = withRequestId(async function GET() {
   if (!isSupabaseAuthConfigured()) {
-    return NextResponse.json({ configured: false, balances: [], totals: null });
+    return NextResponse.json({ configured: false, lots: [], activity: [] });
   }
 
   const auth = await requireSessionUser();
@@ -23,15 +22,13 @@ export const GET = withRequestId(async function GET() {
     const bundle = await loadMilesBundle(supabase, user.id);
     return NextResponse.json({ configured: true, ...bundle });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to load miles";
-    console.error("[api/miles] GET failed", msg);
-    return apiError("api/miles", msg, { fallback: "Failed to load miles" });
+    console.error("[api/miles] GET failed", e instanceof Error ? e.message : e);
+    return apiError("api/miles", e, { fallback: "Failed to load miles" });
   }
 });
 
-type PutBody = { balances?: Partial<MilesBalance>[] };
-
-export const PUT = withRequestId(async function PUT(req: NextRequest) {
+/** One change (log points, convert, redeem, undo, delete); returns the refreshed bundle. */
+export const POST = withRequestId(async function POST(req: NextRequest) {
   if (!isSupabaseAuthConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
   }
@@ -40,71 +37,26 @@ export const PUT = withRequestId(async function PUT(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { user } = auth;
 
-  let body: PutBody;
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  }
 
   const supabase = await createAuthedSupabaseClient();
-  const incoming = body.balances ?? [];
-
-  const { data: existing } = await supabase
-    .from("miles_balances")
-    .select("id")
-    .eq("user_id", user.id);
-
-  const keepIds = new Set(
-    incoming.map((b) => b.id).filter((id): id is string => Boolean(id && UUID_RE.test(id)))
-  );
-
-  for (const row of existing ?? []) {
-    if (!keepIds.has(row.id)) {
-      await supabase.from("miles_balances").delete().eq("id", row.id);
-    }
+  try {
+    const result = await applyMilesAction(supabase, user.id, body);
+    console.info("[api/miles] POST ok", { userId: user.id, action: body.action });
+    const bundle = await loadMilesBundle(supabase, user.id);
+    return NextResponse.json({ configured: true, result, ...bundle });
+  } catch (e) {
+    console.error("[api/miles] POST failed", { action: body.action, message: e instanceof Error ? e.message : e });
+    // Refusals from the ledger ("Convert in blocks of…") are the user's to fix; anything else is ours.
+    const status = e instanceof Error && isPublicMessage(e.message) ? 400 : 500;
+    return apiError("api/miles", e, { status, fallback: "Couldn't save that change to your miles" });
   }
-
-  for (let i = 0; i < incoming.length; i++) {
-    const b = incoming[i];
-    const id = b.id && UUID_RE.test(b.id) ? b.id : null;
-
-    const payload = {
-      name: b.name ?? "",
-      points_balance: typeof b.pointsBalance === "number" ? b.pointsBalance : 0,
-      expiring_amount: typeof b.expiringAmount === "number" ? b.expiringAmount : null,
-      expiry_date: b.expiryDate ?? null,
-      rates: b.rates ?? {},
-      notes: b.notes ?? "",
-      sort_order: b.sortOrder ?? i,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (id && keepIds.has(id)) {
-      const { error } = await supabase
-        .from("miles_balances")
-        .update(payload)
-        .eq("id", id)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("[api/miles] update failed", error.message);
-        return apiError("api/miles", error);
-      }
-      continue;
-    }
-
-    const { error } = await supabase
-      .from("miles_balances")
-      .insert({ ...payload, user_id: user.id });
-
-    if (error) {
-      console.error("[api/miles] insert failed", error.message);
-      return apiError("api/miles", error);
-    }
-  }
-
-  console.info("[api/miles] PUT ok", { userId: user.id, count: incoming.length });
-  const bundle = await loadMilesBundle(supabase, user.id);
-  return NextResponse.json({ configured: true, ...bundle });
 });

@@ -178,6 +178,21 @@ See [06-ledgers-and-transactions.md](./06-ledgers-and-transactions.md).
 | lib | [webapp/lib/travel/](../webapp/lib/travel/) |
 | Tables | `travel_trips`, `travel_trip_budgets`, `expenses` (via trip API) |
 
+### Miles Tracker (`/miles`)
+
+**Purpose:** KrisFlyer miles and card points (DBS Woman's World, DBS Altitude, UOB UNI$) logged as lots with the month earned and the month they expire. Works out when to convert each card's points (whole 5,000-point blocks, before they expire; converted miles get 36 months) and how many miles you could redeem each month.
+
+- **Logging:** KrisFlyer by month earned (expiry defaults to 36 months on); Woman's World by expiry month, copied from the DBS app (the figure replaces that month's amount); Altitude as points added (no expiry); UOB as the UNI$ balance from the UOB app (an increase is dated today and goes into today's quarter, expiring 24 months after it ends; a decrease comes off the oldest UNI$). UOB lots with a known expiry can also be added directly when setting up.
+- **Conversions and redemptions** take points from the soonest-expiring lots first and can be undone (a conversion only after any redemption that used its miles).
+- **Plan:** a month-by-month simulation converts expiring card points in their expiry month, flags leftovers below a block ("earn 2,200 more before 30 Sep 2027"), and compares against never converting. Optional projected earning per programme.
+
+| Layer | Location |
+|-------|----------|
+| UI | [TabMiles.tsx](../webapp/components/tabs/TabMiles.tsx), [components/miles/](../webapp/components/miles/) (validity timeline, redemption chart, log panel, activity, ledger) |
+| API | `GET/POST /api/miles` |
+| lib | [webapp/lib/miles/](../webapp/lib/miles/) — `programs.ts` (rules), `plan.ts` (simulation, to-dos, insights), `ledger.ts` (actions → 078 functions) |
+| Tables | `miles_lots`, `miles_activity`, `miles_activity_lots`; chart settings in `user_finance_profile.miles_planner` |
+
 ### Poker (`/poker`, `/poker/stats`)
 
 **Purpose:** Session log, venues, game types, optional cash ledger link, statistics.

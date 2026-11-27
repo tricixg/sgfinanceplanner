@@ -23,6 +23,7 @@ Root redirect: `/` → `/dashboard` ([webapp/app/page.tsx](../webapp/app/page.ts
 | `/transactions` | `app/(app)/transactions/page.tsx` | `TransactionsRoute` | `TransactionsHistoryPage` |
 | `/travel` | `app/(app)/travel/page.tsx` | `TravelRoute` | `TabTravel` |
 | `/travel/[id]` | `app/(app)/travel/[id]/page.tsx` | `TravelTripRoute` | `TabTravelTrip` |
+| `/miles` | `app/(app)/miles/page.tsx` | `MilesRoute` | `TabMiles` |
 | `/poker` | `app/(app)/poker/page.tsx` | `PokerRoute` | `TabPoker` |
 | `/poker/stats` | `app/(app)/poker/stats/page.tsx` | `PokerStatsRoute` | `PokerStatsPage` |
 | `/cash-accounts` | `app/(app)/cash-accounts/page.tsx` | `CashAccountsRoute` | `TabCashAccounts` |
@@ -49,7 +50,7 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 | POST | `/api/auth/signout` | `app/api/auth/signout/route.ts` | Session | Clears cookies |
 | GET | `/api/health` | `app/api/health/route.ts` | None | Uptime check: app up + Supabase reachable (anon HEAD query, 3 s timeout). 200 `{status:"ok"}` / 503 `{status:"error"}`; no user data, `no-store` |
 
-**Idempotency (DATA-003):** `POST` on `/api/expenses`, `/api/accounts/[id]/transactions`, `/api/savings/pools/[id]/transactions`, `/api/savings/goals/[id]/deposits`, `/api/funds/[id]/transactions`, `/api/cpf/contributions` and `/api/cpf/transactions` accept an optional `clientRequestId` (8–100 chars of `A-Za-z0-9._:-`). Repeating a request with the same key returns the original row and moves no balance again.
+**Idempotency (DATA-003):** `POST` on `/api/expenses`, `/api/accounts/[id]/transactions`, `/api/savings/pools/[id]/transactions`, `/api/savings/goals/[id]/deposits`, `/api/funds/[id]/transactions`, `/api/cpf/contributions`, `/api/cpf/transactions` and `/api/miles` (`addLot`, `convert`, `redeem`) accept an optional `clientRequestId` (8–100 chars of `A-Za-z0-9._:-`). Repeating a request with the same key returns the original row and moves no balance again.
 
 ### State, summary, profile
 
@@ -109,6 +110,13 @@ Convention: JSON body/response; errors `{ error: string }`; many list endpoints 
 | GET | `/api/savings/goals/[id]/transactions` | `app/api/savings/goals/[id]/transactions/route.ts` | Goal history |
 | POST | `/api/savings/goals/[id]/deposits` | `app/api/savings/goals/[id]/deposits/route.ts` | Goal deposit/withdraw |
 | GET | `/api/financial-accounts` | `app/api/financial-accounts/route.ts` | `lib/financial-accounts/sync` |
+
+### Miles
+
+| Method | Path | File | Notes |
+|--------|------|------|-------|
+| GET | `/api/miles` | `app/api/miles/route.ts` | `{ lots, activity }` (`lib/miles/load`) |
+| POST | `/api/miles` | same | One change, body `{ action, … }`: `addLot`, `setExpiryBucket`, `setUobBalance`, `convert`, `redeem`, `undo`, `deleteLot` (`lib/miles/ledger` → migration 078 functions). Returns the refreshed bundle; refusals ("Convert in blocks of 5,000 points") are 400 |
 
 ### Credit cards
 

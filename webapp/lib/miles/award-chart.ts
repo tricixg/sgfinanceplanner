@@ -1,3 +1,5 @@
+import type { MilesPlannerPrefs, TripType } from "@/lib/miles/types";
+
 export type RedemptionTier = {
   region: string;
   examples: string;
@@ -47,4 +49,24 @@ export function estimateRedemption(goalMiles: number): {
     }
   }
   return { achievable, next };
+}
+
+/** Default Miles tab settings: North Asia Economy, return, logged points only. */
+export const DEFAULT_MILES_PREFS: MilesPlannerPrefs = {
+  targetTier: Math.max(
+    0,
+    KRISFLYER_SAVER_CHART.findIndex((t) => t.region === "North Asia" && t.cabin === "Economy")
+  ),
+  trip: "return",
+  earnOn: false,
+  earnPerMonth: {},
+};
+
+export function awardTier(index: number): RedemptionTier {
+  return KRISFLYER_SAVER_CHART[index] ?? KRISFLYER_SAVER_CHART[DEFAULT_MILES_PREFS.targetTier];
+}
+
+/** Miles needed for the chosen award. */
+export function awardMiles(index: number, trip: TripType): number {
+  return awardTier(index).milesOneWay * (trip === "return" ? 2 : 1);
 }

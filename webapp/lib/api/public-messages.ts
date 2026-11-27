@@ -8,6 +8,25 @@
  * text. `public-messages.test.ts` scans the source and fails until it is listed.
  */
 export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
+  // supabase/migrations/078 and lib/miles/ledger.ts — miles tracker.
+  "Activity not found",
+  "Enter 0 or more UNI$",
+  "Enter 0 or more points",
+  "Enter a positive amount",
+  "Enter the expiry date the UOB app shows",
+  "Enter the expiry month",
+  "Enter the miles you used",
+  "Enter the month the miles were earned",
+  "Entry not found",
+  "Log Woman's World points by expiry month",
+  "Not enough points available",
+  "Only card points can be converted",
+  "Pick a month",
+  "Pick this month or an earlier one",
+  "Some of these miles went into a redemption. Undo that redemption first.",
+  "Some of these points were already converted or redeemed. Undo that first.",
+  "These miles came from a conversion. Undo the conversion instead.",
+  "Unknown programme",
   "A card with statement history can't be deleted — hide it instead so its history is kept.",
   "A deposit needs an amount above 0",
   "A goal in this list no longer exists. Reload and try again.",
@@ -206,6 +225,9 @@ export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
 
 /** Deliberate messages with interpolated values (amounts, names, dates). */
 export const PUBLIC_MESSAGE_PATTERNS: readonly RegExp[] = [
+  // supabase/migrations/078 — miles conversions and redemptions.
+  new RegExp("^Convert\\ in\\ blocks\\ of\\ .+?\\ points$", "s"),
+  new RegExp("^You\\ only\\ have\\ .+?\\ (points|KrisFlyer\\ miles)\\ available\\ in\\ that\\ month$", "s"),
   new RegExp("^.+?\\ can't\\ be\\ tagged\\ to\\ that\\ BTO\\ stage$", "s"),
   new RegExp("^.+?\\ days\\ of\\ this\\ stretch\\ are\\ already\\ paid\\.\\ Keep\\ at\\ least\\ .+?\\ days,\\ or\\ delete\\ a\\ payment\\ first$", "s"),
   new RegExp("^Account\\ \".+?\"\\ no\\ longer\\ exists\\.\\ Reload\\ and\\ try\\ again\\.$", "s"),
