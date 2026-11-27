@@ -11,6 +11,7 @@ import { DecimalTextInput } from "@/components/DecimalInput";
 import { sgtNowInputDateTime } from "@/lib/time/sgt";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 import { useSubmitKey } from "@/hooks/useSubmitKey";
+import { INTEREST_INCOME_SLUG } from "@/lib/income/types";
 
 export type LedgerKind = "deposit" | "withdrawal" | "adjustment" | "payout";
 
@@ -109,6 +110,8 @@ export function SavingsLedgerModal({
   const [date, setDate] = useState(() => sgtNowInputDateTime());
   const [note, setNote] = useState("");
   const [incomeCategoryId, setIncomeCategoryId] = useState("");
+  /** Adjustment ticked as interest: recorded as an Interest-category deposit so it counts as income. */
+  const [isInterest, setIsInterest] = useState(false);
   const [benefitId, setBenefitId] = useState("");
   /** Empty = follow the deposit date. */
   const [benefitClaimDate, setBenefitClaimDate] = useState("");
@@ -140,6 +143,7 @@ export function SavingsLedgerModal({
     setGoalId("");
     setAmount("");
     setIncomeCategoryId("");
+    setIsInterest(false);
     setBenefitId("");
     setBenefitClaimDate("");
     setFromAccountId("");
@@ -161,6 +165,17 @@ export function SavingsLedgerModal({
 
   const showIncomeCategory =
     target.variant === "account" && kind === "deposit" && incomeConfigured;
+
+  const interestCategory = useMemo(
+    () => incomeCategories.find((c) => c.slug === INTEREST_INCOME_SLUG) ?? null,
+    [incomeCategories]
+  );
+  const showInterestToggle =
+    target.variant === "account" &&
+    kind === "adjustment" &&
+    incomeConfigured &&
+    interestCategory != null;
+  const recordAsInterest = showInterestToggle && isInterest;
 
   // Same rule as the reimburse flow: unlinked benefits always qualify, linked
   // ones only when the deposit's income category matches.
@@ -234,15 +249,25 @@ export function SavingsLedgerModal({
       setError("Select an income category");
       return;
     }
+    if (recordAsInterest && resolved <= 0) {
+      setError("Interest must increase the balance");
+      return;
+    }
     setError("");
     setBusy(true);
     const values = {
       amount: resolved,
       occurredAt: new Date(date).toISOString(),
-      kind,
-      note: note.trim() || undefined,
+      // Interest is stored as an Interest-category deposit (same amount) so every
+      // income view counts it; a plain adjustment never counts as income.
+      kind: recordAsInterest ? ("deposit" as const) : kind,
+      note: note.trim() || (recordAsInterest ? "Interest" : undefined),
       goalId: showGoalPicker && goalId ? goalId : undefined,
-      incomeCategoryId: showIncomeCategory ? incomeCategoryId : undefined,
+      incomeCategoryId: recordAsInterest
+        ? interestCategory?.id
+        : showIncomeCategory
+          ? incomeCategoryId
+          : undefined,
       benefitId: benefitId || undefined,
       benefitClaimDate: benefitId ? effectiveClaimDate || undefined : undefined,
       fromAccountId: showFromAccount && fromAccountId ? fromAccountId : undefined,
@@ -257,6 +282,7 @@ export function SavingsLedgerModal({
       setNote("");
       setGoalId("");
       setIncomeCategoryId("");
+      setIsInterest(false);
       setBenefitId("");
       setBenefitClaimDate("");
       setFromAccountId("");
@@ -266,7 +292,8 @@ export function SavingsLedgerModal({
       if (benefitId) dispatchDomainEvent("benefits:changed");
       console.info("[SavingsLedgerModal] recorded", {
         variant: target.variant,
-        kind,
+        kind: values.kind,
+        interest: recordAsInterest,
         goalId: goalId || null,
         benefitId: benefitId || null,
         fromAccountId: fromAccountId || null,
@@ -278,6 +305,8 @@ export function SavingsLedgerModal({
       setBusy(false);
     }
   };
+
+  const interestPreview = recordAsInterest ? resolveAmount() : null;
 
   const amountPlaceholder =
     kind === "adjustment"
@@ -474,6 +503,21 @@ export function SavingsLedgerModal({
                 />
                 Adjust by amount
               </label>
+              {showInterestToggle ? (
+                <label className="ctrl" style={{ fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={isInterest}
+                    onChange={(e) => setIsInterest(e.target.checked)}
+                  />
+                  This is interest (count as income)
+                </label>
+              ) : null}
+              {recordAsInterest && interestPreview != null && interestPreview > 0 ? (
+                <span className="note" style={{ fontSize: 12 }}>
+                  Interest earned: {fmt2(interestPreview)}
+                </span>
+              ) : null}
             </div>
           ) : null}
 
