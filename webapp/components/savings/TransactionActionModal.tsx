@@ -7,7 +7,7 @@ import { useFinancialAccounts } from "@/hooks/useFinancialAccounts";
 import { useIncomeCategories } from "@/hooks/useIncomeCategories";
 import { useBenefits } from "@/hooks/useBenefits";
 import { useOutstandingCardStatements } from "@/hooks/useOutstandingCardStatements";
-import { INTEREST_INCOME_SLUG, isSystemIncomeSlug } from "@/lib/income/types";
+import { isSystemIncomeSlug } from "@/lib/income/types";
 import { fmtSigned2, fmt2 } from "@/lib/finance/helpers";
 import { fetchJson } from "@/lib/fetch-json";
 import { DecimalTextInput } from "@/components/DecimalInput";
@@ -84,26 +84,6 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
   const canEditTime = true;
   const canReimburse = true;
 
-  const interestCategoryId = useMemo(
-    () => incomeCategories.find((c) => c.slug === INTEREST_INCOME_SLUG)?.id ?? null,
-    [incomeCategories]
-  );
-  const wasInterest =
-    interestCategoryId != null &&
-    tx.savingsKind === "deposit" &&
-    tx.incomeCategoryId === interestCategoryId;
-  // Positive cash-account adjustments can be ticked as interest after the fact;
-  // existing Interest entries can be unticked.
-  const canToggleInterest =
-    tx.recordType === "savings" &&
-    Boolean(tx.savingsAccountId) &&
-    interestCategoryId != null &&
-    (wasInterest || (tx.savingsKind === "adjustment" && tx.amount > 0));
-  const [isInterest, setIsInterest] = useState(false);
-  useEffect(() => {
-    setIsInterest(wasInterest);
-  }, [wasInterest]);
-
   const accountOptions = useMemo(() => accounts, [accounts]);
   const reimburseCategoryOptions = useMemo(
     () =>
@@ -165,9 +145,6 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
         if (date) {
           body.occurredAt = `${date}T${time || "00:00"}:00.000Z`;
         }
-        if (canToggleInterest && isInterest !== wasInterest) {
-          body.markInterest = isInterest;
-        }
       } else {
         if (date) body.spentAt = date;
         if (canEditTime && time) body.spentTime = `${time}:00`;
@@ -181,13 +158,7 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
       });
       if (!res.ok) throw new Error(data.error ?? "Failed to save");
       dispatchDomainEvent(eventsForTransactionChange(tx.recordType));
-      onSaved(
-        body.markInterest === true
-          ? "Marked as interest"
-          : body.markInterest === false
-            ? "Interest removed"
-            : "Transaction updated"
-      );
+      onSaved("Transaction updated");
       onClose();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Save failed");
@@ -296,17 +267,6 @@ export function TransactionActionModal({ tx, onClose, onSaved }: Props) {
             Time
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </label>
-          {canToggleInterest ? (
-            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                type="checkbox"
-                checked={isInterest}
-                onChange={(e) => setIsInterest(e.target.checked)}
-                style={{ width: "auto" }}
-              />
-              Interest (count as income)
-            </label>
-          ) : null}
           {canEditAmount ? (
             <label>
               Amount

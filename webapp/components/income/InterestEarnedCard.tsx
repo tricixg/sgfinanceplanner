@@ -226,8 +226,7 @@ export function InterestEarnedCard({ enabled }: { enabled: boolean }) {
           ) : (
             <p className="note">
               No interest recorded in this period yet. On a cash account, use Adjustment → Set
-              balance and tick <em>This is interest</em>. Older adjustments can be ticked from
-              Transactions.
+              balance and tick <em>This is interest</em>.
             </p>
           )}
         </>

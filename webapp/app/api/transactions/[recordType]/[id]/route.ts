@@ -12,9 +12,6 @@ import { budgetLinePatchForCategoryEdit } from "@/lib/expenses/budget-line-link"
 import { deleteTransactionWithLedger } from "@/lib/transactions/actions";
 import { isExpenseDeleteBlocked } from "@/lib/expenses/expense-write";
 import { withRequestId } from "@/lib/api/with-request-id";
-import { findIncomeCategoryBySlug } from "@/lib/income/load";
-import { interestFlagPatch } from "@/lib/income/interest-flag";
-import { INTEREST_INCOME_SLUG } from "@/lib/income/types";
 
 type Params = { params: Promise<{ recordType: string; id: string }> };
 
@@ -97,45 +94,6 @@ export const PATCH = withRequestId(async function PATCH(req: NextRequest, { para
     const patch: Record<string, unknown> = {};
     if (typeof body.note === "string") patch.note = body.note;
     if (typeof body.occurredAt === "string") patch.occurred_at = body.occurredAt;
-    if (typeof body.markInterest === "boolean") {
-      const { data: row, error: rowErr } = await supabase
-        .from("savings_transactions")
-        .select("kind, amount, account_id, income_category_id")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (rowErr) return apiError("api/transactions/[recordType]/[id]", rowErr);
-      if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      let interestId: string | null = null;
-      try {
-        interestId =
-          (await findIncomeCategoryBySlug(supabase, user.id, INTEREST_INCOME_SLUG))?.id ?? null;
-      } catch (e) {
-        return apiError("api/transactions/[recordType]/[id]", e, {
-          fallback: "Failed to load income categories",
-        });
-      }
-      const result = interestFlagPatch(
-        {
-          kind: String(row.kind ?? ""),
-          amount: Number(row.amount ?? 0),
-          accountId: row.account_id ? String(row.account_id) : null,
-          incomeCategoryId: row.income_category_id ? String(row.income_category_id) : null,
-        },
-        body.markInterest,
-        interestId
-      );
-      if ("error" in result) {
-        return NextResponse.json({ error: result.error }, { status: 400 });
-      }
-      if (result.patch) {
-        Object.assign(patch, result.patch);
-        console.info("[api/transactions] savings interest flag", {
-          id,
-          markInterest: body.markInterest,
-        });
-      }
-    }
     if (Object.keys(patch).length === 0) {
       const item = await getSavingsTransactionById(supabase, user.id, id);
       return NextResponse.json({ item });

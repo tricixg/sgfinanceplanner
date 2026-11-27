@@ -56,7 +56,6 @@ export function savingsToUnified(tx: SavingsTransaction): UnifiedTransaction {
     balanceAfter: tx.balanceAfter,
     transactionType: null,
     savingsKind: tx.kind,
-    incomeCategoryId: tx.incomeCategoryId,
     reimbursedAmount: 0,
     financialAccountId: null,
     savingsAccountId: tx.accountId,
