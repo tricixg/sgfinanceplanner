@@ -35,7 +35,7 @@ const moneyTick = (v: string | number) => "$" + Number(v).toLocaleString("en-US"
  * separate running-total chart (two measures → two charts, never two y-axes).
  */
 export function InterestEarnedCard({ enabled }: { enabled: boolean }) {
-  const [range, setRange] = useState<Range>("12");
+  const [range, setRange] = useState<Range>("6");
   const [full, setFull] = useState<InterestAnalyticsBundle | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
