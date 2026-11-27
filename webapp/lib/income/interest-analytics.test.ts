@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInterestAnalytics } from "./analytics";
+import { buildInterestAnalytics, sliceInterestAnalytics } from "./analytics";
 
 const accounts = [
   { id: "acct-dbs", name: "DBS Multiplier" },
@@ -64,5 +64,39 @@ describe("buildInterestAnalytics", () => {
     expect(out.cumulative).toEqual([0, 0]);
     expect(out.accounts).toEqual([]);
     expect(out.kpis.topAccount).toBeNull();
+  });
+});
+
+describe("sliceInterestAnalytics", () => {
+  const full = buildInterestAnalytics({
+    throughYm: "2026-03",
+    months: 3,
+    accounts,
+    interestCategoryId: "int",
+    deposits: [
+      dep(10, "2026-01-31T10:00:00Z", "acct-dbs"),
+      dep(25.5, "2026-02-28T10:00:00Z", "acct-uob"),
+      dep(30, "2026-03-31T10:00:00Z", "acct-uob"),
+    ],
+  });
+
+  it("matches building the narrower window directly", () => {
+    const sliced = sliceInterestAnalytics(full, 2);
+    const direct = buildInterestAnalytics({
+      throughYm: "2026-03",
+      months: 2,
+      accounts,
+      interestCategoryId: "int",
+      deposits: [
+        dep(10, "2026-01-31T10:00:00Z", "acct-dbs"),
+        dep(25.5, "2026-02-28T10:00:00Z", "acct-uob"),
+        dep(30, "2026-03-31T10:00:00Z", "acct-uob"),
+      ],
+    });
+    expect(sliced).toEqual(direct);
+  });
+
+  it("returns the bundle unchanged when the range covers it", () => {
+    expect(sliceInterestAnalytics(full, 24)).toBe(full);
   });
 });

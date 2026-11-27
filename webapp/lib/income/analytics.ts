@@ -371,3 +371,49 @@ export function buildInterestAnalytics(input: {
     },
   };
 }
+
+/**
+ * Narrow a loaded interest bundle to its last `months` months (client-side
+ * range switch, so 6/12/24 need no refetch). Totals, cumulative and KPIs are
+ * recomputed for the narrower window; account order/colours are kept.
+ */
+export function sliceInterestAnalytics(
+  bundle: InterestAnalyticsBundle,
+  months: number
+): InterestAnalyticsBundle {
+  const n = Math.max(1, Math.min(bundle.monthly.length, Math.floor(months)));
+  if (n === bundle.monthly.length) return bundle;
+  const monthly = bundle.monthly.slice(-n);
+
+  const totals = new Map<string, number>();
+  for (const m of monthly) {
+    for (const a of m.byAccount) totals.set(a.id, (totals.get(a.id) ?? 0) + a.amount);
+  }
+  const accounts = bundle.accounts
+    .filter((a) => (totals.get(a.id) ?? 0) > 0)
+    .map((a) => ({ ...a, total: round2(totals.get(a.id) ?? 0) }));
+  const top = accounts.reduce<(typeof accounts)[number] | null>(
+    (best, a) => (best == null || a.total > best.total ? a : best),
+    null
+  );
+
+  let running = 0;
+  const cumulative = monthly.map((m) => {
+    running += m.total;
+    return round2(running);
+  });
+  const total = round2(running);
+
+  return {
+    months: monthly.map((m) => m.ym),
+    monthly,
+    accounts,
+    cumulative,
+    kpis: {
+      total,
+      avgPerMonth: round2(total / monthly.length),
+      topAccount: top ? { id: top.id, label: top.label, total: top.total } : null,
+      latestMonth: monthly[monthly.length - 1]?.total ?? 0,
+    },
+  };
+}

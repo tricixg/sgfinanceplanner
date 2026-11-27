@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChartOptions } from "chart.js";
 import { ChartBox } from "@/components/ChartBox";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -9,7 +9,10 @@ import { colorAt } from "@/components/spending/chart-colors";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
 import { fetchJson } from "@/lib/fetch-json";
 import { fmt2, formatMonthLabel } from "@/lib/finance/helpers";
-import type { InterestAnalyticsBundle } from "@/lib/income/analytics";
+import {
+  sliceInterestAnalytics,
+  type InterestAnalyticsBundle,
+} from "@/lib/income/analytics";
 
 type Range = "6" | "12" | "24";
 
@@ -22,6 +25,9 @@ const RANGE_OPTIONS: { value: Range; label: string; compact: string }[] = [
 /** Single-series line: the title names it, so no legend. */
 const CUMULATIVE_COLOR = "#1e8a89";
 
+/** Loaded once; 6/12 months are sliced from it, so switching range never refetches. */
+const MAX_MONTHS = 24;
+
 const moneyTick = (v: string | number) => "$" + Number(v).toLocaleString("en-US");
 
 /**
@@ -30,10 +36,13 @@ const moneyTick = (v: string | number) => "$" + Number(v).toLocaleString("en-US"
  */
 export function InterestEarnedCard({ enabled }: { enabled: boolean }) {
   const [range, setRange] = useState<Range>("12");
-  const [data, setData] = useState<InterestAnalyticsBundle | null>(null);
+  const [full, setFull] = useState<InterestAnalyticsBundle | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const hasDataRef = useRef(false);
+  const data = useMemo(
+    () => (full ? sliceInterestAnalytics(full, Number(range)) : null),
+    [full, range]
+  );
 
   const load = useCallback(async () => {
     if (!enabled) return;
@@ -43,11 +52,10 @@ export function InterestEarnedCard({ enabled }: { enabled: boolean }) {
       const { res, data: body } = await fetchJson<{
         interest?: InterestAnalyticsBundle;
         error?: string;
-      }>(`/api/income/interest?months=${range}`, { credentials: "include" });
+      }>(`/api/income/interest?months=${MAX_MONTHS}`, { credentials: "include" });
       if (!res.ok) throw new Error(body.error ?? "Failed to load interest");
       if (!body.interest) throw new Error("No interest data returned");
-      hasDataRef.current = true;
-      setData(body.interest);
+      setFull(body.interest);
       console.info("[InterestEarnedCard] loaded", {
         months: body.interest.months.length,
         total: body.interest.kpis.total,
@@ -58,7 +66,7 @@ export function InterestEarnedCard({ enabled }: { enabled: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [enabled, range]);
+  }, [enabled]);
 
   useEffect(() => {
     void load();
@@ -171,15 +179,12 @@ export function InterestEarnedCard({ enabled }: { enabled: boolean }) {
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="section-head" style={{ marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <h3 style={{ margin: 0 }}>Interest earned</h3>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {loading && hasDataRef.current ? <span className="note">Refreshing…</span> : null}
-          <SegmentedControl
-            label="Interest time range"
-            options={RANGE_OPTIONS}
-            value={range}
-            onChange={setRange}
-          />
-        </div>
+        <SegmentedControl
+          label="Interest time range"
+          options={RANGE_OPTIONS}
+          value={range}
+          onChange={setRange}
+        />
       </div>
 
       {error ? (
