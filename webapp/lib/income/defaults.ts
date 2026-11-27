@@ -50,4 +50,11 @@ export const DEFAULT_INCOME_CATEGORIES: IncomeCategoryInput[] = [
     countsInBaseline: false,
     countsAsAdditive: true,
   },
+  {
+    name: "Interest",
+    slug: "interest",
+    sortOrder: 7,
+    countsInBaseline: false,
+    countsAsAdditive: true,
+  },
 ];

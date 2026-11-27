@@ -35,12 +35,32 @@ function fakeClient(selects: Record<string, unknown>[][], upsertError: { message
 }
 
 const row = { id: "c1", user_id: "u", name: "Salary", slug: "salary", sort_order: 0 };
+const interestRow = { id: "c8", user_id: "u", name: "Interest", slug: "interest", sort_order: 7 };
 
 describe("loadIncomeCategories (DATA-006)", () => {
   it("returns existing categories without seeding", async () => {
-    const { client, calls } = fakeClient([[row]]);
-    expect((await loadIncomeCategories(client, "u")).map((c) => c.slug)).toEqual(["salary"]);
+    const { client, calls } = fakeClient([[row, interestRow]]);
+    expect((await loadIncomeCategories(client, "u")).map((c) => c.slug)).toEqual([
+      "salary",
+      "interest",
+    ]);
     expect(calls).toMatchObject({ select: 1, upsert: 0 });
+  });
+
+  it("adds the Interest category once for users seeded before it existed", async () => {
+    const { client, calls } = fakeClient([[row], [row, interestRow]]);
+    expect((await loadIncomeCategories(client, "u")).map((c) => c.slug)).toEqual([
+      "salary",
+      "interest",
+    ]);
+    expect(calls).toMatchObject({ select: 2, upsert: 1 });
+    expect(calls.upsertOptions).toEqual({ onConflict: "user_id,slug", ignoreDuplicates: true });
+  });
+
+  it("keeps loading existing categories if adding Interest fails", async () => {
+    const { client, calls } = fakeClient([[row]], { message: "boom" });
+    expect((await loadIncomeCategories(client, "u")).map((c) => c.slug)).toEqual(["salary"]);
+    expect(calls).toMatchObject({ select: 1, upsert: 1 });
   });
 
   it("seeds once on first use, idempotently (ON CONFLICT (user_id, slug) DO NOTHING)", async () => {

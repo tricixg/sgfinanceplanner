@@ -269,3 +269,105 @@ export function buildIncomeAnalytics(input: {
     },
   };
 }
+
+export type InterestMonthlyRow = {
+  ym: string;
+  total: number;
+  byAccount: IncomeAmountRow[];
+};
+
+export type InterestAnalyticsBundle = {
+  months: string[];
+  monthly: InterestMonthlyRow[];
+  /**
+   * Accounts with any interest in the window, in the user's account-list order.
+   * `order` is the account's index in that full list, so a series keeps its
+   * colour when the window (and so the set of accounts shown) changes.
+   */
+  accounts: { id: string; label: string; total: number; order: number }[];
+  /** Running total of interest through each month, aligned with `months`. */
+  cumulative: number[];
+  kpis: {
+    total: number;
+    avgPerMonth: number;
+    topAccount: { id: string; label: string; total: number } | null;
+    latestMonth: number;
+  };
+};
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Interest earned per month, broken down by cash account, for the Past Cashflow interest chart. */
+export function buildInterestAnalytics(input: {
+  throughYm: string;
+  months: number;
+  deposits: LeanDepositRow[];
+  accounts: { id: string; name: string }[];
+  interestCategoryId: string | null;
+}): InterestAnalyticsBundle {
+  const window = monthRangeForWindow(input.throughYm, input.months);
+  const monthSet = new Set(window.months);
+  const accountLabels = new Map(input.accounts.map((a) => [a.id, a.name || "Account"]));
+  const byYmAccount = new Map<string, Map<string, { label: string; amount: number }>>();
+
+  if (input.interestCategoryId) {
+    for (const row of input.deposits) {
+      if (row.incomeCategoryId !== input.interestCategoryId) continue;
+      const ym = ymFromOccurredAt(row.occurredAt);
+      if (!ym || !monthSet.has(ym)) continue;
+      const amount = Number(row.amount ?? 0);
+      if (!Number.isFinite(amount) || amount <= 0) continue;
+      const acctId = row.accountId ?? UNASSIGNED_ACCOUNT_ID;
+      const label =
+        acctId === UNASSIGNED_ACCOUNT_ID ? "Unassigned" : accountLabels.get(acctId) ?? acctId;
+      bump(byYmAccount, ym, acctId, label, amount);
+    }
+  }
+
+  const monthly: InterestMonthlyRow[] = window.months.map((ym) => {
+    const byAccount = mapToRows(byYmAccount.get(ym));
+    return { ym, total: round2(byAccount.reduce((s, r) => s + r.amount, 0)), byAccount };
+  });
+
+  const accountTotals = new Map<string, { label: string; total: number }>();
+  for (const m of monthly) {
+    for (const a of m.byAccount) {
+      const prev = accountTotals.get(a.id) ?? { label: a.label, total: 0 };
+      prev.total += a.amount;
+      accountTotals.set(a.id, prev);
+    }
+  }
+  const accountOrder = new Map(input.accounts.map((a, i) => [a.id, i]));
+  const accounts = [...accountTotals.entries()]
+    .map(([id, { label, total }]) => ({
+      id,
+      label,
+      total: round2(total),
+      order: accountOrder.get(id) ?? input.accounts.length,
+    }))
+    .sort((a, b) => a.order - b.order);
+  const top = accounts.reduce<(typeof accounts)[number] | null>(
+    (best, a) => (best == null || a.total > best.total ? a : best),
+    null
+  );
+
+  let running = 0;
+  const cumulative = monthly.map((m) => {
+    running += m.total;
+    return round2(running);
+  });
+  const total = round2(running);
+
+  return {
+    months: window.months,
+    monthly,
+    accounts,
+    cumulative,
+    kpis: {
+      total,
+      avgPerMonth: monthly.length ? round2(total / monthly.length) : 0,
+      topAccount: top ? { id: top.id, label: top.label, total: top.total } : null,
+      latestMonth: monthly[monthly.length - 1]?.total ?? 0,
+    },
+  };
+}

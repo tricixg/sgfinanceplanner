@@ -12,6 +12,7 @@ import { IncomeKpiStrip } from "@/components/income/IncomeKpiStrip";
 import { IncomeMonthlyTable } from "@/components/income/IncomeMonthlyTable";
 import { IncomeCategoryChart } from "@/components/income/IncomeCategoryChart";
 import { IncomeStackedBarChart } from "@/components/income/IncomeStackedBarChart";
+import { InterestEarnedCard } from "@/components/income/InterestEarnedCard";
 import { IncludeCheckbox } from "@/components/IncludeCheckbox";
 import { fetchJson } from "@/lib/fetch-json";
 import { useDomainEvent } from "@/hooks/useDomainEvent";
@@ -229,6 +230,8 @@ export function TabPastCashflow({ enabled }: Props) {
           />
         </>
       ) : null}
+
+      <InterestEarnedCard enabled={enabled} />
     </section>
   );
 }

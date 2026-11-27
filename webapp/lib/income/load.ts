@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_INCOME_CATEGORIES } from "@/lib/income/defaults";
 import { mapIncomeCategory } from "@/lib/income/mappers";
 import type { IncomeCategory, IncomeCategoryInput } from "@/lib/income/types";
-import { isSystemIncomeSlug } from "@/lib/income/types";
+import { INTEREST_INCOME_SLUG, isSystemIncomeSlug } from "@/lib/income/types";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
@@ -29,7 +29,24 @@ export async function loadIncomeCategories(
   userId: string
 ): Promise<IncomeCategory[]> {
   const rows = await selectIncomeCategoryRows(supabase, userId);
-  if (rows.length) return rows.map((r) => mapIncomeCategory(r));
+  if (rows.length) {
+    // Users seeded before a built-in category existed (e.g. Interest) get it
+    // added once; the seed skips rows that already exist.
+    if (!rows.some((r) => r.slug === INTEREST_INCOME_SLUG)) {
+      // Non-fatal: without it only the interest features are unavailable.
+      try {
+        await seedIncomeCategories(supabase, userId);
+        const reread = await selectIncomeCategoryRows(supabase, userId);
+        if (reread.length) return reread.map((r) => mapIncomeCategory(r));
+      } catch (e) {
+        console.error("[income] adding Interest category failed", {
+          userId,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+    return rows.map((r) => mapIncomeCategory(r));
+  }
 
   await seedIncomeCategories(supabase, userId);
   const seeded = await selectIncomeCategoryRows(supabase, userId);
@@ -97,7 +114,8 @@ export async function saveIncomeCategories(
           slug === "reimbursement" ||
           slug === "transport-claims" ||
           slug === "medical-claims" ||
-          slug === "comms"
+          slug === "comms" ||
+          slug === "interest"
         : true,
       updated_at: new Date().toISOString(),
     };

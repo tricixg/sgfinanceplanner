@@ -8,6 +8,12 @@
  * text. `public-messages.test.ts` scans the source and fails until it is listed.
  */
 export const PUBLIC_MESSAGES: ReadonlySet<string> = new Set([
+  // lib/income/interest-flag.ts — mark a cash-account adjustment as interest.
+  "Interest income category not found",
+  "Interest must increase the balance",
+  "Only adjustments can be marked as interest",
+  "Only cash-account entries can be marked as interest",
+  "This entry is not marked as interest",
   // supabase/migrations/078 and lib/miles/ledger.ts — miles tracker.
   "Activity not found",
   "Enter 0 or more UNI$",
