@@ -1,22 +1,37 @@
-import type { MileProgramKey, MilesBalance } from "@/lib/miles/types";
+import { monthFromYmd } from "@/lib/miles/months";
+import { isCardProgram, isMilesProgram } from "@/lib/miles/programs";
+import type { MilesActivity, MilesLot, MilesLotSource } from "@/lib/miles/types";
 
-export function mapMilesBalance(row: Record<string, unknown>): MilesBalance {
-  const rawRates = (row.rates ?? {}) as Record<string, unknown>;
-  const rates: Partial<Record<MileProgramKey, number>> = {};
-  for (const [key, value] of Object.entries(rawRates)) {
-    const n = Number(value);
-    if (Number.isFinite(n) && n > 0) rates[key as MileProgramKey] = n;
-  }
+const SOURCES: MilesLotSource[] = ["earned", "balance_update", "conversion"];
 
+export function mapMilesLot(row: Record<string, unknown>): MilesLot {
+  const program = isMilesProgram(row.program) ? row.program : "krisflyer";
+  const source = SOURCES.includes(row.source as MilesLotSource) ? (row.source as MilesLotSource) : "earned";
   return {
     id: String(row.id),
-    userId: String(row.user_id),
-    name: String(row.name ?? ""),
-    pointsBalance: Number(row.points_balance ?? 0),
-    expiringAmount: row.expiring_amount != null ? Number(row.expiring_amount) : null,
-    expiryDate: row.expiry_date ? String(row.expiry_date) : null,
-    rates,
-    notes: String(row.notes ?? ""),
-    sortOrder: Number(row.sort_order ?? 0),
+    program,
+    earnedMonth: monthFromYmd(row.earned_month as string | null),
+    expiryMonth: monthFromYmd(row.expiry_month as string | null),
+    amount: Number(row.amount ?? 0),
+    used: Number(row.used ?? 0),
+    source,
+    convertedFrom: isCardProgram(row.converted_from) ? row.converted_from : null,
+    note: String(row.note ?? ""),
+    loggedOn: row.logged_on ? String(row.logged_on).slice(0, 10) : null,
+  };
+}
+
+export function mapMilesActivity(row: Record<string, unknown>): MilesActivity {
+  return {
+    id: String(row.id),
+    kind: row.kind === "redeem" ? "redeem" : "convert",
+    program: isMilesProgram(row.program) ? row.program : "krisflyer",
+    month: monthFromYmd(row.activity_month as string) ?? 0,
+    amount: Number(row.amount ?? 0),
+    miles: Number(row.miles ?? 0),
+    fee: Number(row.fee ?? 0),
+    description: String(row.description ?? ""),
+    createdLotId: row.created_lot_id ? String(row.created_lot_id) : null,
+    createdAt: String(row.created_at ?? ""),
   };
 }

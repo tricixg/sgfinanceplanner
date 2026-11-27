@@ -3,13 +3,21 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetch-json";
 import { errorMessage } from "@/lib/ui/notify";
-import type { MilesBalance, MilesTotals } from "@/lib/miles/types";
+import type { MilesAction } from "@/lib/miles/ledger";
+import type { MilesActivity, MilesLot } from "@/lib/miles/types";
 import { MilesContext } from "@/contexts/app-data-contexts";
 import { dispatchDomainEvent } from "@/lib/events/domain-events";
 
+type MilesResponse = {
+  configured?: boolean;
+  lots?: MilesLot[];
+  activity?: MilesActivity[];
+  error?: string;
+};
+
 export function useMilesProvider(enabled: boolean) {
-  const [balances, setBalances] = useState<MilesBalance[]>([]);
-  const [totals, setTotals] = useState<MilesTotals | null>(null);
+  const [lots, setLots] = useState<MilesLot[]>([]);
+  const [activity, setActivity] = useState<MilesActivity[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [configured, setConfigured] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -22,15 +30,10 @@ export function useMilesProvider(enabled: boolean) {
     setLoading(true);
     setLoadError(null);
     try {
-      const { res, data } = await fetchJson<{
-        configured?: boolean;
-        balances?: MilesBalance[];
-        totals?: MilesTotals;
-        error?: string;
-      }>("/api/miles", { credentials: "include" });
+      const { res, data } = await fetchJson<MilesResponse>("/api/miles", { credentials: "include" });
       if (!res.ok) {
         setConfigured(false);
-        setLoadError(data.error ?? "Couldn't load your miles balances.");
+        setLoadError(data.error ?? "Couldn't load your miles.");
         return;
       }
       if (!data.configured) {
@@ -38,13 +41,13 @@ export function useMilesProvider(enabled: boolean) {
         return;
       }
       setConfigured(true);
-      setBalances(data.balances ?? []);
-      setTotals(data.totals ?? null);
-      console.info("[useMiles] loaded", { count: data.balances?.length });
+      setLots(data.lots ?? []);
+      setActivity(data.activity ?? []);
+      console.info("[useMiles] loaded", { lots: data.lots?.length, activity: data.activity?.length });
     } catch (e) {
       console.error("[useMiles] load failed", e);
       setConfigured(false);
-      setLoadError(errorMessage(e, "Couldn't load your miles balances."));
+      setLoadError(errorMessage(e, "Couldn't load your miles."));
     } finally {
       setLoading(false);
     }
@@ -57,14 +60,14 @@ export function useMilesProvider(enabled: boolean) {
     void load();
   }, [load]);
 
+  // dispatchEvent runs listeners synchronously, so this is only true during our own dispatch.
+  const selfDispatchRef = useRef(false);
+
   useEffect(() => {
     if (!enabled) return;
     const onMilesChanged = (event: Event) => {
-      const source =
-        event instanceof CustomEvent && typeof event.detail?.source === "string"
-          ? event.detail.source
-          : event.type;
-      console.info("[useMiles] reload from event", { source });
+      if (selfDispatchRef.current) return; // our own save already applied the new data
+      console.info("[useMiles] reload from event", { source: event.type });
       void load();
     };
     window.addEventListener("miles:changed", onMilesChanged);
@@ -73,39 +76,31 @@ export function useMilesProvider(enabled: boolean) {
     };
   }, [enabled, load]);
 
-  const saveBalances = useCallback(async (next: MilesBalance[]) => {
-    const { res, data } = await fetchJson<{
-      configured?: boolean;
-      balances?: MilesBalance[];
-      totals?: MilesTotals;
-      error?: string;
-    }>("/api/miles", {
-      method: "PUT",
+  /** Runs one ledger change; throws with the server's message so the form can show it. */
+  const mutate = useCallback(async (action: MilesAction) => {
+    const { res, data } = await fetchJson<MilesResponse>("/api/miles", {
+      method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ balances: next }),
+      body: JSON.stringify(action),
     });
     if (!res.ok) {
-      throw new Error(data.error ?? "Failed to save miles balances");
+      throw new Error(data.error ?? "Couldn't save that change to your miles");
     }
-    setBalances(data.balances ?? next);
-    setTotals(data.totals ?? null);
-    console.info("[useMiles] saved", { count: next.length });
-    dispatchDomainEvent("miles:changed");
+    setLots(data.lots ?? []);
+    setActivity(data.activity ?? []);
+    console.info("[useMiles] saved", { action: action.action });
+    selfDispatchRef.current = true;
+    try {
+      dispatchDomainEvent("miles:changed");
+    } finally {
+      selfDispatchRef.current = false;
+    }
   }, []);
 
   return useMemo(
-    () => ({
-      balances,
-      totals,
-      loading,
-      configured,
-      loadError,
-      reload: load,
-      ensureLoaded,
-      saveBalances,
-    }),
-    [balances, totals, loading, configured, loadError, load, ensureLoaded, saveBalances]
+    () => ({ lots, activity, loading, configured, loadError, reload: load, ensureLoaded, mutate }),
+    [lots, activity, loading, configured, loadError, load, ensureLoaded, mutate]
   );
 }
 

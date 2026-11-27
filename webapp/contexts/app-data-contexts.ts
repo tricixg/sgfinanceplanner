@@ -14,7 +14,8 @@ import type {
 } from "@/lib/savings/types";
 import type { FinancialAccount } from "@/lib/transactions/types";
 import type { Fund, FundsTotals } from "@/lib/funds/types";
-import type { MilesBalance, MilesTotals } from "@/lib/miles/types";
+import type { MilesAction } from "@/lib/miles/ledger";
+import type { MilesActivity, MilesLot } from "@/lib/miles/types";
 import type { BenefitInput, BenefitUsage } from "@/lib/benefits/types";
 import type { CardStatementComputed } from "@/lib/cards/types";
 
@@ -167,15 +168,16 @@ export type FundsContextValue = {
 };
 
 export type MilesContextValue = {
-  balances: MilesBalance[];
-  totals: MilesTotals | null;
+  lots: MilesLot[];
+  activity: MilesActivity[];
   loading: boolean;
   configured: boolean;
   /** Set when the last load failed (not the same as "not configured"); cleared by a successful reload. */
   loadError: string | null;
   reload: () => Promise<void>;
   ensureLoaded: () => void;
-  saveBalances: (next: MilesBalance[]) => Promise<void>;
+  /** Runs one ledger change (log points, convert, redeem, undo, delete). Throws with a readable message. */
+  mutate: (action: MilesAction) => Promise<void>;
 };
 
 export type HouseholdContextValue = {

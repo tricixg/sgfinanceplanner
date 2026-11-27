@@ -1,40 +1,60 @@
-export const MILE_PROGRAMS = [
-  { key: "krisflyer", label: "KrisFlyer" },
-  { key: "asiaMiles", label: "Asia Miles" },
-  { key: "avios", label: "Avios" },
-  { key: "enrich", label: "Enrich" },
-] as const;
+import type { MonthIndex } from "@/lib/miles/months";
+import type { CardProgram, MilesProgram } from "@/lib/miles/programs";
 
-export type MileProgramKey = (typeof MILE_PROGRAMS)[number]["key"];
+export type { CardProgram, MilesProgram } from "@/lib/miles/programs";
 
-/** A bank/points-program balance (e.g. "DBS Points") — directly edited, not a ledger. */
-export type MilesBalance = {
+export type MilesLotSource = "earned" | "balance_update" | "conversion";
+
+/** One lot of miles or points: when it was earned, when it expires, how much is left. */
+export type MilesLot = {
   id: string;
-  userId: string;
-  name: string;
-  pointsBalance: number;
-  /** Portion of the balance that expires on expiryDate, if tracked. */
-  expiringAmount: number | null;
-  expiryDate: string | null;
-  /** Points required per 1 mile, keyed by program. Missing/0 = not tracked for that program. */
-  rates: Partial<Record<MileProgramKey, number>>;
-  notes: string;
-  sortOrder: number;
+  program: MilesProgram;
+  earnedMonth: MonthIndex | null;
+  /** Usable to the end of this month; null = never expires. */
+  expiryMonth: MonthIndex | null;
+  amount: number;
+  /** Converted or redeemed so far. */
+  used: number;
+  source: MilesLotSource;
+  convertedFrom: CardProgram | null;
+  note: string;
+  /** YYYY-MM-DD the lot was logged (Altitude additions, UOB balance updates). */
+  loggedOn: string | null;
 };
 
-export type MilesTotals = {
-  milesByProgram: Record<MileProgramKey, number>;
-  /** Count of balances with no rate set for that program (excluded from its total). */
-  uncountedByProgram: Record<MileProgramKey, number>;
+export type MilesActivityKind = "convert" | "redeem";
+
+/** A conversion (card points → KrisFlyer miles) or a redemption (miles spent). */
+export type MilesActivity = {
+  id: string;
+  kind: MilesActivityKind;
+  program: MilesProgram;
+  month: MonthIndex;
+  /** Points (convert) or miles (redeem) taken from the lots. */
+  amount: number;
+  miles: number;
+  fee: number;
+  description: string;
+  createdLotId: string | null;
+  createdAt: string;
 };
 
 export type MilesBundle = {
-  balances: MilesBalance[];
-  totals: MilesTotals;
+  lots: MilesLot[];
+  activity: MilesActivity[];
 };
 
-/** Persisted on user_finance_profile.miles_planner — goal + preferred display program. */
+export type TripType = "oneWay" | "return";
+
+/** Persisted on user_finance_profile.miles_planner — chart settings for the Miles tab. */
 export type MilesPlannerPrefs = {
-  goalMiles: number;
-  displayProgram: MileProgramKey;
+  /** Index into KRISFLYER_SAVER_CHART. */
+  targetTier: number;
+  trip: TripType;
+  /** Add projected monthly earning to the flight chart. */
+  earnOn: boolean;
+  /** Points/miles expected per month, per programme (null = use the logged average). */
+  earnPerMonth: Partial<Record<MilesProgram, number>>;
 };
+
+export const avail = (lot: Pick<MilesLot, "amount" | "used">): number => lot.amount - lot.used;

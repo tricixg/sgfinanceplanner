@@ -2,446 +2,375 @@
 
 import { useContext, useMemo, useState } from "react";
 import type { DashboardState } from "@/lib/types";
-import {
-  MILE_PROGRAMS,
-  type MileProgramKey,
-  type MilesBalance,
-  type MilesPlannerPrefs,
-} from "@/lib/miles/types";
-import { MILES_BANK_PRESETS, type MilesBankPreset } from "@/lib/miles/presets";
-import { estimateRedemption } from "@/lib/miles/redemption-chart";
-import { DecimalInput } from "@/components/DecimalInput";
 import { AppDataContext } from "@/contexts/app-data-contexts";
 import { useMiles } from "@/hooks/useMiles";
-import { notifySaveFailed } from "@/lib/ui/notify";
-import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
 import { useDomainLoadError } from "@/hooks/useDomainLoadError";
+import { DomainLoadErrorBanner } from "@/components/app/DomainLoadErrorBanner";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { SkeletonLines } from "@/components/ui/States";
+import { notifySaveFailed } from "@/lib/ui/notify";
+import { DEFAULT_MILES_PREFS, KRISFLYER_SAVER_CHART, awardMiles, awardTier } from "@/lib/miles/award-chart";
+import { daysUntilEndOf, expiryDateLabel, monthLabel, sgtDayOfMonth, sgtThisMonth } from "@/lib/miles/months";
+import {
+  averageMonthlyEarn,
+  balancesAt,
+  buildTodos,
+  flightInsights,
+  nextExpiry,
+  simulateMiles,
+  type EarnPerMonth,
+} from "@/lib/miles/plan";
+import { CARD_PROGRAMS, MILES_PROGRAMS, PROGRAM_ORDER, programColor, type MilesProgram } from "@/lib/miles/programs";
+import type { MilesPlannerPrefs, TripType } from "@/lib/miles/types";
+import { CardSummaries } from "@/components/miles/CardSummaries";
+import { MilesActivityList } from "@/components/miles/MilesActivityList";
+import { MilesLedger } from "@/components/miles/MilesLedger";
+import { MilesLogPanel } from "@/components/miles/MilesLogPanel";
+import { MilesTodoList } from "@/components/miles/MilesTodoList";
+import { RedeemChart } from "@/components/miles/RedeemChart";
+import { ValidityTimeline } from "@/components/miles/ValidityTimeline";
+import { fmt } from "@/components/miles/format";
 
 type Props = {
   state: DashboardState;
   setState: (s: DashboardState | ((p: DashboardState) => DashboardState)) => void;
 };
 
-function fmtMiles(n: number): string {
-  return Math.round(n).toLocaleString("en-US");
-}
-
-function resolveMilesPrefs(S: DashboardState): MilesPlannerPrefs {
-  return S.milesPlanner ?? { goalMiles: 0, displayProgram: "krisflyer" };
-}
-
-function emptyBalance(sortOrder: number): MilesBalance {
-  return {
-    id: `new-${sortOrder}-${Date.now()}`,
-    userId: "",
-    name: "",
-    pointsBalance: 0,
-    expiringAmount: null,
-    expiryDate: null,
-    rates: {},
-    notes: "",
-    sortOrder,
-  };
-}
+/** Months shown ahead on the charts: long enough to see converted miles expire. */
+const HORIZON = 40;
 
 export function TabMiles({ state: S, setState }: Props) {
   const appData = useContext(AppDataContext);
-  const milesApi = useMiles();
-  const milesLoadError = useDomainLoadError("miles").error;
-  const prefs = resolveMilesPrefs(S);
+  const miles = useMiles();
+  const loadError = useDomainLoadError("miles").error;
+  const prefs: MilesPlannerPrefs = S.milesPlanner ?? DEFAULT_MILES_PREFS;
 
-  const [editingGoal, setEditingGoal] = useState(false);
-  const [goalDraft, setGoalDraft] = useState(0);
-  const [savingGoal, setSavingGoal] = useState(false);
+  const now = sgtThisMonth();
+  const end = now + HORIZON;
+  const today = useMemo(() => new Date(), []);
+  const day = sgtDayOfMonth();
+  const { lots, activity } = miles;
 
-  const [editingBalances, setEditingBalances] = useState(false);
-  const [balancesDraft, setBalancesDraft] = useState<MilesBalance[]>([]);
-  const [savingBalances, setSavingBalances] = useState(false);
-  const [balancesMsg, setBalancesMsg] = useState("");
-
-  const saveMilesPrefs = async (patch: Partial<MilesPlannerPrefs>) => {
-    const next = { ...prefs, ...patch };
-    if (appData?.configured) {
-      await appData.saveProfile({ milesPlanner: next });
-    } else {
-      setState((prev) => ({ ...prev, milesPlanner: next }));
+  // Projected earning: saved figures, else the last 12 months' average for the expiring cards.
+  const [earnDraft, setEarnDraft] = useState<EarnPerMonth | null>(null);
+  const earn: EarnPerMonth = useMemo(() => {
+    const out: EarnPerMonth = {};
+    for (const p of PROGRAM_ORDER) {
+      out[p] =
+        earnDraft?.[p] ??
+        prefs.earnPerMonth[p] ??
+        (p === "dbs_womans_world" || p === "uob" ? averageMonthlyEarn(lots, p, now) : 0);
     }
-  };
+    return out;
+  }, [earnDraft, prefs.earnPerMonth, lots, now]);
 
-  const startGoalEdit = () => {
-    setGoalDraft(prefs.goalMiles);
-    setEditingGoal(true);
-    console.info("[TabMiles] goal edit on");
-  };
-
-  const saveGoal = async () => {
-    setSavingGoal(true);
-    try {
-      await saveMilesPrefs({ goalMiles: goalDraft });
-      setEditingGoal(false);
-      console.info("[TabMiles] goal saved", goalDraft);
-    } catch (e) {
-      console.error("[TabMiles] goal save failed", e);
-      notifySaveFailed("your miles goal", e);
-    } finally {
-      setSavingGoal(false);
-    }
-  };
-
-  const changeDisplayProgram = async (program: MileProgramKey) => {
-    try {
-      await saveMilesPrefs({ displayProgram: program });
-      console.info("[TabMiles] display program saved", program);
-    } catch (e) {
-      console.error("[TabMiles] display program save failed", e);
-      notifySaveFailed("your display programme", e);
-    }
-  };
-
-  const goalMiles = editingGoal ? goalDraft : prefs.goalMiles;
-  const displayProgram = prefs.displayProgram;
-  const displayProgramLabel =
-    MILE_PROGRAMS.find((p) => p.key === displayProgram)?.label ?? displayProgram;
-
-  const { achievable, next } = useMemo(() => estimateRedemption(goalMiles), [goalMiles]);
-
-  const startBalancesEdit = () => {
-    setBalancesDraft(milesApi.balances);
-    setEditingBalances(true);
-    console.info("[TabMiles] balances edit on");
-  };
-
-  const saveBalancesEdit = async () => {
-    setSavingBalances(true);
-    setBalancesMsg("");
-    try {
-      await milesApi.saveBalances(balancesDraft);
-      setEditingBalances(false);
-      console.info("[TabMiles] balances saved");
-    } catch (e) {
-      setBalancesMsg(e instanceof Error ? e.message : "Failed to save miles balances");
-    } finally {
-      setSavingBalances(false);
-    }
-  };
-
-  const updateBalance = (i: number, patch: Partial<MilesBalance>) => {
-    setBalancesDraft((prev) => prev.map((b, j) => (j === i ? { ...b, ...patch } : b)));
-  };
-
-  const updateBalanceRate = (i: number, program: MileProgramKey, rate: number) => {
-    setBalancesDraft((prev) =>
-      prev.map((b, j) => {
-        if (j !== i) return b;
-        const rates = { ...b.rates };
-        if (rate > 0) rates[program] = rate;
-        else delete rates[program];
-        return { ...b, rates };
-      })
-    );
-  };
-
-  const addBalanceRow = (preset?: MilesBankPreset) => {
-    setBalancesDraft((prev) => [
-      ...prev,
-      {
-        ...emptyBalance(prev.length),
-        name: preset?.name ?? "",
-        rates: preset?.rates ?? {},
-      },
-    ]);
-  };
-
-  const removeBalanceRow = (i: number) => {
-    setBalancesDraft((prev) => prev.filter((_, j) => j !== i));
-  };
-
-  const displayBalances = editingBalances ? balancesDraft : milesApi.balances;
-  const totalMiles = milesApi.totals?.milesByProgram[displayProgram] ?? 0;
-  const uncounted = milesApi.totals?.uncountedByProgram[displayProgram] ?? 0;
-
-  const soonestExpiring = useMemo(
-    () =>
-      milesApi.balances
-        .filter((b): b is MilesBalance & { expiryDate: string } => Boolean(b.expiryDate))
-        .sort((a, b) => (a.expiryDate < b.expiryDate ? -1 : 1))
-        .slice(0, 3),
-    [milesApi.balances]
+  const plan = useMemo(
+    () => simulateMiles(lots, { now, end, plan: true, earnPerMonth: prefs.earnOn ? earn : null }),
+    [lots, now, end, prefs.earnOn, earn]
   );
+  const base = useMemo(
+    () => simulateMiles(lots, { now, end, plan: false, earnPerMonth: prefs.earnOn ? earn : null }),
+    [lots, now, end, prefs.earnOn, earn]
+  );
+  const todos = useMemo(() => buildTodos(plan, lots, now), [plan, lots, now]);
+  const target = awardMiles(prefs.targetTier, prefs.trip);
+  const tier = awardTier(prefs.targetTier);
+  const targetLabel = `${tier.region} ${tier.cabin}, ${prefs.trip === "return" ? "return" : "one-way"}`;
+  const insights = useMemo(() => flightInsights(plan, base, target), [plan, base, target]);
+
+  const savePrefs = async (patch: Partial<MilesPlannerPrefs>) => {
+    const next = { ...prefs, ...patch };
+    try {
+      if (appData?.configured) await appData.saveProfile({ milesPlanner: next });
+      else setState((prev) => ({ ...prev, milesPlanner: next }));
+      console.info("[TabMiles] prefs saved", patch);
+    } catch (e) {
+      console.error("[TabMiles] prefs save failed", e);
+      notifySaveFailed("your miles chart settings", e);
+    }
+  };
+
+  const balances = balancesAt(lots, now);
+  const allMiles = balances.krisflyer + CARD_PROGRAMS.reduce((s, p) => s + balances[p] * MILES_PROGRAMS[p].ratio, 0);
+  const kfNext = nextExpiry(lots, "krisflyer", now);
+  const soonest = PROGRAM_ORDER.map((p) => ({ p, next: nextExpiry(lots, p, now) }))
+    .filter((x): x is { p: MilesProgram; next: { month: number; amount: number } } => x.next !== null)
+    .sort((a, b) => a.next.month - b.next.month)[0];
+  const soonestDays = soonest ? daysUntilEndOf(soonest.next.month, today) : null;
+  const editingBlocked = Boolean(loadError);
+
+  if (miles.loading && !lots.length) {
+    return (
+      <section className="panel on">
+        <SkeletonLines lines={6} label="Loading your miles" />
+      </section>
+    );
+  }
 
   return (
-    <section className="panel on">
-      <div className="callout tip">
-        <span className="ico">Tip</span>
-        Set a miles goal to see what destination and cabin it could redeem, track your bank
-        points below, and pick which frequent-flyer program to show the total in. Conversion
-        rates are starting estimates — verify against your bank&apos;s current transfer chart.
-      </div>
+    <section className="panel on mt-page">
+      <DomainLoadErrorBanner domain="miles" />
+      {!miles.configured && !loadError ? <p className="note">Sign in to track your miles.</p> : null}
 
-      <div className="section-head">
-        <h2>Miles goal</h2>
-        {editingGoal ? (
-          <button
-            type="button"
-            className="btn sm"
-            disabled={savingGoal}
-            onClick={() => void saveGoal()}
-          >
-            {savingGoal ? "Saving…" : "Save"}
-          </button>
-        ) : (
-          <button type="button" className="btn ghost sm" onClick={startGoalEdit}>
-            Edit
-          </button>
-        )}
-      </div>
-      <div className="card">
-        {editingGoal ? (
-          <div className="ctrl">
-            <label>
-              Goal (miles)
-              <DecimalInput value={goalDraft} step={1000} min={0} onChange={setGoalDraft} />
-            </label>
-          </div>
-        ) : (
-          <div className="grid g2">
-            <div className="stat accent">
-              <div className="lbl">Miles goal</div>
-              <div className="val">{fmtMiles(goalMiles)} miles</div>
-            </div>
-          </div>
-        )}
-        {achievable ? (
-          <p>
-            You can redeem: <b>{achievable.cabin}</b> to {achievable.region} (
-            {achievable.examples}) — ~{fmtMiles(achievable.milesOneWay)} miles one-way.
-          </p>
-        ) : (
-          <p className="note">Set a goal above to see what you can redeem.</p>
-        )}
-        {next ? (
-          <p className="note">
-            {fmtMiles(next.milesOneWay - goalMiles)} more miles for {next.cabin} to{" "}
-            {next.region} ({next.examples}).
-          </p>
-        ) : null}
-        <p className="note" style={{ fontSize: 12 }}>
-          Approximate one-way KrisFlyer Saver award pricing — actual pricing varies by route,
-          date, and award seat availability.
-        </p>
-      </div>
-
-      <div className="section-head">
-        <h2>Total miles</h2>
-      </div>
-      <div className="ctrl">
-        <label>
-          Show total in
-          <select
-            value={displayProgram}
-            onChange={(e) => void changeDisplayProgram(e.target.value as MileProgramKey)}
-          >
-            {MILE_PROGRAMS.map((p) => (
-              <option key={p.key} value={p.key}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="grid g2">
+      <div className="grid g4 mt-kpis">
         <div className="stat accent">
-          <div className="lbl">{displayProgramLabel} total</div>
-          <div className="val">{fmtMiles(totalMiles)} miles</div>
-          {uncounted > 0 ? (
+          <div className="lbl">Ready to redeem now</div>
+          <div className="val">{fmt(plan.months[0]?.total ?? 0)} miles</div>
+          <div className="note">KrisFlyer plus full 5,000-point blocks. {fmt(allMiles)} if every point could convert.</div>
+        </div>
+        <div className="stat">
+          <div className="lbl">KrisFlyer balance</div>
+          <div className="val">{fmt(balances.krisflyer)} miles</div>
+          <div className="note">{kfNext ? `First ${fmt(kfNext.amount)} expire ${expiryDateLabel(kfNext.month)}` : "Nothing expiring"}</div>
+        </div>
+        <div className="stat">
+          <div className="lbl">Card points</div>
+          <div className="mt-kpi-points">
+            {CARD_PROGRAMS.map((p) => (
+              <span key={p}>
+                <span>
+                  <i className="dot" style={{ background: programColor(p) }} />
+                  {MILES_PROGRAMS[p].short}
+                </span>
+                <b>{fmt(balances[p])}</b>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className={`stat${soonestDays !== null && soonestDays <= 60 ? " warn" : ""}`}>
+          <div className="lbl">Next points to expire</div>
+          <div className="val">{soonest ? expiryDateLabel(soonest.next.month) : "None"}</div>
+          {soonest ? (
             <div className="note">
-              {uncounted} {uncounted === 1 ? "balance" : "balances"} excluded — add a{" "}
-              {displayProgramLabel} rate to include
+              {fmt(soonest.next.amount)} {MILES_PROGRAMS[soonest.p].unit} · {MILES_PROGRAMS[soonest.p].short} · {soonestDays} days left
             </div>
           ) : null}
         </div>
-        <div className="stat">
-          <div className="lbl">Points balances tracked</div>
-          <div className="val">{milesApi.balances.length}</div>
-        </div>
       </div>
 
-      {soonestExpiring.length ? (
-        <div className="callout urgent">
-          <span className="ico">Expiring soon</span>
-          {soonestExpiring.map((b) => (
-            <div key={b.id}>
-              <b>{b.name || "Points"}</b>: {fmtMiles(b.expiringAmount ?? b.pointsBalance)} pts
-              expiring {b.expiryDate}
-            </div>
+      <div className="section-head">
+        <h2>What to do next</h2>
+      </div>
+      <p className="note mt-intro">
+        Worked out from your expiry dates, the 5,000-point conversion blocks and the 3-year KrisFlyer validity you get after converting.
+      </p>
+      <div className="card">
+        <MilesTodoList todos={todos} today={today} />
+      </div>
+
+      <div className="section-head">
+        <h2>When to convert each card</h2>
+      </div>
+      <p className="note mt-intro">
+        Each bar is one lot, from the month you earned it to the month it expires. A diamond marks a planned conversion. The hatched
+        blue bar after it is the new 3-year KrisFlyer life those points get.
+      </p>
+      <CardSummaries lots={lots} plan={plan} now={now} krisflyer={balances.krisflyer} />
+      <div className="card">
+        <div className="legend mt-legend">
+          {PROGRAM_ORDER.map((p) => (
+            <span key={p}>
+              <i className="dot" style={{ background: programColor(p) }} />
+              {MILES_PROGRAMS[p].name}
+            </span>
           ))}
+          <span>
+            <i className="mt-legend-diamond" />
+            Convert
+          </span>
+          <span>
+            <i className="mt-legend-ext" />
+            Life after converting
+          </span>
         </div>
+        <ValidityTimeline lots={lots} plan={plan} now={now} end={end} day={day} />
+      </div>
+
+      <div className="section-head">
+        <h2>When to redeem for a flight</h2>
+      </div>
+      <p className="note mt-intro">
+        Miles you could put towards an award each month: KrisFlyer miles plus card points in full 5,000-point blocks, at 1 point = 2
+        miles. Card points are converted just before they expire.
+      </p>
+      <div className="card mt-flight">
+        <div className="mt-controls">
+          <label className="mt-field">
+            Award to aim for
+            <select value={prefs.targetTier} onChange={(e) => void savePrefs({ targetTier: Number(e.target.value) })}>
+              {KRISFLYER_SAVER_CHART.map((t, i) => (
+                <option key={`${t.region}-${t.cabin}`} value={i}>
+                  {t.region} · {t.cabin} · {fmt(t.milesOneWay * (prefs.trip === "return" ? 2 : 1))}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="mt-field">
+            Trip
+            <SegmentedControl<TripType>
+              label="Trip type"
+              value={prefs.trip}
+              onChange={(v) => void savePrefs({ trip: v })}
+              options={[
+                { value: "oneWay", label: "One-way" },
+                { value: "return", label: "Return" },
+              ]}
+            />
+          </div>
+          <label className="mt-toggle">
+            <input type="checkbox" checked={prefs.earnOn} onChange={(e) => void savePrefs({ earnOn: e.target.checked })} />
+            Add points I expect to keep earning
+          </label>
+        </div>
+        {prefs.earnOn ? (
+          <div className="mt-earn">
+            {PROGRAM_ORDER.map((p) => (
+              <label key={p} className="mt-field">
+                <span>
+                  <i className="dot" style={{ background: programColor(p) }} /> {MILES_PROGRAMS[p].short} per month
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={String(earn[p] ?? 0)}
+                  onChange={(e) => {
+                    const n = Math.max(0, Math.round(Number(e.target.value.replace(/,/g, "")) || 0));
+                    setEarnDraft((d) => ({ ...(d ?? {}), [p]: n }));
+                  }}
+                  onBlur={() => {
+                    if (earnDraft) void savePrefs({ earnPerMonth: { ...prefs.earnPerMonth, ...earnDraft } });
+                  }}
+                />
+              </label>
+            ))}
+            <p className="mt-hint">
+              Starts with your average over the last 12 months of logged points. KrisFlyer and Altitude start at 0, so add what you
+              expect from flights or spending.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-insights">
+          <div className="good">
+            <div className="k">Most miles to redeem</div>
+            <div className="v">{fmt(insights.peak)} miles</div>
+            <div className="d">
+              {insights.peakFrom === insights.peakTo
+                ? monthLabel(insights.peakFrom)
+                : `${monthLabel(insights.peakFrom)} to ${monthLabel(insights.peakTo)}`}
+              {insights.firstDrop !== null ? ` · first drop ${monthLabel(insights.firstDrop)}` : ""}
+            </div>
+          </div>
+          <div className="tgt">
+            <div className="k">{targetLabel}</div>
+            <div className="v">
+              {insights.target ? (insights.target.from === now ? "Book now" : `From ${monthLabel(insights.target.from)}`) : "Not reachable yet"}
+            </div>
+            <div className="d">
+              {insights.target
+                ? `${fmt(target)} miles · ${insights.target.openEnded ? "stays bookable past" : "bookable until"} ${monthLabel(insights.target.to)}`
+                : `You're ${fmt(insights.targetShortBy)} miles short at your peak.`}
+            </div>
+          </div>
+          <div className="bad">
+            <div className="k">If you never convert</div>
+            <div className="v">{insights.neverConvertGap ? `−${fmt(insights.neverConvertGap.miles)} miles` : "No difference"}</div>
+            <div className="d">
+              {insights.neverConvertGap
+                ? `by ${monthLabel(insights.neverConvertGap.month)}${insights.neverConvertGap.lossesFrom !== null ? `, losses start ${monthLabel(insights.neverConvertGap.lossesFrom)}` : ""}`
+                : "Your card points don't expire in this period"}
+            </div>
+          </div>
+        </div>
+
+        <div className="legend mt-legend">
+          {PROGRAM_ORDER.map((p) => (
+            <span key={p}>
+              <i className="dot" style={{ background: programColor(p) }} />
+              {p === "krisflyer" ? "KrisFlyer miles" : `${MILES_PROGRAMS[p].short} (converted or convertible)`}
+            </span>
+          ))}
+          <span>
+            <i className="mt-legend-line" />
+            If you never convert
+          </span>
+          <span>
+            <i className="mt-legend-line target" />
+            Award target
+          </span>
+        </div>
+        <RedeemChart plan={plan} base={base} targetMiles={target} targetLabel={targetLabel} />
+      </div>
+
+      <div className="section-head">
+        <h2>Your logged points</h2>
+      </div>
+      <p className="note mt-intro">
+        Each programme logs the way its bank shows it: KrisFlyer by month earned, Woman&apos;s World by expiry month from the DBS app,
+        Altitude as points added, and UOB as your UNI$ balance from the UOB app.
+      </p>
+      {miles.configured ? (
+        <>
+          <MilesLogPanel lots={lots} now={now} mutate={miles.mutate} disabled={editingBlocked} />
+          <div className="card">
+            <h3>Activity</h3>
+            <MilesActivityList activity={activity} mutate={miles.mutate} disabled={editingBlocked} />
+          </div>
+          <MilesLedger lots={lots} now={now} mutate={miles.mutate} disabled={editingBlocked} />
+        </>
       ) : null}
 
       <div className="section-head">
-        <h2>Points balances</h2>
-        {editingBalances ? (
-          <button
-            type="button"
-            className="btn sm"
-            disabled={savingBalances}
-            onClick={() => void saveBalancesEdit()}
-          >
-            {savingBalances ? "Saving…" : "Save"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            disabled={Boolean(milesLoadError)}
-            onClick={startBalancesEdit}
-          >
-            Edit
-          </button>
-        )}
+        <h2>Rules this uses</h2>
       </div>
-      <div className="callout tip" style={{ marginBottom: 12 }}>
-        Add a row per bank/points program (e.g. DBS Points, Max Miles) — the rates below each
-        row are points needed for 1 mile in that program; leave a program blank if you don&apos;t
-        know the rate yet. Add more banks any time you get a new card.
-      </div>
-      {balancesMsg ? <p className="pin-error">{balancesMsg}</p> : null}
-      <DomainLoadErrorBanner domain="miles" />
-
       <div className="card">
-        {milesLoadError ? null : !milesApi.configured ? (
-          <p className="note">Sign in to add points balances.</p>
-        ) : editingBalances ? (
-          <>
-            {balancesDraft.length === 0 ? (
-              <p className="note">Add your bank points and Max Miles below.</p>
-            ) : (
-              <>
-                <div className="table-scroll">
-                <div className="editrow miles head">
-                  <span>Bank / Program</span>
-                  <span>Points balance</span>
-                  <span>Expiring amount</span>
-                  <span>Expiry date</span>
-                  <span>Notes</span>
-                  <span></span>
-                </div>
-                {balancesDraft.map((b, i) => (
-                  <div key={b.id} style={{ marginBottom: 14 }}>
-                    <div className="editrow miles">
-                      <input
-                        type="text"
-                        value={b.name}
-                        placeholder="e.g. DBS Points"
-                        onChange={(e) => updateBalance(i, { name: e.target.value })}
-                      />
-                      <DecimalInput
-                        value={b.pointsBalance}
-                        step={1}
-                        min={0}
-                        onChange={(v) => updateBalance(i, { pointsBalance: v })}
-                      />
-                      <DecimalInput
-                        value={b.expiringAmount ?? 0}
-                        step={1}
-                        min={0}
-                        onChange={(v) => updateBalance(i, { expiringAmount: v || null })}
-                      />
-                      <input
-                        type="date"
-                        value={b.expiryDate ?? ""}
-                        onChange={(e) =>
-                          updateBalance(i, { expiryDate: e.target.value || null })
-                        }
-                      />
-                      <input
-                        type="text"
-                        value={b.notes}
-                        placeholder="Notes"
-                        onChange={(e) => updateBalance(i, { notes: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        className="btn del sm"
-                        onClick={() => removeBalanceRow(i)}
-                      >
-                        del
-                      </button>
-                    </div>
-                    <div className="ctrl" style={{ marginTop: 4, marginBottom: 0 }}>
-                      {MILE_PROGRAMS.map((p) => (
-                        <label key={p.key} style={{ fontSize: 12 }}>
-                          {p.label} rate
-                          <DecimalInput
-                            value={b.rates[p.key] ?? 0}
-                            step={0.1}
-                            min={0}
-                            onChange={(v) => updateBalanceRate(i, p.key, v)}
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                </div>
-              </>
-            )}
-            <div className="ctrl" style={{ marginBottom: 0 }}>
-              {MILES_BANK_PRESETS.map((preset) => (
-                <button
-                  key={preset.name}
-                  type="button"
-                  className="btn ghost sm"
-                  onClick={() => addBalanceRow(preset)}
-                >
-                  + {preset.name}
-                </button>
-              ))}
-              <button type="button" className="btn ghost sm" onClick={() => addBalanceRow()}>
-                + Custom
-              </button>
-            </div>
-          </>
-        ) : displayBalances.length === 0 ? (
-          <p className="note">No points balances yet. Click Edit to add one.</p>
-        ) : (
-          <div className="table-scroll">
-            <table className="ledger-table">
-              <thead>
-                <tr>
-                  <th>Bank / Program</th>
-                  <th className="num">Points balance</th>
-                  <th className="num">{displayProgramLabel} miles</th>
-                  <th>Expiry</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayBalances.map((b) => {
-                  const rate = b.rates[displayProgram];
-                  const miles = rate && rate > 0 ? b.pointsBalance / rate : null;
-                  return (
-                    <tr key={b.id}>
-                      <td>
-                        <strong>{b.name || "—"}</strong>
-                      </td>
-                      <td className="num">{fmtMiles(b.pointsBalance)}</td>
-                      <td className="num">{miles != null ? fmtMiles(miles) : "—"}</td>
-                      <td>
-                        {b.expiryDate
-                          ? `${fmtMiles(b.expiringAmount ?? b.pointsBalance)} pts · ${b.expiryDate}`
-                          : "—"}
-                      </td>
-                      <td className="note" style={{ fontSize: 12 }}>
-                        {b.notes || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="table-scroll">
+          <table className="mt-rules">
+            <thead>
+              <tr>
+                <th>Programme</th>
+                <th>Validity</th>
+                <th>To KrisFlyer</th>
+                <th>Smallest conversion</th>
+                <th>Fee per conversion</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>KrisFlyer</td>
+                <td>3 years, to the end of the month earned. Converted miles also get 3 years from the conversion month.</td>
+                <td>n/a</td>
+                <td>n/a</td>
+                <td>n/a</td>
+              </tr>
+              <tr>
+                <td>DBS Woman&apos;s World</td>
+                <td>1 year from the end of the quarter earned</td>
+                <td>1 pt = 2 miles</td>
+                <td>5,000 pts = 10,000 miles</td>
+                <td>S$27.25</td>
+              </tr>
+              <tr>
+                <td>DBS Altitude</td>
+                <td>No expiry. Altitude can also join DBS auto-conversion (500-point blocks, S$43.60 a year).</td>
+                <td>1 pt = 2 miles</td>
+                <td>5,000 pts = 10,000 miles</td>
+                <td>S$27.25</td>
+              </tr>
+              <tr>
+                <td>UOB UNI$</td>
+                <td>2 years from the end of the quarter earned. All UOB cards share one pool.</td>
+                <td>UNI$1 = 2 miles</td>
+                <td>UNI$5,000 = 10,000 miles</td>
+                <td>S$27</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="note">
+          DBS points stay with the card that earned them, so Woman&apos;s World points can&apos;t top up Altitude points to make a
+          block. Check each bank&apos;s current terms before you convert.
+        </p>
       </div>
     </section>
   );

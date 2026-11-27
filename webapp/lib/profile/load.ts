@@ -6,6 +6,8 @@ import type {
   IlpPolicy,
 } from "@/lib/types";
 import type { MilesPlannerPrefs } from "@/lib/miles/types";
+import { DEFAULT_MILES_PREFS } from "@/lib/miles/award-chart";
+import { isMilesProgram } from "@/lib/miles/programs";
 import { createEmptyState } from "@/lib/finance/defaults";
 import { normalizeBtoPlannerPrefs } from "@/lib/finance/bto";
 import { sgtTodayYmd } from "@/lib/time/sgt";
@@ -63,18 +65,22 @@ export async function loadFinanceProfile(
   };
 }
 
-const MILE_PROGRAM_KEYS = ["krisflyer", "asiaMiles", "avios", "enrich"];
-
 function normalizeMilesPlannerPrefs(
   raw: Partial<MilesPlannerPrefs> | null | undefined
 ): MilesPlannerPrefs | undefined {
   if (!raw || typeof raw !== "object" || Object.keys(raw).length === 0) return undefined;
-  const displayProgram = MILE_PROGRAM_KEYS.includes(raw.displayProgram ?? "")
-    ? (raw.displayProgram as MilesPlannerPrefs["displayProgram"])
-    : "krisflyer";
+  // Settings saved by the old single-balance tracker (goalMiles/displayProgram) fall back to defaults.
+  const tier = Number(raw.targetTier);
+  const earnPerMonth: MilesPlannerPrefs["earnPerMonth"] = {};
+  for (const [k, v] of Object.entries(raw.earnPerMonth ?? {})) {
+    const n = Number(v);
+    if (isMilesProgram(k) && Number.isFinite(n) && n >= 0) earnPerMonth[k] = Math.round(n);
+  }
   return {
-    goalMiles: Number(raw.goalMiles ?? 0),
-    displayProgram,
+    targetTier: Number.isInteger(tier) && tier >= 0 ? tier : DEFAULT_MILES_PREFS.targetTier,
+    trip: raw.trip === "oneWay" ? "oneWay" : "return",
+    earnOn: raw.earnOn === true,
+    earnPerMonth,
   };
 }
 
